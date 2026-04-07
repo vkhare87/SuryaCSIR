@@ -1,0 +1,109 @@
+@import "tailwindcss";
+
+@theme {
+  /* Warm Brand Colors */
+  --color-terracotta: #c96442;
+  --color-terracotta-hover: #b5593b;
+  --color-coral: #d97757;
+  --color-warm-sand: #e8e6dc;
+  --color-warm-sand-hover: #dddbd1;
+  --color-near-black: #141413;
+  --color-dark-surface: #30302e;
+  --color-parchment: #f5f4ed;
+  --color-ivory: #faf9f5;
+  --color-border-cream: #f0eee6;
+  --color-border-warm: #e8e6dc;
+  --color-ring-warm: #d1cfc5;
+  --color-charcoal-warm: #4d4c48;
+  --color-olive-gray: #5e5d59;
+  --color-stone-gray: #87867f;
+  --color-warm-silver: #b0aea5;
+  --color-error-crimson: #b53333;
+  --color-focus-blue: #3898ec;
+
+  /* CSS-var pass-throughs for Tailwind utility resolution */
+  --color-surface: var(--color-surface);
+  --color-surface-hover: var(--color-surface-hover);
+  --color-background: var(--color-background);
+  --color-border: var(--color-border);
+  --color-text: var(--color-text);
+  --color-text-muted: var(--color-text-muted);
+
+  /* Fonts */
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-serif: Georgia, 'Times New Roman', serif;
+
+  /* Ring Shadows */
+  --shadow-ring: 0px 0px 0px 1px #e8e6dc;
+  --shadow-ring-hover: 0px 0px 0px 1px #d1cfc5;
+  --shadow-ring-dark: 0px 0px 0px 1px #30302e;
+}
+
+/* Light Theme Variables */
+:root {
+  --color-background: #f5f4ed;      /* Parchment */
+  --color-surface: #faf9f5;         /* Ivory */
+  --color-surface-hover: #f0eee6;   /* Border Cream — used as hover bg */
+  --color-border: #f0eee6;          /* Border Cream */
+  --color-text: #141413;            /* Near Black */
+  --color-text-muted: #5e5d59;      /* Olive Gray */
+
+  --density-padding-base: 1rem;
+  --density-gap-base: 1rem;
+}
+
+/* Dark Theme Variables */
+.dark {
+  --color-background: #141413;      /* Near Black */
+  --color-surface: #30302e;         /* Dark Surface */
+  --color-surface-hover: #3d3d3a;   /* slightly lighter dark */
+  --color-border: #30302e;          /* Border Dark */
+  --color-text: #faf9f5;            /* Ivory */
+  --color-text-muted: #b0aea5;      /* Warm Silver */
+}
+
+/* Density Variants */
+.density-compact {
+  --density-padding-base: 0.5rem;
+  --density-gap-base: 0.5rem;
+}
+
+.density-relaxed {
+  --density-padding-base: 1.5rem;
+  --density-gap-base: 1.5rem;
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    background-color: var(--color-background);
+    color: var(--color-text);
+  }
+
+  body {
+    @apply antialiased min-h-screen text-text bg-background;
+    line-height: 1.60;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+}
+
+@layer utilities {
+  .glass {
+    @apply bg-surface/80 backdrop-blur-md border border-border;
+  }
+  .glass-dark {
+    @apply bg-[#141413]/80 backdrop-blur-md border border-[#30302e];
+  }
+  .heading {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-weight: 500;
+    line-height: 1.20;
+  }
+  .p-density {
+    padding: var(--density-padding-base);
+  }
+  .gap-density {
+    gap: var(--density-gap-base);
+  }
+}
