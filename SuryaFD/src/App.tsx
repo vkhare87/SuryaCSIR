@@ -17,9 +17,11 @@ import Login from './pages/Login';
 import SetupWizard from './pages/SetupWizard';
 import { useAuth } from './contexts/AuthContext';
 import { isProvisioned } from './utils/supabaseClient';
+import type { Role } from './types';
+import { ROLE_ROUTES } from './constants/roleRoutes';
 
 interface ProtectedRouteProps {
-  allowedRoles?: string[];
+  allowedRoles?: Role[];
   children?: React.ReactNode;
 }
 
@@ -43,7 +45,7 @@ function ProtectedRoute({ allowedRoles, children }: ProtectedRouteProps) {
   }
 
   if (allowedRoles && user && !allowedRoles.includes(user.role)) {
-    return <Navigate to="/" replace />;
+    return <Navigate to={ROLE_ROUTES[user.role]} replace />;
   }
 
   return children ? <>{children}</> : <Outlet />;
@@ -60,6 +62,13 @@ function App() {
         <Route element={<ProtectedRoute />}>
           <Route element={<Layout />}>
             <Route path="/" element={<Dashboard />} />
+            <Route path="/director"      element={<ProtectedRoute allowedRoles={['Director']}><Dashboard /></ProtectedRoute>} />
+            <Route path="/division-head" element={<ProtectedRoute allowedRoles={['DivisionHead']}><Dashboard /></ProtectedRoute>} />
+            <Route path="/scientist"     element={<ProtectedRoute allowedRoles={['Scientist']}><Dashboard /></ProtectedRoute>} />
+            <Route path="/technician"    element={<ProtectedRoute allowedRoles={['Technician']}><Dashboard /></ProtectedRoute>} />
+            <Route path="/hr-admin"      element={<ProtectedRoute allowedRoles={['HRAdmin']}><Dashboard /></ProtectedRoute>} />
+            <Route path="/finance-admin" element={<ProtectedRoute allowedRoles={['FinanceAdmin']}><Dashboard /></ProtectedRoute>} />
+            <Route path="/system-admin"  element={<ProtectedRoute allowedRoles={['SystemAdmin']}><Dashboard /></ProtectedRoute>} />
             <Route path="/staff" element={<HumanCapital />} />
             <Route path="/staff/:id" element={<StaffDetail />} />
             <Route path="/projects" element={<Projects />} />
