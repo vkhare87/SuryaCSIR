@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
-import { 
-  Users, 
-  Briefcase, 
-  BookOpen, 
-  Microscope, 
-  LogOut, 
-  PanelLeftClose, 
-  PanelLeftOpen, 
-  Settings as SettingsIcon, 
+import {
+  Users,
+  Briefcase,
+  BookOpen,
+  Microscope,
+  LogOut,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Settings as SettingsIcon,
   LayoutDashboard,
   Calendar as CalendarIcon,
   Building2,
@@ -17,7 +17,7 @@ import {
   Database,
   Network,
   Menu,
-  X 
+  X
 } from 'lucide-react';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -27,6 +27,7 @@ import SettingsModal from '../SettingsModal';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUI } from '../../contexts/UIContext';
 import type { Role } from '../../types';
+import { ROLE_ROUTES } from '../../constants/roleRoutes';
 
 // All 7 roles — used for nav items accessible to every authenticated user
 const ALL_ROLES: Role[] = ['Director', 'DivisionHead', 'Scientist', 'Technician', 'HRAdmin', 'FinanceAdmin', 'SystemAdmin'];
@@ -35,20 +36,20 @@ interface NavItem {
   path: string;
   label: string;
   icon: any;
-  roles: Role[];
+  allowedRoles: Role[];
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { path: '/', label: 'Dashboard', icon: LayoutDashboard, roles: ALL_ROLES },
-  { path: '/staff', label: 'Human Capital', icon: Users, roles: ALL_ROLES },
-  { path: '/projects', label: 'Projects', icon: Briefcase, roles: ALL_ROLES },
-  { path: '/phd', label: 'PhD Tracker', icon: BookOpen, roles: ALL_ROLES },
-  { path: '/divisions', label: 'Divisions', icon: Network, roles: ALL_ROLES },
-  { path: '/intelligence', label: 'Intelligence', icon: Microscope, roles: ALL_ROLES },
-  { path: '/facilities', label: 'Facilities', icon: Building2, roles: ['HRAdmin', 'FinanceAdmin', 'SystemAdmin'] },
-  { path: '/recruitment', label: 'Recruitment', icon: FileText, roles: ['HRAdmin', 'SystemAdmin'] },
-  { path: '/calendar', label: 'Calendar', icon: CalendarIcon, roles: ALL_ROLES },
-  { path: '/data', label: 'Data Management', icon: Database, roles: ['SystemAdmin'] },
+  { path: '/',             label: 'Dashboard',       icon: LayoutDashboard, allowedRoles: ALL_ROLES },
+  { path: '/staff',        label: 'Human Capital',   icon: Users,           allowedRoles: ['Director', 'DivisionHead', 'HRAdmin', 'SystemAdmin'] },
+  { path: '/projects',     label: 'Projects',        icon: Briefcase,       allowedRoles: ['Director', 'DivisionHead', 'Scientist', 'FinanceAdmin', 'SystemAdmin'] },
+  { path: '/phd',          label: 'PhD Tracker',     icon: BookOpen,        allowedRoles: ['Director', 'DivisionHead', 'Scientist', 'SystemAdmin'] },
+  { path: '/divisions',    label: 'Divisions',       icon: Network,         allowedRoles: ['Director', 'SystemAdmin'] },
+  { path: '/intelligence', label: 'Intelligence',    icon: Microscope,      allowedRoles: ['Director', 'DivisionHead', 'Scientist', 'SystemAdmin'] },
+  { path: '/facilities',   label: 'Facilities',      icon: Building2,       allowedRoles: ['Director', 'DivisionHead', 'Technician', 'SystemAdmin'] },
+  { path: '/recruitment',  label: 'Recruitment',     icon: FileText,        allowedRoles: ['HRAdmin', 'SystemAdmin'] },
+  { path: '/calendar',     label: 'Calendar',        icon: CalendarIcon,    allowedRoles: ALL_ROLES },
+  { path: '/data',         label: 'Data Management', icon: Database,        allowedRoles: ['SystemAdmin'] },
 ];
 
 export function Layout() {
@@ -56,11 +57,14 @@ export function Layout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  
-  const { user, logout, hasPermission } = useAuth();
+
+  const { user, logout, role } = useAuth();
   const { isMobile, deviceType } = useUI();
-  
-  const filteredNav = NAV_ITEMS.filter(item => hasPermission(item.roles));
+
+  const dashboardPath = role ? ROLE_ROUTES[role] : '/';
+  const filteredNav = NAV_ITEMS
+    .filter(item => role && item.allowedRoles.includes(role))
+    .map(item => item.path === '/' ? { ...item, path: dashboardPath } : item);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -90,7 +94,7 @@ export function Layout() {
           </div>
         )}
         {!isMobileView && (
-          <button 
+          <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className="p-1 hover:bg-[#30302e] rounded transition-colors"
           >
@@ -134,7 +138,7 @@ export function Layout() {
             {(sidebarOpen || isMobileView) && <span>Settings</span>}
           </button>
           <button
-            onClick={logout}
+            onClick={() => { void logout(); isMobileView && setMobileMenuOpen(false); }}
             className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#d97757] hover:bg-[#30302e]/60 w-full transition-colors"
           >
             <LogOut size={20} className={(sidebarOpen || isMobileView) ? "shrink-0" : "mx-auto shrink-0"} />
@@ -146,10 +150,10 @@ export function Layout() {
 
   return (
     <div className="flex h-screen w-full bg-background overflow-hidden font-sans">
-      
+
       {/* Desktop Sidebar */}
       {!isMobile && (
-        <aside 
+        <aside
           className={clsx(
             "h-full bg-[#141413] text-[#faf9f5] transition-all duration-300 flex flex-col z-20",
             sidebarOpen ? "w-64" : "w-16"
@@ -163,7 +167,7 @@ export function Layout() {
       <AnimatePresence>
         {isMobile && mobileMenuOpen && (
           <>
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -185,12 +189,12 @@ export function Layout() {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
-        
+
         {/* TopBar */}
         <header className="h-16 bg-surface border-b border-border flex items-center justify-between px-4 md:px-6 z-10">
           <div className="flex items-center gap-3">
             {isMobile && (
-              <button 
+              <button
                 onClick={() => setMobileMenuOpen(true)}
                 className="p-2 -ml-2 hover:bg-surface-hover rounded-xl text-text transition-colors"
               >
@@ -201,10 +205,10 @@ export function Layout() {
               {isMobile ? 'SURYA Platform' : 'CSIR-AMPRI Executive Terminal'}
             </h1>
           </div>
-          
+
           <div className="flex items-center gap-2 md:gap-4">
               {/* Command Palette Trigger */}
-              <button 
+              <button
                 onClick={() => setCommandPaletteOpen(true)}
                 className="flex items-center gap-2 px-2 md:px-3 py-1.5 bg-surface-hover text-text-muted rounded-[8px] border border-border text-sm hover:border-[#c96442] transition-colors group"
               >
@@ -212,7 +216,7 @@ export function Layout() {
                 <span className="hidden md:inline">Search</span>
                 <kbd className="hidden lg:inline-block bg-background border border-border rounded px-1.5 text-xs font-mono">⌘K</kbd>
               </button>
-              
+
               {/* User Avatar */}
               <div className="h-8 w-8 rounded-full bg-[#c96442] text-[#faf9f5] flex items-center justify-center font-bold text-sm shadow-[0px_0px_0px_1px_#b5593b] uppercase shrink-0">
                 {user?.role?.charAt(0) || 'M'}
@@ -238,14 +242,14 @@ export function Layout() {
         </main>
       </div>
 
-      <CommandPalette 
-        isOpen={commandPaletteOpen} 
-        onClose={() => setCommandPaletteOpen(false)} 
+      <CommandPalette
+        isOpen={commandPaletteOpen}
+        onClose={() => setCommandPaletteOpen(false)}
       />
 
-      <SettingsModal 
-        isOpen={settingsOpen} 
-        onClose={() => setSettingsOpen(false)} 
+      <SettingsModal
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
       />
     </div>
   );
