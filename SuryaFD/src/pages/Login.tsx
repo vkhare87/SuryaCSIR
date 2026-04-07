@@ -1,27 +1,35 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Sun, User, Lock, ArrowRight } from 'lucide-react';
+import { ROLE_ROUTES } from '../constants/roleRoutes';
 
 export default function Login() {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, isAuthenticated, role } = useAuth();
   const navigate = useNavigate();
+
+  // Navigate to role-specific dashboard once auth and role are both resolved
+  useEffect(() => {
+    if (isAuthenticated && role) {
+      navigate(ROLE_ROUTES[role]);
+    }
+  }, [isAuthenticated, role, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
 
-    const success = await login(username, password);
-    if (success) {
-      navigate('/');
-    } else {
-      setError('Invalid credentials. Please try again.');
+    const { success, error: loginError } = await login(email, password);
+    if (!success) {
+      setError(loginError ?? 'Invalid credentials. Please try again.');
     }
+    // On success: do NOT navigate here. The useEffect above handles navigation
+    // once AuthContext sets role asynchronously after onAuthStateChange fires.
     setIsLoading(false);
   };
 
@@ -142,17 +150,17 @@ export default function Login() {
           <form onSubmit={handleLogin} className="space-y-8">
             <div className="space-y-6">
               <div className="space-y-2">
-                <label className="text-[10px] font-semibold text-[#87867f] uppercase tracking-widest ml-1">Employee ID / User</label>
+                <label className="text-[10px] font-semibold text-[#87867f] uppercase tracking-widest ml-1">Email Address</label>
                 <div className="relative group">
                   <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#b0aea5] group-focus-within:text-[#3898ec] transition-colors">
                     <User size={18} />
                   </div>
                   <input
-                    type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     className="w-full pl-12 pr-4 py-4 bg-[#f5f4ed] border border-[#f0eee6] rounded-[12px] focus:ring-2 focus:ring-[#3898ec] focus:border-[#3898ec] outline-none text-[#141413] font-medium transition-all placeholder:text-[#b0aea5]"
-                    placeholder="e.g. vkhare"
+                    placeholder="e.g. admin@ampri.res.in"
                     required
                   />
                 </div>
