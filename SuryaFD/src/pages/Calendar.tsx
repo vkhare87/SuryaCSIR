@@ -24,14 +24,14 @@ interface CalEvent {
 }
 
 const EVENT_COLOR: Record<EventType, string> = {
-  internal: 'bg-brand-blue',
-  academic: 'bg-purple-500',
+  internal: 'bg-[#c96442]',
+  academic: 'bg-[#5e5d59]',
   admin: 'bg-emerald-500',
 };
 
 const EVENT_LABEL_COLOR: Record<EventType, string> = {
-  internal: 'text-brand-blue',
-  academic: 'text-purple-500',
+  internal: 'text-[#c96442]',
+  academic: 'text-[#5e5d59]',
   admin: 'text-emerald-500',
 };
 
@@ -45,7 +45,7 @@ const SAMPLE_EVENTS: CalEvent[] = [
 
 const UPCOMING_ASSESSMENTS = [
   { title: 'Scientist Assessment Group-IV', dateStr: 'April 12 – 15', color: 'border-amber-500' },
-  { title: 'Project Audit GAP0111', dateStr: 'April 28, 2026', color: 'border-brand-blue' },
+  { title: 'Project Audit GAP0111', dateStr: 'April 28, 2026', color: 'border-[#c96442]' },
 ];
 
 const DAY_NAMES = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -102,10 +102,10 @@ export default function Calendar() {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-text">Executive Calendar</h1>
+          <h1 className="text-2xl font-[500] text-text font-serif">Executive Calendar</h1>
           <p className="text-text-muted mt-1">Schedule &amp; Institutional Assessment Timeline</p>
         </div>
-        <button className="bg-brand-blue text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-blue-dark transition-colors flex items-center gap-2 shadow-md self-start md:self-auto">
+        <button className="bg-[#c96442] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#b5593b] transition-colors flex items-center gap-2 self-start md:self-auto">
           <Plus size={16} />
           New Event
         </button>
@@ -158,13 +158,13 @@ export default function Calendar() {
                     onClick={() => { setSelectedDay(day); }}
                     className={clsx(
                       'relative py-1.5 text-xs rounded-md cursor-pointer transition-colors',
-                      isToday && !isSelected && 'text-brand-blue font-black',
-                      isSelected ? 'bg-brand-blue text-white font-bold' : 'hover:bg-surface-hover text-text'
+                      isToday && !isSelected && 'text-[#c96442] font-semibold',
+                      isSelected ? 'bg-[#c96442] text-white font-bold' : 'hover:bg-surface-hover text-text'
                     )}
                   >
                     {day}
                     {hasEvent && !isSelected && (
-                      <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-brand-blue" />
+                      <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-[#c96442]" />
                     )}
                   </button>
                 );
@@ -202,7 +202,7 @@ export default function Calendar() {
             {/* Toolbar */}
             <div className="p-4 border-b border-border bg-surface-hover flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <CalendarIcon size={18} className="text-brand-blue" />
+                <CalendarIcon size={18} className="text-[#c96442]" />
                 <h3 className="font-bold text-text">
                   {viewMode === 'day'
                     ? isCurrentMonth
@@ -217,7 +217,7 @@ export default function Calendar() {
                   onClick={() => setViewMode('day')}
                   className={clsx(
                     'px-3 py-1 text-[10px] font-bold rounded transition-colors',
-                    viewMode === 'day' ? 'bg-brand-blue text-white' : 'text-text-muted hover:text-text'
+                    viewMode === 'day' ? 'bg-[#c96442] text-white' : 'text-text-muted hover:text-text'
                   )}
                 >
                   Day
@@ -226,7 +226,7 @@ export default function Calendar() {
                   onClick={() => setViewMode('week')}
                   className={clsx(
                     'px-3 py-1 text-[10px] font-bold rounded transition-colors',
-                    viewMode === 'week' ? 'bg-brand-blue text-white' : 'text-text-muted hover:text-text'
+                    viewMode === 'week' ? 'bg-[#c96442] text-white' : 'text-text-muted hover:text-text'
                   )}
                 >
                   Week
@@ -293,7 +293,7 @@ export default function Calendar() {
                         <div className="text-[10px] font-bold text-text-muted uppercase">{['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][i]}</div>
                         <div className={clsx(
                           'text-lg font-black mt-0.5 w-8 h-8 rounded-full flex items-center justify-center mx-auto',
-                          isToday ? 'bg-brand-blue text-white' : 'text-text'
+                          isToday ? 'bg-[#c96442] text-white' : 'text-text'
                         )}>
                           {d.getDate()}
                         </div>

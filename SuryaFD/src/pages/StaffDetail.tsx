@@ -105,7 +105,7 @@ export default function StaffDetail() {
           <ArrowLeft size={20} />
         </button>
         <div>
-          <h1 className="text-2xl font-bold text-text">Staff Profile</h1>
+          <h1 className="text-2xl font-[500] text-text font-serif">Staff Profile</h1>
           <p className="text-text-muted text-sm">Detailed Human Capital Record</p>
         </div>
       </div>
@@ -116,15 +116,15 @@ export default function StaffDetail() {
         <div className="lg:col-span-1 space-y-4">
 
           {/* ID Card */}
-          <Card className="border-t-4 border-brand-blue flex flex-col pt-8 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-brand-yellow/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
+          <Card className="border-t-4 border-[#c96442] flex flex-col pt-8 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-[#d97757]/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
             <div className="flex flex-col items-center text-center space-y-4 z-10">
-              <div className="w-24 h-24 rounded-full bg-surface-hover border-4 border-background shadow-md flex items-center justify-center text-3xl font-bold text-brand-blue ring-2 ring-border">
+              <div className="w-24 h-24 rounded-full bg-surface-hover border-4 border-background flex items-center justify-center text-3xl font-bold text-[#c96442] ring-2 ring-border">
                 {member.Name.charAt(0)}
               </div>
               <div>
-                <h2 className="text-xl font-bold text-text">{member.Name}</h2>
-                <p className="text-brand-blue font-medium mt-1">{member.Designation}</p>
+                <h2 className="text-xl font-[500] text-text font-serif">{member.Name}</h2>
+                <p className="text-[#c96442] font-medium mt-1">{member.Designation}</p>
                 <div className="mt-3 flex justify-center gap-2 flex-wrap">
                   <Badge variant={member.Group === 'Scientific' ? 'success' : 'neutral'}>Group: {member.Group}</Badge>
                   <Badge variant="info">Level: {member.Level}</Badge>
@@ -143,7 +143,7 @@ export default function StaffDetail() {
                 </div>
                 <div className="flex items-start gap-3 text-text-muted">
                   <MapPin size={16} className="mt-0.5 shrink-0" />
-                  <Link to="/divisions" className="hover:text-brand-blue transition-colors hover:underline">
+                  <Link to="/divisions" className="hover:text-[#c96442] transition-colors hover:underline">
                     {division ? division.divName : member.Division}
                   </Link>
                 </div>
@@ -158,7 +158,7 @@ export default function StaffDetail() {
                       href={`https://vidwan.inflibnet.ac.in/profile/${member.VidwanID}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-brand-blue hover:underline"
+                      className="text-[#c96442] hover:underline"
                     >
                       Vidwan: {member.VidwanID}
                     </a>
@@ -170,7 +170,7 @@ export default function StaffDetail() {
 
           {/* Career Intelligence Card */}
           <Card className="space-y-4">
-            <div className="flex items-center gap-2 text-[10px] font-black text-brand-blue uppercase tracking-[0.2em]">
+            <div className="flex items-center gap-2 text-[10px] font-semibold text-[#c96442] uppercase tracking-[0.2em]">
               <TrendingUp size={14} />
               Career Intelligence
             </div>
@@ -231,8 +231,8 @@ export default function StaffDetail() {
 
           {/* Research & Expertise */}
           <Card>
-            <h3 className="text-lg font-semibold mb-4 text-text flex items-center gap-2">
-              <BookOpen size={18} className="text-brand-blue" />
+            <h3 className="text-lg font-[500] mb-4 text-text flex items-center gap-2 font-serif">
+              <BookOpen size={18} className="text-[#c96442]" />
               Research & Expertise
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-y-5 gap-x-8 text-sm">
@@ -250,8 +250,8 @@ export default function StaffDetail() {
           {/* Org Hierarchy */}
           <Card className="p-0 overflow-hidden">
             <div className="p-5 border-b border-border bg-surface flex items-center gap-2">
-              <GitBranch size={18} className="text-indigo-500" />
-              <h3 className="text-base font-semibold text-text">Organisational Hierarchy</h3>
+              <GitBranch size={18} className="text-[#5e5d59]" />
+              <h3 className="text-base font-[500] text-text font-serif">Organisational Hierarchy</h3>
             </div>
             <div className="p-5 space-y-5">
               {/* Reports to */}
@@ -260,16 +260,16 @@ export default function StaffDetail() {
                 {reportsTo ? (
                   <Link
                     to={`/staff/${reportsTo.ID}`}
-                    className="flex items-center gap-3 p-3 rounded-xl border border-border hover:border-brand-blue/40 hover:bg-surface-hover transition-all group"
+                    className="flex items-center gap-3 p-3 rounded-xl border border-border hover:border-[#c96442]/40 hover:bg-surface-hover transition-all group"
                   >
-                    <div className="w-10 h-10 rounded-full bg-brand-blue/10 flex items-center justify-center font-bold text-brand-blue shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-[#c96442]/10 flex items-center justify-center font-bold text-[#c96442] shrink-0">
                       {reportsTo.Name.charAt(0)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="font-bold text-text group-hover:text-brand-blue transition-colors truncate">{reportsTo.Name}</div>
+                      <div className="font-bold text-text group-hover:text-[#c96442] transition-colors truncate">{reportsTo.Name}</div>
                       <div className="text-xs text-text-muted truncate">{reportsTo.Designation}</div>
                     </div>
-                    <ChevronRight size={16} className="text-text-muted group-hover:text-brand-blue transition-all group-hover:translate-x-1 shrink-0" />
+                    <ChevronRight size={16} className="text-text-muted group-hover:text-[#c96442] transition-all group-hover:translate-x-1 shrink-0" />
                   </Link>
                 ) : (
                   <p className="text-sm text-text-muted italic">Top of reporting chain (no superior linked)</p>
@@ -287,13 +287,13 @@ export default function StaffDetail() {
                       <Link
                         key={s.ID}
                         to={`/staff/${s.ID}`}
-                        className="flex items-center gap-3 p-3 rounded-xl border border-border hover:border-brand-blue/40 hover:bg-surface-hover transition-all group"
+                        className="flex items-center gap-3 p-3 rounded-xl border border-border hover:border-[#c96442]/40 hover:bg-surface-hover transition-all group"
                       >
-                        <div className="w-8 h-8 rounded-full bg-surface-hover flex items-center justify-center font-bold text-sm text-brand-blue shrink-0 border border-border">
+                        <div className="w-8 h-8 rounded-full bg-surface-hover flex items-center justify-center font-bold text-sm text-[#c96442] shrink-0 border border-border">
                           {s.Name.charAt(0)}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="text-sm font-bold text-text group-hover:text-brand-blue transition-colors truncate">{s.Name}</div>
+                          <div className="text-sm font-bold text-text group-hover:text-[#c96442] transition-colors truncate">{s.Name}</div>
                           <div className="text-xs text-text-muted truncate">{s.Designation}</div>
                         </div>
                         <Badge variant={s.Group === 'Scientific' ? 'success' : 'neutral'} className="shrink-0">{s.Group}</Badge>
@@ -309,8 +309,8 @@ export default function StaffDetail() {
           <Card className="p-0 overflow-hidden">
             <div className="p-5 border-b border-border bg-surface flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Briefcase size={18} className="text-brand-blue" />
-                <h3 className="text-base font-semibold text-text">Linked Projects ({linkedProjects.length})</h3>
+                <Briefcase size={18} className="text-[#c96442]" />
+                <h3 className="text-base font-[500] text-text font-serif">Linked Projects ({linkedProjects.length})</h3>
               </div>
             </div>
             {linkedProjects.length > 0 ? (
@@ -322,12 +322,12 @@ export default function StaffDetail() {
                     className="flex justify-between items-center p-4 hover:bg-surface-hover transition-colors group"
                   >
                     <div>
-                      <p className="font-semibold text-sm text-text group-hover:text-brand-blue transition-colors">{proj.ProjectNo}</p>
+                      <p className="font-semibold text-sm text-text group-hover:text-[#c96442] transition-colors">{proj.ProjectNo}</p>
                       <p className="text-text-muted text-xs mt-1 truncate max-w-md">{proj.ProjectName}</p>
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
                       <Badge variant={proj.ProjectStatus === 'Active' ? 'success' : 'neutral'}>{proj.ProjectStatus}</Badge>
-                      <ChevronRight size={14} className="text-text-muted group-hover:text-brand-blue transition-all group-hover:translate-x-1" />
+                      <ChevronRight size={14} className="text-text-muted group-hover:text-[#c96442] transition-all group-hover:translate-x-1" />
                     </div>
                   </Link>
                 ))}
@@ -342,7 +342,7 @@ export default function StaffDetail() {
             <Card className="p-0 overflow-hidden">
               <div className="p-5 border-b border-border bg-surface flex items-center gap-2">
                 <GraduationCap size={18} className="text-emerald-500" />
-                <h3 className="text-base font-semibold text-text">
+                <h3 className="text-base font-[500] text-text font-serif">
                   PhD Mentorship ({supervisingAsMain.length + supervisingAsCo.length} scholars)
                 </h3>
               </div>
@@ -377,8 +377,8 @@ export default function StaffDetail() {
           {publications.length > 0 && (
             <Card className="p-0 overflow-hidden">
               <div className="p-5 border-b border-border bg-surface flex items-center gap-2">
-                <BookOpen size={18} className="text-sky-500" />
-                <h3 className="text-base font-semibold text-text">Publications ({publications.length})</h3>
+                <BookOpen size={18} className="text-[#5e5d59]" />
+                <h3 className="text-base font-[500] text-text font-serif">Publications ({publications.length})</h3>
               </div>
               <div className="divide-y divide-border">
                 {publications.map(pub => (
@@ -399,7 +399,7 @@ export default function StaffDetail() {
                         href={`https://doi.org/${pub.doi}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-[10px] text-brand-blue hover:underline mt-2 block"
+                        className="text-[10px] text-[#c96442] hover:underline mt-2 block"
                       >
                         DOI: {pub.doi}
                       </a>
@@ -415,7 +415,7 @@ export default function StaffDetail() {
             <Card className="p-0 overflow-hidden">
               <div className="p-5 border-b border-border bg-surface flex items-center gap-2">
                 <Lightbulb size={18} className="text-amber-500" />
-                <h3 className="text-base font-semibold text-text">IP Portfolio ({ipAssets.length})</h3>
+                <h3 className="text-base font-[500] text-text font-serif">IP Portfolio ({ipAssets.length})</h3>
               </div>
               <div className="divide-y divide-border">
                 {ipAssets.map(ip => {
