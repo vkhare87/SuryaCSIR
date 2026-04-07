@@ -28,24 +28,27 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useUI } from '../../contexts/UIContext';
 import type { Role } from '../../types';
 
+// All 7 roles — used for nav items accessible to every authenticated user
+const ALL_ROLES: Role[] = ['Director', 'DivisionHead', 'Scientist', 'Technician', 'HRAdmin', 'FinanceAdmin', 'SystemAdmin'];
+
 interface NavItem {
   path: string;
   label: string;
   icon: any;
-  role: Role;
+  roles: Role[];
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { path: '/', label: 'Dashboard', icon: LayoutDashboard, role: 'User' },
-  { path: '/staff', label: 'Human Capital', icon: Users, role: 'User' },
-  { path: '/projects', label: 'Projects', icon: Briefcase, role: 'User' },
-  { path: '/phd', label: 'PhD Tracker', icon: BookOpen, role: 'User' },
-  { path: '/divisions', label: 'Divisions', icon: Network, role: 'User' },
-  { path: '/intelligence', label: 'Intelligence', icon: Microscope, role: 'User' },
-  { path: '/facilities', label: 'Facilities', icon: Building2, role: 'Admin' },
-  { path: '/recruitment', label: 'Recruitment', icon: FileText, role: 'Admin' },
-  { path: '/calendar', label: 'Calendar', icon: CalendarIcon, role: 'User' },
-  { path: '/data', label: 'Data Management', icon: Database, role: 'MasterAdmin' },
+  { path: '/', label: 'Dashboard', icon: LayoutDashboard, roles: ALL_ROLES },
+  { path: '/staff', label: 'Human Capital', icon: Users, roles: ALL_ROLES },
+  { path: '/projects', label: 'Projects', icon: Briefcase, roles: ALL_ROLES },
+  { path: '/phd', label: 'PhD Tracker', icon: BookOpen, roles: ALL_ROLES },
+  { path: '/divisions', label: 'Divisions', icon: Network, roles: ALL_ROLES },
+  { path: '/intelligence', label: 'Intelligence', icon: Microscope, roles: ALL_ROLES },
+  { path: '/facilities', label: 'Facilities', icon: Building2, roles: ['HRAdmin', 'FinanceAdmin', 'SystemAdmin'] },
+  { path: '/recruitment', label: 'Recruitment', icon: FileText, roles: ['HRAdmin', 'SystemAdmin'] },
+  { path: '/calendar', label: 'Calendar', icon: CalendarIcon, roles: ALL_ROLES },
+  { path: '/data', label: 'Data Management', icon: Database, roles: ['SystemAdmin'] },
 ];
 
 export function Layout() {
@@ -57,7 +60,7 @@ export function Layout() {
   const { user, logout, hasPermission } = useAuth();
   const { isMobile, deviceType } = useUI();
   
-  const filteredNav = NAV_ITEMS.filter(item => hasPermission(item.role));
+  const filteredNav = NAV_ITEMS.filter(item => hasPermission(item.roles));
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
