@@ -19,6 +19,8 @@ import {
   mapProjectStaffRow,
   mapPhDStudentRow,
   mapEquipmentRow,
+  mapScientificOutputRow,
+  mapIPIntelligenceRow,
 } from '../utils/dataMapper';
 import {
   mockDivisions,
@@ -74,6 +76,7 @@ interface DataContextType {
   isLoading: boolean;
   isBackendProvisioned: boolean;
   refreshData: () => Promise<void>;
+  error: string | null;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -95,14 +98,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [ipIntelligence, setIPIntelligence] = useState<IPIntelligence[]>([]);
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const loadData = async () => {
     setIsLoading(true);
+    setError(null);
     try {
       if (provisioned && supabase) {
         // ----- Supabase branch -----
         const [
-          divRes, staffRes, projRes, psRes, phdRes, equipRes,
+          divRes, staffRes, projRes, psRes, phdRes, equipRes, soRes, ipRes,
         ] = await Promise.all([
           supabase.from('divisions').select('*'),
           supabase.from('staff').select('*'),
@@ -110,6 +115,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
           supabase.from('project_staff').select('*'),
           supabase.from('phd_students').select('*'),
           supabase.from('equipment').select('*'),
+          supabase.from('scientific_outputs').select('*'),
+          supabase.from('ip_intelligence').select('*'),
         ]);
 
         const rawStaff = staffRes.data ? staffRes.data.map(mapStaffRow) : [];
@@ -122,9 +129,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         setProjectStaff(psRes.data ? psRes.data.map(mapProjectStaffRow) : []);
         setPhDStudents(phdRes.data ? phdRes.data.map(mapPhDStudentRow) : []);
         setEquipment(scopeData(rawEquipment, role, divisionCode));
-        // scientific_outputs and ip_intelligence not yet in Supabase — use mock
-        setScientificOutputs(mockScientificOutputs);
-        setIPIntelligence(mockIPIntelligence);
+        setScientificOutputs(soRes.data ? soRes.data.map(mapScientificOutputRow) : []);
+        setIPIntelligence(ipRes.data ? ipRes.data.map(mapIPIntelligenceRow) : []);
       } else {
         // ----- Mock fallback branch -----
         setDivisions(mockDivisions);
@@ -137,6 +143,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         setIPIntelligence(mockIPIntelligence);
       }
     } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to load data';
+      setError(message);
       console.error('DataContext: failed to load data', err);
       // Fallback to mock on error
       setDivisions(mockDivisions);
@@ -169,6 +177,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       isLoading,
       isBackendProvisioned: provisioned,
       refreshData: loadData,
+      error,
     }}>
       {children}
     </DataContext.Provider>

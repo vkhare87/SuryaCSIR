@@ -17,7 +17,8 @@ import {
   Database,
   Network,
   Menu,
-  X
+  X,
+  AlertCircle,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -26,6 +27,7 @@ import SettingsModal from '../SettingsModal';
 
 import { useAuth } from '../../contexts/AuthContext';
 import { useUI } from '../../contexts/UIContext';
+import { useData } from '../../contexts/DataContext';
 import type { Role } from '../../types';
 import { ROLE_ROUTES } from '../../constants/roleRoutes';
 
@@ -60,6 +62,7 @@ export function Layout() {
 
   const { user, logout, role } = useAuth();
   const { isMobile, deviceType } = useUI();
+  const { error } = useData();
 
   const dashboardPath = role ? ROLE_ROUTES[role] : '/';
   const filteredNav = NAV_ITEMS
@@ -223,6 +226,14 @@ export function Layout() {
               </div>
           </div>
         </header>
+
+        {/* Error Banner */}
+        {error && (
+          <div className="px-4 py-2 bg-rose-50 border-b border-rose-200 text-rose-700 text-sm flex items-center gap-2">
+            <AlertCircle size={14} />
+            <span>Data load failed: {error}</span>
+          </div>
+        )}
 
         {/* Scrollable Content Viewport */}
         <main className="flex-1 overflow-auto p-4 md:p-8 bg-background relative">
