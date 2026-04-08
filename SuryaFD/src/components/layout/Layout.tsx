@@ -51,7 +51,7 @@ const NAV_ITEMS: NavItem[] = [
   { path: '/facilities',   label: 'Facilities',      icon: Building2,       allowedRoles: ['Director', 'DivisionHead', 'Technician', 'SystemAdmin'] },
   { path: '/recruitment',  label: 'Recruitment',     icon: FileText,        allowedRoles: ['HRAdmin', 'SystemAdmin'] },
   { path: '/calendar',     label: 'Calendar',        icon: CalendarIcon,    allowedRoles: ALL_ROLES },
-  { path: '/data',         label: 'Data Management', icon: Database,        allowedRoles: ['SystemAdmin'] },
+  { path: '/data',         label: 'Data Import',     icon: Database,        allowedRoles: ['HRAdmin', 'SystemAdmin'] },
 ];
 
 export function Layout() {

@@ -1,190 +1,354 @@
-import { useState } from 'react';
-import { Database, UploadCloud, CheckCircle, AlertCircle, FileSpreadsheet, Loader2 } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Check, ChevronRight, UploadCloud, FileSpreadsheet } from 'lucide-react';
+import clsx from 'clsx';
 import { Card } from '../components/ui/Cards';
-import { isProvisioned, supabase } from '../utils/supabaseClient';
-import { parseFile, pushToSupabase, type FileType } from '../utils/dataMigration';
+import { Button } from '../components/ui/Button';
+import { parseFile, detectColumnMappings, type FileType, TABLE_NAMES } from '../utils/dataMigration';
+import { isProvisioned } from '../utils/supabaseClient';
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
 
 export default function DataManagement() {
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [selectedType, setSelectedType] = useState<FileType>('staff');
   const [file, setFile] = useState<File | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [logs, setLogs] = useState<string[]>([]);
-  
-  const addLog = (msg: string) => setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);
+  const [parsedData, setParsedData] = useState<Record<string, string>[]>([]);
+  const [columnMappings, setColumnMappings] = useState<Array<{ raw: string; mapped: string | null }>>([]);
+  const [isParsing, setIsParsing] = useState(false);
+  const [parseError, setParseError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // -------------------------------------------------------------------------
+  // Handlers
+  // -------------------------------------------------------------------------
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setFile(e.target.files[0]);
+    const selected = e.target.files?.[0] ?? null;
+    setFile(selected);
+    setParseError(null);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const dropped = e.dataTransfer.files?.[0] ?? null;
+    if (dropped) {
+      setFile(dropped);
+      setParseError(null);
     }
   };
 
-  const handleUpload = async () => {
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+  };
+
+  const handleNext1 = async () => {
     if (!file) return;
-    if (!isProvisioned() || !supabase) {
-       addLog("Error: Database not connected. Please check your .env file.");
-       return;
+    setIsParsing(true);
+    setParseError(null);
+
+    const result = await parseFile(file, selectedType);
+
+    if (!result.success || !result.data) {
+      setParseError(result.error ?? 'Failed to parse file');
+      setIsParsing(false);
+      return;
     }
 
-    setIsUploading(true);
-    addLog(`Reading file: ${file.name}...`);
-    
-    try {
-      const result = await parseFile(file, selectedType);
-      if (!result.success) {
-        addLog(`Parse error: ${result.error}`);
-        setIsUploading(false);
-        return;
-      }
+    const data = result.data;
+    setParsedData(data);
 
-      addLog(`Parsed ${result.rowCount} rows. Initiating upload to Supabase...`);
-      
-      const tableMap: Record<FileType, string> = {
-        staff: 'staff',
-        divisions: 'divisions',
-        projects: 'projects',
-        projectStaff: 'project_staff',
-        phd: 'phd_students',
-        equipment: 'equipment'
-      };
-      
-      const tableName = tableMap[selectedType];
-      
-      const success = await pushToSupabase(supabase, tableName, result.data, addLog);
-      
-      if (success) {
-        addLog("Upload complete.");
-      } else {
-        addLog("Upload failed during batch insertion.");
-      }
+    // Detect column mappings from first row headers
+    const rawHeaders = data.length > 0 ? Object.keys(data[0]) : [];
+    const mappings = detectColumnMappings(rawHeaders, selectedType);
+    setColumnMappings(mappings);
 
-    } catch (err: any) {
-      addLog(`Upload failed: ${err.message}`);
-    } finally {
-      setIsUploading(false);
-    }
+    setIsParsing(false);
+    setStep(2);
   };
+
+  const handleBack1 = () => {
+    setStep(1);
+    setParseError(null);
+  };
+
+  const handleNext2 = () => {
+    setStep(3);
+  };
+
+  const handleBack2 = () => {
+    setStep(2);
+  };
+
+  // -------------------------------------------------------------------------
+  // Render helpers
+  // -------------------------------------------------------------------------
+
+  const FILE_TYPE_LABELS: Record<FileType, string> = {
+    staff:        'Human Capital (Staff Directory)',
+    divisions:    'Divisions',
+    projects:     'Research Projects',
+    projectStaff: 'Project Staff',
+    phd:          'PhD Scholars',
+    equipment:    'Facilities / Equipment',
+  };
+
+  const STEPS = [
+    { num: 1 as const, label: 'Upload' },
+    { num: 2 as const, label: 'Preview' },
+    { num: 3 as const, label: 'Confirm' },
+  ];
+
+  // -------------------------------------------------------------------------
+  // Render
+  // -------------------------------------------------------------------------
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
+      {/* Page heading */}
       <div>
-        <h1 className="text-2xl font-[500] text-text font-serif">Database Operations Center</h1>
-        <p className="text-text-muted mt-1">Manage bulk data integration and Supabase connectivity</p>
+        <h1 className="text-2xl font-[500] text-text font-serif">Data Import</h1>
+        <p className="text-text-muted mt-1">Upload and review data before committing to Supabase</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Connection Status Panel */}
-        <Card className="md:col-span-1 space-y-4">
-          <div className="flex items-center gap-3 border-b border-border pb-4">
-            <div className="w-10 h-10 rounded-xl bg-[#c96442]/10 flex items-center justify-center text-[#c96442]">
-              <Database size={20} />
-            </div>
-            <div>
-              <h3 className="font-bold text-text">Connectivity</h3>
-              <p className="text-xs text-text-muted">Supabase Integration</p>
-            </div>
-          </div>
-          
+      <Card>
+        {/* Connection status badge */}
+        <div className="flex items-center gap-2 mb-4">
           {isProvisioned() ? (
-            <div className="bg-emerald-500/10 border border-emerald-500/20 p-4 rounded-xl flex items-start gap-3">
-              <CheckCircle className="text-emerald-500 shrink-0 mt-0.5" size={18} />
-              <div>
-                <p className="text-sm font-bold text-emerald-700 dark:text-emerald-400">Database Connected</p>
-                <p className="text-xs text-emerald-600/80 dark:text-emerald-400/80 mt-1">
-                  Credentials loaded from environment variables or local storage.
-                </p>
-              </div>
-            </div>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+              Connected
+            </span>
           ) : (
-             <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-xl flex items-start gap-3">
-              <AlertCircle className="text-amber-500 shrink-0 mt-0.5" size={18} />
-              <div>
-                <p className="text-sm font-bold text-amber-700 dark:text-amber-400">Not Connected</p>
-                <p className="text-xs text-amber-600/80 dark:text-amber-400/80 mt-1">
-                  Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your .env file to enable uploads.
-                </p>
-              </div>
-            </div>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200">
+              <span className="w-2 h-2 rounded-full bg-rose-500" />
+              Not Connected
+            </span>
           )}
-        </Card>
+        </div>
 
-        {/* Upload Panel */}
-        <Card className="md:col-span-2 space-y-6">
-           <div className="flex items-center gap-3 border-b border-border pb-4">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500">
-              <UploadCloud size={20} />
+        {/* Step indicator */}
+        <div className="flex items-center gap-3 mb-6">
+          {STEPS.map(({ num, label }) => (
+            <div key={num} className="flex items-center gap-2">
+              <div
+                className={clsx(
+                  'w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2',
+                  step === num
+                    ? 'bg-[#c96442] text-white border-[#c96442]'
+                    : step > num
+                    ? 'bg-emerald-100 text-emerald-700 border-emerald-300'
+                    : 'bg-surface-hover text-text-muted border-border',
+                )}
+              >
+                {step > num ? <Check size={14} /> : num}
+              </div>
+              <span
+                className={clsx(
+                  'text-sm font-medium',
+                  step === num ? 'text-text' : 'text-text-muted',
+                )}
+              >
+                {label}
+              </span>
+              {num < 3 && <ChevronRight size={16} className="text-text-muted" />}
             </div>
-            <div>
-              <h3 className="font-bold text-text">Bulk Data Migration</h3>
-              <p className="text-xs text-text-muted">Import Excel or CSV files</p>
-            </div>
-          </div>
+          ))}
+        </div>
 
-          <div className="space-y-4">
+        {/* ------------------------------------------------------------------ */}
+        {/* Step 1 — Upload */}
+        {/* ------------------------------------------------------------------ */}
+        {step === 1 && (
+          <div className="space-y-5">
+            {/* Entity type selector */}
             <div>
-              <label className="block text-sm font-bold text-text mb-2">Target Table</label>
-              <select 
+              <label className="block text-sm font-bold text-text mb-2">Target Entity</label>
+              <select
                 value={selectedType}
                 onChange={(e) => setSelectedType(e.target.value as FileType)}
                 className="w-full bg-surface-hover border border-border text-text text-sm rounded-lg focus:ring-[#3898ec] focus:border-[#3898ec] block p-2.5 outline-none"
               >
-                <option value="divisions">Divisions</option>
-                <option value="staff">Human Capital (Staff Directory)</option>
-                <option value="projects">Research Projects</option>
-                <option value="projectStaff">Project Staff</option>
-                <option value="phd">PhD Scholars</option>
-                <option value="equipment">Facilities / Equipment</option>
+                {(Object.keys(FILE_TYPE_LABELS) as FileType[]).map((type) => (
+                  <option key={type} value={type}>
+                    {FILE_TYPE_LABELS[type]}
+                  </option>
+                ))}
               </select>
             </div>
 
-            <div className="border-2 border-dashed border-border rounded-xl p-8 text-center hover:bg-surface-hover/50 transition-colors">
-              <input 
-                type="file" 
-                id="file-upload" 
-                className="hidden" 
-                accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
-                onChange={handleFileChange}
-              />
-              <label htmlFor="file-upload" className="cursor-pointer flex flex-col items-center justify-center">
-                <FileSpreadsheet className="w-12 h-12 text-[#c96442] mb-3 opacity-80" />
+            {/* File upload zone */}
+            <div>
+              <label className="block text-sm font-bold text-text mb-2">Data File</label>
+              <div
+                className="border-2 border-dashed border-border rounded-xl p-8 text-center hover:bg-surface-hover/50 transition-colors cursor-pointer"
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv,.xlsx,.xls"
+                  className="hidden"
+                  onChange={handleFileChange}
+                />
+                <FileSpreadsheet className="w-12 h-12 text-[#c96442] mb-3 mx-auto opacity-80" />
                 <p className="text-sm font-bold text-text mb-1">
-                  {file ? file.name : "Click to select data file"}
+                  {file ? file.name : 'Click or drag & drop a file here'}
                 </p>
-                <p className="text-xs text-text-muted">
-                  Supports .xlsx, .xls, and .csv
-                </p>
-              </label>
+                <p className="text-xs text-text-muted">Supports .xlsx, .xls, and .csv</p>
+              </div>
             </div>
 
-            <button
-               onClick={handleUpload}
-               disabled={!file || isUploading || !isProvisioned()}
-               className="w-full bg-[#c96442] text-white font-bold rounded-xl py-3 flex items-center justify-center gap-2 hover:bg-[#b5593b] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-               {isUploading ? <Loader2 className="animate-spin" size={18} /> : <UploadCloud size={18} />}
-               {isUploading ? 'Processing Upload...' : 'Push to Database'}
-            </button>
-          </div>
-        </Card>
-      </div>
+            {/* Parse error */}
+            {parseError && (
+              <div className="text-sm text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-4 py-3">
+                {parseError}
+              </div>
+            )}
 
-      {/* Execution Logs */}
-      {logs.length > 0 && (
-        <Card className="bg-[#141413] border-[#30302e] text-[#b0aea5] font-mono text-xs max-h-64 overflow-y-auto">
-          <div className="flex items-center justify-between mb-4 pb-2 border-b border-[#30302e]">
-            <span className="text-[#b0aea5] font-bold tracking-wider">MIGRATION LOGS</span>
-            <div className="flex gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-full bg-red-500/20 border border-red-500/50" />
-              <div className="w-2.5 h-2.5 rounded-full bg-amber-500/20 border border-amber-500/50" />
-              <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/50 border border-emerald-500" />
+            {/* Next button */}
+            <div className="flex justify-end">
+              <Button
+                variant="primary"
+                onClick={handleNext1}
+                disabled={!file || isParsing || !isProvisioned()}
+                className="bg-[#c96442] hover:bg-[#b5593b] text-white font-bold px-6"
+              >
+                {isParsing ? 'Parsing...' : 'Next'}
+              </Button>
             </div>
           </div>
-          <div className="space-y-1">
-            {logs.map((log, i) => (
-              <div key={i}>{log}</div>
-            ))}
+        )}
+
+        {/* ------------------------------------------------------------------ */}
+        {/* Step 2 — Preview */}
+        {/* ------------------------------------------------------------------ */}
+        {step === 2 && (
+          <div className="space-y-4">
+            {/* Row count banner */}
+            <div className="text-sm text-text-muted bg-surface-hover rounded-lg px-4 py-2 border border-border">
+              <span className="font-bold text-text">{parsedData.length}</span> rows parsed from{' '}
+              <span className="font-medium text-text">{file?.name}</span>
+            </div>
+
+            {/* Preview table */}
+            {parsedData.length > 0 && columnMappings.length > 0 && (
+              <div className="overflow-x-auto rounded-xl border border-border">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="bg-surface-hover border-b border-border">
+                      {columnMappings.map(({ raw, mapped }) => (
+                        <th
+                          key={raw}
+                          className="px-3 pt-3 pb-2 text-left font-medium text-text-muted whitespace-nowrap align-bottom"
+                        >
+                          {/* Column mapping chip */}
+                          <div className="mb-1.5">
+                            {mapped !== null ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-[#c96442]/10 text-[#c96442] border border-[#c96442]/30 whitespace-nowrap">
+                                Mapped: {mapped}
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-[#e8e6dc] text-[#5e5d59] border border-[#d4d2c8] whitespace-nowrap">
+                                Unmapped
+                              </span>
+                            )}
+                          </div>
+                          {/* Raw header */}
+                          <span>{raw}</span>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {parsedData.slice(0, 100).map((row, rowIdx) => (
+                      <tr
+                        key={rowIdx}
+                        className={clsx(
+                          'border-b border-border last:border-0',
+                          rowIdx % 2 === 0 ? 'bg-surface' : 'bg-surface-hover/40',
+                        )}
+                      >
+                        {columnMappings.map(({ raw }) => (
+                          <td
+                            key={raw}
+                            className="px-3 py-1.5 text-text whitespace-nowrap max-w-[180px] truncate"
+                            title={row[raw] ?? ''}
+                          >
+                            {row[raw] ?? ''}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {parsedData.length > 100 && (
+                  <div className="px-4 py-2 text-xs text-text-muted bg-surface-hover border-t border-border">
+                    Showing first 100 of {parsedData.length} rows
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Navigation */}
+            <div className="flex justify-between">
+              <Button variant="secondary" onClick={handleBack1}>
+                Back
+              </Button>
+              <Button
+                variant="primary"
+                onClick={handleNext2}
+                className="bg-[#c96442] hover:bg-[#b5593b] text-white font-bold px-6"
+              >
+                Next
+              </Button>
+            </div>
           </div>
-        </Card>
-      )}
+        )}
+
+        {/* ------------------------------------------------------------------ */}
+        {/* Step 3 — Confirm (scaffold for Plan 03) */}
+        {/* ------------------------------------------------------------------ */}
+        {step === 3 && (
+          <div className="space-y-5">
+            {/* Summary */}
+            <div className="bg-surface-hover rounded-xl border border-border px-6 py-5">
+              <div className="flex items-center gap-3 mb-3">
+                <UploadCloud size={20} className="text-[#c96442]" />
+                <span className="font-bold text-text">Import Summary</span>
+              </div>
+              <p className="text-sm text-text">
+                <span className="font-bold">{parsedData.length}</span> rows ready for import to{' '}
+                <code className="bg-background border border-border rounded px-1.5 py-0.5 text-xs font-mono text-[#c96442]">
+                  {TABLE_NAMES[selectedType]}
+                </code>
+              </p>
+            </div>
+
+            {/* Placeholder note */}
+            <p className="text-sm text-text-muted italic">
+              Validation and commit will be available after review
+            </p>
+
+            {/* Navigation */}
+            <div className="flex justify-between">
+              <Button variant="secondary" onClick={handleBack2}>
+                Back
+              </Button>
+              <Button
+                variant="primary"
+                disabled
+                className="bg-[#c96442] text-white font-bold px-6 opacity-50 cursor-not-allowed"
+              >
+                Confirm Import
+              </Button>
+            </div>
+          </div>
+        )}
+      </Card>
     </div>
   );
 }
