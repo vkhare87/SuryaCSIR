@@ -1,5 +1,6 @@
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
+import { z } from 'zod';
 
 // ---------------------------------------------------------------------------
 // FileType
@@ -340,6 +341,66 @@ export async function pushToSupabase(
   }
 
   return { upserted, failed };
+}
+
+// ---------------------------------------------------------------------------
+// Validation
+// ---------------------------------------------------------------------------
+
+export interface RowValidationResult {
+  rowIndex: number;
+  errors: Array<{ field: string; message: string }>;
+  isValid: boolean;
+}
+
+export const VALIDATION_SCHEMAS: Record<FileType, z.ZodObject<any>> = {
+  staff: z.object({
+    ID: z.string().min(1, 'Employee ID is required'),
+    Name: z.string().min(1, 'Name is required'),
+    Division: z.string().min(1, 'Division code is required'),
+    DOJ: z.string().optional().or(z.literal('')),
+    DOB: z.string().optional().or(z.literal('')),
+  }).passthrough(),
+  divisions: z.object({
+    divCode: z.string().min(1, 'Division code is required'),
+    divName: z.string().min(1, 'Division name is required'),
+  }).passthrough(),
+  projects: z.object({
+    ProjectID: z.string().min(1, 'Project ID is required'),
+    ProjectNo: z.string().min(1, 'Project number is required'),
+    ProjectName: z.string().min(1, 'Project name is required'),
+  }).passthrough(),
+  projectStaff: z.object({
+    ProjectNo: z.string().min(1, 'Project number is required'),
+    StaffName: z.string().min(1, 'Staff name is required'),
+  }).passthrough(),
+  phd: z.object({
+    EnrollmentNo: z.string().min(1, 'Enrollment number is required'),
+    StudentName: z.string().min(1, 'Student name is required'),
+    SupervisorName: z.string().min(1, 'Supervisor name is required'),
+  }).passthrough(),
+  equipment: z.object({
+    UInsID: z.string().min(1, 'Equipment ID is required'),
+    Name: z.string().min(1, 'Equipment name is required'),
+  }).passthrough(),
+};
+
+export function validateRows(
+  rows: Record<string, string>[],
+  type: FileType,
+): RowValidationResult[] {
+  const schema = VALIDATION_SCHEMAS[type];
+  return rows.map((row, rowIndex) => {
+    const result = schema.safeParse(row);
+    if (result.success) {
+      return { rowIndex, errors: [], isValid: true };
+    }
+    const errors = result.error.issues.map(issue => ({
+      field: String(issue.path[0] ?? ''),
+      message: issue.message,
+    }));
+    return { rowIndex, errors, isValid: false };
+  });
 }
 
 // ---------------------------------------------------------------------------

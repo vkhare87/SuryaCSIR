@@ -1,16 +1,27 @@
 import { useState, useRef } from 'react';
-import { Check, ChevronRight, UploadCloud, FileSpreadsheet } from 'lucide-react';
+import { Check, ChevronRight, UploadCloud, FileSpreadsheet, AlertCircle } from 'lucide-react';
 import clsx from 'clsx';
 import { Card } from '../components/ui/Cards';
 import { Button } from '../components/ui/Button';
-import { parseFile, detectColumnMappings, type FileType, TABLE_NAMES } from '../utils/dataMigration';
-import { isProvisioned } from '../utils/supabaseClient';
+import {
+  parseFile,
+  detectColumnMappings,
+  validateRows,
+  pushToSupabase,
+  type FileType,
+  type RowValidationResult,
+  TABLE_NAMES,
+} from '../utils/dataMigration';
+import { isProvisioned, supabase } from '../utils/supabaseClient';
+import { useData } from '../contexts/DataContext';
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
 export default function DataManagement() {
+  const { refreshData } = useData();
+
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [selectedType, setSelectedType] = useState<FileType>('staff');
   const [file, setFile] = useState<File | null>(null);
@@ -19,6 +30,24 @@ export default function DataManagement() {
   const [isParsing, setIsParsing] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Validation state
+  const [validationResults, setValidationResults] = useState<RowValidationResult[]>([]);
+
+  // Inline editing state
+  const [editingCell, setEditingCell] = useState<{ rowIndex: number; field: string } | null>(null);
+  const [editValue, setEditValue] = useState('');
+
+  // Commit state
+  const [isCommitting, setIsCommitting] = useState(false);
+  const [commitResult, setCommitResult] = useState<{ upserted: number; failed: number } | null>(null);
+
+  // -------------------------------------------------------------------------
+  // Derived values
+  // -------------------------------------------------------------------------
+
+  const totalErrors = validationResults.reduce((sum, r) => sum + r.errors.length, 0);
+  const errorRowCount = validationResults.filter(r => !r.isValid).length;
 
   // -------------------------------------------------------------------------
   // Handlers
@@ -64,6 +93,10 @@ export default function DataManagement() {
     const mappings = detectColumnMappings(rawHeaders, selectedType);
     setColumnMappings(mappings);
 
+    // Run validation
+    const results = validateRows(data, selectedType);
+    setValidationResults(results);
+
     setIsParsing(false);
     setStep(2);
   };
@@ -79,6 +112,44 @@ export default function DataManagement() {
 
   const handleBack2 = () => {
     setStep(2);
+  };
+
+  // Inline cell editing
+  const handleCellClick = (rowIndex: number, field: string) => {
+    const rowErrors = validationResults[rowIndex]?.errors || [];
+    const hasError = rowErrors.some(e => e.field === field);
+    if (!hasError) return; // only flagged cells are editable
+    setEditingCell({ rowIndex, field });
+    setEditValue(parsedData[rowIndex][field] || '');
+  };
+
+  const handleCellSave = () => {
+    if (!editingCell) return;
+    const { rowIndex, field } = editingCell;
+
+    // Update parsedData with the new value
+    const updatedData = parsedData.map((row, idx) => {
+      if (idx !== rowIndex) return row;
+      return { ...row, [field]: editValue };
+    });
+    setParsedData(updatedData);
+
+    // Re-run full validation on updated data
+    const newResults = validateRows(updatedData, selectedType);
+    setValidationResults(newResults);
+
+    setEditingCell(null);
+  };
+
+  const handleConfirmImport = async () => {
+    if (!supabase) return;
+    setIsCommitting(true);
+    const tableName = TABLE_NAMES[selectedType];
+    const result = await pushToSupabase(supabase, tableName, parsedData, (msg) => console.log(msg));
+    setCommitResult(result);
+    setIsCommitting(false);
+    // Refresh DataContext to show new data across the app
+    await refreshData();
   };
 
   // -------------------------------------------------------------------------
@@ -234,12 +305,28 @@ export default function DataManagement() {
               <span className="font-medium text-text">{file?.name}</span>
             </div>
 
+            {/* Error count banner */}
+            {totalErrors > 0 && (
+              <div className="mb-3 px-4 py-2 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-sm flex items-center gap-2">
+                <AlertCircle size={14} />
+                <span>
+                  {totalErrors} error{totalErrors !== 1 ? 's' : ''} found in{' '}
+                  {errorRowCount} row{errorRowCount !== 1 ? 's' : ''}. Click flagged cells to edit inline.
+                </span>
+              </div>
+            )}
+
             {/* Preview table */}
             {parsedData.length > 0 && columnMappings.length > 0 && (
               <div className="overflow-x-auto rounded-xl border border-border">
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="bg-surface-hover border-b border-border">
+                      {/* Error badge column header */}
+                      <th className="px-2 pt-3 pb-2 text-left font-medium text-text-muted whitespace-nowrap align-bottom w-8">
+                        <div className="mb-1.5 h-[22px]" />
+                        <span>#</span>
+                      </th>
                       {columnMappings.map(({ raw, mapped }) => (
                         <th
                           key={raw}
@@ -264,25 +351,72 @@ export default function DataManagement() {
                     </tr>
                   </thead>
                   <tbody>
-                    {parsedData.slice(0, 100).map((row, rowIdx) => (
-                      <tr
-                        key={rowIdx}
-                        className={clsx(
-                          'border-b border-border last:border-0',
-                          rowIdx % 2 === 0 ? 'bg-surface' : 'bg-surface-hover/40',
-                        )}
-                      >
-                        {columnMappings.map(({ raw }) => (
-                          <td
-                            key={raw}
-                            className="px-3 py-1.5 text-text whitespace-nowrap max-w-[180px] truncate"
-                            title={row[raw] ?? ''}
-                          >
-                            {row[raw] ?? ''}
+                    {parsedData.slice(0, 100).map((row, rowIdx) => {
+                      const rowValidation = validationResults[rowIdx];
+                      const rowHasErrors = rowValidation && !rowValidation.isValid;
+                      const rowErrors = rowValidation?.errors || [];
+
+                      return (
+                        <tr
+                          key={rowIdx}
+                          className={clsx(
+                            'border-b border-border last:border-0',
+                            rowHasErrors
+                              ? 'bg-rose-50'
+                              : rowIdx % 2 === 0
+                              ? 'bg-surface'
+                              : 'bg-surface-hover/40',
+                          )}
+                        >
+                          {/* Error badge cell */}
+                          <td className="px-2 py-1.5 text-center">
+                            {rowHasErrors && (
+                              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-rose-500 text-white text-[10px] font-bold">
+                                {rowErrors.length}
+                              </span>
+                            )}
                           </td>
-                        ))}
-                      </tr>
-                    ))}
+                          {columnMappings.map(({ raw }) => {
+                            const cellHasError = rowErrors.some(e => e.field === raw);
+                            const isEditing =
+                              editingCell?.rowIndex === rowIdx && editingCell?.field === raw;
+
+                            return (
+                              <td
+                                key={raw}
+                                onClick={() => handleCellClick(rowIdx, raw)}
+                                className={clsx(
+                                  'px-3 py-1.5 text-text whitespace-nowrap max-w-[180px] truncate',
+                                  cellHasError && 'ring-1 ring-red-400',
+                                  cellHasError && !isEditing && 'cursor-pointer hover:bg-rose-100',
+                                )}
+                                title={isEditing ? undefined : (row[raw] ?? '')}
+                              >
+                                {isEditing ? (
+                                  <input
+                                    autoFocus
+                                    value={editValue}
+                                    onChange={(e) => setEditValue(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter' || e.key === 'Tab') {
+                                        e.preventDefault();
+                                        handleCellSave();
+                                      } else if (e.key === 'Escape') {
+                                        setEditingCell(null);
+                                      }
+                                    }}
+                                    onBlur={() => handleCellSave()}
+                                    className="w-full px-2 py-1 text-sm border border-[#c96442] rounded outline-none focus:ring-1 focus:ring-[#c96442]"
+                                  />
+                                ) : (
+                                  row[raw] ?? ''
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
                 {parsedData.length > 100 && (
@@ -310,28 +444,72 @@ export default function DataManagement() {
         )}
 
         {/* ------------------------------------------------------------------ */}
-        {/* Step 3 — Confirm (scaffold for Plan 03) */}
+        {/* Step 3 — Confirm + Commit */}
         {/* ------------------------------------------------------------------ */}
         {step === 3 && (
           <div className="space-y-5">
-            {/* Summary */}
-            <div className="bg-surface-hover rounded-xl border border-border px-6 py-5">
-              <div className="flex items-center gap-3 mb-3">
+            {/* Import summary card */}
+            <Card className="space-y-4">
+              <div className="flex items-center gap-3 mb-1">
                 <UploadCloud size={20} className="text-[#c96442]" />
-                <span className="font-bold text-text">Import Summary</span>
+                <h3 className="font-bold text-text">Import Summary</h3>
               </div>
-              <p className="text-sm text-text">
-                <span className="font-bold">{parsedData.length}</span> rows ready for import to{' '}
-                <code className="bg-background border border-border rounded px-1.5 py-0.5 text-xs font-mono text-[#c96442]">
-                  {TABLE_NAMES[selectedType]}
-                </code>
+              <div className="grid grid-cols-3 gap-4 text-sm">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-text">{parsedData.length}</div>
+                  <div className="text-text-muted">Total Rows</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-emerald-600">
+                    {parsedData.length - errorRowCount}
+                  </div>
+                  <div className="text-text-muted">Valid</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-rose-600">{errorRowCount}</div>
+                  <div className="text-text-muted">With Errors</div>
+                </div>
+              </div>
+              <p className="text-sm text-text-muted">
+                Target table:{' '}
+                <code className="bg-surface-hover px-1 rounded">{TABLE_NAMES[selectedType]}</code>
               </p>
-            </div>
+            </Card>
 
-            {/* Placeholder note */}
-            <p className="text-sm text-text-muted italic">
-              Validation and commit will be available after review
-            </p>
+            {/* Errors remaining warning */}
+            {errorRowCount > 0 && (
+              <div className="px-4 py-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-sm flex items-center gap-2">
+                <AlertCircle size={14} />
+                <span>
+                  Fix all {totalErrors} error{totalErrors !== 1 ? 's' : ''} in Step 2 before importing.
+                </span>
+              </div>
+            )}
+
+            {/* Commit result */}
+            {commitResult && (
+              <Card className="bg-emerald-50 border-emerald-200 space-y-2">
+                <h3 className="font-bold text-emerald-800">Import Complete</h3>
+                <div className="text-sm text-emerald-700 space-y-1">
+                  <p>Rows upserted: {commitResult.upserted}</p>
+                  <p>Rows failed: {commitResult.failed}</p>
+                  <p>Total: {commitResult.upserted + commitResult.failed}</p>
+                </div>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setStep(1);
+                    setFile(null);
+                    setParsedData([]);
+                    setValidationResults([]);
+                    setCommitResult(null);
+                    setColumnMappings([]);
+                  }}
+                >
+                  Import Another File
+                </Button>
+              </Card>
+            )}
 
             {/* Navigation */}
             <div className="flex justify-between">
@@ -340,10 +518,11 @@ export default function DataManagement() {
               </Button>
               <Button
                 variant="primary"
-                disabled
-                className="bg-[#c96442] text-white font-bold px-6 opacity-50 cursor-not-allowed"
+                disabled={errorRowCount > 0 || isCommitting || commitResult !== null}
+                onClick={handleConfirmImport}
+                className="bg-[#c96442] hover:bg-[#b5593b] text-white font-bold px-6"
               >
-                Confirm Import
+                {isCommitting ? 'Importing...' : 'Confirm Import'}
               </Button>
             </div>
           </div>
