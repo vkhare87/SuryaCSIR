@@ -200,3 +200,68 @@ CREATE POLICY "HRAdmin and SystemAdmin can write staff"
         (SELECT role FROM public.user_roles WHERE user_id = (select auth.uid()))
         IN ('HRAdmin', 'SystemAdmin')
     );
+
+-- ============================================================
+-- Phase 3: Data Management — scientific_outputs, ip_intelligence, Gender
+-- ============================================================
+
+-- 7. Scientific Outputs Table
+CREATE TABLE IF NOT EXISTS public.scientific_outputs (
+    id             text PRIMARY KEY,
+    title          text NOT NULL,
+    authors        text[] NOT NULL DEFAULT '{}',
+    journal        text NOT NULL,
+    year           integer NOT NULL,
+    doi            text NULL,
+    impact_factor  float NULL,
+    citation_count integer NULL,
+    division_code  text NOT NULL
+);
+
+-- 8. IP Intelligence Table
+CREATE TABLE IF NOT EXISTS public.ip_intelligence (
+    id             text PRIMARY KEY,
+    title          text NOT NULL,
+    type           text NOT NULL CHECK (type IN ('Patent','Copyright','Design','Trademark')),
+    status         text NOT NULL CHECK (status IN ('Filed','Published','Granted')),
+    filing_date    text NOT NULL,
+    grant_date     text NULL,
+    inventors      text[] NOT NULL DEFAULT '{}',
+    division_code  text NOT NULL
+);
+
+-- Gender column for staff table (Concern #9)
+ALTER TABLE public.staff ADD COLUMN IF NOT EXISTS "Gender" text;
+
+-- RLS for new tables
+ALTER TABLE public.scientific_outputs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ip_intelligence ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Authenticated users can read scientific_outputs"
+    ON public.scientific_outputs FOR SELECT TO authenticated USING (true);
+
+CREATE POLICY "Authenticated users can read ip_intelligence"
+    ON public.ip_intelligence FOR SELECT TO authenticated USING (true);
+
+-- Write policies: HRAdmin and SystemAdmin can INSERT/UPDATE/DELETE
+CREATE POLICY "HRAdmin and SystemAdmin can write scientific_outputs"
+    ON public.scientific_outputs FOR ALL TO authenticated
+    USING (
+        (SELECT role FROM public.user_roles WHERE user_id = (select auth.uid()))
+        IN ('HRAdmin', 'SystemAdmin')
+    )
+    WITH CHECK (
+        (SELECT role FROM public.user_roles WHERE user_id = (select auth.uid()))
+        IN ('HRAdmin', 'SystemAdmin')
+    );
+
+CREATE POLICY "HRAdmin and SystemAdmin can write ip_intelligence"
+    ON public.ip_intelligence FOR ALL TO authenticated
+    USING (
+        (SELECT role FROM public.user_roles WHERE user_id = (select auth.uid()))
+        IN ('HRAdmin', 'SystemAdmin')
+    )
+    WITH CHECK (
+        (SELECT role FROM public.user_roles WHERE user_id = (select auth.uid()))
+        IN ('HRAdmin', 'SystemAdmin')
+    );

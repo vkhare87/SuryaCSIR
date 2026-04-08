@@ -1,4 +1,4 @@
-import type { DivisionInfo, StaffMember, ProjectInfo, ProjectStaff, PhDStudent, Equipment } from '../types';
+import type { DivisionInfo, StaffMember, ProjectInfo, ProjectStaff, PhDStudent, Equipment, ScientificOutput, IPIntelligence } from '../types';
 
 /**
  * These mappers will eventually transform raw Supabase rows 
@@ -106,4 +106,27 @@ export const mapEquipmentRow = (row: any): Equipment => ({
   RequirementInstallation: row.RequirementInstallation || row.requirement_installation || '',
   Justification: row.Justification || row.justification || '',
   Remark: row.Remark || row.remark || '',
+});
+
+export const mapScientificOutputRow = (row: any): ScientificOutput => ({
+  id: String(row.id || ''),
+  title: row.title || '',
+  authors: Array.isArray(row.authors) ? row.authors : [],
+  journal: row.journal || '',
+  year: parseInt(row.year || '0', 10),
+  doi: row.doi || undefined,
+  impactFactor: row.impact_factor != null ? parseFloat(row.impact_factor) : undefined,
+  citationCount: row.citation_count != null ? parseInt(row.citation_count, 10) : undefined,
+  divisionCode: row.division_code || '',
+});
+
+export const mapIPIntelligenceRow = (row: any): IPIntelligence => ({
+  id: String(row.id || ''),
+  title: row.title || '',
+  type: row.type || 'Patent',
+  status: row.status || 'Filed',
+  filingDate: row.filing_date || '',
+  grantDate: row.grant_date || undefined,
+  inventors: Array.isArray(row.inventors) ? row.inventors : [],
+  divisionCode: row.division_code || '',
 });
