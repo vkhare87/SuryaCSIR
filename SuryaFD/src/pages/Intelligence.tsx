@@ -96,9 +96,11 @@ export default function Intelligence() {
     };
     if (pubModalMode === 'add') {
       const id = crypto.randomUUID();
-      await supabase.from('scientific_outputs').insert({ id, ...record });
+      const { error } = await supabase.from('scientific_outputs').insert({ id, ...record });
+      if (error) { alert(`Save failed: ${error.message}`); setIsSaving(false); return; }
     } else if (selectedPub) {
-      await supabase.from('scientific_outputs').update(record).eq('id', selectedPub.id);
+      const { error } = await supabase.from('scientific_outputs').update(record).eq('id', selectedPub.id);
+      if (error) { alert(`Update failed: ${error.message}`); setIsSaving(false); return; }
     }
     await refreshData();
     setPubModalMode(null);
@@ -137,9 +139,11 @@ export default function Intelligence() {
     };
     if (ipModalMode === 'add') {
       const id = crypto.randomUUID();
-      await supabase.from('ip_intelligence').insert({ id, ...record });
+      const { error } = await supabase.from('ip_intelligence').insert({ id, ...record });
+      if (error) { alert(`Save failed: ${error.message}`); setIsSaving(false); return; }
     } else if (selectedIP) {
-      await supabase.from('ip_intelligence').update(record).eq('id', selectedIP.id);
+      const { error } = await supabase.from('ip_intelligence').update(record).eq('id', selectedIP.id);
+      if (error) { alert(`Update failed: ${error.message}`); setIsSaving(false); return; }
     }
     await refreshData();
     setIPModalMode(null);

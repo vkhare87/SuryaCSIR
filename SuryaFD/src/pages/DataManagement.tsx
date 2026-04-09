@@ -387,7 +387,7 @@ export default function DataManagement() {
                                 onClick={() => handleCellClick(rowIdx, raw)}
                                 className={clsx(
                                   'px-3 py-1.5 text-text whitespace-nowrap max-w-[180px] truncate',
-                                  cellHasError && 'ring-1 ring-red-400',
+                                  cellHasError && 'outline outline-1 outline-red-400',
                                   cellHasError && !isEditing && 'cursor-pointer hover:bg-rose-100',
                                 )}
                                 title={isEditing ? undefined : (row[raw] ?? '')}

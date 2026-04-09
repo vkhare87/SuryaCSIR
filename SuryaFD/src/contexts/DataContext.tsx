@@ -86,7 +86,7 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 // ---------------------------------------------------------------------------
 
 export function DataProvider({ children }: { children: ReactNode }) {
-  const { role, divisionCode } = useAuth();
+  const { role, divisionCode, user } = useAuth();
   const provisioned = isProvisioned();
 
   const [divisions, setDivisions] = useState<DivisionInfo[]>([]);
@@ -104,7 +104,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     setError(null);
     try {
-      if (provisioned && supabase) {
+      if (provisioned && supabase && user?.id !== 'dev-admin') {
         // ----- Supabase branch -----
         const [
           divRes, staffRes, projRes, psRes, phdRes, equipRes, soRes, ipRes,
