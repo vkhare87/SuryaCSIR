@@ -81,6 +81,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []); // resolveUserRole is defined inside component — stable ref, no dep needed
 
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+    // DEV BYPASS — remove before production
+    if (email === 'admin@dev.local' && password === 'admin123') {
+      setUser({ id: 'dev-admin', email, role: 'SystemAdmin', divisionCode: null });
+      return { success: true };
+    }
     if (!supabase) {
       return { success: false, error: 'Database not provisioned. Configure Supabase in Setup.' };
     }
