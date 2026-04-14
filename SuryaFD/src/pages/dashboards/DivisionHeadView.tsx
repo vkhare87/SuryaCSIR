@@ -1,11 +1,11 @@
-import { Users, Briefcase, BookOpen, Wrench } from 'lucide-react';
+import { Users, Briefcase, BookOpen, Wrench, Microscope } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Card } from '../../components/ui/Cards';
 import { KpiCard } from './KpiCard';
 
 export function DivisionHeadView() {
-  const { staff, projects, phDStudents, equipment } = useData();
+  const { staff, projects, phDStudents, equipment, scientificOutputs } = useData();
   const { divisionCode } = useAuth();
 
   const activeProjects = projects.filter(p => p.ProjectStatus === 'Active').length;
@@ -27,7 +27,7 @@ export function DivisionHeadView() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <KpiCard
           label="Division Staff"
           value={staff.length}
@@ -45,6 +45,12 @@ export function DivisionHeadView() {
           value={divisionPhDs.length}
           icon={<BookOpen size={18} />}
           sublabel="Scholars in division"
+        />
+        <KpiCard
+          label="Outputs"
+          value={scientificOutputs.length}
+          icon={<Microscope size={18} />}
+          sublabel="Division publications & IP"
         />
         <KpiCard
           label="Equipment"
