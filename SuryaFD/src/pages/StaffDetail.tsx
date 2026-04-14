@@ -5,23 +5,41 @@ import { Button } from '../components/ui/Button';
 import {
   ArrowLeft, Mail, Phone, MapPin, Award, BookOpen, Briefcase,
   ChevronRight, GitBranch, GraduationCap,
-  FileText, Lightbulb, CalendarDays, TrendingUp
+  FileText, Lightbulb, CalendarDays, TrendingUp, Wrench
 } from 'lucide-react';
 import {
   getRetirementDate, formatDate,
   getAgeFromDOB, getServiceYears, getYearsInGrade,
-  staffNameMatchesAuthor, staffNameMatchesSupervisor, diffInDays
+  diffInDays
 } from '../utils/dateUtils';
-import { useMemo } from 'react';
+import { getStaffPortfolio } from '../utils/analytics';
 
 export default function StaffDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { staff, divisions, projects, phDStudents, scientificOutputs, ipIntelligence } = useData();
+  const {
+    staff,
+    divisions,
+    projects,
+    projectStaff,
+    phDStudents,
+    scientificOutputs,
+    ipIntelligence,
+    equipment,
+  } = useData();
 
-  const member = staff.find(s => s.ID === id);
+  const portfolio = getStaffPortfolio({
+    staffId: id,
+    staff,
+    projects,
+    projectStaff,
+    phDStudents,
+    scientificOutputs,
+    ipIntelligence,
+    equipment,
+  });
 
-  if (!member) {
+  if (!portfolio) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] text-center">
         <p className="text-text-muted mb-4">Staff member not found.</p>
@@ -30,55 +48,26 @@ export default function StaffDetail() {
     );
   }
 
+  const { member } = portfolio;
   const division = divisions.find(d => d.divCode === member.Division);
 
   // --- Relationships ---
-
-  // Projects: PI name match or division match
-  const linkedProjects = useMemo(() => projects.filter(p =>
-    p.PrincipalInvestigator?.toLowerCase().includes(
-      member.Name.replace(/^(Dr\.|Sh\.|Smt\.)\s+/i, '').trim().toLowerCase()
-    ) || p.DivisionCode === member.Division
-  ), [projects, member]);
+  const linkedProjects = portfolio.linkedProjects;
 
   // Reporting chain
-  const reportsTo = useMemo(
-    () => member.ReportingID ? staff.find(s => s.ID === member.ReportingID) : null,
-    [staff, member]
-  );
-  const directReports = useMemo(
-    () => staff.filter(s => s.ReportingID === member.ID && s.ID !== member.ID),
-    [staff, member]
-  );
+  const reportsTo = member.ReportingID ? staff.find(s => s.ID === member.ReportingID) : null;
+  const directReports = staff.filter(s => s.ReportingID === member.ID && s.ID !== member.ID);
 
   // PhD mentorship
-  const supervisingAsMain = useMemo(
-    () => phDStudents.filter(s => staffNameMatchesSupervisor(member.Name, s.SupervisorName)),
-    [phDStudents, member]
-  );
-  const supervisingAsCo = useMemo(
-    () => phDStudents.filter(s =>
-      s.CoSupervisorName && s.CoSupervisorName !== 'None' &&
-      staffNameMatchesSupervisor(member.Name, s.CoSupervisorName)
-    ),
-    [phDStudents, member]
-  );
+  const supervisingAsMain = portfolio.supervisedPhDs;
+  const supervisingAsCo = portfolio.coSupervisedPhDs;
 
   // Publications
-  const publications = useMemo(
-    () => scientificOutputs.filter(p =>
-      p.authors.some(a => staffNameMatchesAuthor(member.Name, a))
-    ),
-    [scientificOutputs, member]
-  );
+  const publications = portfolio.publications;
 
   // IP / Patents
-  const ipAssets = useMemo(
-    () => ipIntelligence.filter(ip =>
-      ip.inventors.some(inv => staffNameMatchesAuthor(member.Name, inv))
-    ),
-    [ipIntelligence, member]
-  );
+  const ipAssets = portfolio.ipAssets;
+  const assignedEquipment = portfolio.assignedEquipment;
 
   // Career metrics
   const age = getAgeFromDOB(member.DOB);
@@ -222,11 +211,12 @@ export default function StaffDetail() {
         <div className="lg:col-span-2 space-y-6">
 
           {/* Stat Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             <StatCard title="Active Projects" value={linkedProjects.filter(p => p.ProjectStatus === 'Active').length} className="bg-surface-hover border-transparent" />
             <StatCard title="Publications" value={publications.length} className="bg-surface-hover border-transparent shadow-none" />
             <StatCard title="PhD Students" value={supervisingAsMain.length + supervisingAsCo.length} className="bg-surface-hover border-transparent shadow-none" />
             <StatCard title="IP Assets" value={ipAssets.length} className="bg-surface-hover border-transparent shadow-none" />
+            <StatCard title="Equipment" value={assignedEquipment.length} className="bg-surface-hover border-transparent shadow-none" />
           </div>
 
           {/* Research & Expertise */}
@@ -441,6 +431,34 @@ export default function StaffDetail() {
                     </div>
                   );
                 })}
+              </div>
+            </Card>
+          )}
+
+          {/* Assigned Equipment */}
+          {assignedEquipment.length > 0 && (
+            <Card className="p-0 overflow-hidden">
+              <div className="p-5 border-b border-border bg-surface flex items-center gap-2">
+                <Wrench size={18} className="text-[#5e5d59]" />
+                <h3 className="text-base font-[500] text-text font-serif">Assigned Equipment ({assignedEquipment.length})</h3>
+              </div>
+              <div className="divide-y divide-border">
+                {assignedEquipment.map(item => (
+                  <div key={item.UInsID} className="p-4 hover:bg-surface-hover transition-colors">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-text leading-snug">{item.Name}</p>
+                        <p className="text-xs text-text-muted mt-1">{item.Location || 'Location unavailable'}</p>
+                      </div>
+                      <Badge variant={item.WorkingStatus === 'Working' ? 'success' : 'warning'}>
+                        {item.WorkingStatus || 'Status unknown'}
+                      </Badge>
+                    </div>
+                    <div className="mt-2 text-[10px] text-text-muted">
+                      Indenter: {item.IndenterName || '--'} • Operator: {item.OperatorName || '--'}
+                    </div>
+                  </div>
+                ))}
               </div>
             </Card>
           )}
