@@ -1,12 +1,30 @@
 import { Users, Briefcase, BookOpen, Wrench, Microscope } from 'lucide-react';
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 import { useData } from '../../contexts/DataContext';
 import { Card } from '../../components/ui/Cards';
 import { KpiCard } from './KpiCard';
+import { getDivisionMetrics } from '../../utils/analytics';
 
 export function DirectorView() {
   const { staff, projects, phDStudents, equipment, scientificOutputs, divisions } = useData();
 
   const activeProjects = projects.filter(p => p.ProjectStatus === 'Active').length;
+  const divisionMetrics = getDivisionMetrics({
+    divisions,
+    staff,
+    projects,
+    phDStudents,
+    scientificOutputs,
+    equipment,
+  });
 
   return (
     <div className="space-y-8 pb-12">
@@ -53,6 +71,67 @@ export function DirectorView() {
           sublabel="Publications & IP"
         />
       </div>
+
+      {/* Division Scorecards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+        {divisionMetrics.map(metric => (
+          <Card key={metric.divCode} className="space-y-4">
+            <div>
+              <div className="text-xs font-bold text-[#c96442] font-mono">{metric.divCode}</div>
+              <h2 className="text-base font-[500] text-text font-serif truncate" title={metric.divName}>
+                {metric.divName}
+              </h2>
+            </div>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <div className="text-2xl font-bold text-text">{metric.staffCount}</div>
+                <div className="text-[10px] uppercase tracking-widest text-text-muted">Staff</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-text">{metric.activeProjectCount}</div>
+                <div className="text-[10px] uppercase tracking-widest text-text-muted">Active Projects</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-text">{metric.scientificOutputCount}</div>
+                <div className="text-[10px] uppercase tracking-widest text-text-muted">Outputs</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-text">{metric.phdStudentCount}</div>
+                <div className="text-[10px] uppercase tracking-widest text-text-muted">PhDs</div>
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      {/* Division Comparison Chart */}
+      <Card className="space-y-5">
+        <div>
+          <h2 className="text-base font-semibold text-[#4d4c48] uppercase tracking-wide">
+            Division Comparison
+          </h2>
+          <p className="text-xs text-text-muted mt-1">Projects and scientific outputs by division</p>
+        </div>
+        <div className="h-72">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={divisionMetrics} margin={{ top: 10, right: 16, left: -20, bottom: 0 }}>
+              <CartesianGrid stroke="#e8e6dc" vertical={false} />
+              <XAxis dataKey="divCode" stroke="#87867f" tickLine={false} axisLine={false} />
+              <YAxis stroke="#87867f" tickLine={false} axisLine={false} allowDecimals={false} />
+              <Tooltip
+                contentStyle={{
+                  background: '#faf9f5',
+                  border: '1px solid #e8e6dc',
+                  borderRadius: 8,
+                  color: '#141413',
+                }}
+              />
+              <Bar dataKey="projectCount" name="Projects" fill="#c96442" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="scientificOutputCount" name="Outputs" fill="#5e5d59" radius={[6, 6, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
 
       {/* Division Breakdown Table */}
       <Card className="p-0 overflow-hidden">
