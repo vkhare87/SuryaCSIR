@@ -9,8 +9,10 @@ interface AuthContextType {
   isAuthenticated: boolean;
   role: Role | null;
   divisionCode: string | null;
+  mustChangePassword: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
+  clearMustChangePassword: () => Promise<void>;
   isLoading: boolean;
   hasPermission: (allowedRoles: Role[]) => boolean;
 }
@@ -30,7 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!supabase) return;
     const { data, error } = await supabase
       .from('user_roles')
-      .select('role, division_code')
+      .select('role, division_code, must_change_password')
       .eq('user_id', authUser.id)
       .single();
     if (error || !data) {
@@ -43,6 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email: authUser.email ?? '',
       role: data.role as Role,
       divisionCode: data.division_code ?? null,
+      mustChangePassword: data.must_change_password ?? false,
     });
     // Update last_seen_at for audit log (allowed by RLS policy "Users can update own last_seen_at")
     await supabase
@@ -83,7 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     // DEV BYPASS — remove before production
     if (email === 'admin@dev.local' && password === 'admin123') {
-      setUser({ id: 'dev-admin', email, role: 'SystemAdmin', divisionCode: null });
+      setUser({ id: 'dev-admin', email, role: 'SystemAdmin', divisionCode: null, mustChangePassword: false });
       return { success: true };
     }
     if (!supabase) {
@@ -106,6 +109,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
+  const clearMustChangePassword = async () => {
+    if (!supabase || !user) return;
+    await supabase
+      .from('user_roles')
+      .update({ must_change_password: false })
+      .eq('user_id', user.id);
+    setUser((prev) => prev ? { ...prev, mustChangePassword: false } : prev);
+  };
+
   const hasPermission = (allowedRoles: Role[]) => {
     if (!user) return false;
     return allowedRoles.includes(user.role);
@@ -117,8 +129,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated: !!user,
       role: user?.role ?? null,
       divisionCode: user?.divisionCode ?? null,
+      mustChangePassword: user?.mustChangePassword ?? false,
       login,
       logout,
+      clearMustChangePassword,
       isLoading,
       hasPermission
     }}>
