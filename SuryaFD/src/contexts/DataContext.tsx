@@ -9,6 +9,7 @@ import type {
   Equipment,
   ScientificOutput,
   IPIntelligence,
+  ContractStaff,
   Role,
 } from '../types';
 import { supabase, isProvisioned } from '../utils/supabaseClient';
@@ -21,6 +22,7 @@ import {
   mapEquipmentRow,
   mapScientificOutputRow,
   mapIPIntelligenceRow,
+  mapContractStaffRow,
 } from '../utils/dataMapper';
 import {
   mockDivisions,
@@ -70,6 +72,7 @@ interface DataContextType {
   projects: ProjectInfo[];
   projectStaff: ProjectStaff[];
   phDStudents: PhDStudent[];
+  contractStaff: ContractStaff[];
   scientificOutputs: ScientificOutput[];
   ipIntelligence: IPIntelligence[];
   equipment: Equipment[];
@@ -94,6 +97,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [projects, setProjects] = useState<ProjectInfo[]>([]);
   const [projectStaff, setProjectStaff] = useState<ProjectStaff[]>([]);
   const [phDStudents, setPhDStudents] = useState<PhDStudent[]>([]);
+  const [contractStaff, setContractStaff] = useState<ContractStaff[]>([]);
   const [scientificOutputs, setScientificOutputs] = useState<ScientificOutput[]>([]);
   const [ipIntelligence, setIPIntelligence] = useState<IPIntelligence[]>([]);
   const [equipment, setEquipment] = useState<Equipment[]>([]);
@@ -107,7 +111,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (provisioned && supabase && user?.id !== 'dev-admin') {
         // ----- Supabase branch -----
         const [
-          divRes, staffRes, projRes, psRes, phdRes, equipRes, soRes, ipRes,
+          divRes, staffRes, projRes, psRes, phdRes, equipRes, soRes, ipRes, csRes,
         ] = await Promise.all([
           supabase.from('divisions').select('*'),
           supabase.from('staff').select('*'),
@@ -117,6 +121,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           supabase.from('equipment').select('*'),
           supabase.from('scientific_outputs').select('*'),
           supabase.from('ip_intelligence').select('*'),
+          supabase.from('contract_staff').select('*'),
         ]);
 
         const rawStaff = staffRes.data ? staffRes.data.map(mapStaffRow) : [];
@@ -128,6 +133,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         setProjects(scopeProjects(rawProjects, role, divisionCode));
         setProjectStaff(psRes.data ? psRes.data.map(mapProjectStaffRow) : []);
         setPhDStudents(phdRes.data ? phdRes.data.map(mapPhDStudentRow) : []);
+        setContractStaff(csRes.data ? csRes.data.map(mapContractStaffRow) : []);
         setEquipment(scopeData(rawEquipment, role, divisionCode));
         setScientificOutputs(soRes.data ? soRes.data.map(mapScientificOutputRow) : []);
         setIPIntelligence(ipRes.data ? ipRes.data.map(mapIPIntelligenceRow) : []);
@@ -138,6 +144,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         setProjects(scopeProjects(mockProjects, role, divisionCode));
         setProjectStaff(mockProjectStaff);
         setPhDStudents(mockPhDStudents);
+        setContractStaff([]);
         setEquipment(scopeData(mockEquipment, role, divisionCode));
         setScientificOutputs(mockScientificOutputs);
         setIPIntelligence(mockIPIntelligence);
@@ -152,6 +159,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setProjects(mockProjects);
       setProjectStaff(mockProjectStaff);
       setPhDStudents(mockPhDStudents);
+      setContractStaff([]);
       setEquipment(mockEquipment);
       setScientificOutputs(mockScientificOutputs);
       setIPIntelligence(mockIPIntelligence);
@@ -171,6 +179,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       projects,
       projectStaff,
       phDStudents,
+      contractStaff,
       scientificOutputs,
       ipIntelligence,
       equipment,
