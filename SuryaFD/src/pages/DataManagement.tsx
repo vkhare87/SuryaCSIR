@@ -157,12 +157,13 @@ export default function DataManagement() {
   // -------------------------------------------------------------------------
 
   const FILE_TYPE_LABELS: Record<FileType, string> = {
-    staff:        'Human Capital (Staff Directory)',
-    divisions:    'Divisions',
-    projects:     'Research Projects',
-    projectStaff: 'Project Staff',
-    phd:          'PhD Scholars',
-    equipment:    'Facilities / Equipment',
+    staff:         'Human Capital (Staff Directory)',
+    divisions:     'Divisions',
+    projects:      'Research Projects',
+    projectStaff:  'Project Staff',
+    phd:           'PhD Scholars',
+    equipment:     'Facilities / Equipment',
+    contractStaff: 'Contract Staff',
   };
 
   const STEPS = [

@@ -402,6 +402,10 @@ export const VALIDATION_SCHEMAS: Record<FileType, z.ZodObject<any>> = {
     UInsID: z.string().min(1, 'Equipment ID is required'),
     Name: z.string().min(1, 'Equipment name is required'),
   }).passthrough(),
+  contractStaff: z.object({
+    Name: z.string().min(1, 'Name is required'),
+    Designation: z.string().min(1, 'Designation is required'),
+  }).passthrough(),
 };
 
 export function validateRows(

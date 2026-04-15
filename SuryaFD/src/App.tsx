@@ -15,6 +15,7 @@ import DataManagement from './pages/DataManagement';
 import Calendar from './pages/Calendar';
 import Login from './pages/Login';
 import SetupWizard from './pages/SetupWizard';
+import ChangePassword from './pages/ChangePassword';
 import { useAuth } from './contexts/AuthContext';
 import { isProvisioned } from './utils/supabaseClient';
 import type { Role } from './types';
@@ -27,7 +28,7 @@ interface ProtectedRouteProps {
 
 // Route Guard component
 function ProtectedRoute({ allowedRoles, children }: ProtectedRouteProps) {
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading, mustChangePassword } = useAuth();
   const provisioned = isProvisioned();
 
   if (isLoading) {
@@ -44,6 +45,11 @@ function ProtectedRoute({ allowedRoles, children }: ProtectedRouteProps) {
     return <Navigate to="/login" replace />;
   }
 
+  // Force password change before accessing any other route
+  if (mustChangePassword && !window.location.hash.includes('/change-password')) {
+    return <Navigate to="/change-password" replace />;
+  }
+
   if (allowedRoles && user && !allowedRoles.includes(user.role)) {
     return <Navigate to={ROLE_ROUTES[user.role]} replace />;
   }
@@ -57,6 +63,7 @@ function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/setup" element={<SetupWizard />} />
+        <Route path="/change-password" element={<ChangePassword />} />
         
         {/* Protected Application Routes */}
         <Route element={<ProtectedRoute />}>
@@ -69,6 +76,7 @@ function App() {
             <Route path="/hr-admin"      element={<ProtectedRoute allowedRoles={['HRAdmin']}><Dashboard /></ProtectedRoute>} />
             <Route path="/finance-admin" element={<ProtectedRoute allowedRoles={['FinanceAdmin']}><Dashboard /></ProtectedRoute>} />
             <Route path="/system-admin"  element={<ProtectedRoute allowedRoles={['SystemAdmin']}><Dashboard /></ProtectedRoute>} />
+            <Route path="/master-admin"  element={<ProtectedRoute allowedRoles={['MasterAdmin']}><Dashboard /></ProtectedRoute>} />
             <Route path="/staff" element={<HumanCapital />} />
             <Route path="/staff/:id" element={<StaffDetail />} />
             <Route path="/projects" element={<Projects />} />
@@ -77,9 +85,9 @@ function App() {
             <Route path="/divisions" element={<Divisions />} />
             <Route path="/intelligence" element={<Intelligence />} />
             <Route path="/facilities" element={<Facilities />} />
-            <Route path="/recruitment" element={<ProtectedRoute allowedRoles={['HRAdmin', 'SystemAdmin']}><Recruitment /></ProtectedRoute>} />
+            <Route path="/recruitment" element={<ProtectedRoute allowedRoles={['HRAdmin', 'SystemAdmin', 'MasterAdmin']}><Recruitment /></ProtectedRoute>} />
             <Route path="/calendar" element={<ProtectedRoute><Calendar /></ProtectedRoute>} />
-            <Route path="/data" element={<ProtectedRoute allowedRoles={['HRAdmin', 'SystemAdmin']}><DataManagement /></ProtectedRoute>} />
+            <Route path="/data" element={<ProtectedRoute allowedRoles={['HRAdmin', 'SystemAdmin', 'MasterAdmin']}><DataManagement /></ProtectedRoute>} />
           </Route>
         </Route>
 

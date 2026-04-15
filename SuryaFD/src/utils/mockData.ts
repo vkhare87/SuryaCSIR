@@ -178,22 +178,22 @@ export const mockProjectStaff: ProjectStaff[] = [
   {
     id: 'PS001', ProjectNo: 'OLP-2023-01', StaffName: 'Ramesh Yadav',
     Designation: 'Project Assistant', RecruitmentCycle: '2023',
-    DateOfJoining: '2023-06-01', DateOfProjectDuration: '2026-03-31', PIName: 'Dr. A. K. Sharma',
+    DateOfJoining: '2023-06-01', DateOfProjectDuration: '2026-03-31', PIName: 'Dr. A. K. Sharma', DivisionCode: '',
   },
   {
     id: 'PS002', ProjectNo: 'EXP-2022-05', StaffName: 'Meena Patel',
     Designation: 'Junior Research Fellow', RecruitmentCycle: '2022',
-    DateOfJoining: '2022-03-01', DateOfProjectDuration: '2025-02-28', PIName: 'Dr. R. Mishra',
+    DateOfJoining: '2022-03-01', DateOfProjectDuration: '2025-02-28', PIName: 'Dr. R. Mishra', DivisionCode: '',
   },
   {
     id: 'PS003', ProjectNo: 'CNS-2024-02', StaffName: 'Vivek Joshi',
     Designation: 'Project Associate', RecruitmentCycle: '2024',
-    DateOfJoining: '2024-02-01', DateOfProjectDuration: '2025-06-30', PIName: 'Dr. P. Singh',
+    DateOfJoining: '2024-02-01', DateOfProjectDuration: '2025-06-30', PIName: 'Dr. P. Singh', DivisionCode: '',
   },
   {
     id: 'PS004', ProjectNo: 'OLP-2024-03', StaffName: 'Anjali Dixit',
     Designation: 'Senior Research Fellow', RecruitmentCycle: '2024',
-    DateOfJoining: '2024-05-01', DateOfProjectDuration: '2027-03-31', PIName: 'Dr. Priya Mehta',
+    DateOfJoining: '2024-05-01', DateOfProjectDuration: '2027-03-31', PIName: 'Dr. Priya Mehta', DivisionCode: '',
   },
 ];
 
@@ -202,31 +202,31 @@ export const mockPhDStudents: PhDStudent[] = [
     EnrollmentNo: 'PHD2019001', StudentName: 'Arjun Nair', Specialization: 'Refractory Ceramics',
     SupervisorName: 'Dr. A. K. Sharma', CoSupervisorName: 'Dr. Priya Mehta',
     FellowshipDetails: 'SRF-CSIR', CurrentStatus: 'Thesis Submitted',
-    ThesisTitle: 'Novel Castable Refractories for Steelmaking', ProjectNo: 'OLP-2023-01',
+    ThesisTitle: 'Novel Castable Refractories for Steelmaking', ProjectNo: 'OLP-2023-01', DivisionCode: '',
   },
   {
     EnrollmentNo: 'PHD2021003', StudentName: 'Divya Kapoor', Specialization: 'Energy Materials',
     SupervisorName: 'Dr. R. Mishra', CoSupervisorName: 'None',
     FellowshipDetails: 'JRF-CSIR', CurrentStatus: 'Ongoing',
-    ThesisTitle: 'SOFC Cathode Materials for Intermediate Temperature Operation', ProjectNo: 'EXP-2022-05',
+    ThesisTitle: 'SOFC Cathode Materials for Intermediate Temperature Operation', ProjectNo: 'EXP-2022-05', DivisionCode: '',
   },
   {
     EnrollmentNo: 'PHD2022005', StudentName: 'Karan Bose', Specialization: 'Nanomaterials',
     SupervisorName: 'Dr. S. Verma', CoSupervisorName: 'None',
     FellowshipDetails: 'SRF-UGC', CurrentStatus: 'Ongoing',
-    ThesisTitle: 'Functionalized Carbon Nanotubes for Composite Reinforcement', ProjectNo: 'NNO-2021-08',
+    ThesisTitle: 'Functionalized Carbon Nanotubes for Composite Reinforcement', ProjectNo: 'NNO-2021-08', DivisionCode: '',
   },
   {
     EnrollmentNo: 'PHD2023007', StudentName: 'Pooja Sharma', Specialization: 'Ceramics',
     SupervisorName: 'Dr. Priya Mehta', CoSupervisorName: 'Dr. A. K. Sharma',
     FellowshipDetails: 'JRF-DST', CurrentStatus: 'Coursework',
-    ThesisTitle: 'Alumina-Zirconia Ceramics for Biomedical Applications', ProjectNo: '',
+    ThesisTitle: 'Alumina-Zirconia Ceramics for Biomedical Applications', ProjectNo: '', DivisionCode: '',
   },
   {
     EnrollmentNo: 'PHD2020002', StudentName: 'Manish Tripathi', Specialization: 'Biomaterials',
     SupervisorName: 'Dr. P. Singh', CoSupervisorName: 'None',
     FellowshipDetails: 'SRF-ICMR', CurrentStatus: 'Ongoing',
-    ThesisTitle: 'Hydroxyapatite Scaffolds for Bone Tissue Engineering', ProjectNo: 'CNS-2024-02',
+    ThesisTitle: 'Hydroxyapatite Scaffolds for Bone Tissue Engineering', ProjectNo: 'CNS-2024-02', DivisionCode: '',
   },
 ];
 
