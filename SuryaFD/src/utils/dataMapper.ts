@@ -1,4 +1,4 @@
-import type { DivisionInfo, StaffMember, ProjectInfo, ProjectStaff, PhDStudent, Equipment, ScientificOutput, IPIntelligence } from '../types';
+import type { DivisionInfo, StaffMember, ProjectInfo, ProjectStaff, PhDStudent, Equipment, ScientificOutput, IPIntelligence, ContractStaff } from '../types';
 
 /**
  * These mappers will eventually transform raw Supabase rows 
@@ -79,6 +79,7 @@ export const mapProjectStaffRow = (row: any): ProjectStaff => ({
   DateOfJoining: row.DateOfJoining || row.date_of_joining || '',
   DateOfProjectDuration: row.DateOfProjectDuration || row.date_of_project_duration || '',
   PIName: row.PIName || row.pi_name || '',
+  DivisionCode: row.DivisionCode || row.division_code || '',
 });
 
 export const mapPhDStudentRow = (row: any): PhDStudent => ({
@@ -91,6 +92,7 @@ export const mapPhDStudentRow = (row: any): PhDStudent => ({
   CurrentStatus: row.CurrentStatus || row.current_status || '',
   ThesisTitle: row.ThesisTitle || row.thesis_title || '',
   ProjectNo: row.ProjectNo || row.project_no || '',
+  DivisionCode: row.DivisionCode || row.division_code || '',
 });
 
 export const mapEquipmentRow = (row: any): Equipment => ({
@@ -129,4 +131,16 @@ export const mapIPIntelligenceRow = (row: any): IPIntelligence => ({
   grantDate: row.grant_date || undefined,
   inventors: Array.isArray(row.inventors) ? row.inventors : [],
   divisionCode: row.division_code || '',
+});
+
+export const mapContractStaffRow = (row: any): ContractStaff => ({
+  id: String(row.id || row.ID || ''),
+  Name: row.Name || row.name || '',
+  Designation: row.Designation || row.designation || '',
+  Division: row.Division || row.division || '',
+  DateOfJoining: row.DateOfJoining || row.date_of_joining || '',
+  ContractEndDate: row.ContractEndDate || row.contract_end_date || '',
+  LabCode: row.LabCode || row.lab_code || '',
+  DateOfBirth: row.DateOfBirth || row.date_of_birth || '',
+  AttachedToStaffID: row.AttachedToStaffID || row.attached_to_staff_id || '',
 });

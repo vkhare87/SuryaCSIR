@@ -6,7 +6,7 @@ import { z } from 'zod';
 // FileType
 // ---------------------------------------------------------------------------
 
-export type FileType = 'staff' | 'divisions' | 'projects' | 'projectStaff' | 'phd' | 'equipment';
+export type FileType = 'staff' | 'divisions' | 'projects' | 'projectStaff' | 'phd' | 'equipment' | 'contractStaff';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -156,6 +156,21 @@ export const SCHEMA_MAPS: Record<FileType, Record<string, string>> = {
     'WorkingStatus':              'WorkingStatus',
     'RequirementInstallation':    'RequirementInstallation',
   },
+  contractStaff: {
+    'Name':                 'Name',
+    'Designation':          'Designation',
+    'Division':             'Division',
+    'Date of Joining':      'DateOfJoining',
+    'Contract End Date':    'ContractEndDate',
+    'Lab Code':             'LabCode',
+    'Date of Birth':        'DateOfBirth',
+    'Attached To':          'AttachedToStaffID',
+    'DateOfJoining':        'DateOfJoining',
+    'ContractEndDate':      'ContractEndDate',
+    'LabCode':              'LabCode',
+    'DateOfBirth':          'DateOfBirth',
+    'AttachedToStaffID':    'AttachedToStaffID',
+  },
 };
 
 /**
@@ -191,6 +206,10 @@ export const ALLOWED_COLUMNS: Record<FileType, string[]> = {
     'Location', 'WorkingStatus', 'Movable', 'RequirementInstallation',
     'Justification', 'Remark',
   ],
+  contractStaff: [
+    'id', 'Name', 'Designation', 'Division', 'DateOfJoining',
+    'ContractEndDate', 'LabCode', 'DateOfBirth', 'AttachedToStaffID',
+  ],
 };
 
 /** Maps FileType to the corresponding Supabase table name. */
@@ -201,6 +220,7 @@ export const TABLE_NAMES: Record<FileType, string> = {
   projectStaff: 'project_staff',
   phd:          'phd_students',
   equipment:    'equipment',
+  contractStaff: 'contract_staff',
 };
 
 // ---------------------------------------------------------------------------
@@ -216,7 +236,6 @@ export function formatData(
   type: FileType,
 ): Record<string, string>[] {
   const schemaMap = SCHEMA_MAPS[type];
-  const allowed = new Set(ALLOWED_COLUMNS[type]);
 
   return rawRows
     .map((rawRow) => {
@@ -429,4 +448,68 @@ export function detectColumnMappings(
     }
     return { raw, mapped: null };
   });
+}
+
+// ---------------------------------------------------------------------------
+// resolveImportDivisions
+// ---------------------------------------------------------------------------
+
+/**
+ * Post-parse auto-detection: pre-fills DivisionCode/Division using existing
+ * reference data before rows are pushed to Supabase.
+ *
+ * project_staff: ProjectNo → projects lookup → copy DivisionCode
+ * phd:           SupervisorName exact match → staff.Name → copy Division
+ * contractStaff: AttachedToStaffID value matched against staff.Name first,
+ *                then staff.ID as fallback → copy Division
+ *
+ * Rows with no match are returned unchanged (DivisionCode stays empty).
+ */
+export function resolveImportDivisions(
+  rows: Record<string, string>[],
+  type: FileType,
+  referenceProjects: Array<{ ProjectNo: string; DivisionCode: string }>,
+  referenceStaff: Array<{ ID: string; Name: string; Division: string }>,
+): Record<string, string>[] {
+  if (type === 'projectStaff') {
+    const projectMap = new Map(
+      referenceProjects.map((p) => [p.ProjectNo, p.DivisionCode])
+    );
+    return rows.map((row) => {
+      if (row.DivisionCode) return row;
+      const divCode = projectMap.get(row.ProjectNo);
+      return divCode ? { ...row, DivisionCode: divCode } : row;
+    });
+  }
+
+  if (type === 'phd') {
+    const staffByName = new Map(
+      referenceStaff.map((s) => [s.Name.trim().toLowerCase(), s.Division])
+    );
+    return rows.map((row) => {
+      if (row.DivisionCode) return row;
+      const div = staffByName.get((row.SupervisorName || '').trim().toLowerCase());
+      return div ? { ...row, DivisionCode: div } : row;
+    });
+  }
+
+  if (type === 'contractStaff') {
+    const staffByName = new Map(
+      referenceStaff.map((s) => [s.Name.trim().toLowerCase(), s.Division])
+    );
+    const staffById = new Map(
+      referenceStaff.map((s) => [s.ID.trim(), s.Division])
+    );
+    return rows.map((row) => {
+      if (row.Division) return row;
+      const attached = (row.AttachedToStaffID || '').trim();
+      const divByName = staffByName.get(attached.toLowerCase());
+      if (divByName) return { ...row, Division: divByName };
+      const divById = staffById.get(attached);
+      if (divById) return { ...row, Division: divById };
+      return row;
+    });
+  }
+
+  return rows;
 }

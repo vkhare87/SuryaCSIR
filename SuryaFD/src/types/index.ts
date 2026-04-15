@@ -66,6 +66,7 @@ export interface ProjectStaff {
   DateOfJoining: string;
   DateOfProjectDuration: string;
   PIName: string;
+  DivisionCode: string;
 }
 
 export interface PhDStudent {
@@ -78,6 +79,7 @@ export interface PhDStudent {
   CurrentStatus: string;
   ThesisTitle: string;
   ProjectNo: string; // Optional reference to ProjectInfo
+  DivisionCode: string;
 }
 
 export interface Equipment {
@@ -127,13 +129,27 @@ export type Role =
   | 'Technician'
   | 'HRAdmin'
   | 'FinanceAdmin'
-  | 'SystemAdmin';
+  | 'SystemAdmin'
+  | 'MasterAdmin';
 
 export interface UserAccount {
   id: string;           // Supabase auth.users UUID
   email: string;
   role: Role;
   divisionCode: string | null;  // from user_roles.division_code; null for non-division-scoped roles
+  mustChangePassword: boolean;
+}
+
+export interface ContractStaff {
+  id: string;
+  Name: string;
+  Designation: string;
+  Division: string;
+  DateOfJoining: string;
+  ContractEndDate: string;
+  LabCode: string;
+  DateOfBirth: string;
+  AttachedToStaffID: string;
 }
 
 export type UIDensity = 'compact' | 'medium' | 'relaxed';

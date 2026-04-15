@@ -8,4 +8,5 @@ export const ROLE_ROUTES: Record<Role, string> = {
   HRAdmin:      '/hr-admin',
   FinanceAdmin: '/finance-admin',
   SystemAdmin:  '/system-admin',
+  MasterAdmin:  '/master-admin',
 };
