@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Sun, User, Lock, ArrowRight } from 'lucide-react';
+import { Sun, User, Lock, ArrowRight, Mail } from 'lucide-react';
 import { ROLE_ROUTES } from '../constants/roleRoutes';
 
 export default function Login() {
@@ -9,6 +9,7 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [magicLinkSent, setMagicLinkSent] = useState(false);
   const { login, isAuthenticated, role } = useAuth();
   const navigate = useNavigate();
 
@@ -24,13 +25,20 @@ export default function Login() {
     setIsLoading(true);
     setError('');
 
-    const { success, error: loginError } = await login(email, password);
-    if (!success) {
-      setError(loginError ?? 'Invalid credentials. Please try again.');
+    try {
+      const { success, error: loginError, otpSent } = await login(email, password);
+      if (otpSent) {
+        setMagicLinkSent(true);
+      } else if (!success) {
+        setError(loginError ?? 'Invalid credentials. Please try again.');
+      }
+      // On success: do NOT navigate here. The useEffect above handles navigation
+      // once AuthContext sets role asynchronously after onAuthStateChange fires.
+    } catch (err) {
+      setError('Connection error. Please check your network and try again.');
+    } finally {
+      setIsLoading(false);
     }
-    // On success: do NOT navigate here. The useEffect above handles navigation
-    // once AuthContext sets role asynchronously after onAuthStateChange fires.
-    setIsLoading(false);
   };
 
   return (
@@ -147,6 +155,34 @@ export default function Login() {
              </div>
           </div>
 
+          {magicLinkSent ? (
+            <div className="space-y-6">
+              <div className="flex flex-col items-center gap-4 py-6 text-center">
+                <div className="w-16 h-16 rounded-full bg-[#f0fdf4] border border-[#bbf7d0] flex items-center justify-center text-[#16a34a]">
+                  <Mail size={28} />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-[#141413] mb-1">Check your inbox</p>
+                  <p className="text-xs text-[#87867f] leading-relaxed">
+                    A sign-in link has been sent to<br />
+                    <span className="font-semibold text-[#141413]">{email}</span>.<br />
+                    Click the link in the email to access SURYA.
+                  </p>
+                </div>
+                <p className="text-[10px] text-[#b0aea5] leading-relaxed px-2">
+                  Your account requires a one-time recovery. After signing in via the link,
+                  contact your administrator to restore normal password access.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setMagicLinkSent(false); setError(''); }}
+                className="w-full py-3 border border-[#e5e3dc] rounded-[8px] text-xs font-semibold text-[#87867f] uppercase tracking-widest hover:bg-[#f5f4ed] transition-colors"
+              >
+                Back to login
+              </button>
+            </div>
+          ) : (
           <form onSubmit={handleLogin} className="space-y-8">
             <div className="space-y-6">
               <div className="space-y-2">
@@ -199,6 +235,7 @@ export default function Login() {
               <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
             </button>
           </form>
+          )}
 
           {/* Footer Branding */}
           <div className="pt-12 flex flex-col items-center">

@@ -34,3 +34,10 @@ export const supabase: SupabaseClient | null = (() => {
 export function isProvisioned(): boolean {
   return supabase !== null;
 }
+
+export function provisionDatabase(url: string, key: string): void {
+  localStorage.setItem('surya_supabase_url', url);
+  localStorage.setItem('surya_supabase_anon_key', key);
+  // Reload so the module re-initializes with the new credentials
+  window.location.reload();
+}

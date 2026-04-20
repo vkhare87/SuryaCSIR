@@ -10,7 +10,7 @@ interface AuthContextType {
   role: Role | null;
   divisionCode: string | null;
   mustChangePassword: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string; otpSent?: boolean }>;
   logout: () => Promise<void>;
   clearMustChangePassword: () => Promise<void>;
   isLoading: boolean;
@@ -28,8 +28,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserAccount | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const resolveUserRole = async (authUser: SupabaseUser) => {
-    if (!supabase) return;
+  const resolveUserRole = async (authUser: SupabaseUser): Promise<boolean> => {
+    if (!supabase) return false;
     const { data, error } = await supabase
       .from('user_roles')
       .select('role, division_code, must_change_password')
@@ -38,7 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error || !data) {
       await supabase.auth.signOut();
       setUser(null);
-      return;
+      return false;
     }
     setUser({
       id: authUser.id,
@@ -52,6 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .from('user_roles')
       .update({ last_seen_at: new Date().toISOString() })
       .eq('user_id', authUser.id);
+    return true;
   };
 
   useEffect(() => {
@@ -92,11 +93,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!supabase) {
       return { success: false, error: 'Database not provisioned. Configure Supabase in Setup.' };
     }
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
+      // Supabase Auth internal error — password hash likely corrupted by direct DB update.
+      // Fall back to magic link (OTP) which goes through a different auth path.
+      if (error.message.toLowerCase().includes('database error querying schema')) {
+        const { error: otpError } = await supabase.auth.signInWithOtp({
+          email,
+          options: { shouldCreateUser: false },
+        });
+        if (!otpError) {
+          return { success: false, otpSent: true };
+        }
+        return { success: false, error: 'Login failed and a recovery link could not be sent. Please contact your administrator.' };
+      }
       return { success: false, error: error.message };
     }
-    // onAuthStateChange SIGNED_IN event fires and calls resolveUserRole automatically.
+    // Await role resolution directly so any failure is surfaced to the login form.
+    // onAuthStateChange will also fire, but the redundant resolveUserRole call is harmless.
+    if (data.user) {
+      const resolved = await resolveUserRole(data.user);
+      if (!resolved) {
+        return { success: false, error: 'Your account has no assigned role. Please contact your system administrator.' };
+      }
+    }
     return { success: true };
   };
 

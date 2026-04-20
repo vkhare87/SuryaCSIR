@@ -101,4 +101,6 @@ ON CONFLICT (user_id) DO UPDATE
   SET role = 'MasterAdmin',
       must_change_password = true;
 
-RAISE NOTICE 'migration_v2.sql completed successfully';
+DO $$ BEGIN
+  RAISE NOTICE 'migration_v2.sql completed successfully';
+END $$;

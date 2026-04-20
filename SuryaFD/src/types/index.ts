@@ -152,5 +152,44 @@ export interface ContractStaff {
   AttachedToStaffID: string;
 }
 
+export interface VacancyAdvertisement {
+  id: string;
+  title: string;
+  description: string;
+  designation: string;
+  division: string;
+  numberOfPositions: number;
+  qualifications: string;
+  salary?: string;
+  applicationDeadline: string;
+  createdAt: string;
+  status: 'Open' | 'Closed' | 'Archived';
+}
+
+export interface VacancyPost {
+  id: string;
+  vacancyId: string; // References VacancyAdvertisement.id
+  candidateName: string;
+  email: string;
+  phoneNumber: string;
+  qualifications: string;
+  experience: string;
+  applicationDate: string;
+  status: 'Received' | 'Shortlisted' | 'Interviewed' | 'Selected' | 'Rejected';
+  notes?: string;
+}
+
 export type UIDensity = 'compact' | 'medium' | 'relaxed';
 export type ThemeMode = 'light' | 'dark' | 'system';
+
+export interface Notification {
+  id: string;
+  user_id: string;
+  title: string;
+  body: string;
+  type: 'deadline' | 'announcement';
+  read: boolean;
+  entity_type: string | null;
+  entity_id: string | null;
+  created_at: string;
+}

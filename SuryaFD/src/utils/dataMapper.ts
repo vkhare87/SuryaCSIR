@@ -1,4 +1,4 @@
-import type { DivisionInfo, StaffMember, ProjectInfo, ProjectStaff, PhDStudent, Equipment, ScientificOutput, IPIntelligence, ContractStaff } from '../types';
+import type { DivisionInfo, StaffMember, ProjectInfo, ProjectStaff, PhDStudent, Equipment, ScientificOutput, IPIntelligence, ContractStaff, VacancyAdvertisement, VacancyPost, Notification } from '../types';
 
 /**
  * These mappers will eventually transform raw Supabase rows 
@@ -143,4 +143,43 @@ export const mapContractStaffRow = (row: any): ContractStaff => ({
   LabCode: row.LabCode || row.lab_code || '',
   DateOfBirth: row.DateOfBirth || row.date_of_birth || '',
   AttachedToStaffID: row.AttachedToStaffID || row.attached_to_staff_id || '',
+});
+
+export const mapVacancyAdvertisementRow = (row: any): VacancyAdvertisement => ({
+  id: String(row.id || ''),
+  title: row.title || '',
+  description: row.description || '',
+  designation: row.designation || '',
+  division: row.division || '',
+  numberOfPositions: parseInt(row.numberOfPositions || row.number_of_positions || '1', 10),
+  qualifications: row.qualifications || '',
+  salary: row.salary || undefined,
+  applicationDeadline: row.applicationDeadline || row.application_deadline || '',
+  createdAt: row.createdAt || row.created_at || '',
+  status: row.status || 'Open',
+});
+
+export const mapVacancyPostRow = (row: any): VacancyPost => ({
+  id: String(row.id || ''),
+  vacancyId: String(row.vacancyId || row.vacancy_id || ''),
+  candidateName: row.candidateName || row.candidate_name || '',
+  email: row.email || '',
+  phoneNumber: row.phoneNumber || row.phone_number || '',
+  qualifications: row.qualifications || '',
+  experience: row.experience || '',
+  applicationDate: row.applicationDate || row.application_date || '',
+  status: row.status || 'Received',
+  notes: row.notes || undefined,
+});
+
+export const mapNotificationRow = (row: any): Notification => ({
+  id: String(row.id || ''),
+  user_id: String(row.user_id || ''),
+  title: row.title || '',
+  body: row.body || '',
+  type: row.type || 'announcement',
+  read: Boolean(row.read),
+  entity_type: row.entity_type || null,
+  entity_id: row.entity_id || null,
+  created_at: row.created_at || '',
 });

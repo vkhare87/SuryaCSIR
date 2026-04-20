@@ -36,15 +36,18 @@ export default function ChangePassword() {
 
     setIsLoading(true);
 
-    // Step 1: verify current password by re-authenticating
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: user.email,
-      password: currentPassword,
-    });
-    if (signInError) {
-      setError('Current password is incorrect.');
-      setIsLoading(false);
-      return;
+    // Step 1: verify current password by re-authenticating.
+    // Skipped for first-time / magic-link users who have no current password.
+    if (currentPassword) {
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: currentPassword,
+      });
+      if (signInError) {
+        setError('Current password is incorrect.');
+        setIsLoading(false);
+        return;
+      }
     }
 
     // Step 2: update to new password
@@ -120,9 +123,14 @@ export default function ChangePassword() {
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Current Password */}
             <div className="space-y-2">
-              <label className="text-[10px] font-semibold text-[#87867f] uppercase tracking-widest ml-1">
-                Current Password
-              </label>
+              <div className="flex items-center justify-between ml-1">
+                <label className="text-[10px] font-semibold text-[#87867f] uppercase tracking-widest">
+                  Current Password
+                </label>
+                <span className="text-[10px] text-[#b0aea5] italic">
+                  Leave blank if signing in for the first time
+                </span>
+              </div>
               <div className="relative group">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#b0aea5] group-focus-within:text-[#3898ec] transition-colors">
                   <Lock size={18} />
@@ -132,8 +140,7 @@ export default function ChangePassword() {
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
                   className="w-full pl-12 pr-12 py-4 bg-[#f5f4ed] border border-[#f0eee6] rounded-[12px] focus:ring-2 focus:ring-[#3898ec] focus:border-[#3898ec] outline-none text-[#141413] font-medium transition-all placeholder:text-[#b0aea5]"
-                  placeholder="Enter current password"
-                  required
+                  placeholder="Leave blank if first-time setup"
                 />
                 <button
                   type="button"
