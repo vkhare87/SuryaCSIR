@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Outlet, NavLink } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import {
   Users,
   Briefcase,
@@ -19,6 +19,7 @@ import {
   Menu,
   X,
   AlertCircle,
+  ChevronDown,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -31,8 +32,11 @@ import { useData } from '../../contexts/DataContext';
 import type { Role } from '../../types';
 import { ROLE_ROUTES } from '../../constants/roleRoutes';
 
-// All 7 roles — used for nav items accessible to every authenticated user
-const ALL_ROLES: Role[] = ['Director', 'DivisionHead', 'Scientist', 'Technician', 'HRAdmin', 'FinanceAdmin', 'SystemAdmin'];
+const ALL_ROLES: Role[] = [
+  'Director', 'DivisionHead', 'HOD', 'Scientist', 'Technician',
+  'HRAdmin', 'FinanceAdmin', 'SystemAdmin', 'MasterAdmin',
+  'Student', 'ProjectStaff', 'Guest', 'DefaultUser',
+];
 
 interface NavItem {
   path: string;
@@ -59,8 +63,10 @@ export function Layout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [roleSwitcherOpen, setRoleSwitcherOpen] = useState(false);
 
-  const { user, logout, role } = useAuth();
+  const { user, logout, role, roles, setActiveRole } = useAuth();
+  const navigate = useNavigate();
   const { isMobile, deviceType } = useUI();
   const { error } = useData();
 
@@ -220,9 +226,44 @@ export function Layout() {
                 <kbd className="hidden lg:inline-block bg-background border border-border rounded px-1.5 text-xs font-mono">⌘K</kbd>
               </button>
 
+              {/* Role Switcher — only visible when user has 2+ roles */}
+              {roles.length > 1 && (
+                <div className="relative">
+                  <button
+                    onClick={() => setRoleSwitcherOpen(v => !v)}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 bg-surface-hover border border-border rounded-[8px] text-xs font-semibold text-text-muted hover:border-[#c96442] hover:text-text transition-colors"
+                  >
+                    <span className="hidden sm:inline">{role}</span>
+                    <ChevronDown size={13} className={`transition-transform ${roleSwitcherOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  {roleSwitcherOpen && (
+                    <div className="absolute right-0 top-full mt-1 bg-surface border border-border rounded-[10px] shadow-lg z-50 py-1 min-w-[160px]">
+                      {roles.map(r => (
+                        <button
+                          key={r}
+                          onClick={async () => {
+                            await setActiveRole(r);
+                            navigate(ROLE_ROUTES[r]);
+                            setRoleSwitcherOpen(false);
+                          }}
+                          className={`w-full text-left px-4 py-2 text-xs font-medium transition-colors ${
+                            r === role
+                              ? 'text-[#c96442] bg-[#fdf0e8]'
+                              : 'text-text-muted hover:text-text hover:bg-surface-hover'
+                          }`}
+                        >
+                          {r}
+                          {r === role && <span className="ml-2 text-[10px] opacity-60">active</span>}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* User Avatar */}
               <div className="h-8 w-8 rounded-full bg-[#c96442] text-[#faf9f5] flex items-center justify-center font-bold text-sm shadow-[0px_0px_0px_1px_#b5593b] uppercase shrink-0">
-                {user?.role?.charAt(0) || 'M'}
+                {user?.activeRole?.charAt(0) || 'U'}
               </div>
           </div>
         </header>

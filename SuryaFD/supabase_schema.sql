@@ -265,3 +265,112 @@ CREATE POLICY "HRAdmin and SystemAdmin can write ip_intelligence"
         (SELECT role FROM public.user_roles WHERE user_id = (select auth.uid()))
         IN ('HRAdmin', 'SystemAdmin')
     );
+
+-- ============================================================
+-- Phase 4: Multi-role support, user_profiles, auto-registration
+-- Run in Supabase SQL Editor after Phase 2 & 3
+-- ============================================================
+
+-- Helper function: check if calling user has a given role (SECURITY DEFINER bypasses RLS recursion)
+CREATE OR REPLACE FUNCTION public.user_has_role(check_role text)
+RETURNS boolean LANGUAGE sql SECURITY DEFINER STABLE AS $$
+    SELECT EXISTS (
+        SELECT 1 FROM public.user_roles
+        WHERE user_id = auth.uid() AND role = check_role
+    )
+$$;
+
+-- Step 1: Add must_change_password column to user_roles
+ALTER TABLE public.user_roles
+    ADD COLUMN IF NOT EXISTS must_change_password boolean NOT NULL DEFAULT true;
+
+-- Step 2: Expand role CHECK constraint to include MasterAdmin + new roles
+ALTER TABLE public.user_roles
+    DROP CONSTRAINT IF EXISTS user_roles_role_check;
+ALTER TABLE public.user_roles
+    ADD CONSTRAINT user_roles_role_check CHECK (role IN (
+        'Director', 'DivisionHead', 'Scientist', 'Technician',
+        'HRAdmin', 'FinanceAdmin', 'SystemAdmin', 'MasterAdmin',
+        'DefaultUser', 'HOD', 'Student', 'ProjectStaff', 'Guest'
+    ));
+
+-- Step 3: Change primary key to composite (user_id, role) to support multi-role
+ALTER TABLE public.user_roles DROP CONSTRAINT IF EXISTS user_roles_pkey;
+ALTER TABLE public.user_roles ADD PRIMARY KEY (user_id, role);
+
+-- Step 4: user_profiles table — per-user settings (email, active_role, flags)
+CREATE TABLE IF NOT EXISTS public.user_profiles (
+    user_id              uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    email                text NULL,
+    must_change_password boolean NOT NULL DEFAULT true,
+    active_role          text NULL,
+    last_seen_at         timestamptz NULL
+);
+
+ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can read own profile"
+    ON public.user_profiles FOR SELECT TO authenticated
+    USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own profile"
+    ON public.user_profiles FOR UPDATE TO authenticated
+    USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Admins can read all profiles"
+    ON public.user_profiles FOR SELECT TO authenticated
+    USING (public.user_has_role('MasterAdmin') OR public.user_has_role('SystemAdmin'));
+
+CREATE POLICY "Admins can manage all profiles"
+    ON public.user_profiles FOR ALL TO authenticated
+    USING (public.user_has_role('MasterAdmin') OR public.user_has_role('SystemAdmin'))
+    WITH CHECK (public.user_has_role('MasterAdmin') OR public.user_has_role('SystemAdmin'));
+
+-- Step 5: Auto-register trigger — inserts DefaultUser row + profile on new Supabase Auth user
+CREATE OR REPLACE FUNCTION public.handle_new_auth_user()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+    INSERT INTO public.user_roles (user_id, role, must_change_password)
+    VALUES (NEW.id, 'DefaultUser', true)
+    ON CONFLICT DO NOTHING;
+
+    INSERT INTO public.user_profiles (user_id, email, must_change_password)
+    VALUES (NEW.id, NEW.email, true)
+    ON CONFLICT (user_id) DO NOTHING;
+
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+    AFTER INSERT ON auth.users
+    FOR EACH ROW EXECUTE FUNCTION public.handle_new_auth_user();
+
+-- Step 6: Backfill existing auth users missing user_roles/user_profiles rows
+INSERT INTO public.user_roles (user_id, role, must_change_password)
+SELECT au.id, 'DefaultUser', true FROM auth.users au
+WHERE NOT EXISTS (SELECT 1 FROM public.user_roles WHERE user_id = au.id);
+
+INSERT INTO public.user_profiles (user_id, email, must_change_password)
+SELECT au.id, au.email, true FROM auth.users au
+WHERE NOT EXISTS (SELECT 1 FROM public.user_profiles WHERE user_id = au.id);
+
+-- Step 7: MasterAdmin RLS policies on user_roles
+CREATE POLICY "MasterAdmin can read all roles"
+    ON public.user_roles FOR SELECT TO authenticated
+    USING (public.user_has_role('MasterAdmin'));
+
+CREATE POLICY "MasterAdmin can insert roles"
+    ON public.user_roles FOR INSERT TO authenticated
+    WITH CHECK (public.user_has_role('MasterAdmin'));
+
+CREATE POLICY "MasterAdmin can update roles"
+    ON public.user_roles FOR UPDATE TO authenticated
+    USING (public.user_has_role('MasterAdmin'))
+    WITH CHECK (public.user_has_role('MasterAdmin'));
+
+CREATE POLICY "MasterAdmin can delete roles"
+    ON public.user_roles FOR DELETE TO authenticated
+    USING (public.user_has_role('MasterAdmin'));

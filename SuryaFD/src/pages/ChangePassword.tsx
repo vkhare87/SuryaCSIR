@@ -50,7 +50,11 @@ export default function ChangePassword() {
       }
     }
 
-    // Step 2: update to new password
+    // Step 2: clear must_change_password in DB BEFORE updating password.
+    // This ensures onAuthStateChange (fired by updateUser) reads false from DB.
+    await clearMustChangePassword();
+
+    // Step 3: update to new password
     const { error: updateError } = await supabase.auth.updateUser({
       password: newPassword,
     });
@@ -59,9 +63,6 @@ export default function ChangePassword() {
       setIsLoading(false);
       return;
     }
-
-    // Step 3: clear the must_change_password flag
-    await clearMustChangePassword();
 
     // Step 4: navigate to role dashboard
     navigate(role ? ROLE_ROUTES[role] : '/');

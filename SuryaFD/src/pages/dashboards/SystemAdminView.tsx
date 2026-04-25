@@ -13,8 +13,9 @@ interface UserRoleRow {
 }
 
 const ALL_ROLE_VALUES: Role[] = [
-  'Director', 'DivisionHead', 'Scientist', 'Technician',
-  'HRAdmin', 'FinanceAdmin', 'SystemAdmin',
+  'Director', 'DivisionHead', 'HOD', 'Scientist', 'Technician',
+  'HRAdmin', 'FinanceAdmin', 'SystemAdmin', 'MasterAdmin',
+  'Student', 'ProjectStaff', 'Guest', 'DefaultUser',
 ];
 
 export function SystemAdminView() {
@@ -36,10 +37,10 @@ export function SystemAdminView() {
 
   const handleRoleUpdate = async (userId: string, newRole: string) => {
     if (!supabase) return;
+    // With composite PK (user_id, role), upsert adds the role if not already assigned
     await supabase
       .from('user_roles')
-      .upsert({ user_id: userId, role: newRole, division_code: null })
-      .eq('user_id', userId);
+      .upsert({ user_id: userId, role: newRole, division_code: null, must_change_password: false });
     setEditingUserId(null);
     const { data } = await supabase.from('user_roles').select('*');
     if (data) setUserRoles(data as UserRoleRow[]);

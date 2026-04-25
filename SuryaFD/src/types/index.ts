@@ -125,18 +125,24 @@ export interface IPIntelligence {
 export type Role =
   | 'Director'
   | 'DivisionHead'
+  | 'HOD'
   | 'Scientist'
   | 'Technician'
   | 'HRAdmin'
   | 'FinanceAdmin'
   | 'SystemAdmin'
-  | 'MasterAdmin';
+  | 'MasterAdmin'
+  | 'Student'
+  | 'ProjectStaff'
+  | 'Guest'
+  | 'DefaultUser';
 
 export interface UserAccount {
-  id: string;           // Supabase auth.users UUID
+  id: string;
   email: string;
-  role: Role;
-  divisionCode: string | null;  // from user_roles.division_code; null for non-division-scoped roles
+  roles: Role[];         // all assigned roles
+  activeRole: Role;      // currently active role (drives dashboard view)
+  divisionCode: string | null;
   mustChangePassword: boolean;
 }
 

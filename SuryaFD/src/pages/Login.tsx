@@ -4,14 +4,66 @@ import { useNavigate } from 'react-router-dom';
 import { Sun, User, Lock, ArrowRight, Mail } from 'lucide-react';
 import { ROLE_ROUTES } from '../constants/roleRoutes';
 
+const CSIR_STATS = [
+  { label: 'National Labs', target: 38 },
+  { label: 'Scientists', target: 4700, suffix: '+' },
+  { label: 'Years of R&D', target: 78 },
+  { label: 'Patents Filed', target: 4800, suffix: '+' },
+];
+
+const ACHIEVEMENTS = [
+  'First Indian institute to develop anti-malarial drugs — 1947',
+  'CSIR-NAL built India\'s first civilian aircraft, Saras',
+  'CSIR-CFTRI: world-class food science safeguarding nutrition since 1950',
+  'Open Source Drug Discovery — crowdsourced TB & malaria research',
+  'Materials & alloys powering India\'s space & defense programs',
+  '38 national laboratories spanning every scientific discipline',
+];
+
+function useCountUp(target: number, duration = 1500, active: boolean) {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    if (!active) return;
+    let start = 0;
+    const step = Math.ceil(target / (duration / 16));
+    const timer = setInterval(() => {
+      start += step;
+      if (start >= target) { setCount(target); clearInterval(timer); }
+      else setCount(start);
+    }, 16);
+    return () => clearInterval(timer);
+  }, [target, duration, active]);
+  return count;
+}
+
+function StatCounter({ target, suffix = '' }: { target: number; suffix?: string }) {
+  const [active, setActive] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setActive(true), 300); return () => clearTimeout(t); }, []);
+  const count = useCountUp(target, 1400, active);
+  return <span>{count.toLocaleString()}{suffix}</span>;
+}
+
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
+  const [tickerIndex, setTickerIndex] = useState(0);
+  const [tickerVisible, setTickerVisible] = useState(true);
   const { login, isAuthenticated, role } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTickerVisible(false);
+      setTimeout(() => {
+        setTickerIndex(i => (i + 1) % ACHIEVEMENTS.length);
+        setTickerVisible(true);
+      }, 400);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Navigate to role-specific dashboard once auth and role are both resolved
   useEffect(() => {
@@ -118,6 +170,18 @@ export default function Login() {
               </div>
             </div>
           </div>
+
+          {/* Animated CSIR stats */}
+          <div className="grid grid-cols-4 gap-6 mt-10 max-w-2xl">
+            {CSIR_STATS.map(stat => (
+              <div key={stat.label} className="text-center">
+                <div className="text-2xl font-[600] text-[#d97757] font-serif tabular-nums">
+                  <StatCounter target={stat.target} suffix={stat.suffix} />
+                </div>
+                <div className="text-[10px] text-[#b0aea5] uppercase tracking-widest mt-0.5">{stat.label}</div>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Bottom Tagline Section */}
@@ -129,10 +193,14 @@ export default function Login() {
                <div className="text-[10px] font-semibold text-[#b0aea5] tracking-[0.4em] uppercase">The Digital Sun</div>
              </div>
           </div>
-          <div className="text-[10px] font-semibold text-[#b0aea5] tracking-widest uppercase flex items-center gap-3">
-             UNIFIED INSTITUTIONAL INTELLIGENCE
-             <span className="w-1.5 h-1.5 rounded-full bg-[#c96442]" />
-             STRATEGIC MANAGEMENT SYSTEM
+          {/* Achievement ticker */}
+          <div className="max-w-xs">
+            <div
+              className="text-[10px] text-[#b0aea5] leading-relaxed italic transition-opacity duration-300"
+              style={{ opacity: tickerVisible ? 1 : 0 }}
+            >
+              {ACHIEVEMENTS[tickerIndex]}
+            </div>
           </div>
         </div>
       </div>
