@@ -14,4 +14,5 @@ export const ROLE_ROUTES: Record<Role, string> = {
   ProjectStaff: '/project-staff',
   Guest:        '/guest',
   DefaultUser:  '/pending',
+  EmpoweredCommittee: '/pms',
 };

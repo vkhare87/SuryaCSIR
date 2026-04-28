@@ -135,7 +135,8 @@ export type Role =
   | 'Student'
   | 'ProjectStaff'
   | 'Guest'
-  | 'DefaultUser';
+  | 'DefaultUser'
+  | 'EmpoweredCommittee';
 
 export interface UserAccount {
   id: string;
