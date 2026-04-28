@@ -20,6 +20,7 @@ import {
   X,
   AlertCircle,
   ChevronDown,
+  ClipboardCheck,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -35,7 +36,7 @@ import { ROLE_ROUTES } from '../../constants/roleRoutes';
 const ALL_ROLES: Role[] = [
   'Director', 'DivisionHead', 'HOD', 'Scientist', 'Technician',
   'HRAdmin', 'FinanceAdmin', 'SystemAdmin', 'MasterAdmin',
-  'Student', 'ProjectStaff', 'Guest', 'DefaultUser',
+  'Student', 'ProjectStaff', 'Guest', 'DefaultUser', 'EmpoweredCommittee',
 ];
 
 interface NavItem {
@@ -56,6 +57,7 @@ const NAV_ITEMS: NavItem[] = [
   { path: '/recruitment',  label: 'Recruitment',     icon: FileText,        allowedRoles: ['HRAdmin', 'SystemAdmin'] },
   { path: '/calendar',     label: 'Calendar',        icon: CalendarIcon,    allowedRoles: ALL_ROLES },
   { path: '/data',         label: 'Data Import',     icon: Database,        allowedRoles: ['HRAdmin', 'SystemAdmin'] },
+  { path: '/pms',          label: 'Performance Mgmt',icon: ClipboardCheck,  allowedRoles: ['Scientist','HOD','DivisionHead','Director','EmpoweredCommittee','HRAdmin','SystemAdmin','MasterAdmin'] },
 ];
 
 export function Layout() {

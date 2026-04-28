@@ -6,6 +6,7 @@ import { ThemeProvider } from './contexts/ThemeContext.tsx'
 import { UIProvider } from './contexts/UIContext.tsx'
 import { AuthProvider } from './contexts/AuthContext.tsx'
 import { DataProvider } from './contexts/DataContext.tsx'
+import { PMSProvider } from './contexts/PMSContext.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -13,7 +14,9 @@ createRoot(document.getElementById('root')!).render(
       <UIProvider>
         <AuthProvider>
           <DataProvider>
-            <App />
+            <PMSProvider>
+              <App />
+            </PMSProvider>
           </DataProvider>
         </AuthProvider>
       </UIProvider>

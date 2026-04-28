@@ -16,6 +16,12 @@ import Calendar from './pages/Calendar';
 import Login from './pages/Login';
 import SetupWizard from './pages/SetupWizard';
 import ChangePassword from './pages/ChangePassword';
+import PMSIndex from './pages/pms/Index';
+import PMSCycles from './pages/pms/Cycles';
+import PMSCollegiums from './pages/pms/Collegiums';
+import PMSReports from './pages/pms/Reports';
+import ReportNew from './pages/pms/ReportNew';
+import ReportView from './pages/pms/ReportView';
 import { useAuth } from './contexts/AuthContext';
 import { isProvisioned } from './utils/supabaseClient';
 import type { Role } from './types';
@@ -93,6 +99,12 @@ function App() {
             <Route path="/recruitment" element={<ProtectedRoute allowedRoles={['HRAdmin', 'SystemAdmin', 'MasterAdmin']}><Recruitment /></ProtectedRoute>} />
             <Route path="/calendar" element={<ProtectedRoute><Calendar /></ProtectedRoute>} />
             <Route path="/data" element={<ProtectedRoute allowedRoles={['HRAdmin', 'SystemAdmin', 'MasterAdmin']}><DataManagement /></ProtectedRoute>} />
+            <Route path="/pms" element={<ProtectedRoute allowedRoles={['Scientist','HOD','DivisionHead','Director','EmpoweredCommittee','HRAdmin','SystemAdmin','MasterAdmin']}><PMSIndex /></ProtectedRoute>} />
+            <Route path="/pms/cycles" element={<ProtectedRoute allowedRoles={['HRAdmin','SystemAdmin','MasterAdmin']}><PMSCycles /></ProtectedRoute>} />
+            <Route path="/pms/collegiums" element={<ProtectedRoute allowedRoles={['HRAdmin','SystemAdmin','MasterAdmin']}><PMSCollegiums /></ProtectedRoute>} />
+            <Route path="/pms/reports" element={<ProtectedRoute><PMSReports /></ProtectedRoute>} />
+            <Route path="/pms/reports/new" element={<ProtectedRoute allowedRoles={['Scientist','HOD','DivisionHead','Director']}><ReportNew /></ProtectedRoute>} />
+            <Route path="/pms/reports/:id" element={<ProtectedRoute><ReportView /></ProtectedRoute>} />
           </Route>
         </Route>
 
