@@ -22,6 +22,7 @@ import PMSCollegiums from './pages/pms/Collegiums';
 import PMSReports from './pages/pms/Reports';
 import ReportNew from './pages/pms/ReportNew';
 import ReportView from './pages/pms/ReportView';
+import ReportEdit from './pages/pms/ReportEdit';
 import { useAuth } from './contexts/AuthContext';
 import { isProvisioned } from './utils/supabaseClient';
 import type { Role } from './types';
@@ -105,6 +106,7 @@ function App() {
             <Route path="/pms/reports" element={<ProtectedRoute><PMSReports /></ProtectedRoute>} />
             <Route path="/pms/reports/new" element={<ProtectedRoute allowedRoles={['Scientist','HOD','DivisionHead','Director']}><ReportNew /></ProtectedRoute>} />
             <Route path="/pms/reports/:id" element={<ProtectedRoute><ReportView /></ProtectedRoute>} />
+            <Route path="/pms/reports/:id/edit" element={<ProtectedRoute allowedRoles={['Scientist','HOD','DivisionHead','Director']}><ReportEdit /></ProtectedRoute>} />
           </Route>
         </Route>
 
