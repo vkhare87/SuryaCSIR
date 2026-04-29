@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePMS } from '../../contexts/PMSContext';
+import { canAdmin } from '../../lib/pms/permissions';
 import { StatusBadge } from '../../components/pms/StatusBadge';
 import { Button } from '../../components/ui/Button';
 import { Skeleton } from '../../components/ui/Skeleton';
@@ -9,6 +10,7 @@ export default function Reports() {
   const { user } = useAuth();
   const { cycles, reports, isLoading } = usePMS();
   const navigate = useNavigate();
+  const isAdmin = user ? canAdmin(user) : false;
 
   if (!user) return null;
 
@@ -23,29 +25,39 @@ export default function Reports() {
   }
 
   const openCycle = cycles.find(c => c.status === 'OPEN');
-  const myReports = reports.filter(r => r.scientistId === user.id);
+  const displayReports = isAdmin ? reports : reports.filter(r => r.scientistId === user.id);
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-serif font-medium text-text">My Reports</h1>
-        {openCycle && (
-          <Button onClick={() => navigate('/pms/reports/new')}>New Report</Button>
-        )}
+        <h1 className="text-2xl font-serif font-medium text-text">
+          {isAdmin ? 'All Reports' : 'My Reports'}
+        </h1>
+        <div className="flex items-center gap-2">
+          {isAdmin && (
+            <Button variant="secondary" size="sm" onClick={() => navigate('/pms/assign')}>
+              Assign Evaluators
+            </Button>
+          )}
+          {!isAdmin && openCycle && (
+            <Button onClick={() => navigate('/pms/reports/new')}>New Report</Button>
+          )}
+        </div>
       </div>
 
-      {myReports.length === 0 ? (
+      {displayReports.length === 0 ? (
         <div className="py-16 text-center text-text-muted">
           <p>
-            No reports yet.
-            {openCycle
-              ? ' Click "New Report" to start.'
-              : ' No open appraisal cycle currently.'}
+            {isAdmin
+              ? 'No reports submitted yet.'
+              : openCycle
+              ? 'No reports yet. Click "New Report" to start.'
+              : 'No open appraisal cycle currently.'}
           </p>
         </div>
       ) : (
         <div className="divide-y divide-border border border-border rounded-2xl overflow-hidden">
-          {myReports.map(r => (
+          {displayReports.map(r => (
             <div
               key={r.id}
               className="flex items-center justify-between px-5 py-4 bg-surface hover:bg-surface-hover transition-colors"
@@ -57,9 +69,19 @@ export default function Reports() {
                     ? `${r.periodFrom} – ${r.periodTo}`
                     : 'Period not set'}
                 </p>
+                {isAdmin && (
+                  <p className="text-xs text-text-muted/60 font-mono mt-0.5">
+                    Scientist: {r.scientistId.slice(0, 8)}…
+                  </p>
+                )}
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 <StatusBadge status={r.status} />
+                {isAdmin && r.status === 'SUBMITTED' && (
+                  <Button size="sm" variant="secondary" onClick={() => navigate('/pms/assign')}>
+                    Assign
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
                   size="sm"
