@@ -1,20 +1,26 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { pdf } from '@react-pdf/renderer';
+import { Download } from 'lucide-react';
 import { usePMS } from '../../contexts/PMSContext';
 import { StatusBadge } from '../../components/pms/StatusBadge';
 import { Button } from '../../components/ui/Button';
 import { Skeleton } from '../../components/ui/Skeleton';
-import type { PMSReport, PMSReportSection, PMSAnnexure } from '../../types/pms';
+import { ReportPDF } from '../../components/pms/ReportPDF';
+import type { PMSReport, PMSReportSection, PMSAnnexure, PMSChairmanReview, PMSCommitteeDecision } from '../../types/pms';
 
 type FullReport = PMSReport & { sections: PMSReportSection[]; annexures: PMSAnnexure[] };
 
 export default function ReportView() {
   const { id } = useParams<{ id: string }>();
-  const { getReport } = usePMS();
+  const { getReport, getChairmanReview, getCommitteeDecision } = usePMS();
   const navigate = useNavigate();
 
   const [report, setReport] = useState<FullReport | null>(null);
   const [loading, setLoading] = useState(true);
+  const [chairmanReview, setChairmanReview] = useState<PMSChairmanReview | null>(null);
+  const [committeeDecision, setCommitteeDecision] = useState<PMSCommitteeDecision | null>(null);
+  const [exportLoading, setExportLoading] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -25,10 +31,38 @@ export default function ReportView() {
           return;
         }
         setReport(r);
+        getChairmanReview(id).then(setChairmanReview).catch(() => {});
+        getCommitteeDecision(id).then(setCommitteeDecision).catch(() => {});
       })
       .catch(() => navigate('/pms', { replace: true }))
       .finally(() => setLoading(false));
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleExportPDF = async () => {
+    if (!report) return;
+    setExportLoading(true);
+    try {
+      const blob = await pdf(
+        <ReportPDF
+          report={report}
+          sections={report.sections}
+          annexures={report.annexures}
+          finalScore={committeeDecision?.finalScore}
+          justification={committeeDecision?.justification}
+          recommendedMin={chairmanReview?.recommendedMin}
+          recommendedMax={chairmanReview?.recommendedMax}
+        />
+      ).toBlob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `PMS_Report_${report.id.slice(0, 8)}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setExportLoading(false);
+    }
+  };
 
   if (loading) return <Skeleton className="h-40 w-full" />;
   if (!report) return null;
@@ -41,6 +75,9 @@ export default function ReportView() {
           {report.cycle?.name ?? 'Appraisal Report'}
         </h1>
         <StatusBadge status={report.status} />
+        <Button variant="secondary" size="sm" onClick={handleExportPDF} isLoading={exportLoading}>
+          <Download size={14} className="mr-1.5" /> Export PDF
+        </Button>
       </div>
 
       <div className="bg-surface border border-border rounded-2xl p-5">
