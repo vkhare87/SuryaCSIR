@@ -23,6 +23,12 @@ import PMSReports from './pages/pms/Reports';
 import ReportNew from './pages/pms/ReportNew';
 import ReportView from './pages/pms/ReportView';
 import ReportEdit from './pages/pms/ReportEdit';
+import AssignEvaluators from './pages/pms/AssignEvaluators';
+import EvaluatorQueue from './pages/pms/EvaluatorQueue';
+import EvaluateReport from './pages/pms/EvaluateReport';
+import ChairmanQueue from './pages/pms/ChairmanQueue';
+import CommitteeQueue from './pages/pms/CommitteeQueue';
+import PmsAuditLog from './pages/pms/AuditLog';
 import { useAuth } from './contexts/AuthContext';
 import { isProvisioned } from './utils/supabaseClient';
 import type { Role } from './types';
@@ -107,6 +113,12 @@ function App() {
             <Route path="/pms/reports/new" element={<ProtectedRoute allowedRoles={['Scientist','HOD','DivisionHead','Director']}><ReportNew /></ProtectedRoute>} />
             <Route path="/pms/reports/:id" element={<ProtectedRoute><ReportView /></ProtectedRoute>} />
             <Route path="/pms/reports/:id/edit" element={<ProtectedRoute allowedRoles={['Scientist','HOD','DivisionHead','Director']}><ReportEdit /></ProtectedRoute>} />
+            <Route path="/pms/assign" element={<ProtectedRoute allowedRoles={['HRAdmin','SystemAdmin','MasterAdmin']}><AssignEvaluators /></ProtectedRoute>} />
+            <Route path="/pms/evaluate" element={<ProtectedRoute><EvaluatorQueue /></ProtectedRoute>} />
+            <Route path="/pms/evaluate/:evaluationId" element={<ProtectedRoute><EvaluateReport /></ProtectedRoute>} />
+            <Route path="/pms/chairman" element={<ProtectedRoute><ChairmanQueue /></ProtectedRoute>} />
+            <Route path="/pms/committee" element={<ProtectedRoute allowedRoles={['EmpoweredCommittee']}><CommitteeQueue /></ProtectedRoute>} />
+            <Route path="/pms/audit" element={<ProtectedRoute allowedRoles={['HRAdmin','SystemAdmin','MasterAdmin']}><PmsAuditLog /></ProtectedRoute>} />
           </Route>
         </Route>
 

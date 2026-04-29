@@ -8,7 +8,7 @@ import { Skeleton } from '../../components/ui/Skeleton';
 
 export default function PMSIndex() {
   const { user, role } = useAuth();
-  const { cycles, reports, isLoading } = usePMS();
+  const { cycles, reports, collegiums, evaluations, isLoading } = usePMS();
   const navigate = useNavigate();
 
   if (!user) return null;
@@ -24,25 +24,26 @@ export default function PMSIndex() {
   }
 
   if (canAdmin(user)) {
+    const submittedCount = reports.filter(r => r.status === 'SUBMITTED').length;
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-serif font-medium text-text">Performance Management</h1>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Link
-            to="/pms/cycles"
-            className="block p-6 bg-surface border border-border rounded-2xl hover:border-[#c96442] transition-colors"
-          >
+          <Link to="/pms/cycles" className="block p-6 bg-surface border border-border rounded-2xl hover:border-[#c96442] transition-colors">
             <h2 className="font-semibold text-text mb-1">Appraisal Cycles</h2>
-            <p className="text-sm text-text-muted">
-              {cycles.length} cycle{cycles.length !== 1 ? 's' : ''} total
-            </p>
+            <p className="text-sm text-text-muted">{cycles.length} cycle{cycles.length !== 1 ? 's' : ''} total</p>
           </Link>
-          <Link
-            to="/pms/collegiums"
-            className="block p-6 bg-surface border border-border rounded-2xl hover:border-[#c96442] transition-colors"
-          >
+          <Link to="/pms/collegiums" className="block p-6 bg-surface border border-border rounded-2xl hover:border-[#c96442] transition-colors">
             <h2 className="font-semibold text-text mb-1">Collegiums</h2>
             <p className="text-sm text-text-muted">Manage review panels</p>
+          </Link>
+          <Link to="/pms/assign" className="block p-6 bg-surface border border-border rounded-2xl hover:border-[#c96442] transition-colors">
+            <h2 className="font-semibold text-text mb-1">Assign Evaluators</h2>
+            <p className="text-sm text-text-muted">{submittedCount} report{submittedCount !== 1 ? 's' : ''} awaiting assignment</p>
+          </Link>
+          <Link to="/pms/audit" className="block p-6 bg-surface border border-border rounded-2xl hover:border-[#c96442] transition-colors">
+            <h2 className="font-semibold text-text mb-1">Audit Log</h2>
+            <p className="text-sm text-text-muted">View all system events</p>
           </Link>
         </div>
       </div>
@@ -50,10 +51,45 @@ export default function PMSIndex() {
   }
 
   if (role === 'EmpoweredCommittee') {
+    const committeeCount = reports.filter(r => r.status === 'EMPOWERED_COMMITTEE_REVIEW').length;
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-serif font-medium text-text">Performance Management</h1>
-        <p className="text-text-muted">Committee decision queue — coming in Phase C.</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Link to="/pms/committee" className="block p-6 bg-surface border border-border rounded-2xl hover:border-[#c96442] transition-colors">
+            <h2 className="font-semibold text-text mb-1">Committee Decision Queue</h2>
+            <p className="text-sm text-text-muted">{committeeCount} report{committeeCount !== 1 ? 's' : ''} awaiting decision</p>
+          </Link>
+          <Link to="/pms/reports" className="block p-6 bg-surface border border-border rounded-2xl hover:border-[#c96442] transition-colors">
+            <h2 className="font-semibold text-text mb-1">All Reports</h2>
+            <p className="text-sm text-text-muted">Browse all submitted reports</p>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const allMembers = collegiums.flatMap(c => c.members ?? []);
+  const isChairman = allMembers.some(m => m.userId === user.id && m.role === 'CHAIRMAN');
+  const isCollegiumMember = allMembers.some(m => m.userId === user.id);
+
+  if (isCollegiumMember) {
+    const pendingEvalCount = evaluations.filter(e => e.evaluatorId === user.id && e.status !== 'COMPLETED').length;
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-serif font-medium text-text">Performance Management</h1>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Link to="/pms/evaluate" className="block p-6 bg-surface border border-border rounded-2xl hover:border-[#c96442] transition-colors">
+            <h2 className="font-semibold text-text mb-1">My Evaluation Queue</h2>
+            <p className="text-sm text-text-muted">{pendingEvalCount} pending evaluation{pendingEvalCount !== 1 ? 's' : ''}</p>
+          </Link>
+          {isChairman && (
+            <Link to="/pms/chairman" className="block p-6 bg-surface border border-border rounded-2xl hover:border-[#c96442] transition-colors">
+              <h2 className="font-semibold text-text mb-1">Chairman Review Queue</h2>
+              <p className="text-sm text-text-muted">Recommend score ranges for the committee</p>
+            </Link>
+          )}
+        </div>
       </div>
     );
   }
