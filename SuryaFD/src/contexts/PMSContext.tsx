@@ -1,11 +1,16 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
-import type { AppraisalCycle, PMSReport, PMSReportSection, PMSAnnexure, PMSCollegium, PMSCollegiumMember } from '../types/pms';
+import type {
+  AppraisalCycle, PMSReport, PMSReportSection, PMSAnnexure,
+  PMSCollegium, PMSCollegiumMember,
+  PMSEvaluation, PMSChairmanReview, PMSCommitteeDecision, PMSNotification,
+} from '../types/pms';
 import { supabase, isProvisioned } from '../utils/supabaseClient';
 import { useAuth } from './AuthContext';
 import {
   mapCycleRow, mapReportRow, mapSectionRow,
   mapAnnexureRow, mapCollegiumRow, mapCollegiumMemberRow,
+  mapEvaluationRow, mapChairmanReviewRow, mapCommitteeDecisionRow, mapNotificationRow,
 } from '../utils/pmsMappers';
 
 interface PMSContextType {
@@ -13,10 +18,12 @@ interface PMSContextType {
   cycles: AppraisalCycle[];
   reports: PMSReport[];
   collegiums: PMSCollegium[];
+  evaluations: PMSEvaluation[];
+  notifications: PMSNotification[];
   isLoading: boolean;
   error: string | null;
 
-  // Mutations
+  // Existing mutations
   createCycle: (data: Omit<AppraisalCycle, 'id' | 'createdAt'>) => Promise<AppraisalCycle>;
   updateCycle: (id: string, data: Partial<Omit<AppraisalCycle, 'id' | 'createdAt'>>) => Promise<void>;
   createCollegium: (data: Omit<PMSCollegium, 'id' | 'createdAt' | 'members'>) => Promise<PMSCollegium>;
@@ -31,6 +38,17 @@ interface PMSContextType {
   submitReport: (reportId: string) => Promise<void>;
   getSignedUrl: (path: string, bucket: 'signatures' | 'annexures') => Promise<string>;
   refreshData: () => Promise<void>;
+
+  // Phase C mutations
+  assignEvaluators: (reportId: string, userIds: string[]) => Promise<void>;
+  saveEvaluationScores: (evaluationId: string, scores: Record<string, number>, comments: string) => Promise<void>;
+  completeEvaluation: (evaluationId: string, scores: Record<string, number>, comments: string) => Promise<void>;
+  getReportEvaluations: (reportId: string) => Promise<PMSEvaluation[]>;
+  getChairmanReview: (reportId: string) => Promise<PMSChairmanReview | null>;
+  saveChairmanReview: (reportId: string, min: number, max: number, comments: string) => Promise<void>;
+  getCommitteeDecision: (reportId: string) => Promise<PMSCommitteeDecision | null>;
+  finalizeReport: (reportId: string, finalScore: number, justification: string) => Promise<void>;
+  markNotificationRead: (id: string) => Promise<void>;
 }
 
 const PMSContext = createContext<PMSContextType | undefined>(undefined);
@@ -42,6 +60,8 @@ export function PMSProvider({ children }: { children: ReactNode }) {
   const [cycles, setCycles] = useState<AppraisalCycle[]>([]);
   const [reports, setReports] = useState<PMSReport[]>([]);
   const [collegiums, setCollegiums] = useState<PMSCollegium[]>([]);
+  const [evaluations, setEvaluations] = useState<PMSEvaluation[]>([]);
+  const [notifications, setNotifications] = useState<PMSNotification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,10 +71,12 @@ export function PMSProvider({ children }: { children: ReactNode }) {
     try {
       if (provisioned && supabase && user) {
         // --- Supabase branch ---
-        const [cycleRes, reportRes, collegiumRes] = await Promise.all([
+        const [cycleRes, reportRes, collegiumRes, evalRes, notifRes] = await Promise.all([
           supabase.from('appraisal_cycles').select('*').order('created_at', { ascending: false }),
           supabase.from('pms_reports').select('*, appraisal_cycles(*)').order('created_at', { ascending: false }),
           supabase.from('pms_collegiums').select('*, pms_collegium_members(*)').order('created_at', { ascending: false }),
+          supabase.from('pms_evaluations').select('*').order('created_at', { ascending: false }),
+          supabase.from('pms_notifications').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
         ]);
 
         setCycles(cycleRes.data ? cycleRes.data.map(mapCycleRow) : []);
@@ -68,6 +90,8 @@ export function PMSProvider({ children }: { children: ReactNode }) {
             ? row.pms_collegium_members.map((m: Record<string, unknown>) => mapCollegiumMemberRow(m))
             : [],
         })) : []);
+        setEvaluations(evalRes.data ? evalRes.data.map(r => mapEvaluationRow(r as Record<string, unknown>)) : []);
+        setNotifications(notifRes.data ? notifRes.data.map(r => mapNotificationRow(r as Record<string, unknown>)) : []);
       } else {
         // --- Mock fallback ---
         setCycles([{
@@ -80,6 +104,8 @@ export function PMSProvider({ children }: { children: ReactNode }) {
         }]);
         setReports([]);
         setCollegiums([]);
+        setEvaluations([]);
+        setNotifications([]);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load PMS data');
@@ -90,7 +116,7 @@ export function PMSProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => { void loadData(); }, [loadData]);
 
-  // --- Mutations ---
+  // --- Existing mutations ---
 
   async function createCycle(data: Omit<AppraisalCycle, 'id' | 'createdAt'>): Promise<AppraisalCycle> {
     if (!supabase) throw new Error('Supabase not provisioned');
@@ -157,7 +183,6 @@ export function PMSProvider({ children }: { children: ReactNode }) {
   async function createReport(cycleId: string): Promise<PMSReport> {
     if (!supabase) throw new Error('Supabase not provisioned');
     if (!user) throw new Error('Not authenticated');
-    // Upsert: if already exists for this cycle+scientist, return existing
     const { data: existing } = await supabase
       .from('pms_reports')
       .select('*')
@@ -255,14 +280,125 @@ export function PMSProvider({ children }: { children: ReactNode }) {
     return data.signedUrl;
   }
 
+  // --- Phase C mutations ---
+
+  async function assignEvaluators(reportId: string, userIds: string[]): Promise<void> {
+    if (!supabase) throw new Error('Supabase not provisioned');
+    const { error: err } = await supabase.rpc('pms_assign_evaluators', {
+      p_report_id: reportId,
+      p_user_ids: userIds,
+    });
+    if (err) throw err;
+    setReports(prev => prev.map(r =>
+      r.id === reportId ? { ...r, status: 'UNDER_COLLEGIUM_REVIEW' as const } : r
+    ));
+  }
+
+  async function saveEvaluationScores(evaluationId: string, scores: Record<string, number>, comments: string): Promise<void> {
+    if (!supabase) throw new Error('Supabase not provisioned');
+    const { error: err } = await supabase
+      .from('pms_evaluations')
+      .update({ scores, comments, status: 'IN_PROGRESS' })
+      .eq('id', evaluationId);
+    if (err) throw err;
+    setEvaluations(prev => prev.map(e =>
+      e.id === evaluationId ? { ...e, scores, comments, status: 'IN_PROGRESS' as const } : e
+    ));
+  }
+
+  async function completeEvaluation(evaluationId: string, scores: Record<string, number>, comments: string): Promise<void> {
+    if (!supabase) throw new Error('Supabase not provisioned');
+    const { error: err } = await supabase
+      .from('pms_evaluations')
+      .update({ scores, comments, status: 'COMPLETED' })
+      .eq('id', evaluationId);
+    if (err) throw err;
+    setEvaluations(prev => prev.map(e =>
+      e.id === evaluationId ? { ...e, scores, comments, status: 'COMPLETED' as const } : e
+    ));
+  }
+
+  async function getReportEvaluations(reportId: string): Promise<PMSEvaluation[]> {
+    if (!supabase) throw new Error('Supabase not provisioned');
+    const { data, error: err } = await supabase
+      .from('pms_evaluations')
+      .select('*')
+      .eq('report_id', reportId);
+    if (err) throw err;
+    return data ? data.map(r => mapEvaluationRow(r as Record<string, unknown>)) : [];
+  }
+
+  async function getChairmanReview(reportId: string): Promise<PMSChairmanReview | null> {
+    if (!supabase) throw new Error('Supabase not provisioned');
+    const { data, error: err } = await supabase
+      .from('pms_chairman_reviews')
+      .select('*')
+      .eq('report_id', reportId)
+      .maybeSingle();
+    if (err) throw err;
+    return data ? mapChairmanReviewRow(data as Record<string, unknown>) : null;
+  }
+
+  async function saveChairmanReview(reportId: string, min: number, max: number, comments: string): Promise<void> {
+    if (!supabase) throw new Error('Supabase not provisioned');
+    const { error: err } = await supabase.rpc('pms_save_chairman_review', {
+      p_report_id: reportId,
+      p_min: min,
+      p_max: max,
+      p_comments: comments,
+    });
+    if (err) throw err;
+    setReports(prev => prev.map(r =>
+      r.id === reportId ? { ...r, status: 'EMPOWERED_COMMITTEE_REVIEW' as const } : r
+    ));
+  }
+
+  async function getCommitteeDecision(reportId: string): Promise<PMSCommitteeDecision | null> {
+    if (!supabase) throw new Error('Supabase not provisioned');
+    const { data, error: err } = await supabase
+      .from('pms_committee_decisions')
+      .select('*')
+      .eq('report_id', reportId)
+      .maybeSingle();
+    if (err) throw err;
+    return data ? mapCommitteeDecisionRow(data as Record<string, unknown>) : null;
+  }
+
+  async function finalizeReport(reportId: string, finalScore: number, justification: string): Promise<void> {
+    if (!supabase) throw new Error('Supabase not provisioned');
+    const { error: err } = await supabase.rpc('pms_finalize_report', {
+      p_report_id: reportId,
+      p_final_score: finalScore,
+      p_justification: justification,
+    });
+    if (err) throw err;
+    setReports(prev => prev.map(r =>
+      r.id === reportId ? { ...r, status: 'FINALIZED' as const } : r
+    ));
+  }
+
+  async function markNotificationRead(id: string): Promise<void> {
+    if (!supabase) throw new Error('Supabase not provisioned');
+    const { error: err } = await supabase
+      .from('pms_notifications')
+      .update({ read: true })
+      .eq('id', id);
+    if (err) throw err;
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+  }
+
   return (
     <PMSContext.Provider value={{
-      cycles, reports, collegiums, isLoading, error,
+      cycles, reports, collegiums, evaluations, notifications, isLoading, error,
       createCycle, updateCycle,
       createCollegium, addCollegiumMember, removeCollegiumMember,
       createReport, getReport, saveSection,
       uploadSignature, uploadAnnexure, deleteAnnexure,
       submitReport, getSignedUrl,
+      assignEvaluators, saveEvaluationScores, completeEvaluation,
+      getReportEvaluations, getChairmanReview, saveChairmanReview,
+      getCommitteeDecision, finalizeReport,
+      markNotificationRead,
       refreshData: loadData,
     }}>
       {children}
