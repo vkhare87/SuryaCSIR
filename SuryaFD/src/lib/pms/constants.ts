@@ -51,3 +51,18 @@ export const SCORE_CATEGORIES = [
   { label: 'Satisfactory',  min: 0.7, max: 0.79 },
   { label: 'Adequate',      min: 0.5, max: 0.69 },
 ];
+
+export const EVALUATION_DIMENSIONS: { key: string; label: string; description: string }[] = [
+  { key: 'research_quality',     label: 'Research Quality',          description: 'Originality and impact of research contributions' },
+  { key: 'research_quantity',    label: 'Research Output',           description: 'Volume and significance of publications' },
+  { key: 'sponsored_projects',   label: 'Sponsored Projects',        description: 'Externally funded research projects secured' },
+  { key: 'technology_transfer',  label: 'Technology Transfer',       description: 'Consultancy, licensing, and commercialization' },
+  { key: 'ipr_filings',          label: 'IP & Patents',              description: 'Patent filings, grants, and IP management' },
+  { key: 'hr_development',       label: 'HR Development',            description: 'Students and researchers mentored/guided' },
+  { key: 'institutional_dev',    label: 'Institutional Development', description: 'Lab setup, equipment, institutional initiatives' },
+  { key: 'training_curriculum',  label: 'Training & Curriculum',     description: 'Courses taught, training programs organized' },
+  { key: 'extension_outreach',   label: 'Extension & Outreach',      description: 'Social, extension, and community activities' },
+  { key: 'national_awards',      label: 'National Recognition',      description: 'Fellowships, awards, honors at national level' },
+  { key: 'international_awards', label: 'International Recognition', description: 'Fellowships, awards, honors at international level' },
+  { key: 'leadership',           label: 'Leadership & Admin',        description: 'Administrative roles, committee service' },
+];

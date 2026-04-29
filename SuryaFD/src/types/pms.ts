@@ -80,6 +80,55 @@ export interface PMSAuditLog {
   createdAt: string;
 }
 
+export type EvaluationStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+
+export interface PMSEvaluation {
+  id: string;
+  reportId: string;
+  evaluatorId: string;
+  status: EvaluationStatus;
+  scores: Record<string, number>;
+  comments: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PMSChairmanReview {
+  id: string;
+  reportId: string;
+  chairmanId: string;
+  recommendedMin: number | null;
+  recommendedMax: number | null;
+  comments: string | null;
+  createdAt: string;
+}
+
+export interface PMSCommitteeDecision {
+  id: string;
+  reportId: string;
+  decidedBy: string;
+  finalScore: number | null;
+  justification: string;
+  createdAt: string;
+}
+
+export type NotificationType =
+  | 'assigned_evaluator'
+  | 'chairman_review_needed'
+  | 'committee_review_needed'
+  | 'report_finalized';
+
+export interface PMSNotification {
+  id: string;
+  userId: string;
+  type: NotificationType;
+  title: string;
+  body: string;
+  reportId: string | null;
+  read: boolean;
+  createdAt: string;
+}
+
 export type SectionKey =
   | 'summary'
   | 'section_i1'

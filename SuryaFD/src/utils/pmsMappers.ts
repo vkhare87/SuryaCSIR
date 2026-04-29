@@ -5,6 +5,10 @@ import type {
   PMSAnnexure,
   PMSCollegium,
   PMSCollegiumMember,
+  PMSEvaluation,
+  PMSChairmanReview,
+  PMSCommitteeDecision,
+  PMSNotification,
 } from '../types/pms';
 
 export function mapCycleRow(row: Record<string, unknown>): AppraisalCycle {
@@ -74,5 +78,54 @@ export function mapCollegiumMemberRow(row: Record<string, unknown>): PMSCollegiu
     role:        row.role as PMSCollegiumMember['role'],
     userName:    (row.user_name as string) ?? undefined,
     userEmail:   (row.user_email as string) ?? undefined,
+  };
+}
+
+export function mapEvaluationRow(row: Record<string, unknown>): PMSEvaluation {
+  return {
+    id:          row.id as string,
+    reportId:    row.report_id as string,
+    evaluatorId: row.evaluator_id as string,
+    status:      row.status as PMSEvaluation['status'],
+    scores:      (row.scores as Record<string, number>) ?? {},
+    comments:    (row.comments as string) ?? null,
+    createdAt:   row.created_at as string,
+    updatedAt:   row.updated_at as string,
+  };
+}
+
+export function mapChairmanReviewRow(row: Record<string, unknown>): PMSChairmanReview {
+  return {
+    id:             row.id as string,
+    reportId:       row.report_id as string,
+    chairmanId:     row.chairman_id as string,
+    recommendedMin: row.recommended_min != null ? Number(row.recommended_min) : null,
+    recommendedMax: row.recommended_max != null ? Number(row.recommended_max) : null,
+    comments:       (row.comments as string) ?? null,
+    createdAt:      row.created_at as string,
+  };
+}
+
+export function mapCommitteeDecisionRow(row: Record<string, unknown>): PMSCommitteeDecision {
+  return {
+    id:            row.id as string,
+    reportId:      row.report_id as string,
+    decidedBy:     row.decided_by as string,
+    finalScore:    row.final_score != null ? Number(row.final_score) : null,
+    justification: row.justification as string,
+    createdAt:     row.created_at as string,
+  };
+}
+
+export function mapNotificationRow(row: Record<string, unknown>): PMSNotification {
+  return {
+    id:        row.id as string,
+    userId:    row.user_id as string,
+    type:      row.type as PMSNotification['type'],
+    title:     row.title as string,
+    body:      row.body as string,
+    reportId:  (row.report_id as string) ?? null,
+    read:      Boolean(row.read),
+    createdAt: row.created_at as string,
   };
 }
