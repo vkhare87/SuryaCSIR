@@ -28,6 +28,7 @@ import CommandPalette from '../CommandPalette';
 import SettingsModal from '../SettingsModal';
 
 import { useAuth } from '../../contexts/AuthContext';
+import { NotificationBell } from '../layout/NotificationBell';
 import { useUI } from '../../contexts/UIContext';
 import { useData } from '../../contexts/DataContext';
 import type { Role } from '../../types';
@@ -227,6 +228,8 @@ export function Layout() {
                 <span className="hidden md:inline">Search</span>
                 <kbd className="hidden lg:inline-block bg-background border border-border rounded px-1.5 text-xs font-mono">⌘K</kbd>
               </button>
+
+              <NotificationBell />
 
               {/* Role Switcher — only visible when user has 2+ roles */}
               {roles.length > 1 && (
