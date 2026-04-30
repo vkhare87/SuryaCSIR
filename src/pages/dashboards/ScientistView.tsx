@@ -2,7 +2,7 @@ import { Briefcase, BookOpen, Microscope } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Card } from '../../components/ui/Cards';
-import { KpiCard } from './KpiCard';
+import { KpiCard } from '../../components/ui/KpiCard';
 
 export function ScientistView() {
   const { staff, projects, projectStaff, phDStudents, scientificOutputs } = useData();

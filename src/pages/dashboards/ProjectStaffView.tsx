@@ -2,7 +2,7 @@ import { Briefcase, Users } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Card } from '../../components/ui/Cards';
-import { KpiCard } from './KpiCard';
+import { KpiCard } from '../../components/ui/KpiCard';
 
 export function ProjectStaffView() {
   const { projectStaff, projects } = useData();

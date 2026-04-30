@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Users, Shield, RefreshCw, Trash2, Plus } from 'lucide-react';
 import { supabase, isProvisioned } from '../../utils/supabaseClient';
 import { Card } from '../../components/ui/Cards';
-import { KpiCard } from './KpiCard';
+import { KpiCard } from '../../components/ui/KpiCard';
 import type { Role } from '../../types';
 
 interface UserRow {

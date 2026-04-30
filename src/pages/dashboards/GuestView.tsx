@@ -1,6 +1,6 @@
 import { Building2, Users, Briefcase, Microscope } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
-import { KpiCard } from './KpiCard';
+import { KpiCard } from '../../components/ui/KpiCard';
 import { Card } from '../../components/ui/Cards';
 
 export function GuestView() {

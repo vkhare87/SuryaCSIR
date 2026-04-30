@@ -2,7 +2,7 @@ import { Wrench, CheckCircle, AlertTriangle } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Card } from '../../components/ui/Cards';
-import { KpiCard } from './KpiCard';
+import { KpiCard } from '../../components/ui/KpiCard';
 
 export function TechnicianView() {
   const { equipment } = useData();

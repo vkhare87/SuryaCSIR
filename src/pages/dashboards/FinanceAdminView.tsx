@@ -1,7 +1,7 @@
 import { Briefcase, TrendingUp, IndianRupee } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
 import { Card } from '../../components/ui/Cards';
-import { KpiCard } from './KpiCard';
+import { KpiCard } from '../../components/ui/KpiCard';
 
 export function FinanceAdminView() {
   const { projects } = useData();

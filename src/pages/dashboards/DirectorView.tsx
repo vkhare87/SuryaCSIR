@@ -10,7 +10,7 @@ import {
 } from 'recharts';
 import { useData } from '../../contexts/DataContext';
 import { Card } from '../../components/ui/Cards';
-import { KpiCard } from './KpiCard';
+import { KpiCard } from '../../components/ui/KpiCard';
 import { getDivisionMetrics } from '../../utils/analytics';
 
 export function DirectorView() {

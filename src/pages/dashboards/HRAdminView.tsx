@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { Users, Network } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
 import { Card } from '../../components/ui/Cards';
-import { KpiCard } from './KpiCard';
+import { KpiCard } from '../../components/ui/KpiCard';
 
 export function HRAdminView() {
   const { staff, divisions } = useData();
