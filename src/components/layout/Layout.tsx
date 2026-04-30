@@ -49,15 +49,15 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { path: '/',             label: 'Dashboard',       icon: LayoutDashboard, allowedRoles: ALL_ROLES },
-  { path: '/staff',        label: 'Human Capital',   icon: Users,           allowedRoles: ['Director', 'DivisionHead', 'HRAdmin', 'SystemAdmin'] },
-  { path: '/projects',     label: 'Projects',        icon: Briefcase,       allowedRoles: ['Director', 'DivisionHead', 'Scientist', 'FinanceAdmin', 'SystemAdmin'] },
-  { path: '/phd',          label: 'PhD Tracker',     icon: BookOpen,        allowedRoles: ['Director', 'DivisionHead', 'Scientist', 'SystemAdmin'] },
-  { path: '/divisions',    label: 'Divisions',       icon: Network,         allowedRoles: ['Director', 'SystemAdmin'] },
-  { path: '/intelligence', label: 'Intelligence',    icon: Microscope,      allowedRoles: ['Director', 'DivisionHead', 'Scientist', 'SystemAdmin'] },
-  { path: '/facilities',   label: 'Facilities',      icon: Building2,       allowedRoles: ['Director', 'DivisionHead', 'Technician', 'SystemAdmin'] },
-  { path: '/recruitment',  label: 'Recruitment',     icon: FileText,        allowedRoles: ['HRAdmin', 'SystemAdmin'] },
+  { path: '/staff',        label: 'Human Capital',   icon: Users,           allowedRoles: ['Director', 'DivisionHead', 'HRAdmin', 'SystemAdmin', 'MasterAdmin'] },
+  { path: '/projects',     label: 'Projects',        icon: Briefcase,       allowedRoles: ['Director', 'DivisionHead', 'Scientist', 'FinanceAdmin', 'SystemAdmin', 'MasterAdmin'] },
+  { path: '/phd',          label: 'PhD Tracker',     icon: BookOpen,        allowedRoles: ['Director', 'DivisionHead', 'Scientist', 'SystemAdmin', 'MasterAdmin'] },
+  { path: '/divisions',    label: 'Divisions',       icon: Network,         allowedRoles: ['Director', 'SystemAdmin', 'MasterAdmin'] },
+  { path: '/intelligence', label: 'Intelligence',    icon: Microscope,      allowedRoles: ['Director', 'DivisionHead', 'Scientist', 'SystemAdmin', 'MasterAdmin'] },
+  { path: '/facilities',   label: 'Facilities',      icon: Building2,       allowedRoles: ['Director', 'DivisionHead', 'Technician', 'SystemAdmin', 'MasterAdmin'] },
+  { path: '/recruitment',  label: 'Recruitment',     icon: FileText,        allowedRoles: ['HRAdmin', 'SystemAdmin', 'MasterAdmin'] },
   { path: '/calendar',     label: 'Calendar',        icon: CalendarIcon,    allowedRoles: ALL_ROLES },
-  { path: '/data',         label: 'Data Import',     icon: Database,        allowedRoles: ['HRAdmin', 'SystemAdmin'] },
+  { path: '/data',         label: 'Data Import',     icon: Database,        allowedRoles: ['HRAdmin', 'SystemAdmin', 'MasterAdmin'] },
   { path: '/pms',          label: 'Performance Mgmt',icon: ClipboardCheck,  allowedRoles: ['Scientist','HOD','DivisionHead','Director','EmpoweredCommittee','HRAdmin','SystemAdmin','MasterAdmin'] },
 ];
 
@@ -126,7 +126,7 @@ export function Layout() {
           <NavLink
             key={item.path}
             to={item.path}
-            onClick={() => isMobileView && setMobileMenuOpen(false)}
+            onClick={() => { if (isMobileView) setMobileMenuOpen(false); }}
             className={({ isActive }) => clsx(
               "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors group",
               isActive
@@ -143,14 +143,14 @@ export function Layout() {
       {/* Bottom Actions */}
       <div className="p-4 border-t border-[#30302e] space-y-2">
          <button
-           onClick={() => { setSettingsOpen(true); isMobileView && setMobileMenuOpen(false); }}
+           onClick={() => { setSettingsOpen(true); if (isMobileView) setMobileMenuOpen(false); }}
            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#b0aea5] hover:bg-[#30302e]/60 hover:text-[#faf9f5] w-full transition-colors"
          >
             <SettingsIcon size={20} className={(sidebarOpen || isMobileView) ? "shrink-0" : "mx-auto shrink-0"} />
             {(sidebarOpen || isMobileView) && <span>Settings</span>}
           </button>
           <button
-            onClick={() => { void logout(); isMobileView && setMobileMenuOpen(false); }}
+            onClick={() => { void logout(); if (isMobileView) setMobileMenuOpen(false); }}
             className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#d97757] hover:bg-[#30302e]/60 w-full transition-colors"
           >
             <LogOut size={20} className={(sidebarOpen || isMobileView) ? "shrink-0" : "mx-auto shrink-0"} />

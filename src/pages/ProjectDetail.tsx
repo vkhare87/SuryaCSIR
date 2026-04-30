@@ -17,6 +17,34 @@ export default function ProjectDetail() {
 
   const project = projects.find(p => p.ProjectID === id);
 
+  // --- All hooks must be called unconditionally before any early return ---
+
+  const teamStaff = useMemo(
+    () => project ? projectStaff.filter(s => s.ProjectNo === project.ProjectNo) : [],
+    [projectStaff, project]
+  );
+
+  const scholars = useMemo(
+    () => project ? phDStudents.filter(s => s.ProjectNo === project.ProjectNo) : [],
+    [phDStudents, project]
+  );
+
+  const piRecord = useMemo(() => {
+    if (!project) return undefined;
+    const piName = project.PrincipalInvestigator?.toLowerCase().replace(/^(dr\.|sh\.|smt\.)\s+/i, '').trim();
+    return staff.find(s =>
+      s.Name.toLowerCase().replace(/^(dr\.|sh\.|smt\.)\s+/i, '').trim() === piName
+    );
+  }, [staff, project]);
+
+  const teureAlerts = useMemo(() =>
+    teamStaff.filter(s => {
+      const end = parseDate(s.DateOfProjectDuration);
+      return end && isWithinMonths(end, 3);
+    }),
+    [teamStaff]
+  );
+
   if (!project) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] text-center">
@@ -35,35 +63,7 @@ export default function ProjectDetail() {
   let percentUtilized = sCost > 0 ? Math.round((currCost / sCost) * 100) : 0;
   if (percentUtilized > 100) percentUtilized = 100;
 
-  // --- Relationships ---
-  const teamStaff = useMemo(
-    () => projectStaff.filter(s => s.ProjectNo === project.ProjectNo),
-    [projectStaff, project]
-  );
-
-  const scholars = useMemo(
-    () => phDStudents.filter(s => s.ProjectNo === project.ProjectNo),
-    [phDStudents, project]
-  );
-
   const division = divisions.find(d => d.divCode === project.DivisionCode);
-
-  // PI staff record if it can be resolved
-  const piRecord = useMemo(() => {
-    const piName = project.PrincipalInvestigator?.toLowerCase().replace(/^(dr\.|sh\.|smt\.)\s+/i, '').trim();
-    return staff.find(s =>
-      s.Name.toLowerCase().replace(/^(dr\.|sh\.|smt\.)\s+/i, '').trim() === piName
-    );
-  }, [staff, project]);
-
-  // Tenure alerts among team staff
-  const teureAlerts = useMemo(() =>
-    teamStaff.filter(s => {
-      const end = parseDate(s.DateOfProjectDuration);
-      return end && isWithinMonths(end, 3);
-    }),
-    [teamStaff]
-  );
 
   const endDate = parseDate(project.CompletioDate);
   const daysLeft = endDate ? diffInDays(endDate, new Date()) : null;

@@ -36,6 +36,15 @@ export default tseslint.config(
       'react-hooks/set-state-in-effect': 'off',
       'react-hooks/static-components': 'off',
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+      // Allow intentionally-unused vars/params/caught-errors prefixed with _
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        {
+          varsIgnorePattern: '^_',
+          argsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+        },
+      ],
     },
   },
 );

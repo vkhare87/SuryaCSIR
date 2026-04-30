@@ -23,10 +23,11 @@ export default function AuditLog() {
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(0);
 
-  if (!user || !canAdmin(user)) return <Navigate to="/pms" replace />;
+  const isAdmin = !!user && canAdmin(user);
 
+  // useEffect must be unconditional — guard inside the effect body
   useEffect(() => {
-    if (!supabase) return;
+    if (!isAdmin || !supabase) return;
     setIsLoading(true);
     setError(null);
     void supabase
@@ -51,7 +52,9 @@ export default function AuditLog() {
         }
         setIsLoading(false);
       });
-  }, [page]);
+  }, [isAdmin, page]);
+
+  if (!user || !isAdmin) return <Navigate to="/pms" replace />;
 
   return (
     <div className="space-y-6">

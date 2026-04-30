@@ -86,7 +86,7 @@ export default function Login() {
       }
       // On success: do NOT navigate here. The useEffect above handles navigation
       // once AuthContext sets role asynchronously after onAuthStateChange fires.
-    } catch (err) {
+    } catch (_err) {
       setError('Connection error. Please check your network and try again.');
     } finally {
       setIsLoading(false);
