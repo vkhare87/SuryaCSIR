@@ -11,7 +11,10 @@
       "Bash(git worktree *)",
       "PowerShell([System.IO.Directory]::Delete\\(\"D:\\\\Claude\\\\Surya\\\\.claude\\\\worktrees\\\\musing-rhodes-3fa8e6\", $true\\); Write-Output \"deleted\")",
       "Bash(git branch *)",
-      "Bash(cmd //c \"rmdir /s /q D:\\\\Claude\\\\Surya\\\\SuryaFD\")"
+      "Bash(cmd //c \"rmdir /s /q D:\\\\Claude\\\\Surya\\\\SuryaFD\")",
+      "Bash(curl -v \"https://raw.githubusercontent.com/forrestchang/andrej-karpathy-skills/main/CLAUDE.md\")",
+      "Bash(curl *)",
+      "Skill(gsd-cleanup)"
     ]
   }
 }
