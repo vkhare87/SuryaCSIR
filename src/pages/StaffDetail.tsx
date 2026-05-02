@@ -435,33 +435,67 @@ export default function StaffDetail() {
             </Card>
           )}
 
-          {/* Assigned Equipment */}
-          {assignedEquipment.length > 0 && (
-            <Card className="p-0 overflow-hidden">
-              <div className="p-5 border-b border-border bg-surface flex items-center gap-2">
-                <Wrench size={18} className="text-[#5e5d59]" />
-                <h3 className="text-base font-[500] text-text font-serif">Assigned Equipment ({assignedEquipment.length})</h3>
-              </div>
-              <div className="divide-y divide-border">
-                {assignedEquipment.map(item => (
-                  <div key={item.UInsID} className="p-4 hover:bg-surface-hover transition-colors">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-text leading-snug">{item.Name}</p>
-                        <p className="text-xs text-text-muted mt-1">{item.Location || 'Location unavailable'}</p>
-                      </div>
-                      <Badge variant={item.WorkingStatus === 'Working' ? 'success' : 'warning'}>
-                        {item.WorkingStatus || 'Status unknown'}
-                      </Badge>
-                    </div>
-                    <div className="mt-2 text-[10px] text-text-muted">
-                      Indenter: {item.IndenterName || '--'} • Operator: {item.OperatorName || '--'}
-                    </div>
+          {/* Instruments */}
+          {assignedEquipment.length > 0 && (() => {
+            const clean = (n: string) => n.toLowerCase().replace(/^(dr\.|sh\.|shri|smt\.)\s+/i, '').trim();
+            const nameMatch = (a: string, b: string) => {
+              const ca = clean(a); const cb = clean(b);
+              return ca === cb || ca.includes(cb) || cb.includes(ca);
+            };
+            const managed  = assignedEquipment.filter(e => nameMatch(member.Name, e.IndenterName));
+            const operatedOnly = assignedEquipment.filter(e =>
+              nameMatch(member.Name, e.OperatorName) && !nameMatch(member.Name, e.IndenterName)
+            );
+            const amcBadge = (d?: string) => {
+              if (!d) return null;
+              const diff = Math.ceil((new Date(d).getTime() - Date.now()) / 86400000);
+              const cls = diff < 0
+                ? 'bg-red-100 text-red-700'
+                : diff <= 90
+                  ? 'bg-amber-100 text-amber-700'
+                  : 'bg-emerald-100 text-emerald-700';
+              return <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${cls}`}>AMC {d}</span>;
+            };
+            const row = (item: typeof assignedEquipment[0]) => (
+              <Link
+                key={item.UInsID}
+                to={`/facilities/${item.UInsID}`}
+                className="flex items-start justify-between gap-4 p-4 hover:bg-surface-hover transition-colors group"
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-text group-hover:text-[#c96442] transition-colors leading-snug">{item.Name}</p>
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    {item.instrument_code && <span className="text-[10px] font-mono text-text-muted">{item.instrument_code}</span>}
+                    {amcBadge(item.amc_end_date)}
                   </div>
-                ))}
-              </div>
-            </Card>
-          )}
+                  <p className="text-xs text-text-muted mt-0.5">{item.Location || '—'}</p>
+                </div>
+                <Badge variant={item.WorkingStatus === 'Working' ? 'success' : item.WorkingStatus === 'Under Maintenance' ? 'warning' : 'danger'} className="shrink-0">
+                  {item.WorkingStatus || '—'}
+                </Badge>
+              </Link>
+            );
+            return (
+              <Card className="p-0 overflow-hidden">
+                <div className="p-5 border-b border-border bg-surface flex items-center gap-2">
+                  <Wrench size={18} className="text-[#5e5d59]" />
+                  <h3 className="text-base font-[500] text-text font-serif">Instruments ({assignedEquipment.length})</h3>
+                </div>
+                {managed.length > 0 && (
+                  <>
+                    <div className="px-4 pt-3 pb-1 text-[10px] font-black text-text-muted uppercase tracking-widest">Managed / Owned ({managed.length})</div>
+                    <div className="divide-y divide-border">{managed.map(row)}</div>
+                  </>
+                )}
+                {operatedOnly.length > 0 && (
+                  <>
+                    <div className="px-4 pt-3 pb-1 text-[10px] font-black text-text-muted uppercase tracking-widest border-t border-border">Operated ({operatedOnly.length})</div>
+                    <div className="divide-y divide-border">{operatedOnly.map(row)}</div>
+                  </>
+                )}
+              </Card>
+            );
+          })()}
 
         </div>
       </div>

@@ -97,17 +97,33 @@ export const mapPhDStudentRow = (row: any): PhDStudent => ({
 
 export const mapEquipmentRow = (row: any): Equipment => ({
   UInsID: row.UInsID || row.u_ins_id || row.id || '',
-  Name: row.Name || row.name || '',
-  EndUse: row.EndUse || row.end_use || '',
+  instrument_code: row.instrument_code || row.InstrumentCode || undefined,
+  Name: row.Name || row.Name_Equipment || row.name || '',
+  serial_number: row.serial_number || row.SerialNumber || undefined,
+  manufacturer: row.manufacturer || row.Manufacturer || undefined,
+  year_of_manufacture: row.year_of_manufacture ? Number(row.year_of_manufacture) : undefined,
+  EndUse: row.EndUse || row.End_Use || row.end_use || '',
+  lab_id: row.lab_id || undefined,
   Division: row.Division || row.division || '',
   IndenterName: row.IndenterName || row.indenter_name || '',
+  owner_user_id: row.owner_user_id || undefined,
   OperatorName: row.OperatorName || row.operator_name || '',
   Location: row.Location || row.location || '',
+  amc_end_date: row.amc_end_date || undefined,
   WorkingStatus: row.WorkingStatus || row.working_status || '',
   Movable: row.Movable || row.movable || '',
   RequirementInstallation: row.RequirementInstallation || row.requirement_installation || '',
+  purchase_cost: row.purchase_cost != null ? Number(row.purchase_cost) : undefined,
+  procurement_date: row.procurement_date || undefined,
   Justification: row.Justification || row.justification || '',
   Remark: row.Remark || row.remark || '',
+});
+
+export const mapLabRow = (row: any): import('../types').Lab => ({
+  id: row.id || '',
+  lab_code: row.lab_code || '',
+  lab_name: row.lab_name || '',
+  div_code: row.div_code || undefined,
 });
 
 export const mapScientificOutputRow = (row: any): ScientificOutput => ({

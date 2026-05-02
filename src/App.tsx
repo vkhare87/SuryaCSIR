@@ -10,6 +10,7 @@ import PhDTracker from './pages/PhDTracker';
 import Divisions from './pages/Divisions';
 import Intelligence from './pages/Intelligence';
 import Facilities from './pages/Facilities';
+import InstrumentDetail from './pages/InstrumentDetail';
 import Recruitment from './pages/Recruitment';
 import DataManagement from './pages/DataManagement';
 import Calendar from './pages/Calendar';
@@ -29,6 +30,7 @@ import EvaluateReport from './pages/pms/EvaluateReport';
 import ChairmanQueue from './pages/pms/ChairmanQueue';
 import CommitteeQueue from './pages/pms/CommitteeQueue';
 import PmsAuditLog from './pages/pms/AuditLog';
+import DatabaseWizard from './pages/DatabaseWizard';
 import { useAuth } from './contexts/AuthContext';
 import { isProvisioned } from './utils/supabaseClient';
 import type { Role } from './types';
@@ -48,9 +50,8 @@ function ProtectedRoute({ allowedRoles, children }: ProtectedRouteProps) {
     return <div className="h-screen w-full flex items-center justify-center bg-background text-text-muted">Loading SURYA Vault Data...</div>;
   }
 
-  // If not provisioned, force setup wizard FIRST (unless they skipped it to run local)
-  // We use a query param or hash to indicate "skip" (handled in SetupWizard)
-  if (!provisioned && window.location.hash !== '#/login') {
+  // If not provisioned, force setup wizard — unless user skipped to login or is already authenticated
+  if (!provisioned && !isAuthenticated && window.location.hash !== '#/login') {
     return <Navigate to="/setup" replace />;
   }
 
@@ -103,6 +104,7 @@ function App() {
             <Route path="/divisions" element={<Divisions />} />
             <Route path="/intelligence" element={<Intelligence />} />
             <Route path="/facilities" element={<Facilities />} />
+            <Route path="/facilities/:uInsID" element={<InstrumentDetail />} />
             <Route path="/recruitment" element={<ProtectedRoute allowedRoles={['HRAdmin', 'SystemAdmin', 'MasterAdmin']}><Recruitment /></ProtectedRoute>} />
             <Route path="/calendar" element={<ProtectedRoute><Calendar /></ProtectedRoute>} />
             <Route path="/data" element={<ProtectedRoute allowedRoles={['HRAdmin', 'SystemAdmin', 'MasterAdmin']}><DataManagement /></ProtectedRoute>} />
@@ -119,6 +121,7 @@ function App() {
             <Route path="/pms/chairman" element={<ProtectedRoute><ChairmanQueue /></ProtectedRoute>} />
             <Route path="/pms/committee" element={<ProtectedRoute allowedRoles={['EmpoweredCommittee']}><CommitteeQueue /></ProtectedRoute>} />
             <Route path="/pms/audit" element={<ProtectedRoute allowedRoles={['HRAdmin','SystemAdmin','MasterAdmin']}><PmsAuditLog /></ProtectedRoute>} />
+            <Route path="/db-wizard" element={<ProtectedRoute allowedRoles={['SystemAdmin','MasterAdmin']}><DatabaseWizard /></ProtectedRoute>} />
           </Route>
         </Route>
 

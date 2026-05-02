@@ -84,17 +84,33 @@ export interface PhDStudent {
 
 export interface Equipment {
   UInsID: string;
+  instrument_code?: string;
   Name: string;
+  serial_number?: string;
+  manufacturer?: string;
+  year_of_manufacture?: number;
   EndUse: string;
-  Division: string; // References DivisionInfo.divCode
+  lab_id?: string;
+  Division: string;
   IndenterName: string;
+  owner_user_id?: string;
   OperatorName: string;
   Location: string;
+  amc_end_date?: string;
   WorkingStatus: string;
   Movable: string;
   RequirementInstallation: string;
+  purchase_cost?: number;
+  procurement_date?: string;
   Justification: string;
   Remark: string;
+}
+
+export interface Lab {
+  id: string;
+  lab_code: string;
+  lab_name: string;
+  div_code?: string;
 }
 
 export interface ScientificOutput {

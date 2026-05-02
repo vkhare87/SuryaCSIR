@@ -54,11 +54,12 @@ const NAV_ITEMS: NavItem[] = [
   { path: '/phd',          label: 'PhD Tracker',     icon: BookOpen,        allowedRoles: ['Director', 'DivisionHead', 'Scientist', 'SystemAdmin', 'MasterAdmin'] },
   { path: '/divisions',    label: 'Divisions',       icon: Network,         allowedRoles: ['Director', 'SystemAdmin', 'MasterAdmin'] },
   { path: '/intelligence', label: 'Intelligence',    icon: Microscope,      allowedRoles: ['Director', 'DivisionHead', 'Scientist', 'SystemAdmin', 'MasterAdmin'] },
-  { path: '/facilities',   label: 'Facilities',      icon: Building2,       allowedRoles: ['Director', 'DivisionHead', 'Technician', 'SystemAdmin', 'MasterAdmin'] },
+  { path: '/facilities',   label: 'Instruments',     icon: Building2,       allowedRoles: ['Director', 'DivisionHead', 'Technician', 'SystemAdmin', 'MasterAdmin'] },
   { path: '/recruitment',  label: 'Recruitment',     icon: FileText,        allowedRoles: ['HRAdmin', 'SystemAdmin', 'MasterAdmin'] },
   { path: '/calendar',     label: 'Calendar',        icon: CalendarIcon,    allowedRoles: ALL_ROLES },
   { path: '/data',         label: 'Data Import',     icon: Database,        allowedRoles: ['HRAdmin', 'SystemAdmin', 'MasterAdmin'] },
   { path: '/pms',          label: 'Performance Mgmt',icon: ClipboardCheck,  allowedRoles: ['Scientist','HOD','DivisionHead','Director','EmpoweredCommittee','HRAdmin','SystemAdmin','MasterAdmin'] },
+  { path: '/db-wizard',   label: 'DB Wizard',       icon: Database,        allowedRoles: ['SystemAdmin', 'MasterAdmin'] },
 ];
 
 export function Layout() {
