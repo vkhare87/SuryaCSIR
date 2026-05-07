@@ -8,8 +8,15 @@
 
 **Goal:** Data layer for both modules — types, mock data, migration, DataContext extensions. Nothing visible yet, but both modules load from `useData()`.
 
-**Requirements:** Sets data foundation for all CMT/HD requirements
+**Requirements:** INT-04
 **Depends on:** —
+**Plans:** 4 plans
+
+**Plans:**
+- [ ] 01-01-PLAN.md — TypeScript interfaces (9 types) + permissions module
+- [ ] 01-02-PLAN.md — Migration SQL (11 tables, RLS, 3 RPCs, storage) + schema push
+- [ ] 01-03-PLAN.md — Mock data (10 arrays) + DataMapper functions (9 mappers)
+- [ ] 01-04-PLAN.md — DataContext extensions (7 new arrays + loading + scoping)
 
 **Success criteria:**
 1. Migration runs cleanly — all 9 tables + audit_log created with RLS policies
@@ -22,7 +29,7 @@
 - `src/utils/mockData.ts` — extended with committees + tickets seed data
 - `src/utils/dataMapper.ts` — mapper functions for new entities
 - `src/contexts/DataContext.tsx` — loading + role-scoping for new entities
-- `supabase/migrations/20260507XXXXXX_committees_helpdesk.sql` — tables, RLS, RPCs, storage bucket
+- `supabase/migrations/20260507000000_committees_helpdesk.sql` — tables, RLS, RPCs, storage bucket
 
 ---
 
