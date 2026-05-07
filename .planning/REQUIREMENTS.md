@@ -31,7 +31,7 @@
 - [ ] **INT-01**: Committees and Helpdesk appear in sidebar navigation, visible to all authenticated users
 - [ ] **INT-02**: All routes registered in App.tsx with role-based protection per the permissions matrix
 - [ ] **INT-03**: Audit log captures all creates, updates, deletes, and status changes for both modules
-- [ ] **INT-04**: All new tables (9 domain + audit_log) have RLS enabled with explicit policies
+- [x] **INT-04**: All new tables (9 domain + audit_log) have RLS enabled with explicit policies
 
 ## Future (deferred)
 
@@ -71,4 +71,4 @@
 | INT-01 | 4 | pending |
 | INT-02 | 4 | pending |
 | INT-03 | 4 | pending |
-| INT-04 | 1 | pending |
+| INT-04 | 1 | done |

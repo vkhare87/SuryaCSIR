@@ -13,9 +13,9 @@
 **Plans:** 4 plans
 
 **Plans:**
-- [ ] 01-01-PLAN.md — TypeScript interfaces (9 types) + permissions module
-- [ ] 01-02-PLAN.md — Migration SQL (11 tables, RLS, 3 RPCs, storage) + schema push
-- [ ] 01-03-PLAN.md — Mock data (10 arrays) + DataMapper functions (9 mappers)
+- [x] 01-01-PLAN.md — TypeScript interfaces (9 types) + permissions module
+- [x] 01-02-PLAN.md — Migration SQL (11 tables, RLS, 3 RPCs, storage) + schema push
+- [x] 01-03-PLAN.md — Mock data (10 arrays) + DataMapper functions (9 mappers)
 - [ ] 01-04-PLAN.md — DataContext extensions (7 new arrays + loading + scoping)
 
 **Success criteria:**
