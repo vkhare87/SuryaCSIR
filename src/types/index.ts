@@ -216,3 +216,96 @@ export interface Notification {
   entity_id: string | null;
   created_at: string;
 }
+
+// --- v1.0 Committees & Helpdesk ---
+
+export interface Committee {
+  id: string;
+  name: string;
+  committee_type: 'Standing' | 'AdHoc' | 'Review' | 'Advisory';
+  mandate: string;
+  chairperson_id: string;
+  secretary_id: string;
+  status: 'Active' | 'Inactive';
+  formed_date: string;
+  created_at: string;
+}
+
+export interface CommitteeMember {
+  id: string;
+  committee_id: string;
+  staff_id: string;
+  role: 'Member' | 'Invitee' | 'ExternalExpert';
+}
+
+export interface Meeting {
+  id: string;
+  committee_id: string;
+  meeting_date: string;
+  venue: string;
+  title: string;
+  summary: string;
+  status: 'Scheduled' | 'Completed' | 'Cancelled';
+  created_at: string;
+}
+
+export interface AgendaItem {
+  id: string;
+  meeting_id: string;
+  sequence: number;
+  description: string;
+  proposed_by: string;
+  status: 'Pending' | 'Discussed' | 'Deferred';
+}
+
+export interface ActionItem {
+  id: string;
+  meeting_id: string | null;
+  source: 'meeting' | 'manual';
+  task: string;
+  assigned_to: string;
+  deadline: string;
+  status: 'Pending' | 'InProgress' | 'Completed';
+  completed_at: string | null;
+  notes: string;
+}
+
+export interface MeetingDocument {
+  id: string;
+  meeting_id: string;
+  file_name: string;
+  storage_path: string;
+  uploaded_at: string;
+}
+
+export interface Ticket {
+  id: string;
+  token: string;
+  subject: string;
+  category: 'Infrastructure' | 'EquipmentIT' | 'Administrative' | 'HRGrievance' | 'Finance' | 'LabResearch' | 'Library' | 'Transport';
+  urgency: 'Low' | 'Medium' | 'High' | 'Critical';
+  description: string;
+  submitted_by: string;
+  assigned_to: string | null;
+  status: 'Open' | 'InProgress' | 'Resolved' | 'Closed';
+  created_at: string;
+  updated_at: string;
+  resolved_at: string | null;
+}
+
+export interface TicketResponse {
+  id: string;
+  ticket_id: string;
+  author_id: string;
+  message: string;
+  created_at: string;
+}
+
+export interface TicketEvent {
+  id: string;
+  ticket_id: string;
+  event_type: 'Created' | 'Assigned' | 'StatusChanged' | 'Resolved' | 'Closed' | 'Reopened';
+  actor_id: string;
+  details: Record<string, unknown>;
+  created_at: string;
+}
