@@ -14,6 +14,9 @@ import type {
   AgendaItem,
   ActionItem,
   MeetingDocument,
+  Ticket,
+  TicketResponse,
+  TicketEvent,
 } from '../types';
 
 export const mockDivisions: DivisionInfo[] = [
@@ -742,4 +745,96 @@ export const mockMeetingDocuments: MeetingDocument[] = [
   { id: 'doc-03', meeting_id: 'mtg-04', file_name: 'XRD_Technical_Specs.pdf', storage_path: 'committee-docs/mtg-04/specs.pdf', uploaded_at: '2026-03-20T00:00:00Z' },
   { id: 'doc-04', meeting_id: 'mtg-07', file_name: 'PhD_Synopsis_Review_Minutes.pdf', storage_path: 'committee-docs/mtg-07/minutes.pdf', uploaded_at: '2026-03-25T00:00:00Z' },
   { id: 'doc-05', meeting_id: 'mtg-13', file_name: 'Safety_Audit_Report_2025.pdf', storage_path: 'committee-docs/mtg-13/audit.pdf', uploaded_at: '2026-02-15T00:00:00Z' },
+];
+
+// --- Helpdesk ---
+
+export const mockTickets: Ticket[] = [
+  // Infrastructure (3 tickets)
+  { id: 'tkt-01', token: 'AMPRI-260501-001', subject: 'AC not working in Lab-A103', category: 'Infrastructure', urgency: 'High', description: 'The air conditioning unit in Lab-A103 has stopped cooling. Ambient temperature is affecting XRD instrument calibration.', submitted_by: 'T001', assigned_to: 'S001', status: 'InProgress', created_at: '2026-05-01T09:00:00Z', updated_at: '2026-05-02T14:00:00Z', resolved_at: null },
+  { id: 'tkt-02', token: 'AMPRI-260502-001', subject: 'Water leakage in Building D corridor', category: 'Infrastructure', urgency: 'Medium', description: 'Water seepage observed near the SEM lab entrance during rain. Needs immediate inspection to prevent equipment damage.', submitted_by: 'T002', assigned_to: 'S001', status: 'Open', created_at: '2026-05-02T11:00:00Z', updated_at: '2026-05-02T11:00:00Z', resolved_at: null },
+  { id: 'tkt-03', token: 'AMPRI-260503-001', subject: 'Generator backup test overdue', category: 'Infrastructure', urgency: 'Low', description: 'Quarterly generator backup test for Building A was scheduled in April but not conducted. Request rescheduling.', submitted_by: 'H001', assigned_to: 'S037', status: 'Open', created_at: '2026-05-03T08:00:00Z', updated_at: '2026-05-03T08:00:00Z', resolved_at: null },
+
+  // EquipmentIT (3 tickets)
+  { id: 'tkt-04', token: 'AMPRI-260430-001', subject: 'TGA-001 calibration error', category: 'EquipmentIT', urgency: 'High', description: 'Thermogravimetric Analyzer showing drift in baseline readings. Calibration failed 3 consecutive attempts. Research work halted.', submitted_by: 'T003', assigned_to: 'S012', status: 'InProgress', created_at: '2026-04-30T15:00:00Z', updated_at: '2026-05-01T10:00:00Z', resolved_at: null },
+  { id: 'tkt-05', token: 'AMPRI-260504-001', subject: 'Network printer not accessible from Lab-B', category: 'EquipmentIT', urgency: 'Medium', description: 'The shared network printer (HP LaserJet M507) is offline for all users in Lab-B wing. Reboot did not resolve.', submitted_by: 'S013', assigned_to: 'S012', status: 'Open', created_at: '2026-05-04T09:30:00Z', updated_at: '2026-05-04T09:30:00Z', resolved_at: null },
+  { id: 'tkt-06', token: 'AMPRI-260415-001', subject: 'UPS battery replacement for Lab-A servers', category: 'EquipmentIT', urgency: 'Critical', description: 'UPS batteries in server room showing end-of-life warning. Risk of data loss during power fluctuations. Needs urgent replacement.', submitted_by: 'S002', assigned_to: 'S037', status: 'Resolved', created_at: '2026-04-15T10:00:00Z', updated_at: '2026-04-28T16:00:00Z', resolved_at: '2026-04-28T16:00:00Z' },
+
+  // Administrative (2 tickets)
+  { id: 'tkt-07', token: 'AMPRI-260501-002', subject: 'Request for visitor gate pass system update', category: 'Administrative', urgency: 'Low', description: 'Current visitor gate pass system does not capture visitor purpose correctly. Request adding a remarks field to the digital form.', submitted_by: 'H001', assigned_to: 'H001', status: 'Open', created_at: '2026-05-01T07:00:00Z', updated_at: '2026-05-01T07:00:00Z', resolved_at: null },
+  { id: 'tkt-08', token: 'AMPRI-260420-001', subject: 'Stationery requisition for Q2', category: 'Administrative', urgency: 'Low', description: 'Quarterly stationery requisition for all 6 divisions. Attached the consolidated list. Approval needed by May 15.', submitted_by: 'H001', assigned_to: 'H001', status: 'Closed', created_at: '2026-04-20T10:00:00Z', updated_at: '2026-05-05T12:00:00Z', resolved_at: '2026-05-02T12:00:00Z' },
+
+  // HRGrievance (2 tickets)
+  { id: 'tkt-09', token: 'AMPRI-260505-001', subject: 'Leave encashment policy clarification', category: 'HRGrievance', urgency: 'Medium', description: 'Need clarification on leave encashment rules for project staff whose contracts were extended. Different interpretations from Finance and HR.', submitted_by: 'S003', assigned_to: 'H001', status: 'Open', created_at: '2026-05-05T12:00:00Z', updated_at: '2026-05-05T12:00:00Z', resolved_at: null },
+  { id: 'tkt-10', token: 'AMPRI-260410-001', subject: 'Increment not reflected in March salary', category: 'HRGrievance', urgency: 'High', description: 'My annual increment effective January 2026 was not reflected in the March 2026 salary slip. Request correction and arrears.', submitted_by: 'T004', assigned_to: 'H001', status: 'Resolved', created_at: '2026-04-10T14:00:00Z', updated_at: '2026-04-20T09:00:00Z', resolved_at: '2026-04-20T09:00:00Z' },
+
+  // Finance (3 tickets)
+  { id: 'tkt-11', token: 'AMPRI-260506-001', subject: 'Travel advance settlement for DRDO meeting', category: 'Finance', urgency: 'Medium', description: 'Need to settle travel advance of Rs. 25,000 taken for DRDO project review meeting in Delhi on April 20-22. Bills attached.', submitted_by: 'S040', assigned_to: 'H002', status: 'InProgress', created_at: '2026-05-06T11:00:00Z', updated_at: '2026-05-07T09:00:00Z', resolved_at: null },
+  { id: 'tkt-12', token: 'AMPRI-260425-001', subject: 'Equipment AMC payment renewal — SEM', category: 'Finance', urgency: 'Critical', description: 'AMC for Scanning Electron Microscope (E002, Zeiss) expired. Invoice received for renewal. Payment must be processed before May 15 to avoid service gap.', submitted_by: 'T002', assigned_to: 'H002', status: 'InProgress', created_at: '2026-04-25T09:00:00Z', updated_at: '2026-05-03T16:00:00Z', resolved_at: null },
+  { id: 'tkt-13', token: 'AMPRI-260330-001', subject: 'Project fund utilization certificate for OLP-2023-01', category: 'Finance', urgency: 'Medium', description: 'Utilization certificate for project OLP-2023-01 for FY 2025-26 needs CSIR-HQ submission by April 30. Funds utilized: Rs. 21,00,000.', submitted_by: 'S001', assigned_to: 'H002', status: 'Closed', created_at: '2026-03-30T08:00:00Z', updated_at: '2026-04-25T10:00:00Z', resolved_at: '2026-04-15T10:00:00Z' },
+
+  // LabResearch (3 tickets)
+  { id: 'tkt-14', token: 'AMPRI-260507-001', subject: 'Need argon gas cylinder for glovebox', category: 'LabResearch', urgency: 'High', description: 'Argon gas cylinder for glovebox in Lab-NST is empty. Thin film deposition work is blocked. Two cylinders needed — one for use, one as backup.', submitted_by: 'T002', assigned_to: 'S037', status: 'Open', created_at: '2026-05-07T08:00:00Z', updated_at: '2026-05-07T08:00:00Z', resolved_at: null },
+  { id: 'tkt-15', token: 'AMPRI-260503-002', subject: 'Chemical waste disposal — corrosion testing lab', category: 'LabResearch', urgency: 'Medium', description: 'Corrosion testing lab (E102) has accumulated ~15L of chemical waste from salt spray tests. Needs authorized disposal as per CSIR safety guidelines.', submitted_by: 'T004', assigned_to: 'S040', status: 'InProgress', created_at: '2026-05-03T14:00:00Z', updated_at: '2026-05-05T11:00:00Z', resolved_at: null },
+  { id: 'tkt-16', token: 'AMPRI-260418-001', subject: 'Request for deionized water plant maintenance', category: 'LabResearch', urgency: 'Low', description: 'DI water plant in Lab-B showing reduced output. RO membrane may need replacement. Last serviced December 2025.', submitted_by: 'S026', assigned_to: 'S037', status: 'Open', created_at: '2026-04-18T09:00:00Z', updated_at: '2026-04-18T09:00:00Z', resolved_at: null },
+
+  // Library (2 tickets)
+  { id: 'tkt-17', token: 'AMPRI-260502-002', subject: 'Journal access expired — Acta Materialia', category: 'Library', urgency: 'High', description: 'Access to Acta Materialia journal through CSIR-NISTADS consortium appears to have expired. Multiple researchers unable to access recent articles.', submitted_by: 'S002', assigned_to: 'S001', status: 'InProgress', created_at: '2026-05-02T13:00:00Z', updated_at: '2026-05-03T10:00:00Z', resolved_at: null },
+  { id: 'tkt-18', token: 'AMPRI-260506-002', subject: 'Request to add books to library catalog', category: 'Library', urgency: 'Low', description: 'Please add the following 5 books to the CSIR-AMPRI library catalog: (list attached). Recommended by PhD supervisors for student reference.', submitted_by: 'S025', assigned_to: 'S001', status: 'Open', created_at: '2026-05-06T10:00:00Z', updated_at: '2026-05-06T10:00:00Z', resolved_at: null },
+
+  // Transport (2 tickets)
+  { id: 'tkt-19', token: 'AMPRI-260504-002', subject: 'Vehicle booking for field visit to Mandideep', category: 'Transport', urgency: 'Medium', description: 'Request official vehicle for field visit to industrial cluster in Mandideep on May 12. 4 staff members, full day trip.', submitted_by: 'S014', assigned_to: 'S012', status: 'Open', created_at: '2026-05-04T11:00:00Z', updated_at: '2026-05-04T11:00:00Z', resolved_at: null },
+  { id: 'tkt-20', token: 'AMPRI-260408-001', subject: 'Vehicle logbook discrepancy — April 2026', category: 'Transport', urgency: 'Low', description: 'Vehicle No. MP04-CA-1234 logbook shows 150km more than odometer reading for April. Request audit of fuel receipts.', submitted_by: 'H002', assigned_to: 'S012', status: 'Resolved', created_at: '2026-04-08T10:00:00Z', updated_at: '2026-04-18T15:00:00Z', resolved_at: '2026-04-18T15:00:00Z' },
+];
+
+export const mockTicketResponses: TicketResponse[] = [
+  // tkt-01: AC not working (2 responses)
+  { id: 'trs-01', ticket_id: 'tkt-01', author_id: 'S001', message: 'Acknowledged. I have contacted the HVAC maintenance contractor. They will inspect on May 3.', created_at: '2026-05-02T10:00:00Z' },
+  { id: 'trs-02', ticket_id: 'tkt-01', author_id: 'T001', message: 'Thank you. To clarify — the AC unit model is Blue Star 2TR split. The outdoor unit shows error code E3 (compressor overload). Sharing this for the technician.', created_at: '2026-05-02T14:00:00Z' },
+  // tkt-06: UPS battery — resolved (2 responses)
+  { id: 'trs-03', ticket_id: 'tkt-06', author_id: 'S037', message: 'Priority approved. I have placed an order for 16 x 12V 42Ah SMF batteries. Expected delivery April 22.', created_at: '2026-04-16T10:00:00Z' },
+  { id: 'trs-04', ticket_id: 'tkt-06', author_id: 'S037', message: 'Batteries installed and tested. UPS runtime restored to ~45 minutes at full load. Closing this ticket.', created_at: '2026-04-28T16:00:00Z' },
+  // tkt-10: Increment (2 responses)
+  { id: 'trs-05', ticket_id: 'tkt-10', author_id: 'H001', message: 'I have checked your records. The increment order was received from Director office on April 12. Arrears will be processed in April salary.', created_at: '2026-04-12T09:00:00Z' },
+  { id: 'trs-06', ticket_id: 'tkt-10', author_id: 'T004', message: 'Thank you. I have received the arrears in April salary. Please close the ticket.', created_at: '2026-04-20T09:00:00Z' },
+  // tkt-12: AMC payment (1 response)
+  { id: 'trs-07', ticket_id: 'tkt-12', author_id: 'H002', message: 'Invoice verified against AMC agreement. Payment processing initiated — expected to reflect by May 10.', created_at: '2026-05-03T16:00:00Z' },
+  // tkt-04: TGA calibration (1 response)
+  { id: 'trs-08', ticket_id: 'tkt-04', author_id: 'S012', message: 'Called TA Instruments service. Engineer visit scheduled for May 5. Please ensure the instrument is powered down before the visit.', created_at: '2026-05-01T10:00:00Z' },
+  // tkt-15: Chemical waste (1 response)
+  { id: 'trs-09', ticket_id: 'tkt-15', author_id: 'S040', message: 'Contacted authorized waste disposal agency (MPPCB-approved). Collection scheduled for May 10. Please segregate waste by type and label containers.', created_at: '2026-05-05T11:00:00Z' },
+  // tkt-17: Journal access (1 response)
+  { id: 'trs-10', ticket_id: 'tkt-17', author_id: 'S001', message: 'I have raised this with CSIR-NISTADS consortium coordinator. Will update once I hear back.', created_at: '2026-05-03T10:00:00Z' },
+];
+
+export const mockTicketEvents: TicketEvent[] = [
+  // tkt-01 events
+  { id: 'tev-01', ticket_id: 'tkt-01', event_type: 'Created', actor_id: 'T001', details: { token: 'AMPRI-260501-001', category: 'Infrastructure' }, created_at: '2026-05-01T09:00:00Z' },
+  { id: 'tev-02', ticket_id: 'tkt-01', event_type: 'Assigned', actor_id: 'system', details: { assigned_to: 'S001' }, created_at: '2026-05-01T09:00:00Z' },
+  { id: 'tev-03', ticket_id: 'tkt-01', event_type: 'StatusChanged', actor_id: 'S001', details: { from: 'Open', to: 'InProgress' }, created_at: '2026-05-02T10:00:00Z' },
+  // tkt-06 events (UPS — full lifecycle)
+  { id: 'tev-04', ticket_id: 'tkt-06', event_type: 'Created', actor_id: 'S002', details: { token: 'AMPRI-260415-001', category: 'EquipmentIT' }, created_at: '2026-04-15T10:00:00Z' },
+  { id: 'tev-05', ticket_id: 'tkt-06', event_type: 'Assigned', actor_id: 'system', details: { assigned_to: 'S037' }, created_at: '2026-04-15T10:00:00Z' },
+  { id: 'tev-06', ticket_id: 'tkt-06', event_type: 'StatusChanged', actor_id: 'S037', details: { from: 'Open', to: 'InProgress' }, created_at: '2026-04-16T10:00:00Z' },
+  { id: 'tev-07', ticket_id: 'tkt-06', event_type: 'Resolved', actor_id: 'S037', details: { from: 'InProgress', to: 'Resolved' }, created_at: '2026-04-28T16:00:00Z' },
+  // tkt-10 events
+  { id: 'tev-08', ticket_id: 'tkt-10', event_type: 'Created', actor_id: 'T004', details: { token: 'AMPRI-260410-001', category: 'HRGrievance' }, created_at: '2026-04-10T14:00:00Z' },
+  { id: 'tev-09', ticket_id: 'tkt-10', event_type: 'Resolved', actor_id: 'H001', details: { from: 'Open', to: 'Resolved' }, created_at: '2026-04-20T09:00:00Z' },
+  // tkt-13 events (closed)
+  { id: 'tev-10', ticket_id: 'tkt-13', event_type: 'Created', actor_id: 'S001', details: { token: 'AMPRI-260330-001', category: 'Finance' }, created_at: '2026-03-30T08:00:00Z' },
+  { id: 'tev-11', ticket_id: 'tkt-13', event_type: 'Closed', actor_id: 'S001', details: { from: 'Resolved', to: 'Closed' }, created_at: '2026-04-25T10:00:00Z' },
+  // tkt-20 events
+  { id: 'tev-12', ticket_id: 'tkt-20', event_type: 'Created', actor_id: 'H002', details: { token: 'AMPRI-260408-001', category: 'Transport' }, created_at: '2026-04-08T10:00:00Z' },
+  { id: 'tev-13', ticket_id: 'tkt-20', event_type: 'Resolved', actor_id: 'S012', details: { from: 'Open', to: 'Resolved' }, created_at: '2026-04-18T15:00:00Z' },
+];
+
+export const mockHelpdeskRouting: { id: string; category: string; target_type: 'division' | 'role'; target_id: string; }[] = [
+  { id: 'rte-01', category: 'Infrastructure', target_type: 'division', target_id: 'ARC' },
+  { id: 'rte-02', category: 'EquipmentIT', target_type: 'division', target_id: 'NST' },
+  { id: 'rte-03', category: 'Administrative', target_type: 'role', target_id: 'HRAdmin' },
+  { id: 'rte-04', category: 'HRGrievance', target_type: 'role', target_id: 'HRAdmin' },
+  { id: 'rte-05', category: 'Finance', target_type: 'role', target_id: 'FinanceAdmin' },
+  { id: 'rte-06', category: 'LabResearch', target_type: 'division', target_id: 'BMS' },
+  { id: 'rte-07', category: 'Library', target_type: 'division', target_id: 'ARC' },
+  { id: 'rte-08', category: 'Transport', target_type: 'division', target_id: 'EEC' },
 ];
