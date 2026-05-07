@@ -8,6 +8,12 @@ import type {
   ScientificOutput,
   IPIntelligence,
   Lab,
+  Committee,
+  CommitteeMember,
+  Meeting,
+  AgendaItem,
+  ActionItem,
+  MeetingDocument,
 } from '../types';
 
 export const mockDivisions: DivisionInfo[] = [
@@ -564,4 +570,176 @@ export const mockIPIntelligence: IPIntelligence[] = [
     grantDate: '2023-11-08', inventors: ['Dr. S. Verma', 'Karan Bose'],
     divisionCode: 'NST',
   },
+];
+
+// ──────────────────────────────────────────────────────────────
+// v1.0 Committees & Helpdesk — Mock Data
+// Decision D-09: Rich seed data with cross-referencing (D-10)
+// ──────────────────────────────────────────────────────────────
+
+// --- Committee Governance ---
+
+export const mockCommittees: Committee[] = [
+  {
+    id: 'cmt-01', name: 'Research Advisory Committee',
+    committee_type: 'Standing', mandate: 'Advise on research direction, review project proposals, and evaluate annual research output across all divisions.',
+    chairperson_id: 'S001', secretary_id: 'S002', status: 'Active',
+    formed_date: '2024-04-01', created_at: '2024-04-01T00:00:00Z',
+  },
+  {
+    id: 'cmt-02', name: 'Equipment Procurement Review',
+    committee_type: 'AdHoc', mandate: 'Evaluate major equipment purchase proposals (>10 lakhs), assess technical specifications, and recommend vendor selection.',
+    chairperson_id: 'S040', secretary_id: 'T004', status: 'Active',
+    formed_date: '2025-08-15', created_at: '2025-08-15T00:00:00Z',
+  },
+  {
+    id: 'cmt-03', name: 'PhD Progress Review Committee',
+    committee_type: 'Review', mandate: 'Review PhD student progress biannually, evaluate thesis submissions, and recommend synopsis approvals.',
+    chairperson_id: 'S025', secretary_id: 'S026', status: 'Active',
+    formed_date: '2023-01-10', created_at: '2023-01-10T00:00:00Z',
+  },
+  {
+    id: 'cmt-04', name: 'Industry Collaboration Advisory Board',
+    committee_type: 'Advisory', mandate: 'Identify industry partnership opportunities, review MoUs, and guide technology transfer initiatives.',
+    chairperson_id: 'S012', secretary_id: 'S014', status: 'Active',
+    formed_date: '2025-01-01', created_at: '2025-01-01T00:00:00Z',
+  },
+  {
+    id: 'cmt-05', name: 'Infrastructure & Safety Committee',
+    committee_type: 'Standing', mandate: 'Oversee lab infrastructure maintenance, safety compliance audits, and building facility upgrades.',
+    chairperson_id: 'S037', secretary_id: 'T002', status: 'Active',
+    formed_date: '2023-06-01', created_at: '2023-06-01T00:00:00Z',
+  },
+];
+
+export const mockCommitteeMembers: CommitteeMember[] = [
+  // cmt-01: Research Advisory
+  { id: 'cmm-01', committee_id: 'cmt-01', staff_id: 'S001', role: 'Member' },
+  { id: 'cmm-02', committee_id: 'cmt-01', staff_id: 'S002', role: 'Member' },
+  { id: 'cmm-03', committee_id: 'cmt-01', staff_id: 'S012', role: 'Member' },
+  { id: 'cmm-04', committee_id: 'cmt-01', staff_id: 'S040', role: 'Member' },
+  { id: 'cmm-05', committee_id: 'cmt-01', staff_id: 'S045', role: 'Member' },
+  { id: 'cmm-06', committee_id: 'cmt-01', staff_id: 'H001', role: 'Invitee' },
+  // cmt-02: Equipment Procurement
+  { id: 'cmm-07', committee_id: 'cmt-02', staff_id: 'S040', role: 'Member' },
+  { id: 'cmm-08', committee_id: 'cmt-02', staff_id: 'T004', role: 'Member' },
+  { id: 'cmm-09', committee_id: 'cmt-02', staff_id: 'T001', role: 'Member' },
+  { id: 'cmm-10', committee_id: 'cmt-02', staff_id: 'H002', role: 'Member' },
+  // cmt-03: PhD Review
+  { id: 'cmm-11', committee_id: 'cmt-03', staff_id: 'S025', role: 'Member' },
+  { id: 'cmm-12', committee_id: 'cmt-03', staff_id: 'S026', role: 'Member' },
+  { id: 'cmm-13', committee_id: 'cmt-03', staff_id: 'S003', role: 'Member' },
+  { id: 'cmm-14', committee_id: 'cmt-03', staff_id: 'S013', role: 'Member' },
+  // cmt-04: Industry Advisory
+  { id: 'cmm-15', committee_id: 'cmt-04', staff_id: 'S012', role: 'Member' },
+  { id: 'cmm-16', committee_id: 'cmt-04', staff_id: 'S014', role: 'Member' },
+  { id: 'cmm-17', committee_id: 'cmt-04', staff_id: 'H002', role: 'Member' },
+  { id: 'cmm-18', committee_id: 'cmt-04', staff_id: 'S045', role: 'Invitee' },
+  // cmt-05: Infrastructure & Safety
+  { id: 'cmm-19', committee_id: 'cmt-05', staff_id: 'S037', role: 'Member' },
+  { id: 'cmm-20', committee_id: 'cmt-05', staff_id: 'T002', role: 'Member' },
+  { id: 'cmm-21', committee_id: 'cmt-05', staff_id: 'T003', role: 'Member' },
+  { id: 'cmm-22', committee_id: 'cmt-05', staff_id: 'H001', role: 'Invitee' },
+];
+
+export const mockMeetings: Meeting[] = [
+  // cmt-01: Research Advisory (3 meetings)
+  { id: 'mtg-01', committee_id: 'cmt-01', meeting_date: '2026-04-10', venue: 'CSIR-AMPRI Conference Hall',
+    title: 'Q1 Research Review Meeting', summary: 'Reviewed 8 project proposals. Approved 5 for funding in FY 2026-27.',
+    status: 'Completed', created_at: '2026-03-15T00:00:00Z' },
+  { id: 'mtg-02', committee_id: 'cmt-01', meeting_date: '2026-05-07', venue: 'Virtual — MS Teams',
+    title: 'Mid-Year Research Assessment', summary: '',
+    status: 'Scheduled', created_at: '2026-04-20T00:00:00Z' },
+  { id: 'mtg-03', committee_id: 'cmt-01', meeting_date: '2026-06-15', venue: 'CSIR-AMPRI Auditorium',
+    title: 'Annual Research Output Evaluation', summary: '',
+    status: 'Scheduled', created_at: '2026-05-01T00:00:00Z' },
+  // cmt-02: Equipment Procurement (3 meetings)
+  { id: 'mtg-04', committee_id: 'cmt-02', meeting_date: '2026-04-05', venue: 'Admin Board Room',
+    title: 'XRD Replacement Procurement', summary: 'Finalized specs for Rigaku SmartLab XRD. Recommended sole-source procurement due to compatibility.',
+    status: 'Completed', created_at: '2026-03-20T00:00:00Z' },
+  { id: 'mtg-05', committee_id: 'cmt-02', meeting_date: '2026-05-10', venue: 'Admin Board Room',
+    title: 'SEM-EDS Upgrade Evaluation', summary: '',
+    status: 'Scheduled', created_at: '2026-04-25T00:00:00Z' },
+  { id: 'mtg-06', committee_id: 'cmt-02', meeting_date: '2026-06-20', venue: 'Admin Board Room',
+    title: 'Q2 Equipment Budget Allocation', summary: '',
+    status: 'Scheduled', created_at: '2026-05-01T00:00:00Z' },
+  // cmt-03: PhD Progress Review (3 meetings)
+  { id: 'mtg-07', committee_id: 'cmt-03', meeting_date: '2026-03-20', venue: 'Seminar Hall',
+    title: 'PhD Synopsis Review — Spring 2026', summary: 'Reviewed 3 synopses. Approved all with minor revisions. Student presentations assessed by panel.',
+    status: 'Completed', created_at: '2026-03-01T00:00:00Z' },
+  { id: 'mtg-08', committee_id: 'cmt-03', meeting_date: '2026-05-15', venue: 'Seminar Hall',
+    title: 'PhD Progress Presentations', summary: '',
+    status: 'Scheduled', created_at: '2026-04-15T00:00:00Z' },
+  { id: 'mtg-09', committee_id: 'cmt-03', meeting_date: '2026-07-01', venue: 'Seminar Hall',
+    title: 'Thesis Defense Evaluations', summary: '',
+    status: 'Scheduled', created_at: '2026-05-01T00:00:00Z' },
+  // cmt-04: Industry Advisory (3 meetings)
+  { id: 'mtg-10', committee_id: 'cmt-04', meeting_date: '2026-02-15', venue: 'CSIR-AMPRI Guest House',
+    title: 'Industry MoU Review — Q4 FY2025', summary: 'Reviewed 3 MoUs with NTPC, Tata Steel, and DRDO. Recommended signing all three.',
+    status: 'Completed', created_at: '2026-02-01T00:00:00Z' },
+  { id: 'mtg-11', committee_id: 'cmt-04', meeting_date: '2026-05-20', venue: 'CSIR-AMPRI Guest House',
+    title: 'Technology Transfer Pipeline Review', summary: '',
+    status: 'Scheduled', created_at: '2026-05-01T00:00:00Z' },
+  { id: 'mtg-12', committee_id: 'cmt-04', meeting_date: '2026-06-10', venue: 'Virtual — Google Meet',
+    title: 'New Partner Identification Workshop', summary: '',
+    status: 'Scheduled', created_at: '2026-05-01T00:00:00Z' },
+  // cmt-05: Infrastructure & Safety (3 meetings)
+  { id: 'mtg-13', committee_id: 'cmt-05', meeting_date: '2026-03-01', venue: 'Admin Board Room',
+    title: 'Annual Safety Audit Review', summary: 'Reviewed 12 non-conformances from 2025 audit. 10 resolved, 2 pending — assigned action items.',
+    status: 'Completed', created_at: '2026-02-15T00:00:00Z' },
+  { id: 'mtg-14', committee_id: 'cmt-05', meeting_date: '2026-05-25', venue: 'Admin Board Room',
+    title: 'Lab Infrastructure Upgrade Planning', summary: '',
+    status: 'Scheduled', created_at: '2026-05-01T00:00:00Z' },
+  { id: 'mtg-15', committee_id: 'cmt-05', meeting_date: '2026-07-15', venue: 'Admin Board Room',
+    title: 'Fire Safety Drill & Equipment Audit', summary: '',
+    status: 'Scheduled', created_at: '2026-06-01T00:00:00Z' },
+];
+
+export const mockAgendaItems: AgendaItem[] = [
+  // mtg-01 (cmt-01 Q1 Review — Completed)
+  { id: 'agi-01', meeting_id: 'mtg-01', sequence: 1, description: 'Review of Q4 FY2025 research output', proposed_by: 'S001', status: 'Discussed' },
+  { id: 'agi-02', meeting_id: 'mtg-01', sequence: 2, description: 'New project proposal: Nano-refractories for steel industry', proposed_by: 'S002', status: 'Discussed' },
+  { id: 'agi-03', meeting_id: 'mtg-01', sequence: 3, description: 'Budget allocation for FY 2026-27 research programs', proposed_by: 'S012', status: 'Discussed' },
+  { id: 'agi-04', meeting_id: 'mtg-01', sequence: 4, description: 'Any other business — patent filing status update', proposed_by: 'S045', status: 'Deferred' },
+  // mtg-02 (cmt-01 Mid-Year — Scheduled)
+  { id: 'agi-05', meeting_id: 'mtg-02', sequence: 1, description: 'Mid-year project status reports from all divisions', proposed_by: 'S001', status: 'Pending' },
+  { id: 'agi-06', meeting_id: 'mtg-02', sequence: 2, description: 'PhD candidate recruitment plan 2027', proposed_by: 'S014', status: 'Pending' },
+  // mtg-04 (cmt-02 XRD — Completed)
+  { id: 'agi-07', meeting_id: 'mtg-04', sequence: 1, description: 'Technical specification review for new XRD system', proposed_by: 'S040', status: 'Discussed' },
+  { id: 'agi-08', meeting_id: 'mtg-04', sequence: 2, description: 'Vendor comparison: Rigaku vs. Bruker vs. PANalytical', proposed_by: 'T004', status: 'Discussed' },
+  // mtg-07 (cmt-03 PhD Synopsis — Completed)
+  { id: 'agi-09', meeting_id: 'mtg-07', sequence: 1, description: 'Synopsis review: Arjun Nair (Refractory Ceramics)', proposed_by: 'S025', status: 'Discussed' },
+  { id: 'agi-10', meeting_id: 'mtg-07', sequence: 2, description: 'Synopsis review: Divya Kapoor (Energy Materials)', proposed_by: 'S025', status: 'Discussed' },
+  // mtg-13 (cmt-05 Safety Audit — Completed)
+  { id: 'agi-11', meeting_id: 'mtg-13', sequence: 1, description: 'Non-conformance closure status review', proposed_by: 'S037', status: 'Discussed' },
+  { id: 'agi-12', meeting_id: 'mtg-13', sequence: 2, description: 'Emergency shower and eyewash station inspection report', proposed_by: 'T003', status: 'Discussed' },
+];
+
+export const mockActionItems: ActionItem[] = [
+  // 5 Pending
+  { id: 'act-01', meeting_id: 'mtg-01', source: 'meeting', task: 'Submit revised budget proposal for Nano-refractory project', assigned_to: 'S002', deadline: '2026-05-20', status: 'Pending', completed_at: null, notes: 'Include consumables cost escalation' },
+  { id: 'act-02', meeting_id: 'mtg-01', source: 'meeting', task: 'Distribute Q1 review minutes to all division heads', assigned_to: 'H001', deadline: '2026-05-01', status: 'Pending', completed_at: null, notes: '' },
+  { id: 'act-03', meeting_id: 'mtg-04', source: 'meeting', task: 'Obtain three vendor quotations for XRD procurement', assigned_to: 'T004', deadline: '2026-05-30', status: 'Pending', completed_at: null, notes: 'Rigaku quote already received' },
+  { id: 'act-04', meeting_id: null, source: 'manual', task: 'Prepare annual equipment calibration schedule for all labs', assigned_to: 'T001', deadline: '2026-06-15', status: 'Pending', completed_at: null, notes: 'Coordinate with division heads for access windows' },
+  { id: 'act-05', meeting_id: 'mtg-13', source: 'meeting', task: 'Replace faulty fire extinguishers in Labs A, C, and D', assigned_to: 'T002', deadline: '2026-05-15', status: 'Pending', completed_at: null, notes: '2 CO2 and 1 Dry Powder type needed' },
+  // 5 InProgress
+  { id: 'act-06', meeting_id: 'mtg-01', source: 'meeting', task: 'Compile patent filing tracker for FY 2025-26', assigned_to: 'S045', deadline: '2026-05-10', status: 'InProgress', completed_at: null, notes: 'Awaiting legal department confirmation on 2 filings' },
+  { id: 'act-07', meeting_id: 'mtg-07', source: 'meeting', task: 'Schedule thesis defense for Arjun Nair', assigned_to: 'S026', deadline: '2026-05-25', status: 'InProgress', completed_at: null, notes: 'Waiting for external examiner confirmation' },
+  { id: 'act-08', meeting_id: null, source: 'manual', task: 'Update chemical inventory database for all labs', assigned_to: 'T003', deadline: '2026-06-01', status: 'InProgress', completed_at: null, notes: 'BMS and NST labs completed, ARC pending' },
+  { id: 'act-09', meeting_id: 'mtg-13', source: 'meeting', task: 'Install additional fume hoods in Lab-C', assigned_to: 'S037', deadline: '2026-07-01', status: 'InProgress', completed_at: null, notes: 'Civil work in progress, electrical connection pending' },
+  { id: 'act-10', meeting_id: 'mtg-10', source: 'meeting', task: 'Draft MoU template for industry-sponsored PhD programs', assigned_to: 'S012', deadline: '2026-05-30', status: 'InProgress', completed_at: null, notes: 'Legal review awaited' },
+  // 5 Completed
+  { id: 'act-11', meeting_id: 'mtg-01', source: 'meeting', task: 'Archive closed projects documentation for CSIR audit', assigned_to: 'H001', deadline: '2026-04-15', status: 'Completed', completed_at: '2026-04-10T00:00:00Z', notes: 'All 5 closed projects documented' },
+  { id: 'act-12', meeting_id: 'mtg-04', source: 'meeting', task: 'Decommission non-operational HT furnace (E006)', assigned_to: 'T001', deadline: '2026-04-30', status: 'Completed', completed_at: '2026-04-28T00:00:00Z', notes: 'Repair order placed, furnace isolated' },
+  { id: 'act-13', meeting_id: 'mtg-07', source: 'meeting', task: 'Update PhD student handbook with new submission guidelines', assigned_to: 'S026', deadline: '2026-03-31', status: 'Completed', completed_at: '2026-03-28T00:00:00Z', notes: 'PDF shared with all supervisors' },
+  { id: 'act-14', meeting_id: 'mtg-10', source: 'meeting', task: 'Send signed MoUs to CSIR-HQ for ratification', assigned_to: 'H001', deadline: '2026-03-01', status: 'Completed', completed_at: '2026-02-28T00:00:00Z', notes: 'All 3 MoUs acknowledged by HQ' },
+  { id: 'act-15', meeting_id: 'mtg-13', source: 'meeting', task: 'Complete electrical safety audit for all buildings', assigned_to: 'T002', deadline: '2026-03-15', status: 'Completed', completed_at: '2026-03-12T00:00:00Z', notes: 'Minor issues noted in Building D, reported to maintenance' },
+];
+
+export const mockMeetingDocuments: MeetingDocument[] = [
+  { id: 'doc-01', meeting_id: 'mtg-01', file_name: 'Q1_Research_Meeting_Agenda.pdf', storage_path: 'committee-docs/mtg-01/agenda.pdf', uploaded_at: '2026-03-15T00:00:00Z' },
+  { id: 'doc-02', meeting_id: 'mtg-01', file_name: 'Q1_Research_Review_Minutes.pdf', storage_path: 'committee-docs/mtg-01/minutes.pdf', uploaded_at: '2026-04-12T00:00:00Z' },
+  { id: 'doc-03', meeting_id: 'mtg-04', file_name: 'XRD_Technical_Specs.pdf', storage_path: 'committee-docs/mtg-04/specs.pdf', uploaded_at: '2026-03-20T00:00:00Z' },
+  { id: 'doc-04', meeting_id: 'mtg-07', file_name: 'PhD_Synopsis_Review_Minutes.pdf', storage_path: 'committee-docs/mtg-07/minutes.pdf', uploaded_at: '2026-03-25T00:00:00Z' },
+  { id: 'doc-05', meeting_id: 'mtg-13', file_name: 'Safety_Audit_Report_2025.pdf', storage_path: 'committee-docs/mtg-13/audit.pdf', uploaded_at: '2026-02-15T00:00:00Z' },
 ];
