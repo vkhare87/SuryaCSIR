@@ -14,6 +14,13 @@ import type {
   VacancyAdvertisement,
   VacancyPost,
   Role,
+  Committee,
+  Meeting,
+  ActionItem,
+  MeetingDocument,
+  Ticket,
+  TicketResponse,
+  TicketEvent,
 } from '../types';
 import { supabase, isProvisioned } from '../utils/supabaseClient';
 import {
@@ -29,6 +36,13 @@ import {
   mapContractStaffRow,
   mapVacancyAdvertisementRow,
   mapVacancyPostRow,
+  mapCommitteeRow,
+  mapMeetingRow,
+  mapActionItemRow,
+  mapMeetingDocumentRow,
+  mapTicketRow,
+  mapTicketResponseRow,
+  mapTicketEventRow,
 } from '../utils/dataMapper';
 import {
   mockDivisions,
@@ -40,6 +54,13 @@ import {
   mockLabs,
   mockScientificOutputs,
   mockIPIntelligence,
+  mockCommittees,
+  mockMeetings,
+  mockActionItems,
+  mockMeetingDocuments,
+  mockTickets,
+  mockTicketResponses,
+  mockTicketEvents,
 } from '../utils/mockData';
 import { useAuth } from './AuthContext';
 
@@ -86,9 +107,17 @@ interface DataContextType {
   labs: Lab[];
   vacancyAdvertisements: VacancyAdvertisement[];
   vacancyPosts: VacancyPost[];
+  committees: Committee[];
+  meetings: Meeting[];
+  actionItems: ActionItem[];
+  meetingDocs: MeetingDocument[];
+  tickets: Ticket[];
+  ticketResponses: TicketResponse[];
+  ticketEvents: TicketEvent[];
   isLoading: boolean;
   isBackendProvisioned: boolean;
   refreshData: () => Promise<void>;
+  saveEquipment: (payload: Record<string, unknown>) => Promise<void>;
   error: string | null;
 }
 
@@ -114,6 +143,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [labs, setLabs] = useState<Lab[]>([]);
   const [vacancyAdvertisements, setVacancyAdvertisements] = useState<VacancyAdvertisement[]>([]);
   const [vacancyPosts, setVacancyPosts] = useState<VacancyPost[]>([]);
+  const [committees, setCommittees] = useState<Committee[]>([]);
+  const [meetings, setMeetings] = useState<Meeting[]>([]);
+  const [actionItems, setActionItems] = useState<ActionItem[]>([]);
+  const [meetingDocs, setMeetingDocs] = useState<MeetingDocument[]>([]);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [ticketResponses, setTicketResponses] = useState<TicketResponse[]>([]);
+  const [ticketEvents, setTicketEvents] = useState<TicketEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -126,6 +162,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         const [
           divRes, staffRes, projRes, psRes, phdRes, equipRes, labsRes, soRes, ipRes, csRes,
           vaRes, vpRes,
+          cmtRes, cmmRes, mtgRes, agiRes, actRes, mdcRes, tktRes, trsRes, tevRes,
         ] = await Promise.all([
           supabase.from('divisions').select('*'),
           supabase.from('staff').select('*'),
@@ -139,7 +176,20 @@ export function DataProvider({ children }: { children: ReactNode }) {
           supabase.from('contract_staff').select('*'),
           supabase.from('vacancy_advertisements').select('*').order('created_at', { ascending: false }),
           supabase.from('vacancy_posts').select('*'),
+          supabase.from('committees').select('*'),
+          supabase.from('committee_members').select('*'),
+          supabase.from('meetings').select('*'),
+          supabase.from('agenda_items').select('*'),
+          supabase.from('action_items').select('*'),
+          supabase.from('meeting_documents').select('*'),
+          supabase.from('tickets').select('*').order('created_at', { ascending: false }),
+          supabase.from('ticket_responses').select('*'),
+          supabase.from('ticket_events').select('*'),
         ]);
+
+        // committee_members and agenda_items loaded for Phase 2 use (detail pages)
+        void cmmRes;
+        void agiRes;
 
         const rawStaff = staffRes.data ? staffRes.data.map(mapStaffRow) : [];
         const rawProjects = projRes.data ? projRes.data.map(mapProjectRow) : [];
@@ -157,6 +207,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
         setIPIntelligence(ipRes.data ? ipRes.data.map(mapIPIntelligenceRow) : []);
         setVacancyAdvertisements(vaRes.data ? vaRes.data.map(mapVacancyAdvertisementRow) : []);
         setVacancyPosts(vpRes.data ? vpRes.data.map(mapVacancyPostRow) : []);
+        setCommittees(cmtRes.data ? cmtRes.data.map(mapCommitteeRow) : []);
+        setMeetings(mtgRes.data ? mtgRes.data.map(mapMeetingRow) : []);
+        setActionItems(actRes.data ? actRes.data.map(mapActionItemRow) : []);
+        setMeetingDocs(mdcRes.data ? mdcRes.data.map(mapMeetingDocumentRow) : []);
+        setTickets(tktRes.data ? tktRes.data.map(mapTicketRow) : []);
+        setTicketResponses(trsRes.data ? trsRes.data.map(mapTicketResponseRow) : []);
+        setTicketEvents(tevRes.data ? tevRes.data.map(mapTicketEventRow) : []);
       } else {
         // ----- Mock fallback branch -----
         setDivisions(mockDivisions);
@@ -171,6 +228,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
         setIPIntelligence(mockIPIntelligence);
         setVacancyAdvertisements([]);
         setVacancyPosts([]);
+        setCommittees(mockCommittees);
+        setMeetings(mockMeetings);
+        setActionItems(mockActionItems);
+        setMeetingDocs(mockMeetingDocuments);
+        setTickets(mockTickets);
+        setTicketResponses(mockTicketResponses);
+        setTicketEvents(mockTicketEvents);
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load data';
@@ -189,6 +253,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setIPIntelligence(mockIPIntelligence);
       setVacancyAdvertisements([]);
       setVacancyPosts([]);
+      setCommittees(mockCommittees);
+      setMeetings(mockMeetings);
+      setActionItems(mockActionItems);
+      setMeetingDocs(mockMeetingDocuments);
+      setTickets(mockTickets);
+      setTicketResponses(mockTicketResponses);
+      setTicketEvents(mockTicketEvents);
     } finally {
       setIsLoading(false);
     }
@@ -212,9 +283,22 @@ export function DataProvider({ children }: { children: ReactNode }) {
       labs,
       vacancyAdvertisements,
       vacancyPosts,
+      committees,
+      meetings,
+      actionItems,
+      meetingDocs,
+      tickets,
+      ticketResponses,
+      ticketEvents,
       isLoading,
       isBackendProvisioned: provisioned,
       refreshData: loadData,
+      saveEquipment: async (payload) => {
+        if (!supabase) throw new Error('Supabase not configured');
+        const { error: sbErr } = await supabase.from('equipment').upsert(payload);
+        if (sbErr) throw sbErr;
+        await loadData();
+      },
       error,
     }}>
       {children}
