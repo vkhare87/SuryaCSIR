@@ -4,7 +4,7 @@ milestone_name: Committees & Helpdesk
 status: executing
 progress:
   phases_total: 4
-  phases_completed: 0
+  phases_completed: 1
   plans_total: 4
   plans_completed: 4
   tasks_total: 8
