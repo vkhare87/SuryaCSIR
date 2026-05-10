@@ -11,6 +11,7 @@ import Divisions from './pages/Divisions';
 import Intelligence from './pages/Intelligence';
 import Facilities from './pages/Facilities';
 import InstrumentDetail from './pages/InstrumentDetail';
+import CommitteeList from './pages/committees/CommitteeList';
 import Recruitment from './pages/Recruitment';
 import DataManagement from './pages/DataManagement';
 import Calendar from './pages/Calendar';
@@ -105,6 +106,7 @@ function App() {
             <Route path="/intelligence" element={<Intelligence />} />
             <Route path="/facilities" element={<Facilities />} />
             <Route path="/facilities/:uInsID" element={<InstrumentDetail />} />
+            <Route path="/committees" element={<ProtectedRoute><CommitteeList /></ProtectedRoute>} />
             <Route path="/recruitment" element={<ProtectedRoute allowedRoles={['HRAdmin', 'SystemAdmin', 'MasterAdmin']}><Recruitment /></ProtectedRoute>} />
             <Route path="/calendar" element={<ProtectedRoute><Calendar /></ProtectedRoute>} />
             <Route path="/data" element={<ProtectedRoute allowedRoles={['HRAdmin', 'SystemAdmin', 'MasterAdmin']}><DataManagement /></ProtectedRoute>} />
