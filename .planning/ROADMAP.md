@@ -40,6 +40,16 @@
 
 **Requirements:** CMT-01, CMT-02, CMT-03, CMT-04, CMT-05, CMT-06, CMT-07, CMT-08
 **Depends on:** Phase 1 (Foundation)
+**Plans:** 7 plans in 4 waves
+
+**Plans:**
+- [ ] 02-01-PLAN.md — Prerequisites: DataContext extension, permissions module, minutes lock migration
+- [ ] 02-02-PLAN.md — Core Pages: CommitteeList + CommitteeDetail (list page, detail with 3 tabs)
+- [ ] 02-03-PLAN.md — MeetingDetail page (stacked layout: info, agenda, minutes, actions, documents)
+- [ ] 02-04-PLAN.md — Modals: CommitteeFormModal, MeetingFormModal, ActionItemModal, MemberPicker
+- [ ] 02-05-PLAN.md — Meeting Interactive: AgendaEditor (drag-reorder), MinutesEditor (autosave+lock), DocumentUploader
+- [ ] 02-06-PLAN.md — Kanban: KanbanBoard + KanbanCard + ActionTrackerFilters (3-column, overdue highlight)
+- [ ] 02-07-PLAN.md — Integration: App.tsx routes + Layout.tsx nav item
 
 **Success criteria:**
 1. `/committees` shows committee list with search + type/status filter
@@ -58,6 +68,15 @@
 - `src/components/committees/CommitteeFormModal.tsx`
 - `src/components/committees/MeetingFormModal.tsx`
 - `src/components/committees/ActionItemModal.tsx`
+- `src/components/committees/MemberPicker.tsx`
+- `src/components/committees/AgendaEditor.tsx`
+- `src/components/committees/MinutesEditor.tsx`
+- `src/components/committees/DocumentUploader.tsx`
+- `src/components/committees/KanbanBoard.tsx`
+- `src/components/committees/KanbanCard.tsx`
+- `src/components/committees/ActionTrackerFilters.tsx`
+- `src/lib/committees/permissions.ts`
+- `supabase/migrations/20260510000000_committee_minutes_lock.sql`
 
 ---
 
@@ -155,4 +174,4 @@ Phases 2 and 3 are parallel after Phase 1.
 
 ---
 
-*Last updated: 2026-05-09*
+*Last updated: 2026-05-10*
