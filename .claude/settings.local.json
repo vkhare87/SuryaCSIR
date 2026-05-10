@@ -14,7 +14,13 @@
       "Bash(cmd //c \"rmdir /s /q D:\\\\Claude\\\\Surya\\\\SuryaFD\")",
       "Bash(curl -v \"https://raw.githubusercontent.com/forrestchang/andrej-karpathy-skills/main/CLAUDE.md\")",
       "Bash(curl *)",
-      "Skill(gsd-cleanup)"
+      "Skill(gsd-cleanup)",
+      "Bash(npx supabase *)",
+      "Bash(git checkout *)",
+      "Bash(npx vitest *)",
+      "Bash(npx tsc *)",
+      "Bash(npx eslint *)",
+      "Bash(cmd *)"
     ]
   }
 }

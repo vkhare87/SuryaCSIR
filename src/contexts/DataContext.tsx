@@ -14,6 +14,7 @@ import type {
   VacancyAdvertisement,
   VacancyPost,
   Role,
+  Ticket,
 } from '../types';
 import { supabase, isProvisioned } from '../utils/supabaseClient';
 import {
@@ -40,6 +41,7 @@ import {
   mockLabs,
   mockScientificOutputs,
   mockIPIntelligence,
+  mockTickets,
 } from '../utils/mockData';
 import { useAuth } from './AuthContext';
 
@@ -86,6 +88,7 @@ interface DataContextType {
   labs: Lab[];
   vacancyAdvertisements: VacancyAdvertisement[];
   vacancyPosts: VacancyPost[];
+  tickets: Ticket[];
   isLoading: boolean;
   isBackendProvisioned: boolean;
   refreshData: () => Promise<void>;
@@ -114,6 +117,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [labs, setLabs] = useState<Lab[]>([]);
   const [vacancyAdvertisements, setVacancyAdvertisements] = useState<VacancyAdvertisement[]>([]);
   const [vacancyPosts, setVacancyPosts] = useState<VacancyPost[]>([]);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -125,7 +129,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         // ----- Supabase branch -----
         const [
           divRes, staffRes, projRes, psRes, phdRes, equipRes, labsRes, soRes, ipRes, csRes,
-          vaRes, vpRes,
+          vaRes, vpRes, tktRes,
         ] = await Promise.all([
           supabase.from('divisions').select('*'),
           supabase.from('staff').select('*'),
@@ -139,6 +143,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           supabase.from('contract_staff').select('*'),
           supabase.from('vacancy_advertisements').select('*').order('created_at', { ascending: false }),
           supabase.from('vacancy_posts').select('*'),
+          supabase.from('tickets').select('*').order('created_at', { ascending: false }),
         ]);
 
         const rawStaff = staffRes.data ? staffRes.data.map(mapStaffRow) : [];
@@ -157,6 +162,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         setIPIntelligence(ipRes.data ? ipRes.data.map(mapIPIntelligenceRow) : []);
         setVacancyAdvertisements(vaRes.data ? vaRes.data.map(mapVacancyAdvertisementRow) : []);
         setVacancyPosts(vpRes.data ? vpRes.data.map(mapVacancyPostRow) : []);
+        setTickets(tktRes.data ?? []);
       } else {
         // ----- Mock fallback branch -----
         setDivisions(mockDivisions);
@@ -171,6 +177,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         setIPIntelligence(mockIPIntelligence);
         setVacancyAdvertisements([]);
         setVacancyPosts([]);
+        setTickets(mockTickets);
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load data';
@@ -189,6 +196,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setIPIntelligence(mockIPIntelligence);
       setVacancyAdvertisements([]);
       setVacancyPosts([]);
+      setTickets(mockTickets);
     } finally {
       setIsLoading(false);
     }
@@ -212,6 +220,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       labs,
       vacancyAdvertisements,
       vacancyPosts,
+      tickets,
       isLoading,
       isBackendProvisioned: provisioned,
       refreshData: loadData,

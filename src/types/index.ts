@@ -216,3 +216,84 @@ export interface Notification {
   entity_id: string | null;
   created_at: string;
 }
+
+// --- Helpdesk Types ---
+
+export type TicketCategory =
+  | 'Infrastructure'
+  | 'EquipmentIT'
+  | 'Administrative'
+  | 'HRGrievance'
+  | 'Finance'
+  | 'LabResearch'
+  | 'Library'
+  | 'Transport';
+
+export type TicketUrgency = 'Low' | 'Medium' | 'High' | 'Critical';
+
+export type TicketStatus = 'Open' | 'InProgress' | 'Resolved' | 'Closed';
+
+export type TicketEventType =
+  | 'Created'
+  | 'Assigned'
+  | 'StatusChanged'
+  | 'Resolved'
+  | 'Closed'
+  | 'Reopened';
+
+export interface Ticket {
+  id: string;
+  token: string;
+  subject: string;
+  category: TicketCategory;
+  urgency: TicketUrgency;
+  description: string;
+  submitted_by: string;
+  assigned_to: string | null;
+  status: TicketStatus;
+  created_at: string;
+  updated_at: string;
+  resolved_at: string | null;
+}
+
+export interface TicketResponse {
+  id: string;
+  ticket_id: string;
+  author_id: string;
+  message: string;
+  created_at: string;
+}
+
+export interface TicketEvent {
+  id: string;
+  ticket_id: string;
+  event_type: TicketEventType;
+  actor_id: string;
+  details: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface HelpdeskRouting {
+  id: string;
+  category: TicketCategory;
+  target_type: 'role' | 'division';
+  target_id: string;
+}
+
+// --- Committee Types ---
+
+export interface Committee {
+  id: string;
+  name: string;
+  description: string;
+  mandate: string;
+  created_at: string;
+}
+
+export interface CommitteeMember {
+  id: string;
+  committee_id: string;
+  user_id: string;
+  role: 'Chairperson' | 'Secretary' | 'Member';
+  joined_at: string;
+}
