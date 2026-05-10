@@ -34,22 +34,23 @@
 
 ---
 
-## Phase 2: Committee Management
+## Phase 2: Committee Management ✓ Complete (2026-05-10)
 
 **Goal:** Full committee governance module — list, detail, meetings, minutes, action items, document uploads.
 
-**Requirements:** CMT-01, CMT-02, CMT-03, CMT-04, CMT-05, CMT-06, CMT-07, CMT-08
+**Requirements:** CMT-01 ✓, CMT-02 ✓, CMT-03 ✓, CMT-04 ✓, CMT-05 ✓, CMT-06 ✓, CMT-07 ✓, CMT-08 ✓
 **Depends on:** Phase 1 (Foundation)
-**Plans:** 7 plans in 4 waves
+**Plans:** 7/7 complete (4 waves)
+**Verification:** 8/8 must-haves passed (02-VERIFICATION.md)
 
 **Plans:**
-- [ ] 02-01-PLAN.md — Prerequisites: DataContext extension, permissions module, minutes lock migration
-- [ ] 02-02-PLAN.md — Core Pages: CommitteeList + CommitteeDetail (list page, detail with 3 tabs)
-- [ ] 02-03-PLAN.md — MeetingDetail page (stacked layout: info, agenda, minutes, actions, documents)
-- [ ] 02-04-PLAN.md — Modals: CommitteeFormModal, MeetingFormModal, ActionItemModal, MemberPicker
-- [ ] 02-05-PLAN.md — Meeting Interactive: AgendaEditor (drag-reorder), MinutesEditor (autosave+lock), DocumentUploader
-- [ ] 02-06-PLAN.md — Kanban: KanbanBoard + KanbanCard + ActionTrackerFilters (3-column, overdue highlight)
-- [ ] 02-07-PLAN.md — Integration: App.tsx routes + Layout.tsx nav item
+- [x] 02-01-PLAN.md — Prerequisites: DataContext extension, permissions module, minutes lock migration
+- [x] 02-02-PLAN.md — Core Pages: CommitteeList + CommitteeDetail (list page, detail with 3 tabs)
+- [x] 02-03-PLAN.md — MeetingDetail page (stacked layout: info, agenda, minutes, actions, documents)
+- [x] 02-04-PLAN.md — Modals: CommitteeFormModal, MeetingFormModal, ActionItemModal, MemberPicker
+- [x] 02-05-PLAN.md — Meeting Interactive: AgendaEditor (drag-reorder), MinutesEditor (autosave+lock), DocumentUploader
+- [x] 02-06-PLAN.md — Kanban: KanbanBoard + KanbanCard + ActionTrackerFilters (3-column, overdue highlight)
+- [x] 02-07-PLAN.md — Integration: App.tsx routes + Layout.tsx nav item
 
 **Success criteria:**
 1. `/committees` shows committee list with search + type/status filter
