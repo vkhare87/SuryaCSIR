@@ -16,6 +16,7 @@ import {
   Search,
   Database,
   Network,
+  Cloud,
   Menu,
   X,
   AlertCircle,
@@ -61,6 +62,7 @@ const NAV_ITEMS: NavItem[] = [
   { path: '/data',         label: 'Data Import',     icon: Database,        allowedRoles: ['HRAdmin', 'SystemAdmin', 'MasterAdmin'] },
   { path: '/pms',          label: 'Performance Mgmt',icon: ClipboardCheck,  allowedRoles: ['Scientist','HOD','DivisionHead','Director','EmpoweredCommittee','HRAdmin','SystemAdmin','MasterAdmin'] },
   { path: '/db-wizard',   label: 'DB Wizard',       icon: Database,        allowedRoles: ['SystemAdmin', 'MasterAdmin'] },
+  { path: '/irins-sync', label: 'IRINS Sync',     icon: Cloud,           allowedRoles: ['SystemAdmin', 'MasterAdmin'] },
 ];
 
 export function Layout() {

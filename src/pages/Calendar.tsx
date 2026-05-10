@@ -35,18 +35,9 @@ const EVENT_LABEL_COLOR: Record<EventType, string> = {
   admin: 'text-emerald-500',
 };
 
-const SAMPLE_EVENTS: CalEvent[] = [
-  { id: 1, title: 'Division Weekly Meet', time: '10:00 AM', location: 'Meeting Room A', type: 'internal', date: new Date().getDate(), duration: '1h' },
-  { id: 2, title: 'PhD Progress Seminar', time: '2:30 PM', location: 'Conference Hall', type: 'academic', date: new Date().getDate(), duration: '2h' },
-  { id: 3, title: 'Budget Review FY26', time: '4:00 PM', location: 'Director Cabin', type: 'admin', date: new Date().getDate(), duration: '1h' },
-  { id: 4, title: 'Scientist Assessment Group-IV', time: '9:00 AM', location: 'Board Room', type: 'admin', date: 12, duration: '4h' },
-  { id: 5, title: 'Project Audit GAP0111', time: '11:00 AM', location: 'Lab-3', type: 'internal', date: 28, duration: '3h' },
-];
+const SAMPLE_EVENTS: CalEvent[] = [];
 
-const UPCOMING_ASSESSMENTS = [
-  { title: 'Scientist Assessment Group-IV', dateStr: 'April 12 – 15', color: 'border-amber-500' },
-  { title: 'Project Audit GAP0111', dateStr: 'April 28, 2026', color: 'border-[#c96442]' },
-];
+const UPCOMING_ASSESSMENTS: { title: string; dateStr: string; color: string }[] = [];
 
 const DAY_NAMES = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const MONTH_NAMES = [
@@ -186,12 +177,14 @@ export default function Calendar() {
           <Card>
             <h3 className="font-bold text-text mb-4 text-sm">Upcoming Assessments</h3>
             <div className="space-y-4">
-              {UPCOMING_ASSESSMENTS.map((a, i) => (
+              {UPCOMING_ASSESSMENTS.length > 0 ? UPCOMING_ASSESSMENTS.map((a, i) => (
                 <div key={i} className={clsx('border-l-2 pl-3', a.color)}>
                   <p className="text-xs font-bold text-text truncate">{a.title}</p>
                   <p className="text-[10px] text-text-muted mt-0.5">{a.dateStr}</p>
                 </div>
-              ))}
+              )) : (
+                <p className="text-xs text-text-muted">No upcoming assessments.</p>
+              )}
             </div>
           </Card>
         </div>

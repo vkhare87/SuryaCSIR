@@ -6,6 +6,8 @@ import { Card, Badge } from '../components/ui/Cards';
 import { KpiCard } from '../components/ui/KpiCard';
 import { DataTable } from '../components/ui/DataTable';
 import { InstrumentForm } from '../components/InstrumentForm';
+import { AmcBadge } from '../components/ui/AmcBadge';
+import { amcStatus, findStaffByName } from '../utils/dateUtils';
 import {
   FlaskConical,
   MapPin,
@@ -19,33 +21,6 @@ import {
   CalendarClock,
 } from 'lucide-react';
 import type { Equipment } from '../types';
-
-function amcStatus(dateStr?: string): 'expired' | 'expiring' | 'ok' | 'none' {
-  if (!dateStr) return 'none';
-  const amc = new Date(dateStr);
-  const today = new Date();
-  const diffDays = Math.ceil((amc.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-  if (diffDays < 0) return 'expired';
-  if (diffDays <= 90) return 'expiring';
-  return 'ok';
-}
-
-function AmcBadge({ dateStr }: { dateStr?: string }) {
-  const status = amcStatus(dateStr);
-  if (status === 'none') return <span className="text-xs text-text-muted">—</span>;
-  const variants: Record<'expired' | 'expiring' | 'ok' | 'none', string> = {
-    expired:  'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-    expiring: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
-    ok:       'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
-    none:     '',
-  };
-  return (
-    <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${variants[status]}`}>
-      <CalendarClock size={10} />
-      {dateStr}
-    </span>
-  );
-}
 
 const ADMIN_ROLES = ['SystemAdmin', 'MasterAdmin', 'HRAdmin'] as const;
 
@@ -94,15 +69,7 @@ export default function Facilities() {
     amcExpiring: equipment.filter(e => amcStatus(e.amc_end_date) === 'expiring').length,
   }), [equipment]);
 
-  const findStaffId = (name: string) => {
-    if (!name) return null;
-    const clean = (n: string) => n.toLowerCase().replace(/^(dr\.|sh\.|shri|smt\.)\s+/i, '').trim();
-    const cleaned = clean(name);
-    return staff.find(s => {
-      const sc = clean(s.Name);
-      return sc === cleaned || sc.includes(cleaned) || cleaned.includes(sc);
-    })?.ID ?? null;
-  };
+  const findStaffId = (name: string) => findStaffByName(staff, name)?.ID ?? null;
 
   const columns = [
     {

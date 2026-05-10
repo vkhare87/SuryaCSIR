@@ -4,21 +4,12 @@ import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
 import { Card, Badge } from '../components/ui/Cards';
 import { InstrumentForm } from '../components/InstrumentForm';
+import { amcStatus, AMC_CARD_COLORS, AMC_TEXT_COLORS, findStaffByName } from '../utils/dateUtils';
 import {
   ArrowLeft, MapPin, Wrench, CalendarClock, AlertTriangle,
   CheckCircle2, Clock, Package, DollarSign, Users, FlaskConical,
   Edit,
 } from 'lucide-react';
-
-function amcStatus(dateStr?: string): 'expired' | 'expiring' | 'ok' | 'none' {
-  if (!dateStr) return 'none';
-  const amc = new Date(dateStr);
-  const today = new Date();
-  const diffDays = Math.ceil((amc.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-  if (diffDays < 0) return 'expired';
-  if (diffDays <= 90) return 'expiring';
-  return 'ok';
-}
 
 const ADMIN_ROLES = ['SystemAdmin', 'MasterAdmin', 'HRAdmin'] as const;
 
@@ -49,16 +40,6 @@ export default function InstrumentDetail() {
     [instrument, labs]
   );
 
-  const findStaff = (name?: string) => {
-    if (!name) return null;
-    const clean = (n: string) => n.toLowerCase().replace(/^(dr\.|sh\.|shri|smt\.)\s+/i, '').trim();
-    const cleaned = clean(name);
-    return staff.find(s => {
-      const sc = clean(s.Name);
-      return sc === cleaned || sc.includes(cleaned) || cleaned.includes(sc);
-    }) ?? null;
-  };
-
   const isAdmin = user && (ADMIN_ROLES as readonly string[]).includes(user.activeRole);
 
   if (!instrument) {
@@ -83,21 +64,9 @@ export default function InstrumentDetail() {
   };
 
   const amc = amcStatus(instrument.amc_end_date);
-  const amcColors: Record<typeof amc, string> = {
-    expired:  'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800',
-    expiring: 'bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800',
-    ok:       'bg-emerald-50 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800',
-    none:     'bg-surface border-border',
-  };
-  const amcTextColors: Record<typeof amc, string> = {
-    expired:  'text-red-700 dark:text-red-400',
-    expiring: 'text-amber-700 dark:text-amber-400',
-    ok:       'text-emerald-700 dark:text-emerald-400',
-    none:     'text-text-muted',
-  };
 
-  const manager = findStaff(instrument.IndenterName);
-  const operator = findStaff(instrument.OperatorName);
+  const manager = findStaffByName(staff, instrument.IndenterName);
+  const operator = findStaffByName(staff, instrument.OperatorName);
 
   return (
     <div className="space-y-6">
@@ -170,19 +139,19 @@ export default function InstrumentDetail() {
           </Card>
 
           {/* AMC card */}
-          <div className={`rounded-xl border p-4 ${amcColors[amc]}`}>
+          <div className={`rounded-xl border p-4 ${AMC_CARD_COLORS[amc]}`}>
             <div className="flex items-center gap-2 mb-2">
-              <CalendarClock size={14} className={amcTextColors[amc]} />
-              <span className={`text-[10px] font-black uppercase tracking-widest ${amcTextColors[amc]}`}>AMC Status</span>
+              <CalendarClock size={14} className={AMC_TEXT_COLORS[amc]} />
+              <span className={`text-[10px] font-black uppercase tracking-widest ${AMC_TEXT_COLORS[amc]}`}>AMC Status</span>
             </div>
-            <div className={`text-base font-bold ${amcTextColors[amc]}`}>
+            <div className={`text-base font-bold ${AMC_TEXT_COLORS[amc]}`}>
               {amc === 'expired' && 'EXPIRED'}
               {amc === 'expiring' && 'EXPIRING SOON'}
               {amc === 'ok' && 'VALID'}
               {amc === 'none' && 'No AMC recorded'}
             </div>
             {instrument.amc_end_date && (
-              <div className={`text-xs mt-1 ${amcTextColors[amc]}`}>End date: {instrument.amc_end_date}</div>
+              <div className={`text-xs mt-1 ${AMC_TEXT_COLORS[amc]}`}>End date: {instrument.amc_end_date}</div>
             )}
           </div>
 

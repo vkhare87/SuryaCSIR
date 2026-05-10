@@ -101,3 +101,68 @@ export function staffNameMatchesAuthor(staffName: string, author: string): boole
 export function staffNameMatchesSupervisor(staffName: string, supervisor: string): boolean {
   return staffNameMatchesAuthor(staffName, supervisor);
 }
+
+/** --- Instrument / AMC utilities --- */
+
+export type AmcStatus = 'expired' | 'expiring' | 'ok' | 'none';
+
+/**
+ * Classify AMC status from an end-date string.
+ * - expired:   date is in the past
+ * - expiring:  within 90 days from today
+ * - ok:        more than 90 days from today
+ * - none:      no date provided
+ */
+export function amcStatus(dateStr?: string): AmcStatus {
+  if (!dateStr) return 'none';
+  const amc = new Date(dateStr);
+  const today = new Date();
+  const diffDays = Math.ceil((amc.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  if (diffDays < 0) return 'expired';
+  if (diffDays <= 90) return 'expiring';
+  return 'ok';
+}
+
+/** AMC badge color maps — shared across all AMC badge renderers */
+export const AMC_COLORS: Record<AmcStatus, string> = {
+  expired:  'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+  expiring: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+  ok:       'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+  none:     '',
+};
+
+export const AMC_CARD_COLORS: Record<AmcStatus, string> = {
+  expired:  'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800',
+  expiring: 'bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800',
+  ok:       'bg-emerald-50 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800',
+  none:     'bg-surface border-border',
+};
+
+export const AMC_TEXT_COLORS: Record<AmcStatus, string> = {
+  expired:  'text-red-700 dark:text-red-400',
+  expiring: 'text-amber-700 dark:text-amber-400',
+  ok:       'text-emerald-700 dark:text-emerald-400',
+  none:     'text-text-muted',
+};
+
+/** --- Staff name matching --- */
+
+interface StaffLike {
+  ID: string;
+  Name: string;
+}
+
+/**
+ * Find a staff member by fuzzy-matching against their name.
+ * Strips common titles (Dr., Sh., Shri, Smt.) and does case-insensitive
+ * bidirectional substring matching.
+ */
+export function findStaffByName<T extends StaffLike>(staffList: T[], rawName?: string): T | null {
+  if (!rawName) return null;
+  const clean = (n: string) => n.toLowerCase().replace(/^(dr\.|sh\.|shri|smt\.)\s+/i, '').trim();
+  const cleaned = clean(rawName);
+  return staffList.find(s => {
+    const sc = clean(s.Name);
+    return sc === cleaned || sc.includes(cleaned) || cleaned.includes(sc);
+  }) ?? null;
+}

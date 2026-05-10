@@ -312,6 +312,22 @@ export default function Login() {
                 Access to this system is restricted to verified CSIR-AMPRI officials.
                 Unauthorized attempts are logged under Govt IT policy.
              </p>
+             <button
+               type="button"
+               onClick={() => {
+                 if (window.confirm('This will clear all local app data (theme, credentials, cached settings). Continue?')) {
+                   localStorage.removeItem('surya_supabase_url');
+                   localStorage.removeItem('surya_supabase_anon_key');
+                   localStorage.removeItem('surya_theme');
+                   localStorage.removeItem('surya_density');
+                   localStorage.removeItem('surya_session');
+                   window.location.reload();
+                 }
+               }}
+               className="mt-6 text-[10px] text-[#b0aea5] hover:text-[#c96442] transition-colors underline underline-offset-2"
+             >
+               Reset App
+             </button>
           </div>
         </div>
       </div>
