@@ -15,7 +15,12 @@
       "Bash(curl -v \"https://raw.githubusercontent.com/forrestchang/andrej-karpathy-skills/main/CLAUDE.md\")",
       "Bash(curl *)",
       "Skill(gsd-cleanup)",
-      "Bash(npx supabase *)"
+      "Bash(npx supabase *)",
+      "Bash(git checkout *)",
+      "Bash(npx vitest *)",
+      "Bash(npx tsc *)",
+      "Bash(npx eslint *)",
+      "Bash(cmd *)"
     ]
   }
 }

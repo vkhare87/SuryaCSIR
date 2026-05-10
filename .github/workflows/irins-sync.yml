@@ -1,0 +1,40 @@
+name: IRINS Data Sync
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'   # weekly Monday 6am UTC
+  workflow_dispatch:
+    inputs:
+      vidwan_ids:
+        description: 'Specific VidwanIDs to sync (comma-separated, empty = all)'
+        required: false
+        type: string
+
+env:
+  SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+  SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Install Playwright
+        run: npm install playwright
+
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium
+
+      - name: Run IRINS sync
+        run: npx tsx scripts/irins-sync.ts ${{ github.event.inputs.vidwan_ids && format('--vidwan={0}', github.event.inputs.vidwan_ids) || '' }}
+        env:
+          SUPABASE_URL: ${{ env.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ env.SUPABASE_SERVICE_KEY }}
