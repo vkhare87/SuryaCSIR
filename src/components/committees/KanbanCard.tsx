@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Badge } from '../ui/Cards';
 import { supabase } from '../../utils/supabaseClient';
 import type { ActionItem } from '../../types';
@@ -23,13 +24,15 @@ export function KanbanCard({
   onStatusChange,
   canEdit,
 }: KanbanCardProps) {
+  const [now] = useState(() => Date.now());
+
   const isOverdue =
     item.status !== 'Completed' &&
     item.deadline &&
-    new Date(item.deadline) < new Date();
+    new Date(item.deadline).getTime() < now;
 
   const daysOverdue = isOverdue
-    ? Math.floor((Date.now() - new Date(item.deadline).getTime()) / 86400000)
+    ? Math.floor((now - new Date(item.deadline).getTime()) / 86400000)
     : 0;
 
   const cycleStatus = async () => {
