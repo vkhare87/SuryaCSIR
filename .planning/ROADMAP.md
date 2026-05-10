@@ -1,0 +1,202 @@
+# Roadmap — SURYA
+
+**Current Milestone:** v1.0 Committees & Helpdesk
+
+---
+
+## Phase 1: Foundation ✓ Complete (2026-05-09)
+
+**Goal:** Data layer for both modules — types, mock data, migration, DataContext extensions. Nothing visible yet, but both modules load from `useData()`.
+
+**Requirements:** INT-04 ✓
+**Depends on:** —
+**Plans:** 4/4 complete
+**Verification:** 14/14 must-haves passed (01-VERIFICATION.md)
+
+**Plans:**
+- [x] 01-01-PLAN.md — TypeScript interfaces (9 types) + permissions module
+- [x] 01-02-PLAN.md — Migration SQL (11 tables, RLS, 3 RPCs, storage) + schema push
+- [x] 01-03-PLAN.md — Mock data (10 arrays) + DataMapper functions (9 mappers)
+- [x] 01-04-PLAN.md — DataContext extensions (7 new arrays + loading + scoping)
+
+**Success criteria:**
+1. Migration runs cleanly — all 9 tables + audit_log created with RLS policies
+2. `npm run build` passes with new types (no type errors)
+3. `useData()` returns `committees`, `meetings`, `actionItems`, `meetingDocs`, `tickets`, `ticketResponses`, `ticketEvents` arrays
+4. Mock data populates in local/dev mode — 5 committees, 3 meetings each, 15-20 tickets visible
+
+**Key artifacts:**
+- `src/types/index.ts` — 9 new interfaces
+- `src/utils/mockData.ts` — extended with committees + tickets seed data
+- `src/utils/dataMapper.ts` — mapper functions for new entities
+- `src/contexts/DataContext.tsx` — loading + role-scoping for new entities
+- `supabase/migrations/20260507000000_committees_helpdesk.sql` — tables, RLS, RPCs, storage bucket
+
+---
+
+## Phase 2: Committee Management ✓ Complete (2026-05-10)
+
+**Goal:** Full committee governance module — list, detail, meetings, minutes, action items, document uploads.
+
+**Requirements:** CMT-01 ✓, CMT-02 ✓, CMT-03 ✓, CMT-04 ✓, CMT-05 ✓, CMT-06 ✓, CMT-07 ✓, CMT-08 ✓
+**Depends on:** Phase 1 (Foundation)
+**Plans:** 7/7 complete (4 waves)
+**Verification:** 8/8 must-haves passed (02-VERIFICATION.md)
+
+**Plans:**
+- [x] 02-01-PLAN.md — Prerequisites: DataContext extension, permissions module, minutes lock migration
+- [x] 02-02-PLAN.md — Core Pages: CommitteeList + CommitteeDetail (list page, detail with 3 tabs)
+- [x] 02-03-PLAN.md — MeetingDetail page (stacked layout: info, agenda, minutes, actions, documents)
+- [x] 02-04-PLAN.md — Modals: CommitteeFormModal, MeetingFormModal, ActionItemModal, MemberPicker
+- [x] 02-05-PLAN.md — Meeting Interactive: AgendaEditor (drag-reorder), MinutesEditor (autosave+lock), DocumentUploader
+- [x] 02-06-PLAN.md — Kanban: KanbanBoard + KanbanCard + ActionTrackerFilters (3-column, overdue highlight)
+- [x] 02-07-PLAN.md — Integration: App.tsx routes + Layout.tsx nav item
+
+**Success criteria:**
+1. `/committees` shows committee list with search + type/status filter
+2. Admin can create committee with members (StaffPicker), edit, and delete
+3. Committee detail has 3 working tabs: Overview, Meetings, Action Tracker
+4. Chairperson/secretary can schedule meeting with agenda items (drag-to-reorder)
+5. Minutes editor works — saves to Supabase, locks after 7 days (UI + RLS)
+6. Document upload to Supabase Storage works — upload + download
+7. Action items created from meeting or standalone, status toggles work
+8. Action Tracker shows all items across committees with overdue highlight
+
+**Key artifacts:**
+- `src/pages/committees/CommitteeList.tsx`
+- `src/pages/committees/CommitteeDetail.tsx`
+- `src/pages/committees/MeetingDetail.tsx`
+- `src/components/committees/CommitteeFormModal.tsx`
+- `src/components/committees/MeetingFormModal.tsx`
+- `src/components/committees/ActionItemModal.tsx`
+- `src/components/committees/MemberPicker.tsx`
+- `src/components/committees/AgendaEditor.tsx`
+- `src/components/committees/MinutesEditor.tsx`
+- `src/components/committees/DocumentUploader.tsx`
+- `src/components/committees/KanbanBoard.tsx`
+- `src/components/committees/KanbanCard.tsx`
+- `src/components/committees/ActionTrackerFilters.tsx`
+- `src/lib/committees/permissions.ts`
+- `supabase/migrations/20260510000000_committee_minutes_lock.sql`
+
+---
+
+## Phase 3: Helpdesk
+
+**Goal:** Ticket system with 8 categories, auto-routing, response thread, RPC-gated state machine.
+
+**Requirements:** HD-01, HD-02, HD-03, HD-04, HD-05, HD-06, HD-07, HD-08
+**Depends on:** Phase 1 (Foundation) — independent of Phase 2
+**Plans:** 6 plans (3 waves)
+
+**Plans:**
+
+**Wave 1** *(parallel)*
+- [ ] 03-01-PLAN.md — Library layer: permissions (10 functions + tests), constants, RPC wrappers, routing preview
+- [ ] 03-02-PLAN.md — Supabase migration: helpdesk_assign_ticket + helpdesk_add_response RPCs
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 03-03-PLAN.md — TicketForm page: 8-category grid, urgency selector, routing preview, RPC submit
+- [ ] 03-04-PLAN.md — Helpdesk list page: master-detail with filters, urgency badges, assignment tabs
+- [ ] 03-05-PLAN.md — TicketDetail page: response thread, collapsible timeline, reply input, admin tray
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 03-06-PLAN.md — Integration: App.tsx routes + Layout.tsx nav item
+
+**Cross-cutting constraints:**
+- All plans: RPC-gated state machine (never patch `tickets.status` client-side)
+- Plans 03-03/03-04/03-05: Pages consume data via `useData()` only
+- Plans 03-03/03-05: Status transitions call `src/lib/helpdesk/ticketRPCs.ts` wrappers
+- Plans 03-04/03-05: Urgency colors from `src/lib/helpdesk/constants.ts`
+
+**Success criteria:**
+1. `/helpdesk/new` creates ticket — 8-category grid, urgency selector, routing preview
+2. Ticket token auto-generated (AMPRI-YYMMDD-XXX format)
+3. Auto-routing assigns ticket to correct handler based on category mapping
+4. `/helpdesk` left panel shows filtered ticket list; right panel shows detail
+5. Handler can respond and transition status (Open→InProgress→Resolved) via RPC
+6. Admin can view all, reassign, force-close any ticket
+7. Ticket detail shows full response thread + event timeline
+8. Submitter can close own resolved ticket; stale resolved tickets auto-close at 14 days
+
+**Key artifacts:**
+- `src/pages/helpdesk/Helpdesk.tsx`
+- `src/pages/helpdesk/TicketForm.tsx`
+- `src/pages/helpdesk/TicketDetail.tsx`
+- `src/lib/helpdesk/permissions.ts` — 10 exported permission-check functions
+- `src/lib/helpdesk/ticketRPCs.ts` — 4 RPC wrappers for state transitions
+- `src/lib/helpdesk/routing.ts` — category-to-handler preview lookup
+- `src/lib/helpdesk/constants.ts` — urgency colors, category config, event icons
+- `src/lib/helpdesk/permissions.test.ts` + `routing.test.ts` — vitest unit tests
+- `supabase/migrations/20260510000000_helpdesk_phase3_rpcs.sql` — 2 new SECURITY DEFINER RPCs
+
+---
+
+## Phase 4: Integration & Polish
+
+**Goal:** Wire everything together — navigation, routes, audit log, shared UI components.
+
+**Requirements:** INT-01, INT-02, INT-03
+**Depends on:** Phase 2, Phase 3
+
+**Success criteria:**
+1. Committees and Helpdesk links appear in sidebar for all authenticated users
+2. All 6 routes registered in App.tsx with correct role protection
+3. Audit log captures committees + helpdesk changes; viewable at `/pms/audit` (extend)
+4. `StatusBadge` promoted from `src/components/pms/` to `src/components/ui/`
+5. `StaffPicker` component extracted (reused in committee members + ticket assignment)
+6. Both modules work end-to-end: create committee → schedule meeting → write minutes → create action item; create ticket → auto-route → respond → resolve → close
+
+**Key artifacts:**
+- `src/components/layout/Layout.tsx` — new nav items
+- `src/App.tsx` — new routes + protection
+- `src/components/ui/StatusBadge.tsx` — promoted from PMS
+- `src/components/ui/StaffPicker.tsx` — new shared component
+- `src/components/ui/Timeline.tsx` — new shared component
+
+---
+
+## Dependency Graph
+
+```
+Phase 1 (Foundation)
+    ├──▶ Phase 2 (Committees)
+    │       └──▶ Phase 4 (Integration)
+    │                    ◀──┘
+    └──▶ Phase 3 (Helpdesk)
+```
+
+Phases 2 and 3 are parallel after Phase 1.
+
+---
+
+## Requirement Coverage
+
+| REQ-ID | Phase | Description |
+|--------|-------|-------------|
+| CMT-01 | 2 | Committee list with search/filter |
+| CMT-02 | 2 | Committee CRUD + member management |
+| CMT-03 | 2 | Committee detail (3 tabs) |
+| CMT-04 | 2 | Meeting scheduling + agenda items |
+| CMT-05 | 2 | Meeting minutes with auto-lock |
+| CMT-06 | 2 | Document upload/download |
+| CMT-07 | 2 | Action item CRUD + status toggles |
+| CMT-08 | 2 | Action Tracker (cross-committee) |
+| HD-01 | 3 | Ticket creation form |
+| HD-02 | 3 | Auto-routing on create |
+| HD-03 | 3 | Ticket list with filters |
+| HD-04 | 3 | Responses + status transitions |
+| HD-05 | 3 | Admin view-all + reassign |
+| HD-06 | 3 | Ticket timeline + response thread |
+| HD-07 | 3 | Close ticket (submitter + auto-close) |
+| HD-08 | 3 | Auto-generated ticket token |
+| INT-01 | 4 | Sidebar navigation |
+| INT-02 | 4 | Route registration + protection |
+| INT-03 | 4 | Audit log integration |
+| INT-04 | 1 | RLS policies (built into migration) |
+
+**Coverage:** 20/20 requirements mapped (100%)
+
+---
+
+*Last updated: 2026-05-10*
