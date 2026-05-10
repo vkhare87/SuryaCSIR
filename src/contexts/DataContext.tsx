@@ -21,6 +21,8 @@ import type {
   Ticket,
   TicketResponse,
   TicketEvent,
+  CommitteeMember,
+  AgendaItem,
 } from '../types';
 import { supabase, isProvisioned } from '../utils/supabaseClient';
 import {
@@ -43,6 +45,8 @@ import {
   mapTicketRow,
   mapTicketResponseRow,
   mapTicketEventRow,
+  mapCommitteeMemberRow,
+  mapAgendaItemRow,
 } from '../utils/dataMapper';
 import {
   mockDivisions,
@@ -61,6 +65,8 @@ import {
   mockTickets,
   mockTicketResponses,
   mockTicketEvents,
+  mockCommitteeMembers,
+  mockAgendaItems,
 } from '../utils/mockData';
 import { useAuth } from './AuthContext';
 
@@ -111,6 +117,8 @@ interface DataContextType {
   meetings: Meeting[];
   actionItems: ActionItem[];
   meetingDocs: MeetingDocument[];
+  committeeMembers: CommitteeMember[];
+  agendaItems: AgendaItem[];
   tickets: Ticket[];
   ticketResponses: TicketResponse[];
   ticketEvents: TicketEvent[];
@@ -147,6 +155,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [actionItems, setActionItems] = useState<ActionItem[]>([]);
   const [meetingDocs, setMeetingDocs] = useState<MeetingDocument[]>([]);
+  const [committeeMembers, setCommitteeMembers] = useState<CommitteeMember[]>([]);
+  const [agendaItems, setAgendaItems] = useState<AgendaItem[]>([]);
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [ticketResponses, setTicketResponses] = useState<TicketResponse[]>([]);
   const [ticketEvents, setTicketEvents] = useState<TicketEvent[]>([]);
@@ -187,9 +197,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
           supabase.from('ticket_events').select('*'),
         ]);
 
-        // committee_members and agenda_items loaded for Phase 2 use (detail pages)
-        void cmmRes;
-        void agiRes;
+        setCommitteeMembers(cmmRes.data ? cmmRes.data.map(mapCommitteeMemberRow) : []);
+        setAgendaItems(agiRes.data ? agiRes.data.map(mapAgendaItemRow) : []);
 
         const rawStaff = staffRes.data ? staffRes.data.map(mapStaffRow) : [];
         const rawProjects = projRes.data ? projRes.data.map(mapProjectRow) : [];
@@ -232,6 +241,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         setMeetings(mockMeetings);
         setActionItems(mockActionItems);
         setMeetingDocs(mockMeetingDocuments);
+        setCommitteeMembers(mockCommitteeMembers);
+        setAgendaItems(mockAgendaItems);
         setTickets(mockTickets);
         setTicketResponses(mockTicketResponses);
         setTicketEvents(mockTicketEvents);
@@ -257,6 +268,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setMeetings(mockMeetings);
       setActionItems(mockActionItems);
       setMeetingDocs(mockMeetingDocuments);
+      setCommitteeMembers(mockCommitteeMembers);
+      setAgendaItems(mockAgendaItems);
       setTickets(mockTickets);
       setTicketResponses(mockTicketResponses);
       setTicketEvents(mockTicketEvents);
@@ -287,6 +300,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       meetings,
       actionItems,
       meetingDocs,
+      committeeMembers,
+      agendaItems,
       tickets,
       ticketResponses,
       ticketEvents,
