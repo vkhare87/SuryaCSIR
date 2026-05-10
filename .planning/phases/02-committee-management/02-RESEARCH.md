@@ -834,7 +834,7 @@ export function canUnlockMinutes(user: UserAccount): boolean {
 | A6 | Toast notification can be a simple fixed div without a library. | Don't Hand-Roll | Low — user explicitly chose this approach. Worst case: add a 2KB toast library later. |
 | A7 | The project uses `src/pages/committees/` subdirectory (not `src/pages/Committees.tsx`). | Project Structure | Medium — CLAUDE.md says `src/pages/<Page>.tsx` for single-file pages but doesn't specify subdirectories. Subdirectory is cleaner for 3 pages + modals. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Minutes Lock RLS Policy vs. Migration Statement**
    - What we know: CONTEXT.md D-19 requires auto-lock 7 days after completion. Phase 1 migration line 5 says "Decision D-03: No minutes lock (RLS or app-level)."
