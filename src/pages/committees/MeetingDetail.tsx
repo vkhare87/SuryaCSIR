@@ -1,14 +1,16 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Card, Badge } from '../../components/ui/Cards';
+import { Button } from '../../components/ui/Button';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { supabase } from '../../utils/supabaseClient';
 import { canEditActionItems, canWriteMinutes, canUploadDocuments } from '../../lib/committees/permissions';
 import { AgendaEditor } from '../../components/committees/AgendaEditor';
 import { MinutesEditor } from '../../components/committees/MinutesEditor';
 import { DocumentUploader } from '../../components/committees/DocumentUploader';
+import { ActionItemModal } from '../../components/committees/ActionItemModal';
 import type { ActionItem } from '../../types';
 import {
   ArrowLeft,
@@ -18,6 +20,7 @@ import {
   ListOrdered,
   FileClock,
   CheckSquare,
+  Plus,
 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -37,10 +40,12 @@ function SectionHeader({
   icon: Icon,
   title,
   count,
+  children,
 }: {
   icon: React.ComponentType<{ size?: number; className?: string }>;
   title: string;
   count?: number;
+  children?: React.ReactNode;
 }) {
   return (
     <div className="flex items-center gap-2 mb-4">
@@ -49,6 +54,8 @@ function SectionHeader({
       {count !== undefined && (
         <Badge variant="neutral">{count}</Badge>
       )}
+      <div className="flex-1" />
+      {children}
     </div>
   );
 }
@@ -62,6 +69,7 @@ export default function MeetingDetail() {
   const navigate = useNavigate();
   const { committees, meetings, agendaItems, actionItems, meetingDocs, staff, isLoading, refreshData } = useData();
   const { user } = useAuth();
+  const [showActionModal, setShowActionModal] = useState(false);
 
   // --- Derived state ---
 
@@ -279,9 +287,22 @@ export default function MeetingDetail() {
 
       {/* --- Section 4: Action Items --- */}
       <Card>
-        <SectionHeader icon={CheckSquare} title="Action Items" count={meetingActionItems.length} />
+        <SectionHeader icon={CheckSquare} title="Action Items" count={meetingActionItems.length}>
+          {user && canEditActionItems(user) && (
+            <Button variant="primary" size="sm" onClick={() => setShowActionModal(true)}>
+              <Plus size={14} className="mr-1" /> Add Action Item
+            </Button>
+          )}
+        </SectionHeader>
         {meetingActionItems.length === 0 ? (
-          <p className="text-sm text-text-muted italic">No action items for this meeting.</p>
+          <div className="flex flex-col items-center gap-3 py-6">
+            <p className="text-sm text-text-muted italic">No action items for this meeting.</p>
+            {user && canEditActionItems(user) && (
+              <Button variant="primary" size="sm" onClick={() => setShowActionModal(true)}>
+                <Plus size={14} className="mr-1" /> Add Action Item
+              </Button>
+            )}
+          </div>
         ) : (
           <div className="space-y-3">
             {meetingActionItems.map((item) => (
@@ -335,6 +356,12 @@ export default function MeetingDetail() {
           canUpload={canUpload}
         />
       </Card>
+
+      <ActionItemModal
+        isOpen={showActionModal}
+        onClose={() => setShowActionModal(false)}
+        meetingId={meetId!}
+      />
     </div>
   );
 }

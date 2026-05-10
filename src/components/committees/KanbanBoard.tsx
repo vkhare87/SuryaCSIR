@@ -3,10 +3,13 @@ import { Reorder } from 'framer-motion';
 import { KanbanCard } from './KanbanCard';
 import { ActionTrackerFilters } from './ActionTrackerFilters';
 import { Badge } from '../ui/Cards';
+import { Button } from '../ui/Button';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { canEditActionItems } from '../../lib/committees/permissions';
+import { ActionItemModal } from './ActionItemModal';
 import type { ActionItem } from '../../types';
+import { Plus } from 'lucide-react';
 
 interface KanbanBoardProps {
   committeeId?: string;
@@ -80,6 +83,7 @@ export function KanbanBoard({ committeeId }: KanbanBoardProps) {
   const [statusFilter, setStatusFilter] = useState('All');
   const [committeeFilter, setCommitteeFilter] = useState(committeeId ?? 'All');
   const [assigneeSearch, setAssigneeSearch] = useState('');
+  const [showActionModal, setShowActionModal] = useState(false);
 
   // --- Derived action items ---
 
@@ -182,15 +186,22 @@ export function KanbanBoard({ committeeId }: KanbanBoardProps) {
 
   return (
     <div className="space-y-4">
-      <ActionTrackerFilters
-        statusFilter={statusFilter}
-        onStatusChange={setStatusFilter}
-        committeeFilter={committeeFilter}
-        onCommitteeChange={setCommitteeFilter}
-        assigneeSearch={assigneeSearch}
-        onAssigneeSearchChange={setAssigneeSearch}
-        committees={committees}
-      />
+      <div className="flex items-center justify-between">
+        <ActionTrackerFilters
+          statusFilter={statusFilter}
+          onStatusChange={setStatusFilter}
+          committeeFilter={committeeFilter}
+          onCommitteeChange={setCommitteeFilter}
+          assigneeSearch={assigneeSearch}
+          onAssigneeSearchChange={setAssigneeSearch}
+          committees={committees}
+        />
+        {canEdit && (
+          <Button variant="primary" size="sm" onClick={() => setShowActionModal(true)}>
+            <Plus size={14} className="mr-1" /> Add Action Item
+          </Button>
+        )}
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Column
@@ -221,6 +232,11 @@ export function KanbanBoard({ committeeId }: KanbanBoardProps) {
           committeeName={committeeName}
         />
       </div>
+
+      <ActionItemModal
+        isOpen={showActionModal}
+        onClose={() => setShowActionModal(false)}
+      />
     </div>
   );
 }

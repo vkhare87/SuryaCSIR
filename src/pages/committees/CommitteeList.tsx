@@ -18,6 +18,7 @@ import {
   Plus,
 } from 'lucide-react';
 import { canCreateCommittee } from '../../lib/committees/permissions';
+import { CommitteeFormModal } from '../../components/committees/CommitteeFormModal';
 
 export default function CommitteeList() {
   const { committees, meetings, actionItems, isLoading } = useData();
@@ -27,6 +28,7 @@ export default function CommitteeList() {
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   // --- Derived State ---
 
@@ -60,7 +62,7 @@ export default function CommitteeList() {
           <p className="text-text-muted mt-1">Institute governance committees and meeting management</p>
         </div>
         {showCreate && (
-          <Button variant="primary" onClick={() => navigate('/committees/new')}>
+          <Button variant="primary" onClick={() => setShowCreateModal(true)}>
             <Plus size={16} className="mr-1.5" />
             Create Committee
           </Button>
@@ -129,7 +131,7 @@ export default function CommitteeList() {
           <Building2 size={48} className="text-text-muted" />
           <p className="text-text-muted">No committees configured yet.</p>
           {showCreate && (
-            <Button variant="primary" onClick={() => navigate('/committees/new')}>
+            <Button variant="primary" onClick={() => setShowCreateModal(true)}>
               <Plus size={16} className="mr-1.5" />
               Create Committee
             </Button>
@@ -201,6 +203,7 @@ export default function CommitteeList() {
           <span>{filteredCommittees.length} of {committees.length} committees</span>
         </div>
       )}
+      <CommitteeFormModal isOpen={showCreateModal} onClose={() => setShowCreateModal(false)} />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useParams, useNavigate, useLocation, NavLink, Link } from 'react-router-dom';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -7,6 +7,8 @@ import { StatCard } from '../../components/ui/Cards';
 import { Button } from '../../components/ui/Button';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { KanbanBoard } from '../../components/committees/KanbanBoard';
+import { CommitteeFormModal } from '../../components/committees/CommitteeFormModal';
+import { MeetingFormModal } from '../../components/committees/MeetingFormModal';
 import {
   ArrowLeft,
   Building2,
@@ -42,6 +44,8 @@ function InfoRow({ label, value }: { label: string; value?: string | number | nu
 export default function CommitteeDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showMeetingModal, setShowMeetingModal] = useState(false);
   const location = useLocation();
 
   const { committees, meetings, actionItems, committeeMembers, staff, isLoading } = useData();
@@ -259,7 +263,7 @@ export default function CommitteeDetail() {
                 <h3 className="text-sm font-[500] text-text font-serif">Members ({members.length})</h3>
               </div>
               {showManageMembers && (
-                <Button variant="ghost" size="sm" onClick={() => {}}>
+                <Button variant="ghost" size="sm" onClick={() => setShowEditModal(true)}>
                   <Plus size={14} className="mr-1" />
                   Add
                 </Button>
@@ -357,7 +361,7 @@ export default function CommitteeDetail() {
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-[500] text-text font-serif">Meetings</h2>
           {showScheduleMeeting && (
-            <Button variant="primary" size="sm" onClick={() => {}}>
+            <Button variant="primary" size="sm" onClick={() => setShowMeetingModal(true)}>
               <Plus size={14} className="mr-1" />
               Schedule Meeting
             </Button>
@@ -369,7 +373,7 @@ export default function CommitteeDetail() {
             <Calendar size={48} className="text-text-muted" />
             <p className="text-text-muted">No meetings scheduled.</p>
             {showScheduleMeeting && (
-              <Button variant="primary" size="sm" onClick={() => {}}>
+              <Button variant="primary" size="sm" onClick={() => setShowMeetingModal(true)}>
                 <Plus size={14} className="mr-1" />
                 Schedule Meeting
               </Button>
@@ -419,6 +423,7 @@ export default function CommitteeDetail() {
   // --- Main Render ---
 
   return (
+    <>
     <div className="space-y-6">
       {/* Back nav + Header */}
       <div className="flex items-center justify-between gap-4">
@@ -436,7 +441,7 @@ export default function CommitteeDetail() {
         </div>
         {showEdit && (
           <button
-            onClick={() => {}}
+            onClick={() => setShowEditModal(true)}
             className="flex items-center gap-2 px-4 py-2 text-sm border border-border rounded-lg hover:bg-surface-hover transition-colors text-text"
           >
             <Edit size={14} />
@@ -491,5 +496,8 @@ export default function CommitteeDetail() {
       {activeTab === 'meetings' && renderMeetings()}
       {activeTab === 'actions' && renderActions()}
     </div>
+    <CommitteeFormModal isOpen={showEditModal} onClose={() => setShowEditModal(false)} committee={committee ?? null} />
+    <MeetingFormModal isOpen={showMeetingModal} onClose={() => setShowMeetingModal(false)} committeeId={id!} />
+    </>
   );
 }
