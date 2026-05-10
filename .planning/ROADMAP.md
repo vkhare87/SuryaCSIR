@@ -90,12 +90,24 @@
 **Plans:** 6 plans (3 waves)
 
 **Plans:**
+
+**Wave 1** *(parallel)*
 - [ ] 03-01-PLAN.md — Library layer: permissions (10 functions + tests), constants, RPC wrappers, routing preview
 - [ ] 03-02-PLAN.md — Supabase migration: helpdesk_assign_ticket + helpdesk_add_response RPCs
+
+**Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 03-03-PLAN.md — TicketForm page: 8-category grid, urgency selector, routing preview, RPC submit
 - [ ] 03-04-PLAN.md — Helpdesk list page: master-detail with filters, urgency badges, assignment tabs
 - [ ] 03-05-PLAN.md — TicketDetail page: response thread, collapsible timeline, reply input, admin tray
+
+**Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 03-06-PLAN.md — Integration: App.tsx routes + Layout.tsx nav item
+
+**Cross-cutting constraints:**
+- All plans: RPC-gated state machine (never patch `tickets.status` client-side)
+- Plans 03-03/03-04/03-05: Pages consume data via `useData()` only
+- Plans 03-03/03-05: Status transitions call `src/lib/helpdesk/ticketRPCs.ts` wrappers
+- Plans 03-04/03-05: Urgency colors from `src/lib/helpdesk/constants.ts`
 
 **Success criteria:**
 1. `/helpdesk/new` creates ticket — 8-category grid, urgency selector, routing preview
