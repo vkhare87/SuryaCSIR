@@ -6,6 +6,7 @@ import { Card, Badge } from '../../components/ui/Cards';
 import { StatCard } from '../../components/ui/Cards';
 import { Button } from '../../components/ui/Button';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { KanbanBoard } from '../../components/committees/KanbanBoard';
 import {
   ArrowLeft,
   Building2,
@@ -21,7 +22,6 @@ import {
 import {
   canEditCommittee,
   canScheduleMeeting,
-  canEditActionItems,
   canManageMembers,
 } from '../../lib/committees/permissions';
 import type { Committee } from '../../types';
@@ -147,7 +147,6 @@ export default function CommitteeDetail() {
 
   const showEdit = user && canEditCommittee(user);
   const showScheduleMeeting = user && canScheduleMeeting(user, committee);
-  const showCreateAction = user && canEditActionItems(user);
   const showManageMembers = user && canManageMembers(user);
 
   const statusBadgeVariant = (s: string): 'success' | 'warning' | 'danger' | 'info' | 'neutral' => {
@@ -414,70 +413,7 @@ export default function CommitteeDetail() {
   // --- Render Actions Tab ---
 
   function renderActions() {
-    const findStaff = (staffId: string) => staff.find(s => s.ID === staffId);
-
-    return (
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-[500] text-text font-serif">Action Tracker</h2>
-          {showCreateAction && (
-            <Button variant="primary" size="sm" onClick={() => {}}>
-              <Plus size={14} className="mr-1" />
-              New Action Item
-            </Button>
-          )}
-        </div>
-
-        <p className="text-sm text-text-muted">Action Tracker — kanban board will be integrated in Plan 02-06</p>
-
-        {committeeActions.length === 0 ? (
-          <div className="flex flex-col items-center justify-center min-h-[30vh] text-center space-y-4">
-            <CheckCircle2 size={48} className="text-text-muted" />
-            <p className="text-text-muted">No action items.</p>
-            {showCreateAction && (
-              <Button variant="primary" size="sm" onClick={() => {}}>
-                <Plus size={14} className="mr-1" />
-                Create Action Item
-              </Button>
-            )}
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {committeeActions.map(a => {
-              const assignee = findStaff(a.assigned_to);
-              const actionStatusVariant = a.status === 'Pending' ? 'warning'
-                : a.status === 'InProgress' ? 'info'
-                : 'success';
-              return (
-                <Card key={a.id}>
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-text">{a.task}</p>
-                      <div className="flex items-center gap-3 mt-2 text-xs text-text-muted">
-                        {assignee && (
-                          <span className="flex items-center gap-1">
-                            <Users size={11} />
-                            {assignee.Name}
-                          </span>
-                        )}
-                        {a.deadline && (
-                          <span className="flex items-center gap-1">
-                            <Clock size={11} />
-                            {new Date(a.deadline).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' })}
-                          </span>
-                        )}
-                        <span className="text-text-muted/60">{a.source === 'manual' ? 'Manual' : 'From Meeting'}</span>
-                      </div>
-                    </div>
-                    <Badge variant={actionStatusVariant}>{a.status}</Badge>
-                  </div>
-                </Card>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    );
+    return <KanbanBoard committeeId={id} />;
   }
 
   // --- Main Render ---
