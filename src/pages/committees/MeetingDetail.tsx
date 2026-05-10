@@ -1,25 +1,23 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Card, Badge } from '../../components/ui/Cards';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { supabase } from '../../utils/supabaseClient';
-import { canScheduleMeeting, canEditActionItems, canUnlockMinutes, canUploadDocuments } from '../../lib/committees/permissions';
+import { canEditActionItems, canWriteMinutes, canUploadDocuments } from '../../lib/committees/permissions';
+import { AgendaEditor } from '../../components/committees/AgendaEditor';
+import { MinutesEditor } from '../../components/committees/MinutesEditor';
+import { DocumentUploader } from '../../components/committees/DocumentUploader';
 import type { ActionItem } from '../../types';
 import {
   ArrowLeft,
   Calendar,
   Clock,
-  Lock,
-  Pencil,
-  Upload,
   FileText,
-  Download,
   ListOrdered,
   FileClock,
   CheckSquare,
-  Files,
 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -98,20 +96,10 @@ export default function MeetingDetail() {
     [meetingDocs, meetId],
   );
 
-  // D-19: Lock indicator — Completed + 7 days after meeting_date
-  const [isLocked, setIsLocked] = useState(false);
+  // --- Permissions ---
 
-  useEffect(() => {
-    if (!meeting || meeting.status !== 'Completed') {
-      setIsLocked(false);
-      return;
-    }
-    const meetingDate = new Date(meeting.meeting_date);
-    const sevenDaysAfter = meetingDate.getTime() + 7 * 86_400_000;
-    setIsLocked(Date.now() > sevenDaysAfter);
-  }, [meeting]);
-
-  const canUnlock = isLocked && !!user && canUnlockMinutes(user);
+  const canAgendaEdit = !!(user && committee && canWriteMinutes(user, committee));
+  const canUpload = !!(user && canUploadDocuments(user));
 
   // --- Helpers ---
 
@@ -163,15 +151,6 @@ export default function MeetingDetail() {
       await refreshData();
     } catch (err) {
       console.error('Failed to cycle action item status', err);
-    }
-  };
-
-  const handleUnlock = async () => {
-    try {
-      await supabase!.rpc('unlock_meeting_minutes', { p_meeting_id: meetId });
-      await refreshData();
-    } catch (err) {
-      console.error('Failed to unlock minutes', err);
     }
   };
 
@@ -255,63 +234,48 @@ export default function MeetingDetail() {
         ) : null}
       </Card>
 
-      {/* --- Section 2: Agenda Items (view mode) --- */}
-      <Card>
-        <SectionHeader icon={ListOrdered} title="Agenda" count={meetingAgendaItems.length} />
-        {meetingAgendaItems.length === 0 ? (
-          <p className="text-sm text-text-muted italic">No agenda items.</p>
-        ) : (
-          <ol className="list-decimal list-inside space-y-3">
-            {meetingAgendaItems.map((item) => (
-              <li key={item.id} className="text-sm text-text">
-                <span>{item.description}</span>
-                <span className="text-text-muted text-xs ml-2">
-                  ({staffName(item.proposed_by)})
-                </span>
-              </li>
-            ))}
-          </ol>
-        )}
-        {/* Edit Agenda placeholder — wired by Plan 02-05 (AgendaEditor) */}
-        {user && committee && canScheduleMeeting(user, committee) ? (
-          <div className="mt-4">
-            <button
-              className="flex items-center gap-2 px-4 py-2 text-sm border border-border rounded-lg hover:bg-surface-hover transition-colors text-text cursor-pointer"
-              // Wired by Plan 02-05 (AgendaEditor)
-              onClick={() => {}}
-            >
-              <Pencil size={14} />
-              Edit Agenda
-            </button>
+      {/* --- Section 2: Agenda Items --- */}
+      <Card className="p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <ListOrdered size={16} className="text-[#c96442]" />
+            <h3 className="text-sm font-medium text-text">Agenda</h3>
+            <Badge variant="info">{meetingAgendaItems.length}</Badge>
           </div>
-        ) : null}
+        </div>
+        <AgendaEditor
+          items={meetingAgendaItems}
+          onSave={async (items) => {
+            for (const item of items) {
+              await supabase!.from('agenda_items')
+                .upsert({ id: item.id, meeting_id: meetId, sequence: item.sequence, description: item.description, proposed_by: item.proposed_by, status: item.status });
+            }
+            await refreshData();
+          }}
+          canEdit={canAgendaEdit}
+        />
       </Card>
 
-      {/* --- Section 3: Minutes (read-only display) --- */}
-      {/* Minutes section: read-only display. Interactive MinutesEditor wired by Plan 02-05. */}
-      <Card>
-        <SectionHeader icon={FileClock} title="Meeting Minutes" />
-        {isLocked && (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 border border-amber-200 rounded text-xs text-amber-700 mb-3">
-            <Lock size={12} /> Locked — minutes are frozen 7 days after completion
-          </span>
-        )}
-        {meeting.summary ? (
-          <p className="text-sm text-text whitespace-pre-wrap">{meeting.summary}</p>
-        ) : (
-          <p className="text-sm text-text-muted italic">No minutes recorded yet.</p>
-        )}
-        {canUnlock && (
-          <div className="mt-4">
-            <button
-              onClick={handleUnlock}
-              className="flex items-center gap-2 px-4 py-2 text-sm border border-border rounded-lg hover:bg-surface-hover transition-colors text-text"
-            >
-              Unlock
-            </button>
-          </div>
-        )}
-      </Card>
+      {/* --- Section 3: Minutes --- */}
+      {committee && user ? (
+        <Card className="p-4">
+          <MinutesEditor
+            meeting={meeting}
+            committee={committee}
+            user={user}
+            onUpdate={refreshData}
+          />
+        </Card>
+      ) : (
+        <Card className="p-4">
+          <h3 className="text-sm font-medium text-text mb-3">Meeting Minutes</h3>
+          {meeting.summary ? (
+            <p className="text-sm text-text whitespace-pre-wrap">{meeting.summary}</p>
+          ) : (
+            <p className="text-sm text-text-muted italic">No minutes recorded yet.</p>
+          )}
+        </Card>
+      )}
 
       {/* --- Section 4: Action Items --- */}
       <Card>
@@ -357,45 +321,19 @@ export default function MeetingDetail() {
       </Card>
 
       {/* --- Section 5: Documents --- */}
-      <Card>
-        <SectionHeader icon={Files} title="Documents" count={meetingDocumentList.length} />
-        {/* Upload placeholder — wired by Plan 02-05 (DocumentUploader) */}
-        {user && canUploadDocuments(user) && (
-          <div className="mb-4">
-            <button
-              className="flex items-center gap-2 px-4 py-2 text-sm border border-border rounded-lg hover:bg-surface-hover transition-colors text-text cursor-pointer"
-              // Wired by Plan 02-05 (DocumentUploader)
-              onClick={() => {}}
-            >
-              <Upload size={14} />
-              Upload Document
-            </button>
+      <Card className="p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <FileText size={16} className="text-[#c96442]" />
+            <h3 className="text-sm font-medium text-text">Documents</h3>
+            <Badge variant="info">{meetingDocumentList.length}</Badge>
           </div>
-        )}
-        {meetingDocumentList.length === 0 ? (
-          <p className="text-sm text-text-muted italic">No documents uploaded.</p>
-        ) : (
-          <div className="space-y-2">
-            {meetingDocumentList.map((doc) => (
-              <div
-                key={doc.id}
-                className="flex items-center gap-3 p-3 border border-border rounded-lg hover:bg-surface-hover transition-colors"
-              >
-                <FileText size={16} className="text-text-muted shrink-0" />
-                <span className="text-sm text-text flex-1 truncate">{doc.file_name}</span>
-                <span className="text-xs text-text-muted shrink-0">{formatDate(doc.uploaded_at)}</span>
-                {/* Download placeholder — full download via storage.from().download() wired in Plan 02-05 (DocumentUploader) */}
-                <button
-                  className="p-2 hover:bg-surface-hover rounded-full transition-colors text-text-muted hover:text-text shrink-0 cursor-pointer"
-                  // Wired by Plan 02-05 (DocumentUploader)
-                  onClick={() => {}}
-                >
-                  <Download size={14} />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
+        </div>
+        <DocumentUploader
+          meetingId={meetId!}
+          committeeId={id!}
+          canUpload={canUpload}
+        />
       </Card>
     </div>
   );

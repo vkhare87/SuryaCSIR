@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type FC } from 'react';
 import { Reorder, useDragControls } from 'framer-motion';
 import { GripVertical, X, Plus, Check, Pencil } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
@@ -9,6 +9,40 @@ interface AgendaEditorProps {
   onSave: (items: AgendaItem[]) => Promise<void>;
   canEdit: boolean;
 }
+
+interface AgendaItemRowProps {
+  item: AgendaItem;
+  index: number;
+  onDelete: (id: string) => void;
+}
+
+const AgendaItemRow: FC<AgendaItemRowProps> = ({ item, index, onDelete }) => {
+  const controls = useDragControls();
+  return (
+    <Reorder.Item
+      key={item.id}
+      value={item.id}
+      dragListener={false}
+      dragControls={controls}
+      className="flex items-center gap-3 bg-surface border border-border rounded-lg p-3"
+    >
+      <div
+        onPointerDown={(e) => controls.start(e)}
+        className="cursor-grab text-text-muted hover:text-text"
+      >
+        <GripVertical size={16} />
+      </div>
+      <span className="text-xs text-text-muted w-6">{index + 1}.</span>
+      <span className="flex-1 text-sm text-text">{item.description}</span>
+      <button
+        onClick={() => onDelete(item.id)}
+        className="text-text-muted hover:text-red-500"
+      >
+        <X size={14} />
+      </button>
+    </Reorder.Item>
+  );
+};
 
 export function AgendaEditor({ items, onSave, canEdit }: AgendaEditorProps) {
   const [editMode, setEditMode] = useState(false);
@@ -88,35 +122,14 @@ export function AgendaEditor({ items, onSave, canEdit }: AgendaEditorProps) {
         onReorder={setLocalItems}
         className="space-y-2"
       >
-        {localItems.map((item, idx) => {
-          const controls = useDragControls();
-          return (
-            <Reorder.Item
-              key={item.id}
-              value={item.id}
-              dragListener={false}
-              dragControls={controls}
-              className="flex items-center gap-3 bg-surface border border-border rounded-lg p-3"
-            >
-              <div
-                onPointerDown={(e) => controls.start(e)}
-                className="cursor-grab text-text-muted hover:text-text"
-              >
-                <GripVertical size={16} />
-              </div>
-              <span className="text-xs text-text-muted w-6">{idx + 1}.</span>
-              <span className="flex-1 text-sm text-text">{item.description}</span>
-              <button
-                onClick={() => {
-                  setLocalItems(localItems.filter((i) => i.id !== item.id));
-                }}
-                className="text-text-muted hover:text-red-500"
-              >
-                <X size={14} />
-              </button>
-            </Reorder.Item>
-          );
-        })}
+        {localItems.map((item, idx) => (
+          <AgendaItemRow
+            key={item.id}
+            item={item}
+            index={idx}
+            onDelete={(id) => setLocalItems(localItems.filter((i) => i.id !== id))}
+          />
+        ))}
       </Reorder.Group>
 
       <div className="mt-2 flex gap-2">

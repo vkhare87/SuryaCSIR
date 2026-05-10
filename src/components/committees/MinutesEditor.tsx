@@ -14,14 +14,21 @@ interface MinutesEditorProps {
 export function MinutesEditor({ meeting, committee, user, onUpdate }: MinutesEditorProps) {
   const [text, setText] = useState(meeting.summary ?? '');
   const [saving, setSaving] = useState(false);
+  const [isLocked, setIsLocked] = useState(false);
 
   useEffect(() => {
     setText(meeting.summary ?? '');
   }, [meeting.id, meeting.summary]);
 
-  const isLocked =
-    meeting.status === 'Completed' &&
-    new Date(meeting.meeting_date).getTime() < Date.now() - 7 * 86_400_000;
+  useEffect(() => {
+    if (meeting.status !== 'Completed') {
+      setIsLocked(false);
+      return;
+    }
+    const meetingDate = new Date(meeting.meeting_date);
+    const sevenDaysAfter = meetingDate.getTime() + 7 * 86_400_000;
+    setIsLocked(Date.now() > sevenDaysAfter);
+  }, [meeting.status, meeting.meeting_date]);
 
   const canEdit = !isLocked && canWriteMinutes(user, committee);
   const canUnlock = isLocked && canUnlockMinutes(user);
