@@ -56,7 +56,7 @@ const NAV_ITEMS: NavItem[] = [
   { path: '/divisions',    label: 'Divisions',       icon: Network,         allowedRoles: ['Director', 'SystemAdmin', 'MasterAdmin'] },
   { path: '/intelligence', label: 'Intelligence',    icon: Microscope,      allowedRoles: ['Director', 'DivisionHead', 'Scientist', 'SystemAdmin', 'MasterAdmin'] },
   { path: '/facilities',   label: 'Instruments',     icon: Building2,       allowedRoles: ['Director', 'DivisionHead', 'Technician', 'SystemAdmin', 'MasterAdmin'] },
-  { path: '/committees',  label: 'Committees',      icon: Users,           allowedRoles: ['Director', 'DivisionHead', 'HOD', 'Scientist', 'SystemAdmin', 'MasterAdmin', 'EmpoweredCommittee'] },
+  { path: '/committees',  label: 'Committees',      icon: Building2,       allowedRoles: ALL_ROLES },
   { path: '/recruitment',  label: 'Recruitment',     icon: FileText,        allowedRoles: ['HRAdmin', 'SystemAdmin', 'MasterAdmin'] },
   { path: '/calendar',     label: 'Calendar',        icon: CalendarIcon,    allowedRoles: ALL_ROLES },
   { path: '/data',         label: 'Data Import',     icon: Database,        allowedRoles: ['HRAdmin', 'SystemAdmin', 'MasterAdmin'] },
