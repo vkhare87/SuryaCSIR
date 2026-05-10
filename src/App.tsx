@@ -33,6 +33,7 @@ import ChairmanQueue from './pages/pms/ChairmanQueue';
 import CommitteeQueue from './pages/pms/CommitteeQueue';
 import PmsAuditLog from './pages/pms/AuditLog';
 import DatabaseWizard from './pages/DatabaseWizard';
+import MeetingDetail from './pages/committees/MeetingDetail';
 import { useAuth } from './contexts/AuthContext';
 import { isProvisioned } from './utils/supabaseClient';
 import type { Role } from './types';
@@ -128,6 +129,7 @@ function App() {
             <Route path="/pms/committee" element={<ProtectedRoute allowedRoles={['EmpoweredCommittee']}><CommitteeQueue /></ProtectedRoute>} />
             <Route path="/pms/audit" element={<ProtectedRoute allowedRoles={['HRAdmin','SystemAdmin','MasterAdmin']}><PmsAuditLog /></ProtectedRoute>} />
             <Route path="/db-wizard" element={<ProtectedRoute allowedRoles={['SystemAdmin','MasterAdmin']}><DatabaseWizard /></ProtectedRoute>} />
+            <Route path="/committees/:id/meetings/:meetId" element={<MeetingDetail />} />
           </Route>
         </Route>
 
