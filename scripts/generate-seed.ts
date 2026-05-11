@@ -16,7 +16,7 @@ import {
 // --- SQL value serialization ---------------------------------------------
 
 function sqlVal(v: unknown): string {
-  if (v === null || v === undefined || v === '') return 'NULL';
+  if (v === null || v === undefined) return 'NULL';
   if (typeof v === 'number') return String(v);
   if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';
   if (Array.isArray(v)) {
