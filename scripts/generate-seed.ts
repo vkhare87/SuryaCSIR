@@ -30,6 +30,39 @@ function sqlVal(v: unknown): string {
   return `'${String(v).replace(/'/g, "''")}'`;
 }
 
+const UUID_PREFIX: Record<string, string> = {
+  cmt: 'aaaaaaaa-aaaa-aaaa-aaaa',
+  cmm: 'bbbbbbbb-bbbb-bbbb-bbbb',
+  mtg: 'cccccccc-cccc-cccc-cccc',
+  agi: 'dddddddd-dddd-dddd-dddd',
+  act: 'eeeeeeee-eeee-eeee-eeee',
+  mdc: 'ffffffff-ffff-ffff-ffff',
+  tkt: 'aaaa1111-aaaa-aaaa-aaaa',
+  trs: 'bbbb2222-bbbb-bbbb-bbbb',
+  tev: 'cccc3333-cccc-cccc-cccc',
+};
+
+const UUID_COLUMNS = new Set(['id', 'committee_id', 'meeting_id', 'ticket_id']);
+
+function toUuid(mockId: string): string {
+  const match = mockId.match(/^([a-z]{3})-(\d+)$/);
+  if (!match) return mockId;
+  const [, kind, num] = match;
+  const prefix = UUID_PREFIX[kind];
+  if (!prefix) return mockId;
+  return `${prefix}-${num.padStart(12, '0')}`;
+}
+
+function transformRow<T extends Record<string, unknown>>(row: T): T {
+  const out = { ...row } as Record<string, unknown>;
+  for (const col of Object.keys(out)) {
+    if (UUID_COLUMNS.has(col) && typeof out[col] === 'string') {
+      out[col] = toUuid(out[col] as string);
+    }
+  }
+  return out as T;
+}
+
 function insertBlock<T extends Record<string, unknown>>(
   table: string,
   columns: string[],
@@ -38,7 +71,10 @@ function insertBlock<T extends Record<string, unknown>>(
 ): string {
   if (rows.length === 0) return `-- ${table}: no rows\n`;
   const quoted = options.quoteIdent ? columns.map(c => `"${c}"`) : columns;
-  const values = rows.map(r => `    (${columns.map(c => sqlVal(r[c])).join(', ')})`).join(',\n');
+  const values = rows.map(r => {
+    const t = transformRow(r);
+    return `    (${columns.map(c => sqlVal(t[c])).join(', ')})`;
+  }).join(',\n');
   const conflict = options.onConflict ? `\n${options.onConflict}` : '';
   return `\n-- ${table}\nINSERT INTO public.${table}\n    (${quoted.join(', ')})\nVALUES\n${values}${conflict};\n`;
 }
