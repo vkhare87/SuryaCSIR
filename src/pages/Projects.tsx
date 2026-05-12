@@ -1,12 +1,17 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
+import { useAuth } from '../contexts/AuthContext';
 import { DataTable } from '../components/ui/DataTable';
 import { Card, Badge, StatCard } from '../components/ui/Cards';
+import { EmptyState } from '../components/ui/EmptyState';
 import { Search, Filter, Briefcase, IndianRupee, PieChart, Users } from 'lucide-react';
+import type { ProjectInfo, ProjectStaff } from '../types';
 
 export default function Projects() {
-  const { projects, projectStaff } = useData();
+  const { projects, projectStaff, isLoading } = useData();
+  const { hasPermission } = useAuth();
+  const canUpload = hasPermission(['HRAdmin', 'SystemAdmin', 'MasterAdmin']);
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'projects' | 'staff'>('projects');
   const [searchTerm, setSearchTerm] = useState('');
@@ -53,7 +58,7 @@ export default function Projects() {
     },
     {
       header: 'Project Details',
-      cell: (p: any) => (
+      cell: (p: ProjectInfo) => (
         <div className="max-w-md">
           <div className="font-semibold text-text truncate" title={p.ProjectName}>{p.ProjectName}</div>
           <div className="text-xs text-text-muted mt-1 flex gap-2">
@@ -65,7 +70,7 @@ export default function Projects() {
     },
     {
       header: 'Investigator',
-      cell: (p: any) => (
+      cell: (p: ProjectInfo) => (
         <div>
           <div className="text-sm text-text">{p.PrincipalInvestigator}</div>
           <div className="text-xs text-text-muted mt-0.5">{p.DivisionCode}</div>
@@ -74,7 +79,7 @@ export default function Projects() {
     },
     {
       header: 'Status',
-      cell: (p: any) => {
+      cell: (p: ProjectInfo) => {
         let variant: 'success' | 'warning' | 'danger' | 'neutral' | 'info' = 'neutral';
         if (p.ProjectStatus === 'Active') variant = 'success';
         if (p.ProjectStatus === 'Completed') variant = 'info';
@@ -85,7 +90,7 @@ export default function Projects() {
     },
     {
       header: 'Budget',
-      cell: (p: any) => (
+      cell: (p: ProjectInfo) => (
         <div className="text-sm font-medium">
           {p.SanctionedCost || 'TBD'}
         </div>
@@ -96,7 +101,7 @@ export default function Projects() {
   const staffColumns = [
     {
       header: 'Staff Identity',
-      cell: (s: any) => (
+      cell: (s: ProjectStaff) => (
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-[#c96442]/10 text-[#c96442] flex items-center justify-center font-bold text-xs shrink-0">
             {s.StaffName?.charAt(0) || '?'}
@@ -110,7 +115,7 @@ export default function Projects() {
     },
     {
       header: 'Project Assignment',
-      cell: (s: any) => (
+      cell: (s: ProjectStaff) => (
         <div>
           <div className="text-sm font-mono text-[#c96442] font-bold">{s.ProjectNo || 'N/A'}</div>
           <div className="text-xs text-text-muted mt-0.5">PI: {s.PIName || 'Unknown'}</div>
@@ -124,7 +129,7 @@ export default function Projects() {
     },
     {
       header: 'Timeline',
-      cell: (s: any) => (
+      cell: (s: ProjectStaff) => (
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-1.5 text-xs text-text-muted">
             <span className="w-8">DOJ:</span> 
@@ -139,7 +144,7 @@ export default function Projects() {
     }
   ];
 
-  const renderProjectCard = (p: any) => (
+  const renderProjectCard = (p: ProjectInfo) => (
     <Card className="h-full flex flex-col bg-surface hover:bg-surface-hover hover:border-[#c96442]/50 transition-colors pointer-events-none group-hover:bg-surface-hover">
       <div className="flex justify-between items-start mb-3">
         <span className="font-mono text-xs font-bold text-[#c96442] bg-[#c96442]/10 px-2 py-1 rounded">
@@ -176,7 +181,7 @@ export default function Projects() {
     </Card>
   );
 
-  const renderStaffCard = (s: any) => (
+  const renderStaffCard = (s: ProjectStaff) => (
     <Card className="h-full flex flex-col bg-surface hover:bg-surface-hover hover:border-[#c96442]/50 transition-colors">
       <div className="flex items-start gap-3 mb-4">
         <div className="w-10 h-10 rounded-full bg-[#c96442]/10 text-[#c96442] flex items-center justify-center font-bold text-sm shrink-0">
@@ -274,17 +279,26 @@ export default function Projects() {
             <StatCard title="Extramural Budget" value={`₹${totalBudget.toLocaleString()}L+`} icon={<IndianRupee />} />
           </div>
 
-          <Card className="p-0 overflow-hidden">
-            <DataTable 
-              data={filteredProjects}
-              columns={columns}
-              keyExtractor={(item) => item.ProjectID}
-              onRowClick={(item) => navigate(`/projects/${item.ProjectID}`)}
-              itemsPerPage={12}
-              renderGridItem={renderProjectCard}
-              className="border-0 shadow-none bg-transparent"
+          {!isLoading && projects.length === 0 ? (
+            <EmptyState
+              icon={Briefcase}
+              title="No projects"
+              description="Project data hasn't been loaded yet."
+              action={canUpload ? { label: 'Upload via Data Management', to: '/data' } : undefined}
             />
-          </Card>
+          ) : (
+            <Card className="p-0 overflow-hidden">
+              <DataTable
+                data={filteredProjects}
+                columns={columns}
+                keyExtractor={(item) => item.ProjectID}
+                onRowClick={(item) => navigate(`/projects/${item.ProjectID}`)}
+                itemsPerPage={12}
+                renderGridItem={renderProjectCard}
+                className="border-0 shadow-none bg-transparent"
+              />
+            </Card>
+          )}
         </>
       ) : (
         <>

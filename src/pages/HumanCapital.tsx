@@ -1,14 +1,19 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
+import { useAuth } from '../contexts/AuthContext';
 import { DataTable } from '../components/ui/DataTable';
 import { Card } from '../components/ui/Cards';
 import { Badge } from '../components/ui/Cards';
-import { Search, Filter } from 'lucide-react';
+import { EmptyState } from '../components/ui/EmptyState';
+import { Search, Filter, Users } from 'lucide-react';
 import { TableSkeleton } from '../components/ui/Skeleton';
+import type { StaffMember } from '../types';
 
 export default function HumanCapital() {
   const { staff, divisions } = useData();
+  const { hasPermission } = useAuth();
+  const canUpload = hasPermission(['HRAdmin', 'SystemAdmin', 'MasterAdmin']);
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDivision, setSelectedDivision] = useState<string>('ALL');
@@ -42,7 +47,7 @@ export default function HumanCapital() {
     },
     {
       header: 'Name & Designation',
-      cell: (member: any) => (
+      cell: (member: StaffMember) => (
         <div>
           <div className="font-semibold text-text">{member.Name}</div>
           <div className="text-xs text-text-muted mt-0.5">{member.Designation}</div>
@@ -52,7 +57,7 @@ export default function HumanCapital() {
     {
       header: 'Division',
       accessorKey: 'Division' as const,
-      cell: (member: any) => {
+      cell: (member: StaffMember) => {
         const divInfo = divisions.find(d => d.divCode === member.Division);
         return (
           <Badge variant="info">
@@ -64,7 +69,7 @@ export default function HumanCapital() {
     {
       header: 'Group',
       accessorKey: 'Group' as const,
-      cell: (member: any) => (
+      cell: (member: StaffMember) => (
         <Badge variant={member.Group === 'Scientific' ? 'success' : 'neutral'}>
           {member.Group}
         </Badge>
@@ -72,7 +77,7 @@ export default function HumanCapital() {
     },
     {
       header: 'Contact',
-      cell: (member: any) => (
+      cell: (member: StaffMember) => (
         <div className="text-sm">
           <div className="text-[#c96442] truncate max-w-[200px]" title={member.Email}>{member.Email}</div>
           <div className="text-xs text-text-muted mt-0.5">Ext: {member.Ext}</div>
@@ -81,7 +86,7 @@ export default function HumanCapital() {
     }
   ];
 
-  const renderStaffCard = (member: any) => {
+  const renderStaffCard = (member: StaffMember) => {
     const divInfo = divisions.find(d => d.divCode === member.Division);
     return (
       <Card className="h-full flex flex-col bg-surface hover:bg-surface-hover hover:border-[#c96442]/50 transition-colors pointer-events-none group-hover:bg-surface-hover">
@@ -166,9 +171,16 @@ export default function HumanCapital() {
           <div className="p-8">
             <TableSkeleton />
           </div>
+        ) : staff.length === 0 ? (
+          <EmptyState
+            icon={Users}
+            title="No staff records"
+            description="Staff data hasn't been loaded yet."
+            action={canUpload ? { label: 'Upload via Data Management', to: '/data' } : undefined}
+          />
         ) : (
           <>
-            <DataTable 
+            <DataTable
               data={filteredStaff}
               columns={columns}
               keyExtractor={(item) => item.ID}
