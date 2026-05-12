@@ -1,61 +1,74 @@
 import { useState, useMemo } from 'react';
+import { useData } from '../contexts/DataContext';
 import { Card } from '../components/ui/Cards';
+import { EmptyState } from '../components/ui/EmptyState';
 import {
   Calendar as CalendarIcon,
+  CalendarDays,
   MapPin,
-  Clock,
   ChevronLeft,
   ChevronRight,
   MoreVertical,
-  Plus
+  Plus,
 } from 'lucide-react';
 import clsx from 'clsx';
+import type { Meeting, ActionItem } from '../types';
 
-type EventType = 'internal' | 'academic' | 'admin';
+type EventType = 'meeting' | 'action' | 'admin';
 
 interface CalEvent {
-  id: number;
+  id: string;
   title: string;
-  time: string;
   location: string;
   type: EventType;
-  date: number; // day-of-month
-  duration: string;
+  date: Date;
+  meta: string;
 }
 
 const EVENT_COLOR: Record<EventType, string> = {
-  internal: 'bg-[#c96442]',
-  academic: 'bg-[#5e5d59]',
-  admin: 'bg-emerald-500',
+  meeting: 'bg-[#c96442]',
+  action:  'bg-amber-500',
+  admin:   'bg-emerald-500',
 };
 
-const EVENT_LABEL_COLOR: Record<EventType, string> = {
-  internal: 'text-[#c96442]',
-  academic: 'text-[#5e5d59]',
-  admin: 'text-emerald-500',
+const EVENT_LABEL: Record<EventType, string> = {
+  meeting: 'Meeting',
+  action:  'Action Item',
+  admin:   'Admin',
 };
-
-const SAMPLE_EVENTS: CalEvent[] = [
-  { id: 1, title: 'Division Weekly Meet', time: '10:00 AM', location: 'Meeting Room A', type: 'internal', date: new Date().getDate(), duration: '1h' },
-  { id: 2, title: 'PhD Progress Seminar', time: '2:30 PM', location: 'Conference Hall', type: 'academic', date: new Date().getDate(), duration: '2h' },
-  { id: 3, title: 'Budget Review FY26', time: '4:00 PM', location: 'Director Cabin', type: 'admin', date: new Date().getDate(), duration: '1h' },
-  { id: 4, title: 'Scientist Assessment Group-IV', time: '9:00 AM', location: 'Board Room', type: 'admin', date: 12, duration: '4h' },
-  { id: 5, title: 'Project Audit GAP0111', time: '11:00 AM', location: 'Lab-3', type: 'internal', date: 28, duration: '3h' },
-];
-
-const UPCOMING_ASSESSMENTS = [
-  { title: 'Scientist Assessment Group-IV', dateStr: 'April 12 – 15', color: 'border-amber-500' },
-  { title: 'Project Audit GAP0111', dateStr: 'April 28, 2026', color: 'border-[#c96442]' },
-];
 
 const DAY_NAMES = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December'
+  'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
+function meetingToEvent(m: Meeting): CalEvent {
+  return {
+    id: `m-${m.id}`,
+    title: m.title,
+    location: m.venue || 'TBD',
+    type: 'meeting',
+    date: new Date(m.meeting_date),
+    meta: m.status,
+  };
+}
+
+function actionItemToEvent(a: ActionItem): CalEvent {
+  return {
+    id: `a-${a.id}`,
+    title: a.task,
+    location: 'Action item',
+    type: 'action',
+    date: new Date(a.deadline),
+    meta: a.status,
+  };
+}
+
 export default function Calendar() {
+  const { meetings, actionItems, isLoading } = useData();
   const today = new Date();
+  const isEmpty = meetings.length === 0 && actionItems.length === 0;
   const [calDate, setCalDate] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
   const [viewMode, setViewMode] = useState<'day' | 'week'>('day');
   const [selectedDay, setSelectedDay] = useState<number>(today.getDate());
@@ -63,14 +76,34 @@ export default function Calendar() {
   const year = calDate.getFullYear();
   const month = calDate.getMonth();
 
-  const firstDayOfWeek = new Date(year, month, 1).getDay(); // 0 = Sun
+  // Flatten meetings + action items into a single event list.
+  const events: CalEvent[] = useMemo(() => {
+    const m = meetings.map(meetingToEvent);
+    const a = actionItems
+      .filter(item => item.status !== 'Completed')
+      .map(actionItemToEvent);
+    return [...m, ...a];
+  }, [meetings, actionItems]);
+
+  // Events keyed by ISO date string for quick lookup.
+  const eventsByDate = useMemo(() => {
+    const map = new Map<string, CalEvent[]>();
+    for (const e of events) {
+      const key = `${e.date.getFullYear()}-${e.date.getMonth()}-${e.date.getDate()}`;
+      const list = map.get(key) ?? [];
+      list.push(e);
+      map.set(key, list);
+    }
+    return map;
+  }, [events]);
+
+  const firstDayOfWeek = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const isCurrentMonth = year === today.getFullYear() && month === today.getMonth();
 
   const prevMonth = () => setCalDate(new Date(year, month - 1, 1));
   const nextMonth = () => setCalDate(new Date(year, month + 1, 1));
 
-  // Build 6-row × 7-col grid
   const calendarCells = useMemo(() => {
     const cells: (number | null)[] = [];
     for (let i = 0; i < firstDayOfWeek; i++) cells.push(null);
@@ -79,17 +112,14 @@ export default function Calendar() {
     return cells;
   }, [firstDayOfWeek, daysInMonth]);
 
-  // Events for the selected day (when in current month)
-  const dayEvents = SAMPLE_EVENTS.filter(e =>
-    isCurrentMonth ? e.date === selectedDay : false
-  );
+  const dayKey = (d: number) => `${year}-${month}-${d}`;
+  const dayEvents = eventsByDate.get(dayKey(selectedDay)) ?? [];
 
-  // Week view: show Mon–Sun of the week containing selectedDay
   const weekDays = useMemo(() => {
     const base = new Date(year, month, selectedDay || 1);
-    const dow = base.getDay(); // 0 = Sun
+    const dow = base.getDay();
     const monday = new Date(base);
-    monday.setDate(base.getDate() - ((dow + 6) % 7)); // Mon start
+    monday.setDate(base.getDate() - ((dow + 6) % 7));
     return Array.from({ length: 7 }, (_, i) => {
       const d = new Date(monday);
       d.setDate(monday.getDate() + i);
@@ -97,13 +127,22 @@ export default function Calendar() {
     });
   }, [year, month, selectedDay]);
 
+  // Upcoming = next 5 events at or after today.
+  const upcoming = useMemo(() => {
+    const now = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    return events
+      .filter(e => e.date >= now)
+      .sort((a, b) => a.date.getTime() - b.date.getTime())
+      .slice(0, 5);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [events]);
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-[500] text-text font-serif">Executive Calendar</h1>
-          <p className="text-text-muted mt-1">Schedule &amp; Institutional Assessment Timeline</p>
+          <p className="text-text-muted mt-1">Meetings &amp; Action Items Timeline</p>
         </div>
         <button className="bg-[#c96442] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#b5593b] transition-colors flex items-center gap-2 self-start md:self-auto">
           <Plus size={16} />
@@ -111,51 +150,48 @@ export default function Calendar() {
         </button>
       </div>
 
+      {!isLoading && isEmpty ? (
+        <EmptyState
+          icon={CalendarDays}
+          title="No meetings or action items"
+          description="Create a meeting or action item from the Committees workspace."
+        />
+      ) : (
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
 
-        {/* ── Sidebar ── */}
+        {/* Sidebar */}
         <div className="lg:col-span-1 space-y-6">
-
-          {/* Mini Calendar */}
           <Card className="p-4">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-text text-sm">
                 {MONTH_NAMES[month]} {year}
               </h3>
               <div className="flex gap-1">
-                <button
-                  onClick={prevMonth}
-                  className="p-1 hover:bg-surface-hover rounded-md text-text-muted transition-colors"
-                >
+                <button onClick={prevMonth} className="p-1 hover:bg-surface-hover rounded-md text-text-muted transition-colors">
                   <ChevronLeft size={16} />
                 </button>
-                <button
-                  onClick={nextMonth}
-                  className="p-1 hover:bg-surface-hover rounded-md text-text-muted transition-colors"
-                >
+                <button onClick={nextMonth} className="p-1 hover:bg-surface-hover rounded-md text-text-muted transition-colors">
                   <ChevronRight size={16} />
                 </button>
               </div>
             </div>
 
-            {/* Day names */}
             <div className="grid grid-cols-7 gap-0.5 text-center mb-1">
               {DAY_NAMES.map((d, i) => (
                 <div key={i} className="text-[10px] font-bold text-text-muted/60 py-1">{d}</div>
               ))}
             </div>
 
-            {/* Calendar grid */}
             <div className="grid grid-cols-7 gap-0.5 text-center">
               {calendarCells.map((day, i) => {
                 if (!day) return <div key={i} />;
                 const isToday = isCurrentMonth && day === today.getDate();
-                const isSelected = isCurrentMonth && day === selectedDay;
-                const hasEvent = isCurrentMonth && SAMPLE_EVENTS.some(e => e.date === day);
+                const isSelected = day === selectedDay;
+                const hasEvent = eventsByDate.has(dayKey(day));
                 return (
                   <button
                     key={i}
-                    onClick={() => { setSelectedDay(day); }}
+                    onClick={() => setSelectedDay(day)}
                     className={clsx(
                       'relative py-1.5 text-xs rounded-md cursor-pointer transition-colors',
                       isToday && !isSelected && 'text-[#c96442] font-semibold',
@@ -171,45 +207,46 @@ export default function Calendar() {
               })}
             </div>
 
-            {/* Legend */}
             <div className="mt-4 pt-3 border-t border-border flex flex-wrap gap-3 text-[10px] text-text-muted">
               {Object.entries(EVENT_COLOR).map(([type, color]) => (
-                <div key={type} className="flex items-center gap-1.5 capitalize">
+                <div key={type} className="flex items-center gap-1.5">
                   <div className={clsx('w-2 h-2 rounded-full', color)} />
-                  {type}
+                  {EVENT_LABEL[type as EventType]}
                 </div>
               ))}
             </div>
           </Card>
 
-          {/* Upcoming Assessments */}
           <Card>
-            <h3 className="font-bold text-text mb-4 text-sm">Upcoming Assessments</h3>
-            <div className="space-y-4">
-              {UPCOMING_ASSESSMENTS.map((a, i) => (
-                <div key={i} className={clsx('border-l-2 pl-3', a.color)}>
-                  <p className="text-xs font-bold text-text truncate">{a.title}</p>
-                  <p className="text-[10px] text-text-muted mt-0.5">{a.dateStr}</p>
-                </div>
-              ))}
-            </div>
+            <h3 className="font-bold text-text mb-4 text-sm">Upcoming</h3>
+            {upcoming.length === 0 ? (
+              <p className="text-xs text-text-muted">Nothing scheduled.</p>
+            ) : (
+              <div className="space-y-4">
+                {upcoming.map(e => (
+                  <div key={e.id} className={clsx('border-l-2 pl-3', EVENT_COLOR[e.type].replace('bg-', 'border-'))}>
+                    <p className="text-xs font-bold text-text truncate" title={e.title}>{e.title}</p>
+                    <p className="text-[10px] text-text-muted mt-0.5">
+                      {e.date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      {' · '}{EVENT_LABEL[e.type]}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
           </Card>
         </div>
 
-        {/* ── Main Schedule View ── */}
+        {/* Main schedule */}
         <div className="lg:col-span-3">
           <Card className="p-0 overflow-hidden">
-            {/* Toolbar */}
             <div className="p-4 border-b border-border bg-surface-hover flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <CalendarIcon size={18} className="text-[#c96442]" />
                 <h3 className="font-bold text-text">
                   {viewMode === 'day'
-                    ? isCurrentMonth
-                      ? `${MONTH_NAMES[month]} ${selectedDay}, ${year}`
-                      : `${MONTH_NAMES[month]} ${year}`
-                    : `Week of ${weekDays[0].toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`
-                  }
+                    ? `${MONTH_NAMES[month]} ${selectedDay}, ${year}`
+                    : `Week of ${weekDays[0].toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`}
                 </h3>
               </div>
               <div className="flex gap-1 bg-surface border border-border p-1 rounded-md">
@@ -235,37 +272,25 @@ export default function Calendar() {
             </div>
 
             {viewMode === 'day' ? (
-              /* Day View */
               <div className="p-2 min-h-[320px]">
                 {dayEvents.length > 0 ? dayEvents.map(event => (
                   <div
                     key={event.id}
-                    className="group relative pl-16 py-6 border-b border-border last:border-0 hover:bg-surface-hover transition-colors rounded-xl mx-2"
+                    className="group relative pl-4 py-4 border-b border-border last:border-0 hover:bg-surface-hover transition-colors rounded-xl mx-2"
                   >
-                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-14 text-center">
-                      <span className="text-[10px] font-bold text-text-muted uppercase block">
-                        {event.time.split(' ')[1]}
-                      </span>
-                      <span className="text-sm font-bold text-text">{event.time.split(' ')[0]}</span>
-                    </div>
-                    <div className={clsx('absolute left-14 top-0 bottom-0 w-0.5', EVENT_COLOR[event.type])} />
+                    <div className={clsx('absolute left-0 top-2 bottom-2 w-1 rounded-full', EVENT_COLOR[event.type])} />
                     <div className="flex items-start justify-between pl-3">
-                      <div>
+                      <div className="min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <span className={clsx('w-2 h-2 rounded-full', EVENT_COLOR[event.type])} />
-                          <h4 className={clsx('font-bold text-text group-hover:transition-colors', `group-hover:${EVENT_LABEL_COLOR[event.type]}`)}>
-                            {event.title}
-                          </h4>
+                          <h4 className="font-bold text-text truncate" title={event.title}>{event.title}</h4>
                         </div>
                         <div className="flex items-center gap-4 text-xs text-text-muted">
-                          <div className="flex items-center gap-1">
-                            <Clock size={12} />
-                            Duration: {event.duration}
-                          </div>
                           <div className="flex items-center gap-1">
                             <MapPin size={12} />
                             {event.location}
                           </div>
+                          <div className="text-[10px] uppercase">{EVENT_LABEL[event.type]} · {event.meta}</div>
                         </div>
                       </div>
                       <button className="text-text-muted p-1 hover:bg-surface rounded-md opacity-0 group-hover:opacity-100 transition-opacity">
@@ -281,9 +306,7 @@ export default function Calendar() {
                 )}
               </div>
             ) : (
-              /* Week View */
               <div className="overflow-x-auto">
-                {/* Week header */}
                 <div className="grid grid-cols-8 border-b border-border bg-surface-hover">
                   <div className="p-3" />
                   {weekDays.map((d, i) => {
@@ -301,37 +324,26 @@ export default function Calendar() {
                     );
                   })}
                 </div>
-                {/* Week body */}
                 <div className="grid grid-cols-8 min-h-[300px]">
-                  {/* Time column */}
-                  <div className="border-r border-border">
-                    {['9 AM', '10 AM', '11 AM', '12 PM', '1 PM', '2 PM', '3 PM', '4 PM', '5 PM'].map(t => (
-                      <div key={t} className="h-14 border-b border-border/50 px-2 pt-1">
-                        <span className="text-[10px] font-bold text-text-muted">{t}</span>
-                      </div>
-                    ))}
+                  <div className="border-r border-border p-2 text-[10px] font-bold text-text-muted uppercase">
+                    All-day
                   </div>
-                  {/* Day columns */}
                   {weekDays.map((d, i) => {
-                    const dayEvts = SAMPLE_EVENTS.filter(e =>
-                      d.getMonth() === month && d.getDate() === e.date
-                    );
+                    const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+                    const dayEvts = eventsByDate.get(key) ?? [];
                     return (
-                      <div key={i} className="border-l border-border relative">
-                        {Array.from({ length: 9 }).map((_, hi) => (
-                          <div key={hi} className="h-14 border-b border-border/30" />
-                        ))}
+                      <div key={i} className="border-l border-border p-2 space-y-1 min-h-[120px]">
                         {dayEvts.map(e => (
                           <div
                             key={e.id}
                             className={clsx(
-                              'absolute left-1 right-1 rounded-lg p-1.5 text-white text-[10px] font-bold shadow-sm',
+                              'rounded-md p-1.5 text-white text-[10px] font-bold shadow-sm',
                               EVENT_COLOR[e.type]
                             )}
-                            style={{ top: `${(parseInt(e.time) - 9) * 56 + (e.time.includes('30') ? 28 : 0)}px` }}
+                            title={e.title}
                           >
                             <div className="truncate">{e.title}</div>
-                            <div className="opacity-80 font-normal">{e.time}</div>
+                            <div className="opacity-80 font-normal">{EVENT_LABEL[e.type]}</div>
                           </div>
                         ))}
                       </div>
@@ -344,6 +356,7 @@ export default function Calendar() {
         </div>
 
       </div>
+      )}
     </div>
   );
 }

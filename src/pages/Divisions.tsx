@@ -6,12 +6,14 @@ import { DataTable } from '../components/ui/DataTable';
 import {
   Search, Crown, Target, Phone, Users, Lightbulb, Info,
   Briefcase, Settings2, BookOpen, ChevronRight, AlertTriangle,
-  CheckCircle2, Clock, ExternalLink
+  CheckCircle2, Clock, ExternalLink, Building2
 } from 'lucide-react';
 import clsx from 'clsx';
+import { EmptyState } from '../components/ui/EmptyState';
+import type { StaffMember } from '../types';
 
 export default function Divisions() {
-  const { divisions, staff, projects, equipment, scientificOutputs, ipIntelligence } = useData();
+  const { divisions, staff, projects, equipment, scientificOutputs, ipIntelligence, isLoading } = useData();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDivCode, setSelectedDivCode] = useState<string | null>(
@@ -78,7 +80,7 @@ export default function Divisions() {
   const staffColumns = [
     {
       header: 'Officer Identity',
-      cell: (s: any) => {
+      cell: (s: StaffMember) => {
         const isHoD = s.ID === selectedDiv?.divHoDID;
         return (
           <div className="flex items-center gap-3">
@@ -98,7 +100,7 @@ export default function Divisions() {
     },
     {
       header: 'Scientific Competence',
-      cell: (s: any) => (
+      cell: (s: StaffMember) => (
         <div>
           <div className="text-xs font-bold text-text uppercase tracking-wide">{s.CoreArea || 'General Ops'}</div>
           <div className="text-[11px] text-text-muted mt-1 italic leading-tight line-clamp-1">
@@ -109,7 +111,7 @@ export default function Divisions() {
     },
     {
       header: 'Group',
-      cell: (s: any) => (
+      cell: (s: StaffMember) => (
         <Badge variant={s.Group === 'Scientific' ? 'success' : 'neutral'}>{s.Group}</Badge>
       )
     },
@@ -120,7 +122,7 @@ export default function Divisions() {
     }
   ];
 
-  const renderStaffCard = (s: any) => {
+  const renderStaffCard = (s: StaffMember) => {
     const isHoD = s.ID === selectedDiv?.divHoDID;
     return (
       <div
@@ -153,6 +155,16 @@ export default function Divisions() {
       </div>
     );
   };
+
+  if (!isLoading && divisions.length === 0) {
+    return (
+      <EmptyState
+        icon={Building2}
+        title="No divisions configured"
+        description="Contact your administrator to configure institute divisions."
+      />
+    );
+  }
 
   if (!selectedDiv) {
     return <div className="p-8 text-center text-text-muted">No divisions found.</div>;
