@@ -10,7 +10,6 @@ import {
   mockCommittees, mockCommitteeMembers, mockMeetings, mockAgendaItems,
   mockActionItems, mockMeetingDocuments,
   mockTickets, mockTicketResponses, mockTicketEvents,
-  mockVacancyAdvertisements, mockVacancyPosts,
 } from '../src/utils/mockData';
 
 // --- SQL value serialization ---------------------------------------------
@@ -72,19 +71,19 @@ out.push(insertBlock('meetings',
 ));
 
 out.push(insertBlock('agenda_items',
-  ['id', 'meeting_id', 'sequence', 'title', 'description', 'decision'],
+  ['id', 'meeting_id', 'sequence', 'description', 'proposed_by', 'status'],
   mockAgendaItems,
   { onConflict: 'ON CONFLICT (id) DO NOTHING' }
 ));
 
 out.push(insertBlock('action_items',
-  ['id', 'meeting_id', 'description', 'owner_id', 'due_date', 'status', 'created_at'],
+  ['id', 'meeting_id', 'source', 'task', 'assigned_to', 'deadline', 'status', 'completed_at', 'notes'],
   mockActionItems,
   { onConflict: 'ON CONFLICT (id) DO NOTHING' }
 ));
 
 out.push(insertBlock('meeting_documents',
-  ['id', 'meeting_id', 'file_name', 'file_path', 'uploaded_by', 'uploaded_at'],
+  ['id', 'meeting_id', 'file_name', 'storage_path', 'uploaded_at'],
   mockMeetingDocuments,
   { onConflict: 'ON CONFLICT (id) DO NOTHING' }
 ));
@@ -107,17 +106,6 @@ out.push(insertBlock('ticket_events',
   { onConflict: 'ON CONFLICT (id) DO NOTHING' }
 ));
 
-// Recruitment uses camelCase columns — verify against init.sql before running.
-out.push(insertBlock('vacancy_advertisements',
-  ['id', 'title', 'description', 'designation', 'division', 'numberOfPositions', 'qualifications', 'salary', 'applicationDeadline', 'createdAt', 'status'],
-  mockVacancyAdvertisements,
-  { quoteIdent: true, onConflict: 'ON CONFLICT (id) DO NOTHING' }
-));
-
-out.push(insertBlock('vacancy_posts',
-  ['id', 'vacancyId', 'candidateName', 'email', 'phoneNumber', 'qualifications', 'experience', 'applicationDate', 'status', 'notes'],
-  mockVacancyPosts,
-  { quoteIdent: true, onConflict: 'ON CONFLICT (id) DO NOTHING' }
-));
+// vacancy_advertisements + vacancy_posts: tables not in schema; recruitment seed deferred.
 
 console.log(out.join('\n'));
