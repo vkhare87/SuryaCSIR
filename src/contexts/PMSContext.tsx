@@ -7,11 +7,23 @@ import type {
 } from '../types/pms';
 import { supabase, isProvisioned } from '../utils/supabaseClient';
 import { useAuth } from './AuthContext';
+import { SCORE_RANGE } from '../lib/pms/constants';
 import {
   mapCycleRow, mapReportRow, mapSectionRow,
   mapAnnexureRow, mapCollegiumRow, mapCollegiumMemberRow,
   mapEvaluationRow, mapChairmanReviewRow, mapCommitteeDecisionRow, mapNotificationRow,
 } from '../utils/pmsMappers';
+
+function ensureUser<T>(user: T | null | undefined): asserts user is T {
+  if (!user) throw new Error('Not authenticated');
+}
+
+function assertScoreInRange(score: number, label: string): void {
+  if (Number.isNaN(score)) throw new Error(`${label} must be a number`);
+  if (score < SCORE_RANGE.min || score > SCORE_RANGE.max) {
+    throw new Error(`${label} must be between ${SCORE_RANGE.min} and ${SCORE_RANGE.max}`);
+  }
+}
 
 interface PMSContextType {
   // State
@@ -69,44 +81,35 @@ export function PMSProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     setError(null);
     try {
-      if (provisioned && supabase && user) {
-        // --- Supabase branch ---
-        const [cycleRes, reportRes, collegiumRes, evalRes, notifRes] = await Promise.all([
-          supabase.from('appraisal_cycles').select('*').order('created_at', { ascending: false }),
-          supabase.from('pms_reports').select('*, appraisal_cycles(*)').order('created_at', { ascending: false }),
-          supabase.from('pms_collegiums').select('*, pms_collegium_members(*)').order('created_at', { ascending: false }),
-          supabase.from('pms_evaluations').select('*').order('created_at', { ascending: false }),
-          supabase.from('pms_notifications').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
-        ]);
-
-        setCycles(cycleRes.data ? cycleRes.data.map(mapCycleRow) : []);
-        setReports(reportRes.data ? reportRes.data.map(row => ({
-          ...mapReportRow(row as Record<string, unknown>),
-          cycle: row.appraisal_cycles ? mapCycleRow(row.appraisal_cycles as Record<string, unknown>) : undefined,
-        })) : []);
-        setCollegiums(collegiumRes.data ? collegiumRes.data.map(row => ({
-          ...mapCollegiumRow(row as Record<string, unknown>),
-          members: Array.isArray(row.pms_collegium_members)
-            ? row.pms_collegium_members.map((m: Record<string, unknown>) => mapCollegiumMemberRow(m))
-            : [],
-        })) : []);
-        setEvaluations(evalRes.data ? evalRes.data.map(r => mapEvaluationRow(r as Record<string, unknown>)) : []);
-        setNotifications(notifRes.data ? notifRes.data.map(r => mapNotificationRow(r as Record<string, unknown>)) : []);
-      } else {
-        // --- Mock fallback ---
-        setCycles([{
-          id: 'mock-cycle-1',
-          name: 'Annual Appraisal 2025-26',
-          startDate: '2025-04-01',
-          endDate: '2026-03-31',
-          status: 'OPEN',
-          createdAt: new Date().toISOString(),
-        }]);
+      if (!provisioned || !supabase || !user) {
+        setCycles([]);
         setReports([]);
         setCollegiums([]);
         setEvaluations([]);
         setNotifications([]);
+        return;
       }
+      const [cycleRes, reportRes, collegiumRes, evalRes, notifRes] = await Promise.all([
+        supabase.from('appraisal_cycles').select('*').order('created_at', { ascending: false }),
+        supabase.from('pms_reports').select('*, appraisal_cycles(*)').order('created_at', { ascending: false }),
+        supabase.from('pms_collegiums').select('*, pms_collegium_members(*)').order('created_at', { ascending: false }),
+        supabase.from('pms_evaluations').select('*').order('created_at', { ascending: false }),
+        supabase.from('pms_notifications').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
+      ]);
+
+      setCycles(cycleRes.data ? cycleRes.data.map(mapCycleRow) : []);
+      setReports(reportRes.data ? reportRes.data.map(row => ({
+        ...mapReportRow(row as Record<string, unknown>),
+        cycle: row.appraisal_cycles ? mapCycleRow(row.appraisal_cycles as Record<string, unknown>) : undefined,
+      })) : []);
+      setCollegiums(collegiumRes.data ? collegiumRes.data.map(row => ({
+        ...mapCollegiumRow(row as Record<string, unknown>),
+        members: Array.isArray(row.pms_collegium_members)
+          ? row.pms_collegium_members.map((m: Record<string, unknown>) => mapCollegiumMemberRow(m))
+          : [],
+      })) : []);
+      setEvaluations(evalRes.data ? evalRes.data.map(r => mapEvaluationRow(r as Record<string, unknown>)) : []);
+      setNotifications(notifRes.data ? notifRes.data.map(r => mapNotificationRow(r as Record<string, unknown>)) : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load PMS data');
     } finally {
@@ -268,6 +271,7 @@ export function PMSProvider({ children }: { children: ReactNode }) {
 
   async function submitReport(reportId: string): Promise<void> {
     if (!supabase) throw new Error('Supabase not provisioned');
+    ensureUser(user);
     const { error: err } = await supabase.rpc('pms_submit_report', { p_report_id: reportId });
     if (err) throw err;
     setReports(prev => prev.map(r => r.id === reportId ? { ...r, status: 'SUBMITTED' as const } : r));
@@ -284,6 +288,8 @@ export function PMSProvider({ children }: { children: ReactNode }) {
 
   async function assignEvaluators(reportId: string, userIds: string[]): Promise<void> {
     if (!supabase) throw new Error('Supabase not provisioned');
+    ensureUser(user);
+    if (userIds.length === 0) throw new Error('At least one evaluator is required');
     const { error: err } = await supabase.rpc('pms_assign_evaluators', {
       p_report_id: reportId,
       p_user_ids: userIds,
@@ -296,6 +302,10 @@ export function PMSProvider({ children }: { children: ReactNode }) {
 
   async function saveEvaluationScores(evaluationId: string, scores: Record<string, number>, comments: string): Promise<void> {
     if (!supabase) throw new Error('Supabase not provisioned');
+    ensureUser(user);
+    for (const [dim, score] of Object.entries(scores)) {
+      assertScoreInRange(score, `Score for ${dim}`);
+    }
     const { error: err } = await supabase
       .from('pms_evaluations')
       .update({ scores, comments, status: 'IN_PROGRESS' })
@@ -308,6 +318,10 @@ export function PMSProvider({ children }: { children: ReactNode }) {
 
   async function completeEvaluation(evaluationId: string, scores: Record<string, number>, comments: string): Promise<void> {
     if (!supabase) throw new Error('Supabase not provisioned');
+    ensureUser(user);
+    for (const [dim, score] of Object.entries(scores)) {
+      assertScoreInRange(score, `Score for ${dim}`);
+    }
     const { error: err } = await supabase
       .from('pms_evaluations')
       .update({ scores, comments, status: 'COMPLETED' })
@@ -319,7 +333,7 @@ export function PMSProvider({ children }: { children: ReactNode }) {
   }
 
   async function getReportEvaluations(reportId: string): Promise<PMSEvaluation[]> {
-    if (!supabase) throw new Error('Supabase not provisioned');
+    if (!supabase) return [];
     const { data, error: err } = await supabase
       .from('pms_evaluations')
       .select('*')
@@ -329,7 +343,7 @@ export function PMSProvider({ children }: { children: ReactNode }) {
   }
 
   async function getChairmanReview(reportId: string): Promise<PMSChairmanReview | null> {
-    if (!supabase) throw new Error('Supabase not provisioned');
+    if (!supabase) return null;
     const { data, error: err } = await supabase
       .from('pms_chairman_reviews')
       .select('*')
@@ -341,6 +355,10 @@ export function PMSProvider({ children }: { children: ReactNode }) {
 
   async function saveChairmanReview(reportId: string, min: number, max: number, comments: string): Promise<void> {
     if (!supabase) throw new Error('Supabase not provisioned');
+    ensureUser(user);
+    assertScoreInRange(min, 'Chairman min score');
+    assertScoreInRange(max, 'Chairman max score');
+    if (min > max) throw new Error('Chairman min score cannot exceed max score');
     const { error: err } = await supabase.rpc('pms_save_chairman_review', {
       p_report_id: reportId,
       p_min: min,
@@ -354,7 +372,7 @@ export function PMSProvider({ children }: { children: ReactNode }) {
   }
 
   async function getCommitteeDecision(reportId: string): Promise<PMSCommitteeDecision | null> {
-    if (!supabase) throw new Error('Supabase not provisioned');
+    if (!supabase) return null;
     const { data, error: err } = await supabase
       .from('pms_committee_decisions')
       .select('*')
@@ -366,6 +384,13 @@ export function PMSProvider({ children }: { children: ReactNode }) {
 
   async function finalizeReport(reportId: string, finalScore: number, justification: string): Promise<void> {
     if (!supabase) throw new Error('Supabase not provisioned');
+    ensureUser(user);
+    assertScoreInRange(finalScore, 'Final score');
+    if (!justification.trim()) throw new Error('Justification is required to finalize the report');
+    const current = reports.find(r => r.id === reportId);
+    if (current && current.status === 'FINALIZED') {
+      throw new Error('Report is already finalized');
+    }
     const { error: err } = await supabase.rpc('pms_finalize_report', {
       p_report_id: reportId,
       p_final_score: finalScore,
