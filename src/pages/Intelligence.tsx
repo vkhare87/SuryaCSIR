@@ -1,13 +1,16 @@
 import { useState } from 'react';
 import { useData } from '../contexts/DataContext';
+import { useToast } from '../contexts/ToastContext';
 import { Card, Badge, StatCard } from '../components/ui/Cards';
 import { DataTable } from '../components/ui/DataTable';
+import { EmptyState } from '../components/ui/EmptyState';
 import { Modal } from '../components/ui/Modal';
 import { Button } from '../components/ui/Button';
 import { supabase } from '../utils/supabaseClient';
 import type { ScientificOutput, IPIntelligence } from '../types';
 import {
   BarChart3,
+  FileText,
   Lightbulb,
   BookOpen,
   Search,
@@ -20,6 +23,7 @@ import {
 
 export default function Intelligence() {
   const { scientificOutputs, ipIntelligence, refreshData } = useData();
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState<'publications' | 'ipr'>('publications');
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -97,10 +101,12 @@ export default function Intelligence() {
     if (pubModalMode === 'add') {
       const id = crypto.randomUUID();
       const { error } = await supabase.from('scientific_outputs').insert({ id, ...record });
-      if (error) { alert(`Save failed: ${error.message}`); setIsSaving(false); return; }
+      if (error) { toast.push(`Save failed: ${error.message}`, 'error'); setIsSaving(false); return; }
+      toast.push('Publication added', 'success');
     } else if (selectedPub) {
       const { error } = await supabase.from('scientific_outputs').update(record).eq('id', selectedPub.id);
-      if (error) { alert(`Update failed: ${error.message}`); setIsSaving(false); return; }
+      if (error) { toast.push(`Update failed: ${error.message}`, 'error'); setIsSaving(false); return; }
+      toast.push('Publication updated', 'success');
     }
     await refreshData();
     setPubModalMode(null);
@@ -140,10 +146,12 @@ export default function Intelligence() {
     if (ipModalMode === 'add') {
       const id = crypto.randomUUID();
       const { error } = await supabase.from('ip_intelligence').insert({ id, ...record });
-      if (error) { alert(`Save failed: ${error.message}`); setIsSaving(false); return; }
+      if (error) { toast.push(`Save failed: ${error.message}`, 'error'); setIsSaving(false); return; }
+      toast.push('IP record added', 'success');
     } else if (selectedIP) {
       const { error } = await supabase.from('ip_intelligence').update(record).eq('id', selectedIP.id);
-      if (error) { alert(`Update failed: ${error.message}`); setIsSaving(false); return; }
+      if (error) { toast.push(`Update failed: ${error.message}`, 'error'); setIsSaving(false); return; }
+      toast.push('IP record updated', 'success');
     }
     await refreshData();
     setIPModalMode(null);
@@ -346,46 +354,64 @@ export default function Intelligence() {
         </div>
 
         {activeTab === 'publications' ? (
-          <DataTable
-            data={filteredPubs}
-            columns={pubColumns}
-            keyExtractor={(item) => item.id}
-            onRowClick={(pub) => {
-              setSelectedPub(pub);
-              setPubForm({
-                title: pub.title,
-                authors: pub.authors.join(', '),
-                journal: pub.journal,
-                year: String(pub.year),
-                doi: pub.doi || '',
-                impactFactor: pub.impactFactor != null ? String(pub.impactFactor) : '',
-                citationCount: pub.citationCount != null ? String(pub.citationCount) : '',
-                divisionCode: pub.divisionCode,
-              });
-              setDeleteConfirm(false);
-              setPubModalMode('edit');
-            }}
-          />
+          scientificOutputs.length === 0 ? (
+            <EmptyState
+              icon={BarChart3}
+              title="No publications"
+              description="Scientific output data hasn't been loaded yet."
+              className="h-64 m-4"
+            />
+          ) : (
+            <DataTable
+              data={filteredPubs}
+              columns={pubColumns}
+              keyExtractor={(item) => item.id}
+              onRowClick={(pub) => {
+                setSelectedPub(pub);
+                setPubForm({
+                  title: pub.title,
+                  authors: pub.authors.join(', '),
+                  journal: pub.journal,
+                  year: String(pub.year),
+                  doi: pub.doi || '',
+                  impactFactor: pub.impactFactor != null ? String(pub.impactFactor) : '',
+                  citationCount: pub.citationCount != null ? String(pub.citationCount) : '',
+                  divisionCode: pub.divisionCode,
+                });
+                setDeleteConfirm(false);
+                setPubModalMode('edit');
+              }}
+            />
+          )
         ) : (
-          <DataTable
-            data={filteredIP}
-            columns={ipColumns}
-            keyExtractor={(item) => item.id}
-            onRowClick={(ip) => {
-              setSelectedIP(ip);
-              setIPForm({
-                title: ip.title,
-                type: ip.type,
-                status: ip.status,
-                filingDate: ip.filingDate,
-                grantDate: ip.grantDate || '',
-                inventors: ip.inventors.join(', '),
-                divisionCode: ip.divisionCode,
-              });
-              setDeleteConfirm(false);
-              setIPModalMode('edit');
-            }}
-          />
+          ipIntelligence.length === 0 ? (
+            <EmptyState
+              icon={FileText}
+              title="No patents or IP records"
+              description="IP intelligence data hasn't been loaded yet."
+              className="h-64 m-4"
+            />
+          ) : (
+            <DataTable
+              data={filteredIP}
+              columns={ipColumns}
+              keyExtractor={(item) => item.id}
+              onRowClick={(ip) => {
+                setSelectedIP(ip);
+                setIPForm({
+                  title: ip.title,
+                  type: ip.type,
+                  status: ip.status,
+                  filingDate: ip.filingDate,
+                  grantDate: ip.grantDate || '',
+                  inventors: ip.inventors.join(', '),
+                  divisionCode: ip.divisionCode,
+                });
+                setDeleteConfirm(false);
+                setIPModalMode('edit');
+              }}
+            />
+          )
         )}
 
         <div className="p-4 border-t border-border bg-surface text-xs text-text-muted flex items-center gap-2">

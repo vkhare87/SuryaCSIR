@@ -1,12 +1,17 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
+import { useAuth } from '../contexts/AuthContext';
 import { DataTable } from '../components/ui/DataTable';
 import { Card, Badge, StatCard } from '../components/ui/Cards';
+import { EmptyState } from '../components/ui/EmptyState';
 import { Search, Filter, GraduationCap, Users, FileCheck } from 'lucide-react';
+import type { PhDStudent } from '../types';
 
 export default function PhDTracker() {
-  const { phDStudents, staff } = useData();
+  const { phDStudents, staff, isLoading } = useData();
+  const { hasPermission } = useAuth();
+  const canUpload = hasPermission(['HRAdmin', 'SystemAdmin', 'MasterAdmin']);
   const navigate = useNavigate();
 
   const findSupervisorId = (name: string) => {
@@ -42,7 +47,7 @@ export default function PhDTracker() {
     },
     {
       header: 'Student Name',
-      cell: (s: any) => (
+      cell: (s: PhDStudent) => (
         <div>
           <div className="font-semibold text-text">{s.StudentName}</div>
           <div className="text-xs text-text-muted mt-0.5">{s.Specialization}</div>
@@ -52,7 +57,7 @@ export default function PhDTracker() {
     {
       header: 'Supervisor',
       accessorKey: 'SupervisorName' as const,
-      cell: (s: any) => {
+      cell: (s: PhDStudent) => {
         const supId = findSupervisorId(s.SupervisorName);
         const coSupId = s.CoSupervisorName !== 'None' ? findSupervisorId(s.CoSupervisorName) : null;
         return (
@@ -79,7 +84,7 @@ export default function PhDTracker() {
     },
     {
       header: 'Thesis Title',
-      cell: (s: any) => (
+      cell: (s: PhDStudent) => (
         <div className="max-w-xs truncate text-xs italic text-text-muted" title={s.ThesisTitle}>
           "{s.ThesisTitle}"
         </div>
@@ -87,7 +92,7 @@ export default function PhDTracker() {
     },
     {
       header: 'Status',
-      cell: (s: any) => {
+      cell: (s: PhDStudent) => {
         let variant: 'success' | 'warning' | 'info' | 'neutral' = 'neutral';
         if (s.CurrentStatus === 'Ongoing') variant = 'info';
         if (s.CurrentStatus === 'Thesis Submitted') variant = 'success';
@@ -139,17 +144,26 @@ export default function PhDTracker() {
         <StatCard title="Thesis Submitted" value={submittedCount} valueColor="text-emerald-500" icon={<FileCheck />} />
       </div>
 
-      <Card className="p-0 overflow-hidden">
-        <DataTable 
-          data={filteredStudents}
-          columns={columns}
-          keyExtractor={(item) => item.EnrollmentNo}
+      {!isLoading && phDStudents.length === 0 ? (
+        <EmptyState
+          icon={GraduationCap}
+          title="No PhD students"
+          description="Student records haven't been loaded yet."
+          action={canUpload ? { label: 'Upload via Data Management', to: '/data' } : undefined}
         />
-        
-        <div className="p-4 border-t border-border bg-surface-hover text-xs text-text-muted">
-          Showing {filteredStudents.length} scholars
-        </div>
-      </Card>
+      ) : (
+        <Card className="p-0 overflow-hidden">
+          <DataTable
+            data={filteredStudents}
+            columns={columns}
+            keyExtractor={(item) => item.EnrollmentNo}
+          />
+
+          <div className="p-4 border-t border-border bg-surface-hover text-xs text-text-muted">
+            Showing {filteredStudents.length} scholars
+          </div>
+        </Card>
+      )}
     </div>
   );
 }

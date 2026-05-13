@@ -6,6 +6,7 @@ import { Card, Badge } from '../components/ui/Cards';
 import { KpiCard } from '../components/ui/KpiCard';
 import { DataTable } from '../components/ui/DataTable';
 import { InstrumentForm } from '../components/InstrumentForm';
+import { EmptyState } from '../components/ui/EmptyState';
 import {
   FlaskConical,
   MapPin,
@@ -50,8 +51,9 @@ function AmcBadge({ dateStr }: { dateStr?: string }) {
 const ADMIN_ROLES = ['SystemAdmin', 'MasterAdmin', 'HRAdmin'] as const;
 
 export default function Facilities() {
-  const { equipment, labs, staff } = useData();
-  const { user } = useAuth();
+  const { equipment, labs, staff, isLoading } = useData();
+  const { user, hasPermission } = useAuth();
+  const canUpload = hasPermission(['HRAdmin', 'SystemAdmin', 'MasterAdmin']);
   const navigate = useNavigate();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -267,20 +269,29 @@ export default function Facilities() {
       </div>
 
       {/* Table */}
-      <Card className="p-0 overflow-hidden">
-        <DataTable
-          data={filteredEquipment}
-          columns={columns}
-          keyExtractor={item => item.UInsID}
+      {!isLoading && equipment.length === 0 ? (
+        <EmptyState
+          icon={Wrench}
+          title="No equipment registered"
+          description="Equipment records haven't been loaded yet."
+          action={canUpload ? { label: 'Upload via Data Management', to: '/data' } : undefined}
         />
-        <div className="p-4 border-t border-border bg-surface-hover text-xs text-text-muted flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <FlaskConical size={14} />
-            Institutional Instrument Management System
+      ) : (
+        <Card className="p-0 overflow-hidden">
+          <DataTable
+            data={filteredEquipment}
+            columns={columns}
+            keyExtractor={item => item.UInsID}
+          />
+          <div className="p-4 border-t border-border bg-surface-hover text-xs text-text-muted flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <FlaskConical size={14} />
+              Institutional Instrument Management System
+            </div>
+            <span>{filteredEquipment.length} of {equipment.length} instruments</span>
           </div>
-          <span>{filteredEquipment.length} of {equipment.length} instruments</span>
-        </div>
-      </Card>
+        </Card>
+      )}
 
       {/* Add/Edit Modal */}
       {formOpen && (

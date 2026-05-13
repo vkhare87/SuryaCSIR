@@ -1,4 +1,4 @@
-import type { DivisionInfo, StaffMember, ProjectInfo, ProjectStaff, PhDStudent, Equipment, ScientificOutput, IPIntelligence, ContractStaff, VacancyAdvertisement, VacancyPost, Notification } from '../types';
+import type { DivisionInfo, StaffMember, ProjectInfo, ProjectStaff, PhDStudent, Equipment, ScientificOutput, IPIntelligence, ContractStaff, VacancyAdvertisement, VacancyPost, Notification, Committee, CommitteeMember, Meeting, AgendaItem, ActionItem, MeetingDocument, Ticket, TicketResponse, TicketEvent } from '../types';
 
 /**
  * These mappers will eventually transform raw Supabase rows 
@@ -197,5 +197,100 @@ export const mapNotificationRow = (row: any): Notification => ({
   read: Boolean(row.read),
   entity_type: row.entity_type || null,
   entity_id: row.entity_id || null,
+  created_at: row.created_at || '',
+});
+
+// ──────────────────────────────────────────────────────────────
+// v1.0 Committees & Helpdesk Mappers
+// ──────────────────────────────────────────────────────────────
+
+export const mapCommitteeRow = (row: any): Committee => ({
+  id: row.id || '',
+  name: row.name || '',
+  committee_type: row.committee_type || '',
+  mandate: row.mandate || '',
+  chairperson_id: row.chairperson_id || '',
+  secretary_id: row.secretary_id || '',
+  status: row.status || 'Active',
+  formed_date: row.formed_date || '',
+  created_at: row.created_at || '',
+});
+
+export const mapCommitteeMemberRow = (row: any): CommitteeMember => ({
+  id: row.id || '',
+  committee_id: row.committee_id || '',
+  staff_id: row.staff_id || '',
+  role: row.role || 'Member',
+});
+
+export const mapMeetingRow = (row: any): Meeting => ({
+  id: row.id || '',
+  committee_id: row.committee_id || '',
+  meeting_date: row.meeting_date || '',
+  venue: row.venue || '',
+  title: row.title || '',
+  summary: row.summary || '',
+  status: row.status || 'Scheduled',
+  created_at: row.created_at || '',
+});
+
+export const mapAgendaItemRow = (row: any): AgendaItem => ({
+  id: row.id || '',
+  meeting_id: row.meeting_id || '',
+  sequence: Number(row.sequence) || 0,
+  description: row.description || '',
+  proposed_by: row.proposed_by || '',
+  status: row.status || 'Pending',
+});
+
+export const mapActionItemRow = (row: any): ActionItem => ({
+  id: row.id || '',
+  meeting_id: row.meeting_id || null,
+  source: row.source || 'meeting',
+  task: row.task || '',
+  assigned_to: row.assigned_to || '',
+  deadline: row.deadline || '',
+  status: row.status || 'Pending',
+  completed_at: row.completed_at || null,
+  notes: row.notes || '',
+});
+
+export const mapMeetingDocumentRow = (row: any): MeetingDocument => ({
+  id: row.id || '',
+  meeting_id: row.meeting_id || '',
+  file_name: row.file_name || '',
+  storage_path: row.storage_path || '',
+  uploaded_at: row.uploaded_at || '',
+});
+
+export const mapTicketRow = (row: any): Ticket => ({
+  id: row.id || '',
+  token: row.token || '',
+  subject: row.subject || '',
+  category: row.category || 'Infrastructure',
+  urgency: row.urgency || 'Medium',
+  description: row.description || '',
+  submitted_by: row.submitted_by || '',
+  assigned_to: row.assigned_to || null,
+  status: row.status || 'Open',
+  created_at: row.created_at || '',
+  updated_at: row.updated_at || '',
+  resolved_at: row.resolved_at || null,
+});
+
+export const mapTicketResponseRow = (row: any): TicketResponse => ({
+  id: row.id || '',
+  ticket_id: row.ticket_id || '',
+  author_id: row.author_id || '',
+  message: row.message || '',
+  created_at: row.created_at || '',
+});
+
+export const mapTicketEventRow = (row: any): TicketEvent => ({
+  id: row.id || '',
+  ticket_id: row.ticket_id || '',
+  event_type: row.event_type || 'StatusChanged',
+  actor_id: row.actor_id || '',
+  details: row.details || {},
   created_at: row.created_at || '',
 });

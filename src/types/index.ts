@@ -217,6 +217,67 @@ export interface Notification {
   created_at: string;
 }
 
+// --- v1.0 Committees & Helpdesk ---
+
+export interface Committee {
+  id: string;
+  name: string;
+  committee_type: 'Standing' | 'AdHoc' | 'Review' | 'Advisory';
+  mandate: string;
+  chairperson_id: string;
+  secretary_id: string;
+  status: 'Active' | 'Inactive';
+  formed_date: string;
+  created_at: string;
+}
+
+export interface CommitteeMember {
+  id: string;
+  committee_id: string;
+  staff_id: string;
+  role: 'Member' | 'Invitee' | 'ExternalExpert';
+}
+
+export interface Meeting {
+  id: string;
+  committee_id: string;
+  meeting_date: string;
+  venue: string;
+  title: string;
+  summary: string;
+  status: 'Scheduled' | 'Completed' | 'Cancelled';
+  created_at: string;
+}
+
+export interface AgendaItem {
+  id: string;
+  meeting_id: string;
+  sequence: number;
+  description: string;
+  proposed_by: string;
+  status: 'Pending' | 'Discussed' | 'Deferred';
+}
+
+export interface ActionItem {
+  id: string;
+  meeting_id: string | null;
+  source: 'meeting' | 'manual';
+  task: string;
+  assigned_to: string;
+  deadline: string;
+  status: 'Pending' | 'InProgress' | 'Completed';
+  completed_at: string | null;
+  notes: string;
+}
+
+export interface MeetingDocument {
+  id: string;
+  meeting_id: string;
+  file_name: string;
+  storage_path: string;
+  uploaded_at: string;
+}
+
 // --- Helpdesk Types ---
 
 export type TicketCategory =
@@ -278,22 +339,4 @@ export interface HelpdeskRouting {
   category: TicketCategory;
   target_type: 'role' | 'division';
   target_id: string;
-}
-
-// --- Committee Types ---
-
-export interface Committee {
-  id: string;
-  name: string;
-  description: string;
-  mandate: string;
-  created_at: string;
-}
-
-export interface CommitteeMember {
-  id: string;
-  committee_id: string;
-  user_id: string;
-  role: 'Chairperson' | 'Secretary' | 'Member';
-  joined_at: string;
 }
