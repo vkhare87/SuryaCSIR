@@ -278,16 +278,40 @@ export interface MeetingDocument {
   uploaded_at: string;
 }
 
+// --- Helpdesk Types ---
+
+export type TicketCategory =
+  | 'Infrastructure'
+  | 'EquipmentIT'
+  | 'Administrative'
+  | 'HRGrievance'
+  | 'Finance'
+  | 'LabResearch'
+  | 'Library'
+  | 'Transport';
+
+export type TicketUrgency = 'Low' | 'Medium' | 'High' | 'Critical';
+
+export type TicketStatus = 'Open' | 'InProgress' | 'Resolved' | 'Closed';
+
+export type TicketEventType =
+  | 'Created'
+  | 'Assigned'
+  | 'StatusChanged'
+  | 'Resolved'
+  | 'Closed'
+  | 'Reopened';
+
 export interface Ticket {
   id: string;
   token: string;
   subject: string;
-  category: 'Infrastructure' | 'EquipmentIT' | 'Administrative' | 'HRGrievance' | 'Finance' | 'LabResearch' | 'Library' | 'Transport';
-  urgency: 'Low' | 'Medium' | 'High' | 'Critical';
+  category: TicketCategory;
+  urgency: TicketUrgency;
   description: string;
   submitted_by: string;
   assigned_to: string | null;
-  status: 'Open' | 'InProgress' | 'Resolved' | 'Closed';
+  status: TicketStatus;
   created_at: string;
   updated_at: string;
   resolved_at: string | null;
@@ -304,8 +328,15 @@ export interface TicketResponse {
 export interface TicketEvent {
   id: string;
   ticket_id: string;
-  event_type: 'Created' | 'Assigned' | 'StatusChanged' | 'Resolved' | 'Closed' | 'Reopened';
+  event_type: TicketEventType;
   actor_id: string;
   details: Record<string, unknown>;
   created_at: string;
+}
+
+export interface HelpdeskRouting {
+  id: string;
+  category: TicketCategory;
+  target_type: 'role' | 'division';
+  target_id: string;
 }

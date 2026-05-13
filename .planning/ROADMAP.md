@@ -34,22 +34,23 @@
 
 ---
 
-## Phase 2: Committee Management
+## Phase 2: Committee Management ✓ Complete (2026-05-10)
 
 **Goal:** Full committee governance module — list, detail, meetings, minutes, action items, document uploads.
 
-**Requirements:** CMT-01, CMT-02, CMT-03, CMT-04, CMT-05, CMT-06, CMT-07, CMT-08
+**Requirements:** CMT-01 ✓, CMT-02 ✓, CMT-03 ✓, CMT-04 ✓, CMT-05 ✓, CMT-06 ✓, CMT-07 ✓, CMT-08 ✓
 **Depends on:** Phase 1 (Foundation)
-**Plans:** 7 plans in 4 waves
+**Plans:** 7/7 complete (4 waves)
+**Verification:** 8/8 must-haves passed (02-VERIFICATION.md)
 
 **Plans:**
-- [ ] 02-01-PLAN.md — Prerequisites: DataContext extension, permissions module, minutes lock migration
-- [ ] 02-02-PLAN.md — Core Pages: CommitteeList + CommitteeDetail (list page, detail with 3 tabs)
-- [ ] 02-03-PLAN.md — MeetingDetail page (stacked layout: info, agenda, minutes, actions, documents)
-- [ ] 02-04-PLAN.md — Modals: CommitteeFormModal, MeetingFormModal, ActionItemModal, MemberPicker
-- [ ] 02-05-PLAN.md — Meeting Interactive: AgendaEditor (drag-reorder), MinutesEditor (autosave+lock), DocumentUploader
-- [ ] 02-06-PLAN.md — Kanban: KanbanBoard + KanbanCard + ActionTrackerFilters (3-column, overdue highlight)
-- [ ] 02-07-PLAN.md — Integration: App.tsx routes + Layout.tsx nav item
+- [x] 02-01-PLAN.md — Prerequisites: DataContext extension, permissions module, minutes lock migration
+- [x] 02-02-PLAN.md — Core Pages: CommitteeList + CommitteeDetail (list page, detail with 3 tabs)
+- [x] 02-03-PLAN.md — MeetingDetail page (stacked layout: info, agenda, minutes, actions, documents)
+- [x] 02-04-PLAN.md — Modals: CommitteeFormModal, MeetingFormModal, ActionItemModal, MemberPicker
+- [x] 02-05-PLAN.md — Meeting Interactive: AgendaEditor (drag-reorder), MinutesEditor (autosave+lock), DocumentUploader
+- [x] 02-06-PLAN.md — Kanban: KanbanBoard + KanbanCard + ActionTrackerFilters (3-column, overdue highlight)
+- [x] 02-07-PLAN.md — Integration: App.tsx routes + Layout.tsx nav item
 
 **Success criteria:**
 1. `/committees` shows committee list with search + type/status filter
@@ -86,6 +87,27 @@
 
 **Requirements:** HD-01, HD-02, HD-03, HD-04, HD-05, HD-06, HD-07, HD-08
 **Depends on:** Phase 1 (Foundation) — independent of Phase 2
+**Plans:** 6 plans (3 waves)
+
+**Plans:**
+
+**Wave 1** *(parallel)*
+- [ ] 03-01-PLAN.md — Library layer: permissions (10 functions + tests), constants, RPC wrappers, routing preview
+- [ ] 03-02-PLAN.md — Supabase migration: helpdesk_assign_ticket + helpdesk_add_response RPCs
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 03-03-PLAN.md — TicketForm page: 8-category grid, urgency selector, routing preview, RPC submit
+- [ ] 03-04-PLAN.md — Helpdesk list page: master-detail with filters, urgency badges, assignment tabs
+- [ ] 03-05-PLAN.md — TicketDetail page: response thread, collapsible timeline, reply input, admin tray
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 03-06-PLAN.md — Integration: App.tsx routes + Layout.tsx nav item
+
+**Cross-cutting constraints:**
+- All plans: RPC-gated state machine (never patch `tickets.status` client-side)
+- Plans 03-03/03-04/03-05: Pages consume data via `useData()` only
+- Plans 03-03/03-05: Status transitions call `src/lib/helpdesk/ticketRPCs.ts` wrappers
+- Plans 03-04/03-05: Urgency colors from `src/lib/helpdesk/constants.ts`
 
 **Success criteria:**
 1. `/helpdesk/new` creates ticket — 8-category grid, urgency selector, routing preview
@@ -101,9 +123,12 @@
 - `src/pages/helpdesk/Helpdesk.tsx`
 - `src/pages/helpdesk/TicketForm.tsx`
 - `src/pages/helpdesk/TicketDetail.tsx`
-- `src/lib/helpdesk/ticketRPCs.ts` — RPC wrappers for state transitions
-- `src/lib/helpdesk/routing.ts` — category-to-handler mapping
-- Supabase: `route_ticket()`, `helpdesk_update_status()`, `helpdesk_assign_ticket()` RPCs
+- `src/lib/helpdesk/permissions.ts` — 10 exported permission-check functions
+- `src/lib/helpdesk/ticketRPCs.ts` — 4 RPC wrappers for state transitions
+- `src/lib/helpdesk/routing.ts` — category-to-handler preview lookup
+- `src/lib/helpdesk/constants.ts` — urgency colors, category config, event icons
+- `src/lib/helpdesk/permissions.test.ts` + `routing.test.ts` — vitest unit tests
+- `supabase/migrations/20260510000000_helpdesk_phase3_rpcs.sql` — 2 new SECURITY DEFINER RPCs
 
 ---
 
