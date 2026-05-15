@@ -168,33 +168,49 @@ export function SystemAdminView() {
         </div>
       )}
 
-      {/* ── Row 1 — Org-wide counters ─────────────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <KpiCard label="Total Staff"        value={staff.length}                  icon={<Users size={18} />}      sublabel={`${contractStaff.length} contract`} />
-        <KpiCard label="Active Projects"    value={activeProjects}                icon={<Briefcase size={18} />}  sublabel={`of ${projects.length} total`} />
-        <KpiCard label="Publications"       value={scientificOutputs.length}      icon={<Microscope size={18} />} sublabel={`${totalCitations} citations`} />
-        <KpiCard label="IP Portfolio"       value={ipIntelligence.length}         icon={<Lightbulb size={18} />}  sublabel={`${grantedIP} granted`} />
-        <KpiCard label="PhD Students"       value={phDStudents.length}            icon={<BookOpen size={18} />}   sublabel="Enrolled scholars" />
-        <KpiCard label="Equipment"          value={equipment.length}              icon={<Wrench size={18} />}     sublabel={`${equipmentDown} down`} />
-      </div>
+      {/* ── Research Output ──────────────────────────────────────── */}
+      <section className="space-y-3">
+        <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#87867f]">Research Output</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <KpiCard label="Active Projects"   value={activeProjects}             icon={<Briefcase size={18} />}  sublabel={`of ${projects.length} total`} />
+          <KpiCard label="Publications"      value={scientificOutputs.length}   icon={<Microscope size={18} />} sublabel={`${totalCitations} citations`} />
+          <KpiCard label="IP Portfolio"      value={ipIntelligence.length}      icon={<Lightbulb size={18} />}  sublabel={`${grantedIP} granted`} />
+          <KpiCard label="Avg Impact Factor" value={avgImpactFactor.toFixed(2)} icon={<Microscope size={18} />} sublabel="Publications" />
+        </div>
+      </section>
 
-      {/* ── Row 2 — Operational health ───────────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <KpiCard label="Open Tickets"       value={openTickets}                   icon={<TicketIcon size={18} />} sublabel={`${criticalTickets} critical`} />
-        <KpiCard label="Overdue Actions"    value={overdueActions}                icon={<AlertTriangle size={18} />} sublabel="Past deadline" />
-        <KpiCard label="Open Vacancies"     value={openVacancies}                 icon={<ClipboardList size={18} />} sublabel={`${vacancyPosts.length} applicants`} />
-        <KpiCard label="Committees"         value={committees.filter(c => c.status === 'Active').length} icon={<Shield size={18} />} sublabel={`${meetings.length} meetings`} />
-        <KpiCard label="Reg. Users"         value={userRoles.length}              icon={<Users size={18} />}      sublabel={`${pendingUsers} pending`} />
-        <KpiCard label="Pwd Resets"         value={passwordResets}                icon={<Shield size={18} />}     sublabel="Forced on next login" />
-      </div>
+      {/* ── People ──────────────────────────────────────────────── */}
+      <section className="space-y-3">
+        <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#87867f]">People</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <KpiCard label="Total Staff"   value={staff.length}        icon={<Users size={18} />}         sublabel={`${contractStaff.length} contract`} />
+          <KpiCard label="PhD Students"  value={phDStudents.length}  icon={<BookOpen size={18} />}      sublabel="Enrolled scholars" />
+          <KpiCard label="Open Vacancies" value={openVacancies}      icon={<ClipboardList size={18} />} sublabel={`${vacancyPosts.length} applicants`} />
+          <KpiCard label="Reg. Users"    value={userRoles.length}    icon={<Users size={18} />}         sublabel={`${pendingUsers} pending`} />
+        </div>
+      </section>
 
-      {/* ── Row 3 — PMS workflow KPIs ────────────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <KpiCard label="PMS Cycles"         value={cycles.length}                 icon={<FileText size={18} />}   sublabel={openCycle ? `Open: ${openCycle.name}` : 'No open cycle'} />
-        <KpiCard label="PMS Reports"        value={reports.length}                icon={<FileText size={18} />}   sublabel={`${reports.filter(r => r.status === 'FINALIZED').length} finalized`} />
-        <KpiCard label="Evaluations"        value={evaluations.length}            icon={<Activity size={18} />}   sublabel={`${evaluations.filter(e => e.status === 'COMPLETED').length} completed`} />
-        <KpiCard label="Avg Impact Factor"  value={avgImpactFactor.toFixed(2)}    icon={<Microscope size={18} />} sublabel="Publications" />
-      </div>
+      {/* ── Operations & Helpdesk ───────────────────────────────── */}
+      <section className="space-y-3">
+        <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#87867f]">Operations &amp; Helpdesk</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <KpiCard label="Equipment"       value={equipment.length}                                       icon={<Wrench size={18} />}        sublabel={`${equipmentDown} down`} />
+          <KpiCard label="Open Tickets"    value={openTickets}                                            icon={<TicketIcon size={18} />}    sublabel={`${criticalTickets} critical`} />
+          <KpiCard label="Overdue Actions" value={overdueActions}                                         icon={<AlertTriangle size={18} />} sublabel="Past deadline" />
+          <KpiCard label="Committees"      value={committees.filter(c => c.status === 'Active').length}   icon={<Shield size={18} />}        sublabel={`${meetings.length} meetings`} />
+        </div>
+      </section>
+
+      {/* ── Performance Management ──────────────────────────────── */}
+      <section className="space-y-3">
+        <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#87867f]">Performance Management</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <KpiCard label="PMS Cycles"  value={cycles.length}      icon={<FileText size={18} />} sublabel={openCycle ? `Open: ${openCycle.name}` : 'No open cycle'} />
+          <KpiCard label="PMS Reports" value={reports.length}     icon={<FileText size={18} />} sublabel={`${reports.filter(r => r.status === 'FINALIZED').length} finalized`} />
+          <KpiCard label="Evaluations" value={evaluations.length} icon={<Activity size={18} />} sublabel={`${evaluations.filter(e => e.status === 'COMPLETED').length} completed`} />
+          <KpiCard label="Pwd Resets"  value={passwordResets}     icon={<Shield size={18} />}   sublabel="Forced on next login" />
+        </div>
+      </section>
 
       {/* ── Charts row ───────────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

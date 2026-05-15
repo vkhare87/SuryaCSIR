@@ -41,28 +41,60 @@ const ALL_ROLES: Role[] = [
   'Student', 'ProjectStaff', 'Guest', 'DefaultUser', 'EmpoweredCommittee',
 ];
 
+import type { LucideIcon } from 'lucide-react';
+
 interface NavItem {
   path: string;
   label: string;
-  icon: any;
+  icon: LucideIcon;
   allowedRoles: Role[];
 }
 
-const NAV_ITEMS: NavItem[] = [
-  { path: '/',             label: 'Dashboard',       icon: LayoutDashboard, allowedRoles: ALL_ROLES },
-  { path: '/staff',        label: 'Human Capital',   icon: Users,           allowedRoles: ['Director', 'DivisionHead', 'HRAdmin', 'SystemAdmin', 'MasterAdmin'] },
-  { path: '/projects',     label: 'Projects',        icon: Briefcase,       allowedRoles: ['Director', 'DivisionHead', 'Scientist', 'FinanceAdmin', 'SystemAdmin', 'MasterAdmin'] },
-  { path: '/phd',          label: 'PhD Tracker',     icon: BookOpen,        allowedRoles: ['Director', 'DivisionHead', 'Scientist', 'SystemAdmin', 'MasterAdmin'] },
-  { path: '/divisions',    label: 'Divisions',       icon: Network,         allowedRoles: ['Director', 'SystemAdmin', 'MasterAdmin'] },
-  { path: '/intelligence', label: 'Intelligence',    icon: Microscope,      allowedRoles: ['Director', 'DivisionHead', 'Scientist', 'SystemAdmin', 'MasterAdmin'] },
-  { path: '/facilities',   label: 'Instruments',     icon: Building2,       allowedRoles: ['Director', 'DivisionHead', 'Technician', 'SystemAdmin', 'MasterAdmin'] },
-  { path: '/committees',  label: 'Committees',      icon: Building2,       allowedRoles: ALL_ROLES },
-  { path: '/recruitment',  label: 'Recruitment',     icon: FileText,        allowedRoles: ['HRAdmin', 'SystemAdmin', 'MasterAdmin'] },
-  { path: '/calendar',     label: 'Calendar',        icon: CalendarIcon,    allowedRoles: ALL_ROLES },
-  { path: '/data',         label: 'Data Import',     icon: Database,        allowedRoles: ['HRAdmin', 'SystemAdmin', 'MasterAdmin'] },
-  { path: '/pms',          label: 'Performance Mgmt',icon: ClipboardCheck,  allowedRoles: ['Scientist','HOD','DivisionHead','Director','EmpoweredCommittee','HRAdmin','SystemAdmin','MasterAdmin'] },
-  { path: '/db-wizard',   label: 'DB Wizard',       icon: Database,        allowedRoles: ['SystemAdmin', 'MasterAdmin'] },
-  { path: '/irins-sync', label: 'IRINS Sync',     icon: Cloud,           allowedRoles: ['SystemAdmin', 'MasterAdmin'] },
+interface NavSection {
+  label: string;
+  items: NavItem[];
+}
+
+const NAV_SECTIONS: NavSection[] = [
+  {
+    label: 'Overview',
+    items: [
+      { path: '/',             label: 'Dashboard',       icon: LayoutDashboard, allowedRoles: ALL_ROLES },
+      { path: '/intelligence', label: 'Intelligence',    icon: Microscope,      allowedRoles: ['Director', 'DivisionHead', 'Scientist', 'SystemAdmin', 'MasterAdmin'] },
+      { path: '/calendar',     label: 'Calendar',        icon: CalendarIcon,    allowedRoles: ALL_ROLES },
+    ],
+  },
+  {
+    label: 'People',
+    items: [
+      { path: '/staff',        label: 'Human Capital',   icon: Users,           allowedRoles: ['Director', 'DivisionHead', 'HRAdmin', 'SystemAdmin', 'MasterAdmin'] },
+      { path: '/phd',          label: 'PhD Tracker',     icon: BookOpen,        allowedRoles: ['Director', 'DivisionHead', 'Scientist', 'SystemAdmin', 'MasterAdmin'] },
+      { path: '/divisions',    label: 'Divisions',       icon: Network,         allowedRoles: ['Director', 'SystemAdmin', 'MasterAdmin'] },
+      { path: '/recruitment',  label: 'Recruitment',     icon: FileText,        allowedRoles: ['HRAdmin', 'SystemAdmin', 'MasterAdmin'] },
+    ],
+  },
+  {
+    label: 'Research Ops',
+    items: [
+      { path: '/projects',     label: 'Projects',        icon: Briefcase,       allowedRoles: ['Director', 'DivisionHead', 'Scientist', 'FinanceAdmin', 'SystemAdmin', 'MasterAdmin'] },
+      { path: '/facilities',   label: 'Instruments',     icon: Building2,       allowedRoles: ['Director', 'DivisionHead', 'Technician', 'SystemAdmin', 'MasterAdmin'] },
+    ],
+  },
+  {
+    label: 'Governance',
+    items: [
+      { path: '/committees',   label: 'Committees',      icon: Building2,       allowedRoles: ALL_ROLES },
+      { path: '/pms',          label: 'Performance Mgmt',icon: ClipboardCheck,  allowedRoles: ['Scientist','HOD','DivisionHead','Director','EmpoweredCommittee','HRAdmin','SystemAdmin','MasterAdmin'] },
+    ],
+  },
+  {
+    label: 'Admin',
+    items: [
+      { path: '/data',         label: 'Data Import',     icon: Database,        allowedRoles: ['HRAdmin', 'SystemAdmin', 'MasterAdmin'] },
+      { path: '/db-wizard',    label: 'DB Wizard',       icon: Database,        allowedRoles: ['SystemAdmin', 'MasterAdmin'] },
+      { path: '/irins-sync',   label: 'IRINS Sync',      icon: Cloud,           allowedRoles: ['SystemAdmin', 'MasterAdmin'] },
+    ],
+  },
 ];
 
 export function Layout() {
@@ -78,9 +110,14 @@ export function Layout() {
   const { error } = useData();
 
   const dashboardPath = role ? ROLE_ROUTES[role] : '/';
-  const filteredNav = NAV_ITEMS
-    .filter(item => role && item.allowedRoles.includes(role))
-    .map(item => item.path === '/' ? { ...item, path: dashboardPath } : item);
+  const filteredSections = NAV_SECTIONS
+    .map(section => ({
+      ...section,
+      items: section.items
+        .filter(item => role && item.allowedRoles.includes(role))
+        .map(item => item.path === '/' ? { ...item, path: dashboardPath } : item),
+    }))
+    .filter(section => section.items.length > 0);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -125,22 +162,38 @@ export function Layout() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto py-4 space-y-1 px-2">
-        {filteredNav.map((item) => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            onClick={() => { if (isMobileView) setMobileMenuOpen(false); }}
-            className={({ isActive }) => clsx(
-              "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors group",
-              isActive
-                ? "bg-[#30302e] text-[#faf9f5] font-medium"
-                : "text-[#b0aea5] hover:text-[#faf9f5] hover:bg-[#30302e]/60"
+      <nav className="flex-1 overflow-y-auto py-4 px-2">
+        {filteredSections.map((section, sectionIdx) => (
+          <div
+            key={section.label}
+            className={clsx(
+              'space-y-1',
+              sectionIdx > 0 && ((sidebarOpen || isMobileView) ? 'mt-5' : 'mt-3 border-t border-[#30302e]/60 pt-3')
             )}
           >
-            <item.icon size={20} className={(sidebarOpen || isMobileView) ? "shrink-0" : "mx-auto shrink-0"} />
-            {(sidebarOpen || isMobileView) && <span className="truncate">{item.label}</span>}
-          </NavLink>
+            {(sidebarOpen || isMobileView) && (
+              <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#b0aea5]/55">
+                {section.label}
+              </div>
+            )}
+            {section.items.map((item) => (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                end={item.path === dashboardPath}
+                onClick={() => { if (isMobileView) setMobileMenuOpen(false); }}
+                className={({ isActive }) => clsx(
+                  'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors group',
+                  isActive
+                    ? 'bg-[#30302e] text-[#faf9f5] font-medium'
+                    : 'text-[#b0aea5] hover:text-[#faf9f5] hover:bg-[#30302e]/60'
+                )}
+              >
+                <item.icon size={20} className={(sidebarOpen || isMobileView) ? 'shrink-0' : 'mx-auto shrink-0'} />
+                {(sidebarOpen || isMobileView) && <span className="truncate">{item.label}</span>}
+              </NavLink>
+            ))}
+          </div>
         ))}
       </nav>
 
