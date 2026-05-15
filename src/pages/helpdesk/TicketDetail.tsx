@@ -12,6 +12,8 @@ import { Card, Badge } from '../../components/ui/Cards';
 import { Button } from '../../components/ui/Button';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { Modal } from '../../components/ui/Modal';
+import { Timeline, type TimelineItem } from '../../components/ui/Timeline';
+import { StaffPicker } from '../../components/ui/StaffPicker';
 import { updateTicketStatus, addResponse, assignTicket } from '../../lib/helpdesk/ticketRPCs';
 import { canRespond, canTransitionStatus, canCloseTicket, canReassign, canForceClose, isAdmin } from '../../lib/helpdesk/permissions';
 import { URGENCY_COLORS, EVENT_ICONS } from '../../lib/helpdesk/constants';
@@ -80,7 +82,6 @@ export default function TicketDetail() {
   const [error, setError] = useState<string | null>(null);
   const [showReassignModal, setShowReassignModal] = useState(false);
   const [showForceCloseModal, setShowForceCloseModal] = useState(false);
-  const [handlerSearchTerm, setHandlerSearchTerm] = useState('');
 
   // --- Derived State ---
 
@@ -101,6 +102,26 @@ export default function TicketDetail() {
 
   const timelineExpandedDefault = events.length <= 5;
   const [timelineExpanded, setTimelineExpanded] = useState(timelineExpandedDefault);
+
+  const timelineItems = useMemo<TimelineItem[]>(() => {
+    return events
+      .map((event) => {
+        const iconKey = EVENT_ICONS[event.event_type];
+        const Icon = EVENT_ICON_MAP[iconKey];
+        if (!Icon) return null;
+        const detailText = event.details && Object.keys(event.details).length > 0
+          ? renderEventDetails(event, staff)
+          : null;
+        return {
+          id: event.id,
+          icon: <Icon size={12} className="text-text-muted" />,
+          title: event.event_type,
+          timestamp: event.created_at,
+          detail: detailText,
+        } satisfies TimelineItem;
+      })
+      .filter((x): x is TimelineItem => x !== null);
+  }, [events, staff]);
 
   const showReply = user && ticket ? canRespond(user, ticket) : false;
   const showAdminTray = user ? isAdmin(user) : false;
@@ -228,9 +249,6 @@ export default function TicketDetail() {
   }
 
   const urgencyInfo = URGENCY_COLORS[ticket.urgency];
-  const filteredStaff = staff
-    .filter(s => !handlerSearchTerm || s.Name.toLowerCase().includes(handlerSearchTerm.toLowerCase()))
-    .slice(0, 20);
 
   // --- Render ---
 
@@ -414,32 +432,8 @@ export default function TicketDetail() {
                 transition={{ duration: 0.3, ease: 'easeInOut' }}
                 className="overflow-hidden"
               >
-                <div className="px-4 pb-4 space-y-0">
-                  {events.map((event, idx) => {
-                    const iconKey = EVENT_ICONS[event.event_type];
-                    const Icon = EVENT_ICON_MAP[iconKey];
-                    if (!Icon) return null;
-                    const isLast = idx === events.length - 1;
-                    return (
-                      <div key={event.id} className={`relative pl-8 pb-4 ${isLast ? '' : 'border-l-2 border-border'}`}>
-                        <div className="absolute left-0 top-0 -translate-x-1/2 w-6 h-6 rounded-full bg-surface border-2 border-border flex items-center justify-center">
-                          <Icon size={12} className="text-text-muted" />
-                        </div>
-                        <p className="text-sm font-medium text-text">{event.event_type}</p>
-                        <p className="text-xs text-text-muted">
-                          {new Date(event.created_at).toLocaleString('en-IN', {
-                            day: 'numeric', month: 'short', year: 'numeric',
-                            hour: '2-digit', minute: '2-digit', timeZoneName: 'short',
-                          })}
-                        </p>
-                        {event.details && Object.keys(event.details).length > 0 && (
-                          <p className="text-xs text-text-muted mt-0.5">
-                            {renderEventDetails(event, staff)}
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })}
+                <div className="px-4 pb-4">
+                  <Timeline items={timelineItems} />
                 </div>
               </motion.div>
             )}
@@ -452,27 +446,11 @@ export default function TicketDetail() {
       {/* Reassign Modal */}
       <Modal isOpen={showReassignModal} onClose={() => setShowReassignModal(false)} title="Reassign Ticket">
         <div className="space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-text-muted mb-1">Search Staff</label>
-            <input
-              type="text"
-              value={handlerSearchTerm}
-              onChange={e => setHandlerSearchTerm(e.target.value)}
-              placeholder="Search by name..."
-              className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-[#3898ec] outline-none"
-            />
-          </div>
-          <div className="max-h-48 overflow-y-auto space-y-1">
-            {filteredStaff.map(s => (
-              <button
-                key={s.ID}
-                onClick={() => handleReassign(s.ID)}
-                className="w-full text-left px-3 py-2 rounded-lg hover:bg-surface-hover text-sm text-text transition-colors"
-              >
-                {s.Name} <span className="text-text-muted text-xs">({s.Designation})</span>
-              </button>
-            ))}
-          </div>
+          <StaffPicker
+            placeholder="Search by name..."
+            excludeIds={ticket.assigned_to ? [ticket.assigned_to] : []}
+            onSelect={(s) => handleReassign(s.ID)}
+          />
           <div className="flex justify-end gap-3 pt-2 border-t border-border">
             <Button variant="ghost" onClick={() => setShowReassignModal(false)}>Cancel</Button>
           </div>
