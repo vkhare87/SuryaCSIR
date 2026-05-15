@@ -199,6 +199,14 @@ Set in `.env` at repo root. The Setup Wizard fallback writes them to `localStora
 
 ---
 
+## Health Stack
+
+- typecheck: npx tsc --noEmit
+- lint: npx eslint src/
+- test: npm test
+
+---
+
 ## .claude/
 
 | Folder | Contents |

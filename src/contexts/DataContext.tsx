@@ -15,7 +15,9 @@ import type {
   VacancyPost,
   Role,
   Committee,
+  CommitteeMember,
   Meeting,
+  AgendaItem,
   ActionItem,
   MeetingDocument,
   Ticket,
@@ -37,7 +39,9 @@ import {
   mapVacancyAdvertisementRow,
   mapVacancyPostRow,
   mapCommitteeRow,
+  mapCommitteeMemberRow,
   mapMeetingRow,
+  mapAgendaItemRow,
   mapActionItemRow,
   mapMeetingDocumentRow,
   mapTicketRow,
@@ -91,7 +95,9 @@ interface DataContextType {
   vacancyAdvertisements: VacancyAdvertisement[];
   vacancyPosts: VacancyPost[];
   committees: Committee[];
+  committeeMembers: CommitteeMember[];
   meetings: Meeting[];
+  agendaItems: AgendaItem[];
   actionItems: ActionItem[];
   meetingDocs: MeetingDocument[];
   tickets: Ticket[];
@@ -127,7 +133,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [vacancyAdvertisements, setVacancyAdvertisements] = useState<VacancyAdvertisement[]>([]);
   const [vacancyPosts, setVacancyPosts] = useState<VacancyPost[]>([]);
   const [committees, setCommittees] = useState<Committee[]>([]);
+  const [committeeMembers, setCommitteeMembers] = useState<CommitteeMember[]>([]);
   const [meetings, setMeetings] = useState<Meeting[]>([]);
+  const [agendaItems, setAgendaItems] = useState<AgendaItem[]>([]);
   const [actionItems, setActionItems] = useState<ActionItem[]>([]);
   const [meetingDocs, setMeetingDocs] = useState<MeetingDocument[]>([]);
   const [tickets, setTickets] = useState<Ticket[]>([]);
@@ -136,31 +144,37 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const resetAll = () => {
+    setDivisions([]);
+    setStaff([]);
+    setProjects([]);
+    setProjectStaff([]);
+    setPhDStudents([]);
+    setContractStaff([]);
+    setEquipment([]);
+    setLabs([]);
+    setScientificOutputs([]);
+    setIPIntelligence([]);
+    setVacancyAdvertisements([]);
+    setVacancyPosts([]);
+    setCommittees([]);
+    setCommitteeMembers([]);
+    setMeetings([]);
+    setAgendaItems([]);
+    setActionItems([]);
+    setMeetingDocs([]);
+    setTickets([]);
+    setTicketResponses([]);
+    setTicketEvents([]);
+  };
+
   const loadData = async () => {
     setIsLoading(true);
     setError(null);
     try {
       if (!provisioned || !supabase) {
         setError('Backend not configured. Go to Setup.');
-        setDivisions([]);
-        setStaff([]);
-        setProjects([]);
-        setProjectStaff([]);
-        setPhDStudents([]);
-        setContractStaff([]);
-        setEquipment([]);
-        setLabs([]);
-        setScientificOutputs([]);
-        setIPIntelligence([]);
-        setVacancyAdvertisements([]);
-        setVacancyPosts([]);
-        setCommittees([]);
-        setMeetings([]);
-        setActionItems([]);
-        setMeetingDocs([]);
-        setTickets([]);
-        setTicketResponses([]);
-        setTicketEvents([]);
+        resetAll();
         return;
       }
 
@@ -192,9 +206,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
         supabase.from('ticket_events').select('*'),
       ]);
 
-      void cmmRes;
-      void agiRes;
-
       const rawStaff = staffRes.data ? staffRes.data.map(mapStaffRow) : [];
       const rawProjects = projRes.data ? projRes.data.map(mapProjectRow) : [];
       const rawEquipment = equipRes.data ? equipRes.data.map(mapEquipmentRow) : [];
@@ -212,7 +223,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setVacancyAdvertisements(vaRes.data ? vaRes.data.map(mapVacancyAdvertisementRow) : []);
       setVacancyPosts(vpRes.data ? vpRes.data.map(mapVacancyPostRow) : []);
       setCommittees(cmtRes.data ? cmtRes.data.map(mapCommitteeRow) : []);
+      setCommitteeMembers(cmmRes.data ? cmmRes.data.map(mapCommitteeMemberRow) : []);
       setMeetings(mtgRes.data ? mtgRes.data.map(mapMeetingRow) : []);
+      setAgendaItems(agiRes.data ? agiRes.data.map(mapAgendaItemRow) : []);
       setActionItems(actRes.data ? actRes.data.map(mapActionItemRow) : []);
       setMeetingDocs(mdcRes.data ? mdcRes.data.map(mapMeetingDocumentRow) : []);
       setTickets(tktRes.data ? tktRes.data.map(mapTicketRow) : []);
@@ -222,25 +235,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const message = err instanceof Error ? err.message : 'Failed to load data';
       setError(message);
       logger.error('data_load_failed', err, { role, divisionCode });
-      setDivisions([]);
-      setStaff([]);
-      setProjects([]);
-      setProjectStaff([]);
-      setPhDStudents([]);
-      setContractStaff([]);
-      setEquipment([]);
-      setLabs([]);
-      setScientificOutputs([]);
-      setIPIntelligence([]);
-      setVacancyAdvertisements([]);
-      setVacancyPosts([]);
-      setCommittees([]);
-      setMeetings([]);
-      setActionItems([]);
-      setMeetingDocs([]);
-      setTickets([]);
-      setTicketResponses([]);
-      setTicketEvents([]);
+      resetAll();
     } finally {
       setIsLoading(false);
     }
@@ -265,7 +260,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
       vacancyAdvertisements,
       vacancyPosts,
       committees,
+      committeeMembers,
       meetings,
+      agendaItems,
       actionItems,
       meetingDocs,
       tickets,

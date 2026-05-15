@@ -1,9 +1,11 @@
 import { Link } from 'react-router-dom';
-import { Briefcase, BookOpen, Microscope, FlaskConical } from 'lucide-react';
+import { Briefcase, BookOpen, Microscope, FlaskConical, FileText } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Card } from '../../components/ui/Cards';
 import { KpiCard } from '../../components/ui/KpiCard';
+import ScientistProfile from '../../components/ScientistProfile';
+import { staffNameMatchesAuthor } from '../../utils/dateUtils';
 
 export function ScientistView() {
   const { staff, projects, projectStaff, phDStudents, scientificOutputs, equipment } = useData();
@@ -14,10 +16,8 @@ export function ScientistView() {
   const ownName = ownStaff?.Name ?? '';
 
   // Instruments managed or operated — computed before early return to satisfy hook ordering
-  const _clean = (n: string) => n.toLowerCase().replace(/^(dr\.|sh\.|shri|smt\.)\s+/i, '').trim();
-  const _nameMatch = (a: string, b: string) => { const ca = _clean(a); const cb = _clean(b); return ca === cb || ca.includes(cb) || cb.includes(ca); };
   const ownInstruments = ownName
-    ? equipment.filter(e => _nameMatch(ownName, e.IndenterName) || _nameMatch(ownName, e.OperatorName))
+    ? equipment.filter(e => staffNameMatchesAuthor(ownName, e.IndenterName) || staffNameMatchesAuthor(ownName, e.OperatorName))
     : [];
 
   if (!ownStaff) {
@@ -204,6 +204,17 @@ export function ScientistView() {
           </div>
         </Card>
       </div>
+
+      {/* IRINS Research Profile */}
+      {ownStaff.VidwanID && (
+        <Card className="p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <FileText size={20} className="text-[#c96442]" />
+            <h2 className="text-lg font-[500] text-[#141413] font-serif">Research Output (via IRINS)</h2>
+          </div>
+          <ScientistProfile vidwanId={ownStaff.VidwanID} />
+        </Card>
+      )}
     </div>
   );
 }
