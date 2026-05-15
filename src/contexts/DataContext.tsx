@@ -23,6 +23,7 @@ import type {
   Ticket,
   TicketResponse,
   TicketEvent,
+  HelpdeskRouting,
 } from '../types';
 import { supabase, isProvisioned } from '../utils/supabaseClient';
 import {
@@ -47,6 +48,7 @@ import {
   mapTicketRow,
   mapTicketResponseRow,
   mapTicketEventRow,
+  mapHelpdeskRoutingRow,
 } from '../utils/dataMapper';
 import { useAuth } from './AuthContext';
 import { logger } from '../utils/logger';
@@ -103,6 +105,7 @@ interface DataContextType {
   tickets: Ticket[];
   ticketResponses: TicketResponse[];
   ticketEvents: TicketEvent[];
+  helpdeskRouting: HelpdeskRouting[];
   isLoading: boolean;
   isBackendProvisioned: boolean;
   refreshData: () => Promise<void>;
@@ -141,6 +144,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [ticketResponses, setTicketResponses] = useState<TicketResponse[]>([]);
   const [ticketEvents, setTicketEvents] = useState<TicketEvent[]>([]);
+  const [helpdeskRouting, setHelpdeskRouting] = useState<HelpdeskRouting[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -166,6 +170,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setTickets([]);
     setTicketResponses([]);
     setTicketEvents([]);
+    setHelpdeskRouting([]);
   };
 
   const loadData = async () => {
@@ -181,7 +186,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const [
         divRes, staffRes, projRes, psRes, phdRes, equipRes, labsRes, soRes, ipRes, csRes,
         vaRes, vpRes,
-        cmtRes, cmmRes, mtgRes, agiRes, actRes, mdcRes, tktRes, trsRes, tevRes,
+        cmtRes, cmmRes, mtgRes, agiRes, actRes, mdcRes, tktRes, trsRes, tevRes, hrtRes,
       ] = await Promise.all([
         supabase.from('divisions').select('*'),
         supabase.from('staff').select('*'),
@@ -204,6 +209,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         supabase.from('tickets').select('*').order('created_at', { ascending: false }),
         supabase.from('ticket_responses').select('*'),
         supabase.from('ticket_events').select('*'),
+        supabase.from('helpdesk_routing').select('*'),
       ]);
 
       const rawStaff = staffRes.data ? staffRes.data.map(mapStaffRow) : [];
@@ -231,6 +237,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setTickets(tktRes.data ? tktRes.data.map(mapTicketRow) : []);
       setTicketResponses(trsRes.data ? trsRes.data.map(mapTicketResponseRow) : []);
       setTicketEvents(tevRes.data ? tevRes.data.map(mapTicketEventRow) : []);
+      setHelpdeskRouting(hrtRes.data ? hrtRes.data.map(mapHelpdeskRoutingRow) : []);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load data';
       setError(message);
@@ -268,6 +275,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       tickets,
       ticketResponses,
       ticketEvents,
+      helpdeskRouting,
       isLoading,
       isBackendProvisioned: provisioned,
       refreshData: loadData,

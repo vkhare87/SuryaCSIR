@@ -1,4 +1,4 @@
-import type { DivisionInfo, StaffMember, ProjectInfo, ProjectStaff, PhDStudent, Equipment, ScientificOutput, IPIntelligence, ContractStaff, VacancyAdvertisement, VacancyPost, Notification, Committee, CommitteeMember, Meeting, AgendaItem, ActionItem, MeetingDocument, Ticket, TicketResponse, TicketEvent } from '../types';
+import type { DivisionInfo, StaffMember, ProjectInfo, ProjectStaff, PhDStudent, Equipment, ScientificOutput, IPIntelligence, ContractStaff, VacancyAdvertisement, VacancyPost, Notification, Committee, CommitteeMember, Meeting, AgendaItem, ActionItem, MeetingDocument, Ticket, TicketResponse, TicketEvent, HelpdeskRouting } from '../types';
 
 /**
  * These mappers will eventually transform raw Supabase rows 
@@ -293,4 +293,11 @@ export const mapTicketEventRow = (row: any): TicketEvent => ({
   actor_id: row.actor_id || '',
   details: row.details || {},
   created_at: row.created_at || '',
+});
+
+export const mapHelpdeskRoutingRow = (row: any): HelpdeskRouting => ({
+  id: row.id || '',
+  category: row.category,
+  target_type: row.target_type,
+  target_id: row.target_id || '',
 });
