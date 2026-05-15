@@ -36,13 +36,9 @@ export default function SetupWizard() {
         </div>
 
         <div className="bg-surface-hover p-4 rounded-lg mb-6 text-sm border border-border">
-          <p className="text-text mb-2">
+          <p className="text-text">
             The platform requires a connection to the CSIR-AMPRI Cloud Vault (Supabase).
             If you are a Master Administrator, please initialize the registry below.
-          </p>
-          <p className="text-text-muted italic">
-            Note: If left unprovisioned, the app will run in "Local Demo Mode" using the mock
-            data for testing purposes only.
           </p>
         </div>
 
@@ -75,18 +71,7 @@ export default function SetupWizard() {
             />
           </div>
 
-          <div className="flex gap-3 pt-4">
-            <Button
-              type="button"
-              variant="ghost"
-              className="w-full"
-              onClick={() => {
-                // Skips to local demo mode via auth
-                window.location.hash = '/login';
-              }}
-            >
-              Skip (Run Local)
-            </Button>
+          <div className="pt-4">
             <Button
               type="submit"
               className="w-full"

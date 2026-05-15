@@ -15,7 +15,7 @@ import { Modal } from '../../components/ui/Modal';
 import { updateTicketStatus, addResponse, assignTicket } from '../../lib/helpdesk/ticketRPCs';
 import { canRespond, canTransitionStatus, canCloseTicket, canReassign, canForceClose, isAdmin } from '../../lib/helpdesk/permissions';
 import { URGENCY_COLORS, EVENT_ICONS } from '../../lib/helpdesk/constants';
-import type { Ticket, TicketResponse, TicketEvent, StaffMember } from '../../types';
+import type { TicketEvent, StaffMember } from '../../types';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -71,22 +71,7 @@ export default function TicketDetail() {
   const data = useData();
   const { user } = useAuth();
 
-  const staff = data.staff;
-  const isLoading = data.isLoading;
-  const refreshData = data.refreshData;
-
-  // Note: tickets, ticketResponses, ticketEvents will be wired through DataContext
-  // in a subsequent phase plan. The component is built against the expected interface.
-  // Wrapped in useMemo to provide stable references for downstream useMemo hooks.
-  const tickets = useMemo(() =>
-    ((data as unknown as Record<string, unknown>).tickets as Ticket[] | undefined) ?? [],
-  [data]);
-  const ticketResponses = useMemo(() =>
-    ((data as unknown as Record<string, unknown>).ticketResponses as TicketResponse[] | undefined) ?? [],
-  [data]);
-  const ticketEvents = useMemo(() =>
-    ((data as unknown as Record<string, unknown>).ticketEvents as TicketEvent[] | undefined) ?? [],
-  [data]);
+  const { staff, isLoading, refreshData, tickets, ticketResponses, ticketEvents } = data;
 
   // --- State ---
   const [replyText, setReplyText] = useState('');

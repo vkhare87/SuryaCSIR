@@ -33,6 +33,8 @@ import ChairmanQueue from './pages/pms/ChairmanQueue';
 import CommitteeQueue from './pages/pms/CommitteeQueue';
 import PmsAuditLog from './pages/pms/AuditLog';
 import DatabaseWizard from './pages/DatabaseWizard';
+import TicketList from './pages/helpdesk/TicketList';
+import TicketDetail from './pages/helpdesk/TicketDetail';
 import IrinsSync from './pages/IrinsSync';
 import MeetingDetail from './pages/committees/MeetingDetail';
 import { useAuth } from './contexts/AuthContext';
@@ -115,6 +117,9 @@ function App() {
             <Route path="/committees/:id/actions" element={<ProtectedRoute><CommitteeDetail /></ProtectedRoute>} />
             <Route path="/committees/:id" element={<ProtectedRoute><CommitteeDetail /></ProtectedRoute>} />
             <Route path="/committees" element={<ProtectedRoute><CommitteeList /></ProtectedRoute>} />
+            {/* Helpdesk — specific routes first (Pitfall 6) */}
+            <Route path="/helpdesk/:id" element={<ProtectedRoute><TicketDetail /></ProtectedRoute>} />
+            <Route path="/helpdesk" element={<ProtectedRoute><TicketList /></ProtectedRoute>} />
             <Route path="/recruitment" element={<ProtectedRoute allowedRoles={['HRAdmin', 'SystemAdmin', 'MasterAdmin']}><Recruitment /></ProtectedRoute>} />
             <Route path="/calendar" element={<ProtectedRoute><Calendar /></ProtectedRoute>} />
             <Route path="/data" element={<ProtectedRoute allowedRoles={['HRAdmin', 'SystemAdmin', 'MasterAdmin']}><DataManagement /></ProtectedRoute>} />

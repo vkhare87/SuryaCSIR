@@ -22,6 +22,7 @@ import {
   AlertCircle,
   ChevronDown,
   ClipboardCheck,
+  Ticket as TicketIcon,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -84,6 +85,7 @@ const NAV_SECTIONS: NavSection[] = [
     label: 'Governance',
     items: [
       { path: '/committees',   label: 'Committees',      icon: Building2,       allowedRoles: ALL_ROLES },
+      { path: '/helpdesk',     label: 'Helpdesk',        icon: TicketIcon,      allowedRoles: ALL_ROLES },
       { path: '/pms',          label: 'Performance Mgmt',icon: ClipboardCheck,  allowedRoles: ['Scientist','HOD','DivisionHead','Director','EmpoweredCommittee','HRAdmin','SystemAdmin','MasterAdmin'] },
     ],
   },
