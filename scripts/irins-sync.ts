@@ -79,20 +79,6 @@ interface IrinsProfile {
 // ---------------------------------------------------------------------------
 
 const IRINS_BASE = 'https://ampri.irins.org';
-const CONCURRENCY = 3; // max parallel browsers
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function text(el: Element | null): string {
-  return el?.textContent?.trim().replace(/\s+/g, ' ') ?? '';
-}
-
-function parseNum(s: string): number {
-  const m = s.replace(/,/g, '').match(/\d+/);
-  return m ? parseInt(m[0], 10) : 0;
-}
 
 // ---------------------------------------------------------------------------
 // Scraper
@@ -114,7 +100,7 @@ async function scrapeProfile(vidwanId: string): Promise<IrinsProfile | null> {
     // Give JS-rendered sections time to load
     await page.waitForTimeout(3000);
 
-    const profile: IrinsProfile = await page.evaluate((baseUrl: string) => {
+    const profile: IrinsProfile = await page.evaluate(() => {
       const $ = (sel: string) => document.querySelector(sel);
       const $$ = (sel: string) => Array.from(document.querySelectorAll(sel));
       const txt = (el: Element | null) => el?.textContent?.trim().replace(/\s+/g, ' ') ?? '';
@@ -234,7 +220,7 @@ async function scrapeProfile(vidwanId: string): Promise<IrinsProfile | null> {
         const items = patentPanel.querySelectorAll('.patent-item, li, .item, .publication-item');
         items.forEach(item => {
           const t = txt(item);
-          const titleMatch = t.match(/^(.*?)(?:Patent\s*(?:No|Number|#)[.:]?\s*([\w,\-]+))?/i);
+          const titleMatch = t.match(/^(.*?)(?:Patent\s*(?:No|Number|#)[.:]?\s*([\w,-]+))?/i);
           const statusMatch = t.match(/(Granted|Filed|Pending|Published)/i);
           const dateMatch = t.match(/(?:Filed|Filing date|Date)[:\s]*([\d\-/]+)/i);
           patents.push({
@@ -309,7 +295,7 @@ async function scrapeProfile(vidwanId: string): Promise<IrinsProfile | null> {
         citations: { total: totalCit, h_index: hIdx, crossref: crossrefCit },
         experience, qualifications, awards, patents, publications, projects,
       } as IrinsProfile;
-    }, IRINS_BASE);
+    });
 
     console.log(`  ✓ ${profile.name || vidwanId} — ${profile.publications.length} pubs, ${profile.patents.length} patents`);
     return profile;

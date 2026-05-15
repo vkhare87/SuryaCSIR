@@ -104,23 +104,21 @@ export default function TicketDetail() {
   const [timelineExpanded, setTimelineExpanded] = useState(timelineExpandedDefault);
 
   const timelineItems = useMemo<TimelineItem[]>(() => {
-    return events
-      .map((event) => {
-        const iconKey = EVENT_ICONS[event.event_type];
-        const Icon = EVENT_ICON_MAP[iconKey];
-        if (!Icon) return null;
-        const detailText = event.details && Object.keys(event.details).length > 0
-          ? renderEventDetails(event, staff)
-          : null;
-        return {
-          id: event.id,
-          icon: <Icon size={12} className="text-text-muted" />,
-          title: event.event_type,
-          timestamp: event.created_at,
-          detail: detailText,
-        } satisfies TimelineItem;
-      })
-      .filter((x): x is TimelineItem => x !== null);
+    return events.flatMap((event): TimelineItem[] => {
+      const iconKey = EVENT_ICONS[event.event_type];
+      const Icon = EVENT_ICON_MAP[iconKey];
+      if (!Icon) return [];
+      const detailText = event.details && Object.keys(event.details).length > 0
+        ? renderEventDetails(event, staff)
+        : null;
+      return [{
+        id: event.id,
+        icon: <Icon size={12} className="text-text-muted" />,
+        title: event.event_type,
+        timestamp: event.created_at,
+        detail: detailText,
+      }];
+    });
   }, [events, staff]);
 
   const showReply = user && ticket ? canRespond(user, ticket) : false;
@@ -200,7 +198,6 @@ export default function TicketDetail() {
     setSubmitting(false);
     if (result.success) {
       setShowReassignModal(false);
-      setHandlerSearchTerm('');
       await refreshData?.();
     } else {
       setError('Failed to reassign ticket: ' + (result.error ?? ''));
