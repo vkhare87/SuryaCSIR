@@ -81,27 +81,27 @@
 
 ---
 
-## Phase 3: Helpdesk
+## Phase 3: Helpdesk — In Progress (5/6 plans, ~83%)
 
 **Goal:** Ticket system with 8 categories, auto-routing, response thread, RPC-gated state machine.
 
-**Requirements:** HD-01, HD-02, HD-03, HD-04, HD-05, HD-06, HD-07, HD-08
+**Requirements:** HD-01 ⏳, HD-02 ⏳, HD-03 ✓, HD-04 ✓, HD-05 ✓, HD-06 ✓, HD-07 ⏳, HD-08 ⏳
 **Depends on:** Phase 1 (Foundation) — independent of Phase 2
-**Plans:** 6 plans (3 waves)
+**Plans:** 5/6 complete
 
 **Plans:**
 
 **Wave 1** *(parallel)*
-- [ ] 03-01-PLAN.md — Library layer: permissions (10 functions + tests), constants, RPC wrappers, routing preview
-- [ ] 03-02-PLAN.md — Supabase migration: helpdesk_assign_ticket + helpdesk_add_response RPCs
+- [x] 03-01-PLAN.md — Library layer: permissions (10 functions + tests), constants, RPC wrappers, routing preview
+- [x] 03-02-PLAN.md — Supabase migration: helpdesk_assign_ticket + helpdesk_add_response RPCs
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 03-03-PLAN.md — TicketForm page: 8-category grid, urgency selector, routing preview, RPC submit
-- [ ] 03-04-PLAN.md — Helpdesk list page: master-detail with filters, urgency badges, assignment tabs
-- [ ] 03-05-PLAN.md — TicketDetail page: response thread, collapsible timeline, reply input, admin tray
+- [ ] 03-03-PLAN.md — **TicketForm page (PENDING)**: 8-category grid, urgency selector, routing preview, RPC submit. Unblocks HD-01, HD-02, HD-08.
+- [x] 03-04-PLAN.md — Helpdesk list page: master-detail with filters, urgency badges, assignment tabs
+- [x] 03-05-PLAN.md — TicketDetail page: response thread, collapsible timeline, reply input, admin tray
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 03-06-PLAN.md — Integration: App.tsx routes + Layout.tsx nav item
+- [~] 03-06-PLAN.md — Integration: list + detail routes registered + sidebar nav wired. Missing `/helpdesk/new` route (pending 03-03).
 
 **Cross-cutting constraints:**
 - All plans: RPC-gated state machine (never patch `tickets.status` client-side)
@@ -132,12 +132,20 @@
 
 ---
 
-## Phase 4: Integration & Polish
+## Phase 4: Integration & Polish — Pending
 
 **Goal:** Wire everything together — navigation, routes, audit log, shared UI components.
 
-**Requirements:** INT-01, INT-02, INT-03
+**Requirements:** INT-01 ✓, INT-02 ⏳, INT-03 ⏳
 **Depends on:** Phase 2, Phase 3
+
+**Status (2026-05-16 audit + Phase 4 complete):**
+- [x] INT-01 — sidebar nav for `/committees` + `/helpdesk` wired in `Layout.tsx`
+- [x] INT-02 — list + detail + `/helpdesk/new` routes registered in `src/App.tsx`
+- [x] INT-03 — audit log: new migration `20260516000000_audit_log_triggers.sql` adds 5 SECURITY DEFINER triggers (committees, meetings, action_items, tickets, ticket_responses → `audit_log`); `AuditLog.tsx` now has PMS / Modules tab toggle reading both `pms_audit_logs` and `audit_log`
+- [x] `StatusBadge` promoted — `src/components/ui/StatusBadge.tsx` (generic label/bg/text props); PMS file now adapts via `STATUS_COLORS`
+- [x] `StaffPicker` shared component — `src/components/ui/StaffPicker.tsx` (single-select). TicketDetail reassign modal refactored to use it. MemberPicker (multi-select w/ roles) stays committee-specific.
+- [x] `Timeline` shared component — `src/components/ui/Timeline.tsx`. TicketDetail timeline refactored to use it.
 
 **Success criteria:**
 1. Committees and Helpdesk links appear in sidebar for all authenticated users
@@ -199,4 +207,16 @@ Phases 2 and 3 are parallel after Phase 1.
 
 ---
 
-*Last updated: 2026-05-10*
+## Open Tech Debt (from CLAUDE.md, 2026-05-16 audit)
+
+- `scientificOutputs`, `ipIntelligence` — Supabase tables exist; DataContext falls back to mock
+- Calendar + Recruitment — hardcoded sample data, no Supabase backing
+- Zero tests for `dateUtils`, `dataMigration` (highest-priority unit-test candidates)
+- No error boundary; DataContext swallows fetch errors silently
+- HR table column casing (`"divCode"`, `"DOJ"`, `"CompletioDate"` typo) — coordinated rename pending
+- `AuthContext` hardcoded fallback — remove after Supabase Auth fully wired
+- Stale local branch `phase/03-helpdesk` (at 52e915c8) behind main; primary worktree pinned to it
+
+---
+
+*Last updated: 2026-05-16*

@@ -3,21 +3,22 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-last_updated: "2026-05-10T17:00:00.000Z"
-last_activity: "2026-05-10 — Phase 3 planned: 6 plans in 3 waves, all 8 HD requirements covered, 8/8 decisions mapped, 0 blockers"
+last_updated: "2026-05-16T00:00:00.000Z"
+last_activity: "2026-05-16 — built TicketForm (03-03) + 3 phase 4 ui primitives (StatusBadge promoted, StaffPicker + Timeline created). TicketDetail refactored to consume both. INT-03 audit log wiring remains."
 progress:
   total_phases: 4
-  completed_phases: 2
+  completed_phases: 4
   total_plans: 24
-  completed_plans: 17
-  percent: 71
+  completed_plans: 24
+  percent: 100
 ---
 
 ## Current Position
 
-Phase: 3 — Helpdesk
-Status: Ready to execute — 6 plans in 3 waves
-Last activity: 2026-05-10 — Phase 3 planned: 03-01 (library), 03-02 (migration), 03-03 (TicketForm), 03-04 (Helpdesk list), 03-05 (TicketDetail), 03-06 (integration). Plan checker: 0 blockers, 2 warnings (non-blocking).
+Phase: 4 — Integration & Polish (~100%, awaiting verification)
+Status: All 5 Phase 4 items implemented at code level. INT-03 audit log shipped: trigger-based migration on 5 tables + AuditLog UI tab switcher.
+Next: apply migration `20260516000000_audit_log_triggers.sql` to Supabase, smoke-test write/read on a configured backend, then mark Phase 4 verified.
+Last activity: 2026-05-16 — INT-03 complete. Created audit trigger migration + extended AuditLog.tsx with PMS/Modules tabs. tsc + lint clean. Browser verification blocked — Supabase env not configured in dev.
 
 ## Accumulated Context
 
@@ -59,7 +60,14 @@ Last activity: 2026-05-10 — Phase 3 planned: 03-01 (library), 03-02 (migration
 
 ### Active TODOs
 
-- None
+- [x] Phase 3 plan 03-03 — TicketForm + `/helpdesk/new` route (2026-05-16)
+- [x] Phase 4 — INT-03 audit log: trigger migration + AuditLog tabs shipped (2026-05-16). Pending: apply migration in Supabase + verify.
+- [x] Phase 4 — `StatusBadge` promoted to `src/components/ui/` with PMS adapter (2026-05-16)
+- [x] Phase 4 — `StaffPicker` shared component; TicketDetail reassign refactored (2026-05-16)
+- [x] Phase 4 — `Timeline` shared component; TicketDetail timeline refactored (2026-05-16)
+- [x] Cleanup — merged branches deleted local + remote; primary worktree fast-forwarded to main (2026-05-16)
+- [ ] Add "+ New Ticket" CTA on TicketList page (UX gap — direct URL only)
+- [ ] Migrate committees/helpdesk Badge usages to `StatusBadge` where appropriate (optional)
 
 ### Quick Tasks Completed
 
