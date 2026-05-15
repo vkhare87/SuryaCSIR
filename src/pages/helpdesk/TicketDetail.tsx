@@ -79,13 +79,13 @@ export default function TicketDetail() {
   // in a subsequent phase plan. The component is built against the expected interface.
   // Wrapped in useMemo to provide stable references for downstream useMemo hooks.
   const tickets = useMemo(() =>
-    ((data as Record<string, unknown>).tickets as Ticket[] | undefined) ?? [],
+    ((data as unknown as Record<string, unknown>).tickets as Ticket[] | undefined) ?? [],
   [data]);
   const ticketResponses = useMemo(() =>
-    ((data as Record<string, unknown>).ticketResponses as TicketResponse[] | undefined) ?? [],
+    ((data as unknown as Record<string, unknown>).ticketResponses as TicketResponse[] | undefined) ?? [],
   [data]);
   const ticketEvents = useMemo(() =>
-    ((data as Record<string, unknown>).ticketEvents as TicketEvent[] | undefined) ?? [],
+    ((data as unknown as Record<string, unknown>).ticketEvents as TicketEvent[] | undefined) ?? [],
   [data]);
 
   // --- State ---
