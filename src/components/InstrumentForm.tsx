@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useData } from '../contexts/DataContext';
-import { supabase } from '../utils/supabaseClient';
 import { X } from 'lucide-react';
 import type { Equipment } from '../types';
 
@@ -33,7 +32,7 @@ const EMPTY: Omit<Equipment, 'UInsID'> = {
 };
 
 export function InstrumentForm({ instrument, onClose }: Props) {
-  const { labs, staff, divisions, refreshData } = useData();
+  const { labs, staff, divisions, saveEquipment } = useData();
 
   const [form, setForm] = useState<Record<string, string | number | undefined>>(() => {
     const base = instrument ?? { UInsID: '', ...EMPTY };
@@ -49,7 +48,6 @@ export function InstrumentForm({ instrument, onClose }: Props) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!supabase) { setError('Supabase not configured'); return; }
     if (!form['UInsID']) { setError('Instrument ID is required'); return; }
     if (!form['Name']) { setError('Name is required'); return; }
     setSaving(true);
@@ -78,9 +76,7 @@ export function InstrumentForm({ instrument, onClose }: Props) {
         Justification:       form['Justification'] || null,
         Remark:              form['Remark'] || null,
       };
-      const { error: sbErr } = await supabase.from('equipment').upsert(payload);
-      if (sbErr) throw sbErr;
-      await refreshData();
+      await saveEquipment(payload);
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Save failed');

@@ -10,9 +10,10 @@ import {
 import {
   getRetirementDate, formatDate,
   getAgeFromDOB, getServiceYears, getYearsInGrade,
-  diffInDays
+  diffInDays, staffNameMatchesAuthor, amcStatus, AMC_COLORS,
 } from '../utils/dateUtils';
 import { getStaffPortfolio } from '../utils/analytics';
+import ScientistProfile from '../components/ScientistProfile';
 
 export default function StaffDetail() {
   const { id } = useParams<{ id: string }>();
@@ -437,24 +438,14 @@ export default function StaffDetail() {
 
           {/* Instruments */}
           {assignedEquipment.length > 0 && (() => {
-            const clean = (n: string) => n.toLowerCase().replace(/^(dr\.|sh\.|shri|smt\.)\s+/i, '').trim();
-            const nameMatch = (a: string, b: string) => {
-              const ca = clean(a); const cb = clean(b);
-              return ca === cb || ca.includes(cb) || cb.includes(ca);
-            };
-            const managed  = assignedEquipment.filter(e => nameMatch(member.Name, e.IndenterName));
+            const managed  = assignedEquipment.filter(e => staffNameMatchesAuthor(member.Name, e.IndenterName));
             const operatedOnly = assignedEquipment.filter(e =>
-              nameMatch(member.Name, e.OperatorName) && !nameMatch(member.Name, e.IndenterName)
+              staffNameMatchesAuthor(member.Name, e.OperatorName) && !staffNameMatchesAuthor(member.Name, e.IndenterName)
             );
             const amcBadge = (d?: string) => {
-              if (!d) return null;
-              const diff = Math.ceil((new Date(d).getTime() - Date.now()) / 86400000);
-              const cls = diff < 0
-                ? 'bg-red-100 text-red-700'
-                : diff <= 90
-                  ? 'bg-amber-100 text-amber-700'
-                  : 'bg-emerald-100 text-emerald-700';
-              return <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${cls}`}>AMC {d}</span>;
+              const status = amcStatus(d);
+              if (status === 'none') return null;
+              return <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${AMC_COLORS[status]}`}>AMC {d}</span>;
             };
             const row = (item: typeof assignedEquipment[0]) => (
               <Link
@@ -496,6 +487,17 @@ export default function StaffDetail() {
               </Card>
             );
           })()}
+
+          {/* IRINS Profile */}
+          {member.VidwanID && (
+            <Card className="p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <FileText size={18} className="text-[#5e5d59]" />
+                <h3 className="text-base font-[500] text-text font-serif">Research Output (via IRINS)</h3>
+              </div>
+              <ScientistProfile vidwanId={member.VidwanID} />
+            </Card>
+          )}
 
         </div>
       </div>

@@ -11,6 +11,8 @@ import Divisions from './pages/Divisions';
 import Intelligence from './pages/Intelligence';
 import Facilities from './pages/Facilities';
 import InstrumentDetail from './pages/InstrumentDetail';
+import CommitteeList from './pages/committees/CommitteeList';
+import CommitteeDetail from './pages/committees/CommitteeDetail';
 import Recruitment from './pages/Recruitment';
 import DataManagement from './pages/DataManagement';
 import Calendar from './pages/Calendar';
@@ -31,6 +33,8 @@ import ChairmanQueue from './pages/pms/ChairmanQueue';
 import CommitteeQueue from './pages/pms/CommitteeQueue';
 import PmsAuditLog from './pages/pms/AuditLog';
 import DatabaseWizard from './pages/DatabaseWizard';
+import IrinsSync from './pages/IrinsSync';
+import MeetingDetail from './pages/committees/MeetingDetail';
 import { useAuth } from './contexts/AuthContext';
 import { isProvisioned } from './utils/supabaseClient';
 import type { Role } from './types';
@@ -105,6 +109,12 @@ function App() {
             <Route path="/intelligence" element={<Intelligence />} />
             <Route path="/facilities" element={<Facilities />} />
             <Route path="/facilities/:uInsID" element={<InstrumentDetail />} />
+            {/* Committee Management — specific routes first (Pitfall 6) */}
+            <Route path="/committees/:id/meetings/:meetId" element={<MeetingDetail />} />
+            <Route path="/committees/:id/meetings" element={<ProtectedRoute><CommitteeDetail /></ProtectedRoute>} />
+            <Route path="/committees/:id/actions" element={<ProtectedRoute><CommitteeDetail /></ProtectedRoute>} />
+            <Route path="/committees/:id" element={<ProtectedRoute><CommitteeDetail /></ProtectedRoute>} />
+            <Route path="/committees" element={<ProtectedRoute><CommitteeList /></ProtectedRoute>} />
             <Route path="/recruitment" element={<ProtectedRoute allowedRoles={['HRAdmin', 'SystemAdmin', 'MasterAdmin']}><Recruitment /></ProtectedRoute>} />
             <Route path="/calendar" element={<ProtectedRoute><Calendar /></ProtectedRoute>} />
             <Route path="/data" element={<ProtectedRoute allowedRoles={['HRAdmin', 'SystemAdmin', 'MasterAdmin']}><DataManagement /></ProtectedRoute>} />
@@ -122,6 +132,7 @@ function App() {
             <Route path="/pms/committee" element={<ProtectedRoute allowedRoles={['EmpoweredCommittee']}><CommitteeQueue /></ProtectedRoute>} />
             <Route path="/pms/audit" element={<ProtectedRoute allowedRoles={['HRAdmin','SystemAdmin','MasterAdmin']}><PmsAuditLog /></ProtectedRoute>} />
             <Route path="/db-wizard" element={<ProtectedRoute allowedRoles={['SystemAdmin','MasterAdmin']}><DatabaseWizard /></ProtectedRoute>} />
+            <Route path="/irins-sync" element={<ProtectedRoute allowedRoles={['SystemAdmin','MasterAdmin']}><IrinsSync /></ProtectedRoute>} />
           </Route>
         </Route>
 

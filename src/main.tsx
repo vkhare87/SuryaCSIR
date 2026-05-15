@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
+import { ErrorBoundary } from './components/ErrorBoundary.tsx'
 import { ThemeProvider } from './contexts/ThemeContext.tsx'
 import { UIProvider } from './contexts/UIContext.tsx'
 import { AuthProvider } from './contexts/AuthContext.tsx'
@@ -10,16 +11,18 @@ import { PMSProvider } from './contexts/PMSContext.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ThemeProvider>
-      <UIProvider>
-        <AuthProvider>
-          <DataProvider>
-            <PMSProvider>
-              <App />
-            </PMSProvider>
-          </DataProvider>
-        </AuthProvider>
-      </UIProvider>
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <UIProvider>
+          <AuthProvider>
+            <DataProvider>
+              <PMSProvider>
+                <App />
+              </PMSProvider>
+            </DataProvider>
+          </AuthProvider>
+        </UIProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   </StrictMode>,
 )
