@@ -243,3 +243,341 @@ create policy proposal_status_history_select on public.proposal_status_history
             where p.id = proposal_status_history.proposal_id
               and public.proposals_can_read(p))
   );
+
+-- ---------- Admin guard ----------
+create or replace function public.proposals_caller_is_admin()
+returns boolean
+language sql stable
+as $$
+  select public.proposals_caller_has_role('HRAdmin')
+      or public.proposals_caller_has_role('SystemAdmin')
+      or public.proposals_caller_has_role('MasterAdmin');
+$$;
+
+-- ---------- RPC: proposal_submit ----------
+create or replace function public.proposal_submit(p_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_row public.proposals%rowtype;
+  v_from text;
+begin
+  select * into v_row from public.proposals where id = p_id for update;
+  if not found then raise exception 'proposal_not_found'; end if;
+  if v_row.created_by <> auth.uid() then raise exception 'not_owner'; end if;
+  if v_row.status not in ('DRAFT','REVISION_REQUESTED') then
+    raise exception 'invalid_status_transition: % -> SUBMITTED', v_row.status;
+  end if;
+
+  -- require at least one signed_proposal document
+  if not exists (select 1 from public.proposal_documents
+                 where proposal_id = p_id and doc_type = 'signed_proposal') then
+    raise exception 'signed_proposal_required';
+  end if;
+
+  v_from := v_row.status;
+  update public.proposals
+     set status                = 'SUBMITTED',
+         submitted_at          = coalesce(submitted_at, now()),
+         pi_name               = coalesce(pi_name, v_row.pi_name),
+         updated_at            = now(),
+         last_status_change_by = auth.uid(),
+         last_status_change_at = now()
+   where id = p_id;
+
+  insert into public.proposal_status_history(proposal_id, from_status, to_status, payload, changed_by)
+  values (p_id, v_from, 'SUBMITTED', '{}'::jsonb, auth.uid());
+end;
+$$;
+
+-- ---------- RPC: proposal_set_under_review ----------
+create or replace function public.proposal_set_under_review(
+  p_id uuid, p_body text, p_sent_date date
+) returns void
+language plpgsql security definer set search_path = public
+as $$
+declare v_status text;
+begin
+  if not public.proposals_caller_is_admin() then raise exception 'not_admin'; end if;
+  if p_body is null or length(trim(p_body)) = 0 then raise exception 'review_body_required'; end if;
+  if p_sent_date is null then raise exception 'review_sent_date_required'; end if;
+
+  select status into v_status from public.proposals where id = p_id for update;
+  if not found then raise exception 'proposal_not_found'; end if;
+  if v_status <> 'SUBMITTED' then
+    raise exception 'invalid_status_transition: % -> UNDER_REVIEW', v_status;
+  end if;
+
+  update public.proposals
+     set status                = 'UNDER_REVIEW',
+         review_body           = p_body,
+         review_sent_date      = p_sent_date,
+         updated_at            = now(),
+         last_status_change_by = auth.uid(),
+         last_status_change_at = now()
+   where id = p_id;
+
+  insert into public.proposal_status_history(proposal_id, from_status, to_status, payload, changed_by)
+  values (p_id, 'SUBMITTED', 'UNDER_REVIEW',
+          jsonb_build_object('review_body', p_body, 'review_sent_date', p_sent_date),
+          auth.uid());
+end;
+$$;
+
+-- ---------- RPC: proposal_request_revision ----------
+create or replace function public.proposal_request_revision(p_id uuid, p_notes text)
+returns void
+language plpgsql security definer set search_path = public
+as $$
+declare v_status text;
+begin
+  if not public.proposals_caller_is_admin() then raise exception 'not_admin'; end if;
+  if p_notes is null or length(trim(p_notes)) = 0 then raise exception 'notes_required'; end if;
+
+  select status into v_status from public.proposals where id = p_id for update;
+  if v_status <> 'UNDER_REVIEW' then
+    raise exception 'invalid_status_transition: % -> REVISION_REQUESTED', v_status;
+  end if;
+
+  update public.proposals
+     set status                = 'REVISION_REQUESTED',
+         revision_notes        = p_notes,
+         updated_at            = now(),
+         last_status_change_by = auth.uid(),
+         last_status_change_at = now()
+   where id = p_id;
+
+  insert into public.proposal_status_history(proposal_id, from_status, to_status, payload, changed_by)
+  values (p_id, 'UNDER_REVIEW', 'REVISION_REQUESTED',
+          jsonb_build_object('revision_notes', p_notes), auth.uid());
+end;
+$$;
+
+-- ---------- RPC: proposal_reject ----------
+create or replace function public.proposal_reject(p_id uuid, p_reason text)
+returns void
+language plpgsql security definer set search_path = public
+as $$
+declare v_status text;
+begin
+  if not public.proposals_caller_is_admin() then raise exception 'not_admin'; end if;
+  if p_reason is null or length(trim(p_reason)) = 0 then raise exception 'reason_required'; end if;
+
+  select status into v_status from public.proposals where id = p_id for update;
+  if v_status <> 'UNDER_REVIEW' then
+    raise exception 'invalid_status_transition: % -> REJECTED', v_status;
+  end if;
+
+  update public.proposals
+     set status                = 'REJECTED',
+         rejection_reason      = p_reason,
+         updated_at            = now(),
+         last_status_change_by = auth.uid(),
+         last_status_change_at = now()
+   where id = p_id;
+
+  insert into public.proposal_status_history(proposal_id, from_status, to_status, payload, changed_by)
+  values (p_id, 'UNDER_REVIEW', 'REJECTED',
+          jsonb_build_object('rejection_reason', p_reason), auth.uid());
+end;
+$$;
+
+-- ---------- RPC: proposal_recommend ----------
+create or replace function public.proposal_recommend(p_id uuid)
+returns void
+language plpgsql security definer set search_path = public
+as $$
+declare v_status text;
+begin
+  if not public.proposals_caller_is_admin() then raise exception 'not_admin'; end if;
+  select status into v_status from public.proposals where id = p_id for update;
+  if v_status <> 'UNDER_REVIEW' then
+    raise exception 'invalid_status_transition: % -> RECOMMENDED', v_status;
+  end if;
+
+  update public.proposals
+     set status                = 'RECOMMENDED',
+         updated_at            = now(),
+         last_status_change_by = auth.uid(),
+         last_status_change_at = now()
+   where id = p_id;
+
+  insert into public.proposal_status_history(proposal_id, from_status, to_status, payload, changed_by)
+  values (p_id, 'UNDER_REVIEW', 'RECOMMENDED', '{}'::jsonb, auth.uid());
+end;
+$$;
+
+-- ---------- RPC: proposal_approve ----------
+create or replace function public.proposal_approve(
+  p_id uuid, p_amount numeric, p_date date
+) returns void
+language plpgsql security definer set search_path = public
+as $$
+declare v_status text;
+begin
+  if not public.proposals_caller_is_admin() then raise exception 'not_admin'; end if;
+  if p_amount is null or p_amount < 0 then raise exception 'amount_required'; end if;
+  if p_date is null then raise exception 'sanction_date_required'; end if;
+
+  select status into v_status from public.proposals where id = p_id for update;
+  if v_status <> 'RECOMMENDED' then
+    raise exception 'invalid_status_transition: % -> APPROVED', v_status;
+  end if;
+
+  update public.proposals
+     set status                = 'APPROVED',
+         sanctioned_amount     = p_amount,
+         sanction_date         = p_date,
+         updated_at            = now(),
+         last_status_change_by = auth.uid(),
+         last_status_change_at = now()
+   where id = p_id;
+
+  insert into public.proposal_status_history(proposal_id, from_status, to_status, payload, changed_by)
+  values (p_id, 'RECOMMENDED', 'APPROVED',
+          jsonb_build_object('sanctioned_amount', p_amount, 'sanction_date', p_date),
+          auth.uid());
+end;
+$$;
+
+-- ---------- RPC: proposal_issue_om ----------
+create or replace function public.proposal_issue_om(
+  p_id uuid, p_om_no text, p_om_date date, p_doc_id uuid
+) returns void
+language plpgsql security definer set search_path = public
+as $$
+declare v_status text;
+begin
+  if not public.proposals_caller_is_admin() then raise exception 'not_admin'; end if;
+  if p_om_no is null or length(trim(p_om_no)) = 0 then raise exception 'om_number_required'; end if;
+  if p_om_date is null then raise exception 'om_date_required'; end if;
+  if p_doc_id is null then raise exception 'om_document_required'; end if;
+
+  if not exists (
+    select 1 from public.proposal_documents
+    where id = p_doc_id and proposal_id = p_id and doc_type = 'om_document'
+  ) then
+    raise exception 'om_document_not_found';
+  end if;
+
+  select status into v_status from public.proposals where id = p_id for update;
+  if v_status <> 'APPROVED' then
+    raise exception 'invalid_status_transition: % -> OM_ISSUED', v_status;
+  end if;
+
+  update public.proposals
+     set status                = 'OM_ISSUED',
+         om_number             = p_om_no,
+         om_date               = p_om_date,
+         updated_at            = now(),
+         last_status_change_by = auth.uid(),
+         last_status_change_at = now()
+   where id = p_id;
+
+  insert into public.proposal_status_history(proposal_id, from_status, to_status, payload, changed_by)
+  values (p_id, 'APPROVED', 'OM_ISSUED',
+          jsonb_build_object('om_number', p_om_no, 'om_date', p_om_date, 'om_doc_id', p_doc_id),
+          auth.uid());
+end;
+$$;
+
+-- ---------- RPC: proposal_archive ----------
+create or replace function public.proposal_archive(p_id uuid)
+returns void
+language plpgsql security definer set search_path = public
+as $$
+declare v_status text;
+begin
+  if not public.proposals_caller_is_admin() then raise exception 'not_admin'; end if;
+  select status into v_status from public.proposals where id = p_id for update;
+  if v_status <> 'OM_ISSUED' then
+    raise exception 'invalid_status_transition: % -> ARCHIVED', v_status;
+  end if;
+
+  update public.proposals
+     set status                = 'ARCHIVED',
+         archived              = true,
+         updated_at            = now(),
+         last_status_change_by = auth.uid(),
+         last_status_change_at = now()
+   where id = p_id;
+
+  insert into public.proposal_status_history(proposal_id, from_status, to_status, payload, changed_by)
+  values (p_id, 'OM_ISSUED', 'ARCHIVED', '{}'::jsonb, auth.uid());
+end;
+$$;
+
+-- ---------- RPC: proposal_link_project ----------
+create or replace function public.proposal_link_project(p_id uuid, p_project_no text)
+returns void
+language plpgsql security definer set search_path = public
+as $$
+declare v_status text;
+begin
+  if not public.proposals_caller_is_admin() then raise exception 'not_admin'; end if;
+  if p_project_no is null or length(trim(p_project_no)) = 0 then
+    raise exception 'project_no_required';
+  end if;
+  if not exists (select 1 from public."ProjectInfo" where "ProjectNo" = p_project_no) then
+    raise exception 'project_not_found';
+  end if;
+
+  select status into v_status from public.proposals where id = p_id for update;
+  if v_status <> 'OM_ISSUED' then
+    raise exception 'invalid_status_transition: % -> LINKED', v_status;
+  end if;
+
+  update public.proposals
+     set status                = 'LINKED',
+         linked_project_no     = p_project_no,
+         updated_at            = now(),
+         last_status_change_by = auth.uid(),
+         last_status_change_at = now()
+   where id = p_id;
+
+  insert into public.proposal_status_history(proposal_id, from_status, to_status, payload, changed_by)
+  values (p_id, 'OM_ISSUED', 'LINKED',
+          jsonb_build_object('linked_project_no', p_project_no), auth.uid());
+end;
+$$;
+
+-- ---------- Storage bucket: proposal-documents ----------
+insert into storage.buckets (id, name, public)
+values ('proposal-documents', 'proposal-documents', false)
+on conflict (id) do nothing;
+
+-- Storage RLS: SELECT — caller can read if they can read the parent proposal.
+-- Object name layout: {proposal_id}/{doc_type}/{epoch_ms}_{filename}
+create policy proposal_docs_storage_select on storage.objects
+  for select using (
+    bucket_id = 'proposal-documents'
+    and exists (
+      select 1 from public.proposals p
+      where p.id::text = split_part(name, '/', 1)
+        and public.proposals_can_read(p)
+    )
+  );
+
+-- Storage RLS: INSERT — owner uploads signed_proposal; admin uploads om_document.
+create policy proposal_docs_storage_insert on storage.objects
+  for insert with check (
+    bucket_id = 'proposal-documents'
+    and (
+      (
+        split_part(name, '/', 2) = 'signed_proposal'
+        and exists (
+          select 1 from public.proposals p
+          where p.id::text = split_part(name, '/', 1)
+            and p.created_by = auth.uid()
+            and p.status in ('DRAFT','REVISION_REQUESTED')
+        )
+      )
+      or (
+        split_part(name, '/', 2) = 'om_document'
+        and public.proposals_caller_is_admin()
+      )
+    )
+  );
