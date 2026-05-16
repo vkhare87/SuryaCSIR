@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useProposals } from '../../contexts/ProposalsContext';
@@ -21,16 +21,16 @@ export default function ProposalDetail() {
   const [error, setError] = useState('');
   const [showStatusModal, setShowStatusModal] = useState(false);
 
-  const reload = async () => {
+  const reload = useCallback(async () => {
     if (!id) return;
     try {
       setProposal(await getProposal(id));
     } catch (e) {
       setError((e as Error).message);
     }
-  };
+  }, [id, getProposal]);
 
-  useEffect(() => { reload(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [id]);
+  useEffect(() => { reload(); }, [reload]);
 
   if (error) return <div className="p-6 text-red-600">{error}</div>;
   if (!proposal) return <div className="p-6 text-text-muted">Loading…</div>;

@@ -7,9 +7,6 @@ import type {
   ProposalDocType,
 } from '../types/proposal';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-// `any` is acceptable here per CLAUDE.md (mapper / migration boundary layers).
-
 export function mapProposalRow(row: any): Proposal {
   return {
     id: row.id,
