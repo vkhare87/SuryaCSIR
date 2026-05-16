@@ -5,17 +5,21 @@ import { useAuth } from '../contexts/AuthContext';
 import { DataTable } from '../components/ui/DataTable';
 import { Card, Badge, StatCard } from '../components/ui/Cards';
 import { EmptyState } from '../components/ui/EmptyState';
-import { Search, Filter, Briefcase, IndianRupee, PieChart, Users } from 'lucide-react';
+import { Search, Filter, Briefcase, IndianRupee, PieChart, Users, Plus } from 'lucide-react';
+import { useCanEdit } from '../lib/permissions/canEdit';
+import { ProjectFormModal } from '../components/ProjectFormModal';
 import type { ProjectInfo, ProjectStaff } from '../types';
 
 export default function Projects() {
   const { projects, projectStaff, isLoading } = useData();
   const { hasPermission } = useAuth();
   const canUpload = hasPermission(['HRAdmin', 'SystemAdmin', 'MasterAdmin']);
+  const canEdit = useCanEdit('hr');
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'projects' | 'staff'>('projects');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [showCreate, setShowCreate] = useState(false);
 
   const filteredProjects = useMemo(() => {
     return projects.filter(p => {
@@ -220,9 +224,17 @@ export default function Projects() {
           <h1 className="text-2xl font-[500] text-text font-serif">Project Intelligence</h1>
           <p className="text-text-muted mt-1">Research & Sponsored Projects Tracker</p>
         </div>
-        
+
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-3">
+          {canEdit && (
+            <button
+              onClick={() => setShowCreate(true)}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#c96442] text-[#faf9f5] rounded-lg text-sm font-medium hover:bg-[#b5593b] transition-colors"
+            >
+              <Plus size={14} /> New Project
+            </button>
+          )}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted w-4 h-4" />
             <input 
@@ -319,6 +331,10 @@ export default function Projects() {
             />
           </Card>
         </>
+      )}
+
+      {canEdit && (
+        <ProjectFormModal isOpen={showCreate} onClose={() => setShowCreate(false)} />
       )}
     </div>
   );

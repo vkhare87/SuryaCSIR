@@ -5,15 +5,19 @@ import { Button } from '../components/ui/Button';
 import {
   ArrowLeft, Building2, Calendar, FileText, IndianRupee,
   CopyCheck, UserPlus, Users, GraduationCap, ChevronRight,
-  Clock, AlertTriangle
+  Clock, AlertTriangle, Edit,
 } from 'lucide-react';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { parseDate, diffInDays, isWithinMonths } from '../utils/dateUtils';
+import { useCanEdit } from '../lib/permissions/canEdit';
+import { ProjectFormModal } from '../components/ProjectFormModal';
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { projects, projectStaff, phDStudents, staff, divisions } = useData();
+  const canEdit = useCanEdit('hr');
+  const [editOpen, setEditOpen] = useState(false);
 
   const project = projects.find(p => p.ProjectID === id);
 
@@ -84,7 +88,7 @@ export default function ProjectDetail() {
         >
           <ArrowLeft size={20} />
         </button>
-        <div>
+        <div className="flex-1">
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-2xl font-[500] text-text font-serif">{project.ProjectNo}</h1>
             <Badge variant={statusVariant}>{project.ProjectStatus}</Badge>
@@ -96,6 +100,14 @@ export default function ProjectDetail() {
           </div>
           <p className="text-text-muted text-sm mt-1">Research & Sponsored Project Profile</p>
         </div>
+        {canEdit && (
+          <button
+            onClick={() => setEditOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-surface border border-border rounded-lg text-sm font-medium text-text hover:bg-surface-hover transition-colors"
+          >
+            <Edit size={14} /> Edit Project
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -331,6 +343,10 @@ export default function ProjectDetail() {
 
         </div>
       </div>
+
+      {canEdit && (
+        <ProjectFormModal isOpen={editOpen} onClose={() => setEditOpen(false)} project={project} />
+      )}
     </div>
   );
 }

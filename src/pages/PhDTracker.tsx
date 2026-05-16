@@ -5,14 +5,19 @@ import { useAuth } from '../contexts/AuthContext';
 import { DataTable } from '../components/ui/DataTable';
 import { Card, Badge, StatCard } from '../components/ui/Cards';
 import { EmptyState } from '../components/ui/EmptyState';
-import { Search, Filter, GraduationCap, Users, FileCheck } from 'lucide-react';
+import { Search, Filter, GraduationCap, Users, FileCheck, Plus, Edit } from 'lucide-react';
+import { useCanEdit } from '../lib/permissions/canEdit';
+import { PhDStudentFormModal } from '../components/PhDStudentFormModal';
 import type { PhDStudent } from '../types';
 
 export default function PhDTracker() {
   const { phDStudents, staff, isLoading } = useData();
   const { hasPermission } = useAuth();
   const canUpload = hasPermission(['HRAdmin', 'SystemAdmin', 'MasterAdmin']);
+  const canEdit = useCanEdit('hr');
   const navigate = useNavigate();
+  const [showCreate, setShowCreate] = useState(false);
+  const [editTarget, setEditTarget] = useState<PhDStudent | null>(null);
 
   const findSupervisorId = (name: string) => {
     if (!name) return null;
@@ -96,10 +101,22 @@ export default function PhDTracker() {
         let variant: 'success' | 'warning' | 'info' | 'neutral' = 'neutral';
         if (s.CurrentStatus === 'Ongoing') variant = 'info';
         if (s.CurrentStatus === 'Thesis Submitted') variant = 'success';
-        
+
         return <Badge variant={variant}>{s.CurrentStatus}</Badge>;
       }
-    }
+    },
+    ...(canEdit ? [{
+      header: '',
+      cell: (s: PhDStudent) => (
+        <button
+          onClick={(e) => { e.stopPropagation(); setEditTarget(s); }}
+          className="p-1.5 border border-border rounded-md hover:bg-surface-hover text-text-muted hover:text-text"
+          title="Edit student"
+        >
+          <Edit size={12} />
+        </button>
+      ),
+    }] : []),
   ];
 
   return (
@@ -109,8 +126,16 @@ export default function PhDTracker() {
           <h1 className="text-2xl font-[500] text-text font-serif">PhD Progress Tracker</h1>
           <p className="text-text-muted mt-1">Monitoring research scholars and doctoral milestones</p>
         </div>
-        
+
         <div className="flex flex-col sm:flex-row gap-3">
+          {canEdit && (
+            <button
+              onClick={() => setShowCreate(true)}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#c96442] text-[#faf9f5] rounded-lg text-sm font-medium hover:bg-[#b5593b] transition-colors"
+            >
+              <Plus size={14} /> New Student
+            </button>
+          )}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted w-4 h-4" />
             <input 
@@ -163,6 +188,13 @@ export default function PhDTracker() {
             Showing {filteredStudents.length} scholars
           </div>
         </Card>
+      )}
+
+      {canEdit && (
+        <>
+          <PhDStudentFormModal isOpen={showCreate} onClose={() => setShowCreate(false)} />
+          <PhDStudentFormModal isOpen={!!editTarget} onClose={() => setEditTarget(null)} student={editTarget} />
+        </>
       )}
     </div>
   );
