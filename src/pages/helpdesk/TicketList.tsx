@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Search, Filter, Ticket as TicketIcon, AlertTriangle, CheckCircle2,
-  Clock, RotateCcw, Inbox,
+  Clock, RotateCcw, Inbox, Plus,
 } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -97,6 +97,15 @@ export default function TicketList() {
           <h1 className="text-2xl font-[500] text-text font-serif">Helpdesk</h1>
           <p className="text-text-muted mt-1">Support tickets and grievance tracking</p>
         </div>
+        {user && (
+          <button
+            onClick={() => navigate('/helpdesk/new')}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-[#c96442] text-[#faf9f5] rounded-lg text-sm font-medium hover:bg-[#b5593b] transition-colors"
+          >
+            <Plus size={16} />
+            New Ticket
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">

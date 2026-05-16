@@ -63,12 +63,14 @@ export default function Recruitment() {
           <h1 className="text-2xl font-[500] text-text font-serif">Recruitment Portal</h1>
           <p className="text-text-muted mt-1">Manage institutional vacancies and talent acquisition</p>
         </div>
-        <div className="flex gap-2">
-          <button className="bg-[#c96442] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#b5593b] transition-colors flex items-center gap-2">
-            <UserPlus size={16} />
-            New Vacancy
-          </button>
-        </div>
+        {canManage && (
+          <div className="flex gap-2">
+            <button className="bg-[#c96442] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#b5593b] transition-colors flex items-center gap-2">
+              <UserPlus size={16} />
+              New Vacancy
+            </button>
+          </div>
+        )}
       </div>
 
       {!isLoading && vacancyAdvertisements.length === 0 ? (
