@@ -1,47 +1,60 @@
 
+import { lazy, Suspense } from 'react';
 import { Routes, Route, HashRouter, Navigate, Outlet } from 'react-router-dom';
 import { Layout } from './components/layout/Layout';
 import Dashboard from './pages/Dashboard';
-import HumanCapital from './pages/HumanCapital';
-import StaffDetail from './pages/StaffDetail';
-import Projects from './pages/Projects';
-import ProjectDetail from './pages/ProjectDetail';
-import PhDTracker from './pages/PhDTracker';
-import Divisions from './pages/Divisions';
-import Intelligence from './pages/Intelligence';
-import Facilities from './pages/Facilities';
-import InstrumentDetail from './pages/InstrumentDetail';
-import CommitteeList from './pages/committees/CommitteeList';
-import CommitteeDetail from './pages/committees/CommitteeDetail';
-import Recruitment from './pages/Recruitment';
-import DataManagement from './pages/DataManagement';
-import Calendar from './pages/Calendar';
 import Login from './pages/Login';
 import SetupWizard from './pages/SetupWizard';
 import ChangePassword from './pages/ChangePassword';
-import PMSIndex from './pages/pms/Index';
-import PMSCycles from './pages/pms/Cycles';
-import PMSCollegiums from './pages/pms/Collegiums';
-import PMSReports from './pages/pms/Reports';
-import ReportNew from './pages/pms/ReportNew';
-import ReportView from './pages/pms/ReportView';
-import ReportEdit from './pages/pms/ReportEdit';
-import AssignEvaluators from './pages/pms/AssignEvaluators';
-import EvaluatorQueue from './pages/pms/EvaluatorQueue';
-import EvaluateReport from './pages/pms/EvaluateReport';
-import ChairmanQueue from './pages/pms/ChairmanQueue';
-import CommitteeQueue from './pages/pms/CommitteeQueue';
-import PmsAuditLog from './pages/pms/AuditLog';
-import DatabaseWizard from './pages/DatabaseWizard';
-import TicketList from './pages/helpdesk/TicketList';
-import TicketDetail from './pages/helpdesk/TicketDetail';
-import TicketForm from './pages/helpdesk/TicketForm';
-import IrinsSync from './pages/IrinsSync';
-import MeetingDetail from './pages/committees/MeetingDetail';
 import { useAuth } from './contexts/AuthContext';
 import { isProvisioned } from './utils/supabaseClient';
 import type { Role } from './types';
 import { ROLE_ROUTES } from './constants/roleRoutes';
+
+// Lazy-loaded routes — split into per-chunk bundles to keep the initial
+// payload manageable. Heavy deps (@react-pdf, xlsx, recharts) live behind
+// these boundaries.
+const HumanCapital      = lazy(() => import('./pages/HumanCapital'));
+const StaffDetail       = lazy(() => import('./pages/StaffDetail'));
+const Projects          = lazy(() => import('./pages/Projects'));
+const ProjectDetail     = lazy(() => import('./pages/ProjectDetail'));
+const PhDTracker        = lazy(() => import('./pages/PhDTracker'));
+const Divisions         = lazy(() => import('./pages/Divisions'));
+const Intelligence      = lazy(() => import('./pages/Intelligence'));
+const Facilities        = lazy(() => import('./pages/Facilities'));
+const InstrumentDetail  = lazy(() => import('./pages/InstrumentDetail'));
+const CommitteeList     = lazy(() => import('./pages/committees/CommitteeList'));
+const CommitteeDetail   = lazy(() => import('./pages/committees/CommitteeDetail'));
+const MeetingDetail     = lazy(() => import('./pages/committees/MeetingDetail'));
+const Recruitment       = lazy(() => import('./pages/Recruitment'));
+const DataManagement    = lazy(() => import('./pages/DataManagement'));
+const Calendar          = lazy(() => import('./pages/Calendar'));
+const PMSIndex          = lazy(() => import('./pages/pms/Index'));
+const PMSCycles         = lazy(() => import('./pages/pms/Cycles'));
+const PMSCollegiums     = lazy(() => import('./pages/pms/Collegiums'));
+const PMSReports        = lazy(() => import('./pages/pms/Reports'));
+const ReportNew         = lazy(() => import('./pages/pms/ReportNew'));
+const ReportView        = lazy(() => import('./pages/pms/ReportView'));
+const ReportEdit        = lazy(() => import('./pages/pms/ReportEdit'));
+const AssignEvaluators  = lazy(() => import('./pages/pms/AssignEvaluators'));
+const EvaluatorQueue    = lazy(() => import('./pages/pms/EvaluatorQueue'));
+const EvaluateReport    = lazy(() => import('./pages/pms/EvaluateReport'));
+const ChairmanQueue     = lazy(() => import('./pages/pms/ChairmanQueue'));
+const CommitteeQueue    = lazy(() => import('./pages/pms/CommitteeQueue'));
+const PmsAuditLog       = lazy(() => import('./pages/pms/AuditLog'));
+const DatabaseWizard    = lazy(() => import('./pages/DatabaseWizard'));
+const TicketList        = lazy(() => import('./pages/helpdesk/TicketList'));
+const TicketDetail      = lazy(() => import('./pages/helpdesk/TicketDetail'));
+const TicketForm        = lazy(() => import('./pages/helpdesk/TicketForm'));
+const IrinsSync         = lazy(() => import('./pages/IrinsSync'));
+
+function RouteFallback() {
+  return (
+    <div className="min-h-[40vh] w-full flex items-center justify-center text-text-muted text-sm">
+      Loading…
+    </div>
+  );
+}
 
 interface ProtectedRouteProps {
   allowedRoles?: Role[];
@@ -89,6 +102,7 @@ function App() {
         {/* Protected Application Routes */}
         <Route element={<ProtectedRoute />}>
           <Route element={<Layout />}>
+            <Route element={<Suspense fallback={<RouteFallback />}><Outlet /></Suspense>}>
             <Route path="/" element={<Dashboard />} />
             <Route path="/director"      element={<ProtectedRoute allowedRoles={['Director']}><Dashboard /></ProtectedRoute>} />
             <Route path="/division-head" element={<ProtectedRoute allowedRoles={['DivisionHead']}><Dashboard /></ProtectedRoute>} />
@@ -140,6 +154,7 @@ function App() {
             <Route path="/pms/audit" element={<ProtectedRoute allowedRoles={['HRAdmin','SystemAdmin','MasterAdmin']}><PmsAuditLog /></ProtectedRoute>} />
             <Route path="/db-wizard" element={<ProtectedRoute allowedRoles={['SystemAdmin','MasterAdmin']}><DatabaseWizard /></ProtectedRoute>} />
             <Route path="/irins-sync" element={<ProtectedRoute allowedRoles={['SystemAdmin','MasterAdmin']}><IrinsSync /></ProtectedRoute>} />
+            </Route>
           </Route>
         </Route>
 
