@@ -50,17 +50,17 @@ VALUES
     ('a0000001-0000-0000-0000-000000000001', 'ADV/2026/001',
      'Senior Scientist — Refractory Ceramics',
      'Lead research on next-gen mullite-bonded SiC refractories for high-temperature industrial applications. Ph.D. + 5 yrs post-PhD experience required.',
-     'ARC', '2026-04-15', '2026-06-15', 'Published'),
+     'ARC', '2026-04-15', '2026-06-15', 'Open'),
 
     ('a0000001-0000-0000-0000-000000000002', 'ADV/2026/002',
      'Scientist — Energy Materials',
      'Develop next-generation cathode materials for sodium-ion battery systems. Ph.D. in Chemistry or Materials Science required.',
-     'EEC', '2026-04-20', '2026-06-20', 'Published'),
+     'EEC', '2026-04-20', '2026-06-20', 'Open'),
 
     ('a0000001-0000-0000-0000-000000000003', 'ADV/2026/003',
      'Technical Officer — Electron Microscopy',
      'Operate SEM/TEM systems, train users, maintain sample preparation lab. M.Sc./M.Tech with hands-on EM experience.',
-     'NST', '2026-04-25', '2026-05-30', 'Published'),
+     'NST', '2026-04-25', '2026-05-30', 'Open'),
 
     ('a0000001-0000-0000-0000-000000000004', 'ADV/2026/004',
      'HR Admin Officer',
@@ -106,7 +106,7 @@ VALUES
     ('b0000001-0000-0000-0000-000000000005', 'a0000001-0000-0000-0000-000000000005',
      'POST-005-A', 'Project Associate I', 'Biomedical Engineering', 2, 'Level 6', 'Max 30 yrs',
      'M.Tech / Ph.D. in Biomedical Engineering. Experience in tissue engineering and hydroxyapatite scaffolds.',
-     'Closed')
+     'Filled')
 ON CONFLICT (id) DO NOTHING;
 
 
