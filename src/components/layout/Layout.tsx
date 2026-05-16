@@ -78,6 +78,7 @@ const NAV_SECTIONS: NavSection[] = [
     label: 'Research Ops',
     items: [
       { path: '/projects',     label: 'Projects',        icon: Briefcase,       allowedRoles: ['Director', 'DivisionHead', 'Scientist', 'FinanceAdmin', 'SystemAdmin', 'MasterAdmin'] },
+      { path: '/proposals',    label: 'Proposals',       icon: FileText,        allowedRoles: ['Scientist', 'HOD', 'DivisionHead', 'Director', 'HRAdmin', 'SystemAdmin', 'MasterAdmin'] },
       { path: '/facilities',   label: 'Instruments',     icon: Building2,       allowedRoles: ['Director', 'DivisionHead', 'Technician', 'SystemAdmin', 'MasterAdmin'] },
     ],
   },
