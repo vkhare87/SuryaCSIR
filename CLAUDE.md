@@ -221,13 +221,24 @@ Read the relevant `.claude/skills/*` before working on PMS, RLS, or new UI primi
 
 ## Known Tech Debt
 
+**Open:**
 - **HR column casing**: `"divCode"`, `"DOJ"`, `"CompletioDate"` (typo) etc. — quoted CamelCase, mirrors source Excel. Renaming to snake_case is a coordinated DB-migration + code-change task; out of scope for now.
-- **`scientificOutputs` / `ipIntelligence`**: Supabase tables exist but `DataContext` still falls back to mock for these. Wire-up pending.
-- **Calendar / Recruitment**: hardcoded sample data, no Supabase backing.
-- **No tests**: zero test files in `src/`. `dateUtils.ts` and `dataMigration.ts` are highest-priority unit-test candidates.
-- **No error boundary** and `DataContext` swallows fetch errors silently.
-- **Hardcoded auth fallback** in `AuthContext` predates real Supabase Auth — expected to be removed once Supabase Auth is fully wired.
-- **`dist/build artifacts`** were tracked in early commits (now cleaned).
+- **Bundle size**: production `index.js` is ~3.3 MB raw / 993 KB gzipped. No code-splitting yet. Heavy contributors: `@react-pdf/renderer`, `xlsx`, `recharts`. Lazy-load PDF/Excel routes via `React.lazy()` to drop initial payload.
+- **`dataMigration.ts` tests**: still no unit test coverage. Lowest-cost win is reviving the parser/transform spec sheet into vitest cases.
+- **DataContext error surfacing**: toast now fires on full failure + on partial table failure, but `error` state in context is still only consumed by `DataManagement.tsx`. Pages don't render an inline banner.
+- **PMS audit log table** (`pms_audit_logs`) and **module audit log** (`audit_log`) live in two tables with different shapes — unified in `AuditLog.tsx` via tabs, but no merged-timeline view.
+
+**Resolved (2026-05-16):**
+- ~~`scientificOutputs` / `ipIntelligence` Supabase wire-up~~ — loaded in `DataContext`.
+- ~~Calendar / Recruitment hardcoded data~~ — both consume `useData()` (meetings/actionItems and vacancyAdvertisements/vacancyPosts).
+- ~~No tests~~ — vitest infrastructure with `@testing-library/react` + jsdom; 5 test files, 127 tests passing (`dateUtils`, committees/helpdesk permissions, helpdesk routing, EmptyState component).
+- ~~No error boundary~~ — `src/components/ErrorBoundary.tsx` wraps `<App />` in `main.tsx`.
+- ~~Hardcoded auth fallback~~ — `admin@dev.local` bypass gated behind `import.meta.env.DEV`; absent from production bundle.
+- ~~`dist/` artifacts tracked~~ — cleaned.
+
+**Deferred:**
+- Empty/error UI for individual pages on Supabase failure — currently a toast appears but blank lists render. Per-page `<EmptyState>` already covers empty-success path; needs an error-distinct variant.
+- Code-split admin-only routes (`/data`, `/pms/audit`, `/audit`) so non-admin sessions don't ship those bundles.
 
 ---
 

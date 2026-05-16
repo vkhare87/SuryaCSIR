@@ -109,8 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string; otpSent?: boolean }> => {
-    // DEV BYPASS — remove before production
-    if (email === 'admin@dev.local' && password === 'admin123') {
+    if (import.meta.env.DEV && email === 'admin@dev.local' && password === 'admin123') {
       setUser({
         id: 'dev-admin',
         email,

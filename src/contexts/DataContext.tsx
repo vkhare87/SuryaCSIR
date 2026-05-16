@@ -51,6 +51,7 @@ import {
   mapHelpdeskRoutingRow,
 } from '../utils/dataMapper';
 import { useAuth } from './AuthContext';
+import { useToast } from './ToastContext';
 import { logger } from '../utils/logger';
 
 // ---------------------------------------------------------------------------
@@ -121,6 +122,7 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export function DataProvider({ children }: { children: ReactNode }) {
   const { role, divisionCode } = useAuth();
+  const { push: pushToast } = useToast();
   const provisioned = isProvisioned();
 
   const [divisions, setDivisions] = useState<DivisionInfo[]>([]);
@@ -212,6 +214,39 @@ export function DataProvider({ children }: { children: ReactNode }) {
         supabase.from('helpdesk_routing').select('*'),
       ]);
 
+      // Surface per-table errors — Promise.all hides them as empty data
+      const tableErrors: { table: string; message: string }[] = [];
+      const checkTable = (name: string, res: { error: { message: string } | null }) => {
+        if (res.error) tableErrors.push({ table: name, message: res.error.message });
+      };
+      checkTable('divisions', divRes);
+      checkTable('staff', staffRes);
+      checkTable('projects', projRes);
+      checkTable('project_staff', psRes);
+      checkTable('phd_students', phdRes);
+      checkTable('equipment', equipRes);
+      checkTable('labs', labsRes);
+      checkTable('scientific_outputs', soRes);
+      checkTable('ip_intelligence', ipRes);
+      checkTable('contract_staff', csRes);
+      checkTable('vacancy_advertisements', vaRes);
+      checkTable('vacancy_posts', vpRes);
+      checkTable('committees', cmtRes);
+      checkTable('committee_members', cmmRes);
+      checkTable('meetings', mtgRes);
+      checkTable('agenda_items', agiRes);
+      checkTable('action_items', actRes);
+      checkTable('meeting_documents', mdcRes);
+      checkTable('tickets', tktRes);
+      checkTable('ticket_responses', trsRes);
+      checkTable('ticket_events', tevRes);
+      checkTable('helpdesk_routing', hrtRes);
+      if (tableErrors.length > 0) {
+        const summary = `${tableErrors.length} table(s) failed to load: ${tableErrors.map(e => e.table).join(', ')}`;
+        logger.error('partial_data_load_failed', new Error(summary), { tableErrors });
+        pushToast(summary, 'warning');
+      }
+
       const rawStaff = staffRes.data ? staffRes.data.map(mapStaffRow) : [];
       const rawProjects = projRes.data ? projRes.data.map(mapProjectRow) : [];
       const rawEquipment = equipRes.data ? equipRes.data.map(mapEquipmentRow) : [];
@@ -242,6 +277,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const message = err instanceof Error ? err.message : 'Failed to load data';
       setError(message);
       logger.error('data_load_failed', err, { role, divisionCode });
+      pushToast(`Data load failed: ${message}`, 'error');
       resetAll();
     } finally {
       setIsLoading(false);
