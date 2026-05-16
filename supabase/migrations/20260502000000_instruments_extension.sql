@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS public.labs (
   id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   lab_code   text UNIQUE NOT NULL,
   lab_name   text NOT NULL,
-  div_code   text REFERENCES public."DivisionInfo"("divCode"),
+  div_code   text REFERENCES public.divisions("divCode"),
   created_at timestamptz DEFAULT now()
 );
 
