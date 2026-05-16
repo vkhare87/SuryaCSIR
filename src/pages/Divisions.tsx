@@ -6,11 +6,13 @@ import { DataTable } from '../components/ui/DataTable';
 import {
   Search, Crown, Target, Phone, Users, Lightbulb, Info,
   Briefcase, Settings2, BookOpen, ChevronRight, AlertTriangle,
-  CheckCircle2, Clock, ExternalLink, Building2
+  CheckCircle2, Clock, ExternalLink, Building2, Plus, Edit,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { EmptyState } from '../components/ui/EmptyState';
-import type { StaffMember } from '../types';
+import { useCanEdit } from '../lib/permissions/canEdit';
+import { DivisionFormModal } from '../components/DivisionFormModal';
+import type { DivisionInfo, StaffMember } from '../types';
 
 export default function Divisions() {
   const { divisions, staff, projects, equipment, scientificOutputs, ipIntelligence, isLoading } = useData();
@@ -19,6 +21,9 @@ export default function Divisions() {
   const [selectedDivCode, setSelectedDivCode] = useState<string | null>(
     divisions.length > 0 ? divisions[0].divCode : null
   );
+  const canEdit = useCanEdit('hr');
+  const [editTarget, setEditTarget] = useState<DivisionInfo | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
 
   const filteredDivisions = divisions.filter(div => {
     const s = searchQuery.toLowerCase();
@@ -175,7 +180,7 @@ export default function Divisions() {
 
       {/* Sidebar */}
       <div className="w-80 border-r border-border bg-surface flex flex-col h-full shrink-0">
-        <div className="p-4 border-b border-border">
+        <div className="p-4 border-b border-border space-y-2">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted w-4 h-4" />
             <input
@@ -186,6 +191,14 @@ export default function Divisions() {
               className="w-full pl-9 pr-4 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3898ec]/50 text-text transition-all"
             />
           </div>
+          {canEdit && (
+            <button
+              onClick={() => setShowCreate(true)}
+              className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 bg-[#c96442] text-[#faf9f5] rounded-lg text-sm font-medium hover:bg-[#b5593b] transition-colors"
+            >
+              <Plus size={14} /> New Division
+            </button>
+          )}
         </div>
         <div className="flex-1 overflow-y-auto stylish-scrollbar">
           {filteredDivisions.map(div => {
@@ -250,7 +263,17 @@ export default function Divisions() {
               )}
               <div className="h-px flex-1 bg-border" />
             </div>
-            <h1 className="text-5xl font-[500] tracking-tight text-text uppercase font-serif">{selectedDiv.divName}</h1>
+            <div className="flex items-start justify-between gap-4">
+              <h1 className="text-5xl font-[500] tracking-tight text-text uppercase font-serif">{selectedDiv.divName}</h1>
+              {canEdit && (
+                <button
+                  onClick={() => setEditTarget(selectedDiv)}
+                  className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-border rounded-lg text-xs font-medium text-text hover:bg-surface-hover transition-colors"
+                >
+                  <Edit size={12} /> Edit
+                </button>
+              )}
+            </div>
             <p className="text-lg text-text-muted italic font-medium leading-relaxed max-w-3xl border-l-4 border-[#c96442] pl-6">
               "{selectedDiv.divDescription || 'No description available for this division.'}"
             </p>
@@ -556,6 +579,20 @@ export default function Divisions() {
         )}
 
       </div>
+
+      {canEdit && (
+        <>
+          <DivisionFormModal
+            isOpen={showCreate}
+            onClose={() => setShowCreate(false)}
+          />
+          <DivisionFormModal
+            isOpen={!!editTarget}
+            onClose={() => setEditTarget(null)}
+            division={editTarget}
+          />
+        </>
+      )}
     </div>
   );
 }

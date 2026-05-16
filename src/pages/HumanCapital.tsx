@@ -6,18 +6,22 @@ import { DataTable } from '../components/ui/DataTable';
 import { Card } from '../components/ui/Cards';
 import { Badge } from '../components/ui/Cards';
 import { EmptyState } from '../components/ui/EmptyState';
-import { Search, Filter, Users } from 'lucide-react';
+import { Search, Filter, Users, Plus } from 'lucide-react';
 import { TableSkeleton } from '../components/ui/Skeleton';
+import { useCanEdit } from '../lib/permissions/canEdit';
+import { StaffFormModal } from '../components/StaffFormModal';
 import type { StaffMember } from '../types';
 
 export default function HumanCapital() {
   const { staff, divisions } = useData();
   const { hasPermission } = useAuth();
   const canUpload = hasPermission(['HRAdmin', 'SystemAdmin', 'MasterAdmin']);
+  const canEdit = useCanEdit('hr');
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDivision, setSelectedDivision] = useState<string>('ALL');
   const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
 
   // Simulate data fetch effect for polish demo (only once)
   useState(() => {
@@ -136,9 +140,17 @@ export default function HumanCapital() {
           <h1 className="text-2xl font-[500] text-text font-serif">Human Capital</h1>
           <p className="text-text-muted mt-1">Staff Directory and Division Assignments</p>
         </div>
-        
+
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-3">
+          {canEdit && (
+            <button
+              onClick={() => setShowCreate(true)}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#c96442] text-[#faf9f5] rounded-lg text-sm font-medium hover:bg-[#b5593b] transition-colors"
+            >
+              <Plus size={14} /> New Staff
+            </button>
+          )}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted w-4 h-4" />
             <input 
@@ -192,6 +204,13 @@ export default function HumanCapital() {
           </>
         )}
       </Card>
+
+      {canEdit && (
+        <StaffFormModal
+          isOpen={showCreate}
+          onClose={() => setShowCreate(false)}
+        />
+      )}
     </div>
   );
 }

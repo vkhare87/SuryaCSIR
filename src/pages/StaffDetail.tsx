@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
 import { Card, Badge, StatCard } from '../components/ui/Cards';
@@ -5,8 +6,10 @@ import { Button } from '../components/ui/Button';
 import {
   ArrowLeft, Mail, Phone, MapPin, Award, BookOpen, Briefcase,
   ChevronRight, GitBranch, GraduationCap,
-  FileText, Lightbulb, CalendarDays, TrendingUp, Wrench
+  FileText, Lightbulb, CalendarDays, TrendingUp, Wrench, Edit,
 } from 'lucide-react';
+import { useCanEdit } from '../lib/permissions/canEdit';
+import { StaffFormModal } from '../components/StaffFormModal';
 import {
   getRetirementDate, formatDate,
   getAgeFromDOB, getServiceYears, getYearsInGrade,
@@ -18,6 +21,8 @@ import ScientistProfile from '../components/ScientistProfile';
 export default function StaffDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const canEdit = useCanEdit('hr');
+  const [editOpen, setEditOpen] = useState(false);
   const {
     staff,
     divisions,
@@ -94,10 +99,18 @@ export default function StaffDetail() {
         >
           <ArrowLeft size={20} />
         </button>
-        <div>
+        <div className="flex-1">
           <h1 className="text-2xl font-[500] text-text font-serif">Staff Profile</h1>
           <p className="text-text-muted text-sm">Detailed Human Capital Record</p>
         </div>
+        {canEdit && (
+          <button
+            onClick={() => setEditOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-surface border border-border rounded-lg text-sm font-medium text-text hover:bg-surface-hover transition-colors"
+          >
+            <Edit size={14} /> Edit Profile
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -501,6 +514,14 @@ export default function StaffDetail() {
 
         </div>
       </div>
+
+      {canEdit && (
+        <StaffFormModal
+          isOpen={editOpen}
+          onClose={() => setEditOpen(false)}
+          staffMember={member}
+        />
+      )}
     </div>
   );
 }
