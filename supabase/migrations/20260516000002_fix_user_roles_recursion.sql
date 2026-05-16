@@ -1,0 +1,27 @@
+-- Migration: fix infinite recursion in user_roles SELECT RLS
+--
+-- Symptom (from the live project):
+--   SELECT * FROM user_roles WHERE user_id = '<own uid>'
+--     ERROR 42P17 — "infinite recursion detected in policy for
+--     relation \"user_roles\""
+--
+-- Root cause:
+--   Two SELECT policies were defined:
+--     user_roles_select_own  USING (auth.uid() = user_id)
+--     user_roles_select_admin USING (user_has_role('SystemAdmin') OR ...)
+--   user_has_role() is declared SECURITY DEFINER but in practice the
+--   policy evaluator still triggers RLS re-check on user_roles inside
+--   the function body when invoked from a policy context, causing a
+--   cycle. The "own row" policy alone is sufficient for the login flow
+--   — AuthContext.resolveUserRoles() only ever queries the caller's
+--   own user_id.
+--
+-- Fix:
+--   Drop user_roles_select_admin. Admin features that need to list
+--   roles for other users should call a SECURITY DEFINER RPC (or use
+--   service-role from an Edge Function), not query the table directly.
+--
+-- Side effect: the existing user_roles_insert/update/delete admin
+-- policies remain intact, so MasterAdmin can still grant/revoke roles.
+
+DROP POLICY IF EXISTS "user_roles_select_admin" ON public.user_roles;
