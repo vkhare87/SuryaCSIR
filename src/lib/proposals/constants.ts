@@ -39,17 +39,17 @@ export const STATUS_LABELS: Record<ProposalStatus, string> = {
 };
 
 // Tailwind semantic token classes for Badge color
-export const STATUS_BADGE_VARIANT: Record<ProposalStatus, 'gray' | 'blue' | 'amber' | 'green' | 'red'> = {
-  DRAFT: 'gray',
-  SUBMITTED: 'blue',
-  UNDER_REVIEW: 'blue',
-  REVISION_REQUESTED: 'amber',
-  REJECTED: 'red',
-  RECOMMENDED: 'blue',
-  APPROVED: 'green',
-  OM_ISSUED: 'green',
-  ARCHIVED: 'gray',
-  LINKED: 'green',
+export const STATUS_BADGE_VARIANT: Record<ProposalStatus, 'success' | 'warning' | 'danger' | 'info' | 'neutral'> = {
+  DRAFT: 'neutral',
+  SUBMITTED: 'info',
+  UNDER_REVIEW: 'info',
+  REVISION_REQUESTED: 'warning',
+  REJECTED: 'danger',
+  RECOMMENDED: 'info',
+  APPROVED: 'success',
+  OM_ISSUED: 'success',
+  ARCHIVED: 'neutral',
+  LINKED: 'success',
 };
 
 export const FUND_TYPES = ['Internal', 'External'] as const;
