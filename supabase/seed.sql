@@ -329,11 +329,11 @@ ON CONFLICT (id) DO NOTHING;
 INSERT INTO public.meeting_documents
     (id, meeting_id, file_name, storage_path, uploaded_at)
 VALUES
-    ('doc-01', 'cccccccc-cccc-cccc-cccc-000000000001', 'Q1_Research_Meeting_Agenda.pdf', 'committee-docs/mtg-01/agenda.pdf', '2026-03-15T00:00:00Z'),
-    ('doc-02', 'cccccccc-cccc-cccc-cccc-000000000001', 'Q1_Research_Review_Minutes.pdf', 'committee-docs/mtg-01/minutes.pdf', '2026-04-12T00:00:00Z'),
-    ('doc-03', 'cccccccc-cccc-cccc-cccc-000000000004', 'XRD_Technical_Specs.pdf', 'committee-docs/mtg-04/specs.pdf', '2026-03-20T00:00:00Z'),
-    ('doc-04', 'cccccccc-cccc-cccc-cccc-000000000007', 'PhD_Synopsis_Review_Minutes.pdf', 'committee-docs/mtg-07/minutes.pdf', '2026-03-25T00:00:00Z'),
-    ('doc-05', 'cccccccc-cccc-cccc-cccc-000000000013', 'Safety_Audit_Report_2025.pdf', 'committee-docs/mtg-13/audit.pdf', '2026-02-15T00:00:00Z')
+    ('dddddddd-dddd-dddd-dddd-000000000001', 'cccccccc-cccc-cccc-cccc-000000000001', 'Q1_Research_Meeting_Agenda.pdf', 'committee-docs/mtg-01/agenda.pdf', '2026-03-15T00:00:00Z'),
+    ('dddddddd-dddd-dddd-dddd-000000000002', 'cccccccc-cccc-cccc-cccc-000000000001', 'Q1_Research_Review_Minutes.pdf', 'committee-docs/mtg-01/minutes.pdf', '2026-04-12T00:00:00Z'),
+    ('dddddddd-dddd-dddd-dddd-000000000003', 'cccccccc-cccc-cccc-cccc-000000000004', 'XRD_Technical_Specs.pdf', 'committee-docs/mtg-04/specs.pdf', '2026-03-20T00:00:00Z'),
+    ('dddddddd-dddd-dddd-dddd-000000000004', 'cccccccc-cccc-cccc-cccc-000000000007', 'PhD_Synopsis_Review_Minutes.pdf', 'committee-docs/mtg-07/minutes.pdf', '2026-03-25T00:00:00Z'),
+    ('dddddddd-dddd-dddd-dddd-000000000005', 'cccccccc-cccc-cccc-cccc-000000000013', 'Safety_Audit_Report_2025.pdf', 'committee-docs/mtg-13/audit.pdf', '2026-02-15T00:00:00Z')
 ON CONFLICT (id) DO NOTHING;
 
 
