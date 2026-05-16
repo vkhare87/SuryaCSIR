@@ -338,6 +338,7 @@ begin
   if p_notes is null or length(trim(p_notes)) = 0 then raise exception 'notes_required'; end if;
 
   select status into v_status from public.proposals where id = p_id for update;
+  if not found then raise exception 'proposal_not_found'; end if;
   if v_status <> 'UNDER_REVIEW' then
     raise exception 'invalid_status_transition: % -> REVISION_REQUESTED', v_status;
   end if;
@@ -367,6 +368,7 @@ begin
   if p_reason is null or length(trim(p_reason)) = 0 then raise exception 'reason_required'; end if;
 
   select status into v_status from public.proposals where id = p_id for update;
+  if not found then raise exception 'proposal_not_found'; end if;
   if v_status <> 'UNDER_REVIEW' then
     raise exception 'invalid_status_transition: % -> REJECTED', v_status;
   end if;
@@ -394,6 +396,7 @@ declare v_status text;
 begin
   if not public.proposals_caller_is_admin() then raise exception 'not_admin'; end if;
   select status into v_status from public.proposals where id = p_id for update;
+  if not found then raise exception 'proposal_not_found'; end if;
   if v_status <> 'UNDER_REVIEW' then
     raise exception 'invalid_status_transition: % -> RECOMMENDED', v_status;
   end if;
@@ -423,6 +426,7 @@ begin
   if p_date is null then raise exception 'sanction_date_required'; end if;
 
   select status into v_status from public.proposals where id = p_id for update;
+  if not found then raise exception 'proposal_not_found'; end if;
   if v_status <> 'RECOMMENDED' then
     raise exception 'invalid_status_transition: % -> APPROVED', v_status;
   end if;
@@ -464,6 +468,7 @@ begin
   end if;
 
   select status into v_status from public.proposals where id = p_id for update;
+  if not found then raise exception 'proposal_not_found'; end if;
   if v_status <> 'APPROVED' then
     raise exception 'invalid_status_transition: % -> OM_ISSUED', v_status;
   end if;
@@ -493,6 +498,7 @@ declare v_status text;
 begin
   if not public.proposals_caller_is_admin() then raise exception 'not_admin'; end if;
   select status into v_status from public.proposals where id = p_id for update;
+  if not found then raise exception 'proposal_not_found'; end if;
   if v_status <> 'OM_ISSUED' then
     raise exception 'invalid_status_transition: % -> ARCHIVED', v_status;
   end if;
@@ -526,6 +532,7 @@ begin
   end if;
 
   select status into v_status from public.proposals where id = p_id for update;
+  if not found then raise exception 'proposal_not_found'; end if;
   if v_status <> 'OM_ISSUED' then
     raise exception 'invalid_status_transition: % -> LINKED', v_status;
   end if;
