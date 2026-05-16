@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { provisionDatabase } from '../utils/supabaseClient';
+import { Navigate } from 'react-router-dom';
+import { provisionDatabase, isProvisioned } from '../utils/supabaseClient';
 import { Card } from '../components/ui/Cards';
 import { Button } from '../components/ui/Button';
 
@@ -7,6 +8,10 @@ export default function SetupWizard() {
   const [url, setUrl] = useState('');
   const [key, setKey] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  if (isProvisioned()) {
+    return <Navigate to="/login" replace />;
+  }
 
   const handleProvision = async (e: React.FormEvent) => {
     e.preventDefault();

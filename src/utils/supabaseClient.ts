@@ -38,6 +38,7 @@ export function isProvisioned(): boolean {
 export function provisionDatabase(url: string, key: string): void {
   localStorage.setItem('surya_supabase_url', url);
   localStorage.setItem('surya_supabase_anon_key', key);
-  // Reload so the module re-initializes with the new credentials
+  // Redirect to login so the post-reload route is not /setup
+  window.location.hash = '#/login';
   window.location.reload();
 }
