@@ -5,8 +5,12 @@
 --   SELECT remains open to all authenticated users.
 --   Admin roles (Director, SystemAdmin, MasterAdmin) can bypass via unlock RPC.
 
--- 1. Drop the existing all-in-one meetings_write policy
-DROP POLICY IF EXISTS "meetings_write" ON public.meetings;
+-- 1. Drop existing meetings policies (idempotent re-run safe)
+DROP POLICY IF EXISTS "meetings_write"  ON public.meetings;
+DROP POLICY IF EXISTS "meetings_select" ON public.meetings;
+DROP POLICY IF EXISTS "meetings_insert" ON public.meetings;
+DROP POLICY IF EXISTS "meetings_update" ON public.meetings;
+DROP POLICY IF EXISTS "meetings_delete" ON public.meetings;
 
 -- 2. SELECT policy — all authenticated users can read meetings (no lock guard)
 CREATE POLICY "meetings_select"

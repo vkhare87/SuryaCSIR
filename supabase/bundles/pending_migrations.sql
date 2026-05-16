@@ -245,6 +245,30 @@ ALTER TABLE public.ticket_events      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.helpdesk_routing   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.audit_log          ENABLE ROW LEVEL SECURITY;
 
+-- Idempotency: drop any pre-existing policies before recreating
+DROP POLICY IF EXISTS "committees_select"        ON public.committees;
+DROP POLICY IF EXISTS "committee_members_select" ON public.committee_members;
+DROP POLICY IF EXISTS "meetings_select"          ON public.meetings;
+DROP POLICY IF EXISTS "agenda_items_select"      ON public.agenda_items;
+DROP POLICY IF EXISTS "action_items_select"      ON public.action_items;
+DROP POLICY IF EXISTS "meeting_documents_select" ON public.meeting_documents;
+DROP POLICY IF EXISTS "tickets_select"           ON public.tickets;
+DROP POLICY IF EXISTS "ticket_responses_select"  ON public.ticket_responses;
+DROP POLICY IF EXISTS "ticket_events_select"     ON public.ticket_events;
+DROP POLICY IF EXISTS "helpdesk_routing_select"  ON public.helpdesk_routing;
+DROP POLICY IF EXISTS "audit_log_select"         ON public.audit_log;
+DROP POLICY IF EXISTS "committees_write"         ON public.committees;
+DROP POLICY IF EXISTS "committee_members_write"  ON public.committee_members;
+DROP POLICY IF EXISTS "meetings_write"           ON public.meetings;
+DROP POLICY IF EXISTS "agenda_items_write"       ON public.agenda_items;
+DROP POLICY IF EXISTS "action_items_write"       ON public.action_items;
+DROP POLICY IF EXISTS "meeting_documents_write"  ON public.meeting_documents;
+DROP POLICY IF EXISTS "tickets_write"            ON public.tickets;
+DROP POLICY IF EXISTS "ticket_responses_write"   ON public.ticket_responses;
+DROP POLICY IF EXISTS "ticket_events_write"      ON public.ticket_events;
+DROP POLICY IF EXISTS "helpdesk_routing_write"   ON public.helpdesk_routing;
+DROP POLICY IF EXISTS "audit_log_write"          ON public.audit_log;
+
 -- SELECT policies: all authenticated users can read all tables
 CREATE POLICY "committees_select"        ON public.committees         FOR SELECT TO authenticated USING (true);
 CREATE POLICY "committee_members_select" ON public.committee_members  FOR SELECT TO authenticated USING (true);
@@ -515,8 +539,12 @@ CREATE POLICY "committee_docs_insert"
 --   SELECT remains open to all authenticated users.
 --   Admin roles (Director, SystemAdmin, MasterAdmin) can bypass via unlock RPC.
 
--- 1. Drop the existing all-in-one meetings_write policy
-DROP POLICY IF EXISTS "meetings_write" ON public.meetings;
+-- 1. Drop existing meetings policies (idempotent re-run safe)
+DROP POLICY IF EXISTS "meetings_write"  ON public.meetings;
+DROP POLICY IF EXISTS "meetings_select" ON public.meetings;
+DROP POLICY IF EXISTS "meetings_insert" ON public.meetings;
+DROP POLICY IF EXISTS "meetings_update" ON public.meetings;
+DROP POLICY IF EXISTS "meetings_delete" ON public.meetings;
 
 -- 2. SELECT policy — all authenticated users can read meetings (no lock guard)
 CREATE POLICY "meetings_select"
