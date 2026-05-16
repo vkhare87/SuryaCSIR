@@ -8,6 +8,7 @@ import { UIProvider } from './contexts/UIContext.tsx'
 import { AuthProvider } from './contexts/AuthContext.tsx'
 import { DataProvider } from './contexts/DataContext.tsx'
 import { PMSProvider } from './contexts/PMSContext.tsx'
+import { ProposalsProvider } from './contexts/ProposalsContext.tsx'
 import { ToastProvider } from './contexts/ToastContext.tsx'
 
 createRoot(document.getElementById('root')!).render(
@@ -19,7 +20,9 @@ createRoot(document.getElementById('root')!).render(
             <AuthProvider>
               <DataProvider>
                 <PMSProvider>
-                  <App />
+                  <ProposalsProvider>
+                    <App />
+                  </ProposalsProvider>
                 </PMSProvider>
               </DataProvider>
             </AuthProvider>
