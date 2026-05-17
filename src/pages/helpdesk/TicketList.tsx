@@ -7,9 +7,11 @@ import {
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Card, Badge } from '../../components/ui/Cards';
-import { KpiCard } from '../../components/ui/KpiCard';
 import { CardSkeleton } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { InsightsStrip } from '../../components/viz/InsightsStrip';
+import { KpiTile } from '../../components/viz/KpiTile';
+import { MiniBar } from '../../components/viz/MiniBar';
 import {
   URGENCY_COLORS, CATEGORY_CONFIG,
   URGENCY_SORT_ORDER, STATUS_SORT_ORDER,
@@ -82,6 +84,14 @@ export default function TicketList() {
     resolved: visibleTickets.filter((t) => t.status === 'Resolved').length,
   }), [visibleTickets]);
 
+  const urgencyMix = useMemo(
+    () => URGENCY_SORT_ORDER.map((u) => ({
+      label: u,
+      value: visibleTickets.filter((t) => t.urgency === u && t.status !== 'Closed').length,
+    })),
+    [visibleTickets],
+  );
+
   const clearFilters = () => {
     setSearchTerm('');
     setStatusFilter('All');
@@ -108,13 +118,45 @@ export default function TicketList() {
         )}
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <KpiCard label="Total"       value={kpis.total}      icon={<TicketIcon size={18} />}    sublabel="tickets" />
-        <KpiCard label="Open"        value={kpis.open}       icon={<Inbox size={18} />}         sublabel="awaiting" />
-        <KpiCard label="In Progress" value={kpis.inProgress} icon={<Clock size={18} />}         sublabel="active" />
-        <KpiCard label="Critical"    value={kpis.critical}   icon={<AlertTriangle size={18} />} sublabel="urgent" />
-        <KpiCard label="Resolved"    value={kpis.resolved}   icon={<CheckCircle2 size={18} />}  sublabel="done" />
-      </div>
+      <InsightsStrip>
+        <KpiTile
+          label="Total"
+          value={kpis.total}
+          sublabel="tickets"
+          icon={<TicketIcon size={16} />}
+          accent="brand"
+        >
+          <MiniBar data={urgencyMix} height={28} />
+        </KpiTile>
+        <KpiTile
+          label="Open"
+          value={kpis.open}
+          sublabel="awaiting"
+          icon={<Inbox size={16} />}
+          accent="warning"
+        />
+        <KpiTile
+          label="In Progress"
+          value={kpis.inProgress}
+          sublabel="active"
+          icon={<Clock size={16} />}
+          accent="neutral"
+        />
+        <KpiTile
+          label="Critical"
+          value={kpis.critical}
+          sublabel="urgent open"
+          icon={<AlertTriangle size={16} />}
+          accent="negative"
+        />
+        <KpiTile
+          label="Resolved"
+          value={kpis.resolved}
+          sublabel="done"
+          icon={<CheckCircle2 size={16} />}
+          accent="positive"
+        />
+      </InsightsStrip>
 
       <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
         <div className="relative">

@@ -3,9 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
 import { DataTable } from '../components/ui/DataTable';
-import { Card, Badge, StatCard } from '../components/ui/Cards';
+import { Card, Badge } from '../components/ui/Cards';
 import { EmptyState } from '../components/ui/EmptyState';
-import { Search, Filter, GraduationCap, Users, FileCheck, Plus, Edit } from 'lucide-react';
+import { InsightsStrip } from '../components/viz/InsightsStrip';
+import { KpiTile } from '../components/viz/KpiTile';
+import { MiniDonut } from '../components/viz/MiniDonut';
+import { Search, Filter, GraduationCap, Users, FileCheck, Award, Plus, Edit } from 'lucide-react';
 import { useCanEdit } from '../lib/permissions/canEdit';
 import { PhDStudentFormModal } from '../components/PhDStudentFormModal';
 import type { PhDStudent } from '../types';
@@ -43,6 +46,16 @@ export default function PhDTracker() {
 
   const ongoingCount = phDStudents.filter(s => s.CurrentStatus === 'Ongoing').length;
   const submittedCount = phDStudents.filter(s => s.CurrentStatus === 'Thesis Submitted').length;
+  const awardedCount = phDStudents.filter(s => s.CurrentStatus === 'Awarded').length;
+
+  const statusMix = useMemo(
+    () => [
+      { label: 'Ongoing', value: ongoingCount },
+      { label: 'Submitted', value: submittedCount },
+      { label: 'Awarded', value: awardedCount },
+    ],
+    [ongoingCount, submittedCount, awardedCount],
+  );
 
   const columns = [
     {
@@ -163,11 +176,38 @@ export default function PhDTracker() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <StatCard title="Total Scholars" value={phDStudents.length} icon={<Users />} />
-        <StatCard title="Ongoing Research" value={ongoingCount} icon={<GraduationCap />} />
-        <StatCard title="Thesis Submitted" value={submittedCount} valueColor="text-emerald-500" icon={<FileCheck />} />
-      </div>
+      <InsightsStrip className="lg:grid-cols-4 xl:grid-cols-4">
+        <KpiTile
+          label="Total Scholars"
+          value={phDStudents.length}
+          sublabel="enrolled"
+          icon={<Users size={16} />}
+          accent="brand"
+        >
+          <MiniDonut data={statusMix} size={32} />
+        </KpiTile>
+        <KpiTile
+          label="Ongoing"
+          value={ongoingCount}
+          sublabel="active research"
+          icon={<GraduationCap size={16} />}
+          accent="brand"
+        />
+        <KpiTile
+          label="Thesis Submitted"
+          value={submittedCount}
+          sublabel="awaiting defence"
+          icon={<FileCheck size={16} />}
+          accent="warning"
+        />
+        <KpiTile
+          label="Awarded"
+          value={awardedCount}
+          sublabel="degrees granted"
+          icon={<Award size={16} />}
+          accent="positive"
+        />
+      </InsightsStrip>
 
       {!isLoading && phDStudents.length === 0 ? (
         <EmptyState

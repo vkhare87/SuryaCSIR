@@ -3,6 +3,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
 import { Card, Badge } from '../components/ui/Cards';
 import { DataTable } from '../components/ui/DataTable';
+import { InsightsStrip } from '../components/viz/InsightsStrip';
+import { KpiTile } from '../components/viz/KpiTile';
+import { ProgressRing } from '../components/viz/ProgressRing';
+import { MiniBar } from '../components/viz/MiniBar';
 import {
   Search, Crown, Target, Phone, Users, Lightbulb, Info,
   Briefcase, Settings2, BookOpen, ChevronRight, AlertTriangle,
@@ -72,6 +76,24 @@ export default function Divisions() {
   const vacancyGap = selectedDiv
     ? (selectedDiv.divSanctionedstrength || 0) - (selectedDiv.divCurrentStrength || 0)
     : 0;
+
+  // Institute-wide aggregates for the InsightsStrip
+  const instituteTotals = useMemo(() => {
+    const sanctioned = divisions.reduce((s, d) => s + (d.divSanctionedstrength || 0), 0);
+    const current = divisions.reduce((s, d) => s + (d.divCurrentStrength || 0), 0);
+    const totalProjects = projects.length;
+    const activeProjects = projects.filter(p => p.ProjectStatus === 'Active').length;
+    return { sanctioned, current, gap: sanctioned - current, totalProjects, activeProjects };
+  }, [divisions, projects]);
+
+  const divisionStrengthBars = useMemo(
+    () =>
+      divisions
+        .map(d => ({ label: d.divCode, value: d.divCurrentStrength || 0 }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 8),
+    [divisions],
+  );
 
   // Derived counts
   const scientistsCount = divStaff.filter(
@@ -246,6 +268,49 @@ export default function Divisions() {
 
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto bg-background/50 p-8 space-y-8 stylish-scrollbar">
+
+        {/* Institute-wide insight strip */}
+        <InsightsStrip>
+          <KpiTile
+            label="Divisions"
+            value={divisions.length}
+            sublabel="active divisions"
+            icon={<Building2 size={16} />}
+            accent="brand"
+          />
+          <KpiTile
+            label="Current Strength"
+            value={instituteTotals.current}
+            sublabel={`of ${instituteTotals.sanctioned} sanctioned`}
+            icon={<Users size={16} />}
+            accent="positive"
+          >
+            <MiniBar data={divisionStrengthBars} height={28} />
+          </KpiTile>
+          <KpiTile
+            label="Vacancies"
+            value={instituteTotals.gap}
+            sublabel="open positions"
+            icon={<AlertTriangle size={16} />}
+            accent={instituteTotals.gap > 0 ? 'warning' : 'positive'}
+          />
+          <KpiTile
+            label="Active Projects"
+            value={instituteTotals.activeProjects}
+            sublabel={`of ${instituteTotals.totalProjects} total`}
+            icon={<Briefcase size={16} />}
+            accent="neutral"
+          />
+          <div className="bg-surface border border-border rounded-[12px] p-4 flex flex-col gap-1.5 shadow-[0px_0px_0px_1px_var(--color-border)] items-center justify-center">
+            <ProgressRing
+              value={instituteTotals.current}
+              max={Math.max(instituteTotals.sanctioned, 1)}
+              size={72}
+              label="filled"
+            />
+            <span className="text-[10px] font-semibold uppercase tracking-widest text-text-muted">Institute Strength</span>
+          </div>
+        </InsightsStrip>
 
         {/* Header */}
         <div className="relative p-12 rounded-[32px] overflow-hidden border border-border glass">

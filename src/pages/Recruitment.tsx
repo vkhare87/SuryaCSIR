@@ -1,8 +1,11 @@
 import { useMemo, useState } from 'react';
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
-import { StatCard, Card, Badge } from '../components/ui/Cards';
+import { Card, Badge } from '../components/ui/Cards';
 import { EmptyState } from '../components/ui/EmptyState';
+import { InsightsStrip } from '../components/viz/InsightsStrip';
+import { KpiTile } from '../components/viz/KpiTile';
+import { MiniBar } from '../components/viz/MiniBar';
 import {
   UserPlus,
   Search,
@@ -11,6 +14,7 @@ import {
   ClipboardList,
   Users2,
   FileText,
+  CheckCircle2,
   Megaphone,
 } from 'lucide-react';
 import type { VacancyPost } from '../types';
@@ -56,6 +60,15 @@ export default function Recruitment() {
   // Onboarding pipeline = recently Selected applicants.
   const pipeline = vacancyPosts.filter(p => p.status === 'Selected').slice(0, 5);
 
+  const selectedCount = vacancyPosts.filter(p => p.status === 'Selected').length;
+  const funnelPreview = useMemo(() => {
+    const order: VacancyPost['status'][] = ['Received', 'Shortlisted', 'Interviewed', 'Selected', 'Rejected'];
+    return order.map(s => ({
+      label: s,
+      value: vacancyPosts.filter(p => p.status === s).length,
+    }));
+  }, [vacancyPosts]);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -82,11 +95,38 @@ export default function Recruitment() {
         />
       ) : (
       <>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <StatCard title="Open Positions"  value={openVacancies.length}                icon={<Users2 />} />
-        <StatCard title="Total Applicants" value={vacancyPosts.length}                icon={<ClipboardList />} />
-        <StatCard title="Active Applicants" value={activeApplicants.length}           icon={<FileText />} />
-      </div>
+      <InsightsStrip className="lg:grid-cols-4 xl:grid-cols-4">
+        <KpiTile
+          label="Open Positions"
+          value={openVacancies.length}
+          sublabel="actively recruiting"
+          icon={<Users2 size={16} />}
+          accent="brand"
+        />
+        <KpiTile
+          label="Total Applicants"
+          value={vacancyPosts.length}
+          sublabel="across all vacancies"
+          icon={<ClipboardList size={16} />}
+          accent="neutral"
+        >
+          <MiniBar data={funnelPreview} height={28} />
+        </KpiTile>
+        <KpiTile
+          label="Active Applicants"
+          value={activeApplicants.length}
+          sublabel="not rejected"
+          icon={<FileText size={16} />}
+          accent="warning"
+        />
+        <KpiTile
+          label="Selected"
+          value={selectedCount}
+          sublabel="ready to onboard"
+          icon={<CheckCircle2 size={16} />}
+          accent="positive"
+        />
+      </InsightsStrip>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="lg:col-span-2 p-0 overflow-hidden">

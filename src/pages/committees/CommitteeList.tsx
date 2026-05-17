@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Card, Badge } from '../../components/ui/Cards';
-import { KpiCard } from '../../components/ui/KpiCard';
 import { CardSkeleton } from '../../components/ui/Skeleton';
 import { Button } from '../../components/ui/Button';
+import { InsightsStrip } from '../../components/viz/InsightsStrip';
+import { KpiTile } from '../../components/viz/KpiTile';
+import { MiniDonut } from '../../components/viz/MiniDonut';
 import {
   Building2,
   Search,
@@ -49,6 +51,15 @@ export default function CommitteeList() {
     pendingActions: actionItems.filter(a => a.status === 'Pending').length,
   }), [committees, meetings, actionItems]);
 
+  const typeMix = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const c of committees) {
+      const k = c.committee_type === 'AdHoc' ? 'Ad Hoc' : c.committee_type;
+      counts.set(k, (counts.get(k) ?? 0) + 1);
+    }
+    return Array.from(counts, ([label, value]) => ({ label, value }));
+  }, [committees]);
+
   const showCreate = user && canCreateCommittee(user);
 
   // --- Render ---
@@ -70,13 +81,45 @@ export default function CommitteeList() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <KpiCard label="Total"        value={kpis.total}        icon={<Building2 size={18} />}   sublabel="committees" />
-        <KpiCard label="Active"       value={kpis.active}       icon={<CheckCircle2 size={18} />} sublabel="active" />
-        <KpiCard label="Inactive"     value={kpis.inactive}     icon={<AlertTriangle size={18} />} sublabel="inactive" />
-        <KpiCard label="Meetings"     value={kpis.meetings}     icon={<Calendar size={18} />}    sublabel="total sessions" />
-        <KpiCard label="Pending"      value={kpis.pendingActions} icon={<Clock size={18} />}      sublabel="action items" />
-      </div>
+      <InsightsStrip>
+        <KpiTile
+          label="Total"
+          value={kpis.total}
+          sublabel="committees"
+          icon={<Building2 size={16} />}
+          accent="brand"
+        >
+          <MiniDonut data={typeMix} size={32} />
+        </KpiTile>
+        <KpiTile
+          label="Active"
+          value={kpis.active}
+          sublabel="active"
+          icon={<CheckCircle2 size={16} />}
+          accent="positive"
+        />
+        <KpiTile
+          label="Inactive"
+          value={kpis.inactive}
+          sublabel="inactive"
+          icon={<AlertTriangle size={16} />}
+          accent="neutral"
+        />
+        <KpiTile
+          label="Meetings"
+          value={kpis.meetings}
+          sublabel="total sessions"
+          icon={<Calendar size={16} />}
+          accent="neutral"
+        />
+        <KpiTile
+          label="Pending"
+          value={kpis.pendingActions}
+          sublabel="action items"
+          icon={<Clock size={16} />}
+          accent="warning"
+        />
+      </InsightsStrip>
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3 flex-wrap">

@@ -1,12 +1,54 @@
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Network } from 'lucide-react';
+import { Users, Network, UserCheck, Briefcase, Wrench } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
 import { Card } from '../../components/ui/Cards';
-import { KpiCard } from '../../components/ui/KpiCard';
+import { InsightsStrip } from '../../components/viz/InsightsStrip';
+import { KpiTile } from '../../components/viz/KpiTile';
+import { MiniDonut } from '../../components/viz/MiniDonut';
+import { MiniBar } from '../../components/viz/MiniBar';
 
 export function HRAdminView() {
   const { staff, divisions } = useData();
   const navigate = useNavigate();
+
+  const groupMix = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const s of staff) {
+      const k = s.Group || 'Unspecified';
+      counts.set(k, (counts.get(k) ?? 0) + 1);
+    }
+    return Array.from(counts, ([label, value]) => ({ label, value }));
+  }, [staff]);
+
+  const divisionLoad = useMemo(() => {
+    return divisions
+      .map(d => ({
+        label: d.divCode,
+        value: staff.filter(s => s.Division === d.divCode).length,
+      }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 8);
+  }, [divisions, staff]);
+
+  const scientistCount = useMemo(
+    () => staff.filter(s => s.Designation?.toLowerCase().includes('scientist')).length,
+    [staff],
+  );
+  const technicalCount = useMemo(
+    () =>
+      staff.filter(s =>
+        (s.Group || '').toLowerCase().includes('iii') ||
+        (s.Group || '').toLowerCase().includes('ii') ||
+        (s.Designation || '').toLowerCase().includes('technical'),
+      ).length,
+    [staff],
+  );
+  const totalSanctioned = useMemo(
+    () => divisions.reduce((s, d) => s + (d.divSanctionedstrength || 0), 0),
+    [divisions],
+  );
+  const fillPct = totalSanctioned > 0 ? Math.round((staff.length / totalSanctioned) * 100) : 0;
 
   return (
     <div className="space-y-8 pb-12">
@@ -28,21 +70,48 @@ export function HRAdminView() {
         </button>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-md">
-        <KpiCard
+      {/* Insight Strip */}
+      <InsightsStrip>
+        <KpiTile
           label="Total Staff"
           value={staff.length}
-          icon={<Users size={18} />}
-          sublabel="Permanent personnel"
+          sublabel={`${fillPct}% of ${totalSanctioned} sanctioned`}
+          icon={<Users size={16} />}
+          accent="brand"
+        >
+          <MiniDonut data={groupMix} size={32} />
+        </KpiTile>
+        <KpiTile
+          label="Scientists"
+          value={scientistCount}
+          sublabel="scientific cadre"
+          icon={<UserCheck size={16} />}
+          accent="positive"
         />
-        <KpiCard
+        <KpiTile
+          label="Technical"
+          value={technicalCount}
+          sublabel="group ii / iii"
+          icon={<Wrench size={16} />}
+          accent="neutral"
+        />
+        <KpiTile
           label="Divisions"
           value={divisions.length}
-          icon={<Network size={18} />}
-          sublabel="Active divisions"
+          sublabel="active divisions"
+          icon={<Network size={16} />}
+          accent="neutral"
+        >
+          <MiniBar data={divisionLoad} height={28} />
+        </KpiTile>
+        <KpiTile
+          label="Sanctioned"
+          value={totalSanctioned}
+          sublabel="total posts"
+          icon={<Briefcase size={16} />}
+          accent="warning"
         />
-      </div>
+      </InsightsStrip>
 
       {/* Staff Table */}
       <Card className="p-0 overflow-hidden">

@@ -3,10 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
 import { Card, Badge } from '../components/ui/Cards';
-import { KpiCard } from '../components/ui/KpiCard';
 import { DataTable } from '../components/ui/DataTable';
 import { InstrumentForm } from '../components/InstrumentForm';
 import { EmptyState } from '../components/ui/EmptyState';
+import { InsightsStrip } from '../components/viz/InsightsStrip';
+import { KpiTile } from '../components/viz/KpiTile';
+import { MiniDonut } from '../components/viz/MiniDonut';
 import {
   FlaskConical,
   MapPin,
@@ -95,6 +97,15 @@ export default function Facilities() {
     amcExpired:  equipment.filter(e => amcStatus(e.amc_end_date) === 'expired').length,
     amcExpiring: equipment.filter(e => amcStatus(e.amc_end_date) === 'expiring').length,
   }), [equipment]);
+
+  const statusMix = useMemo(() => {
+    const notWorking = equipment.length - kpis.working - kpis.maintenance;
+    return [
+      { label: 'Working', value: kpis.working },
+      { label: 'Maintenance', value: kpis.maintenance },
+      { label: 'Down', value: Math.max(0, notWorking) },
+    ];
+  }, [equipment.length, kpis.working, kpis.maintenance]);
 
   const findStaffId = (name: string) => {
     if (!name) return null;
@@ -208,13 +219,45 @@ export default function Facilities() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <KpiCard label="Total"        value={kpis.total}       icon={<FlaskConical size={18} />} sublabel="instruments" />
-        <KpiCard label="Operational"  value={kpis.working}     icon={<CheckCircle2 size={18} />} sublabel="working" />
-        <KpiCard label="Maintenance"  value={kpis.maintenance} icon={<Wrench size={18} />}       sublabel="under maintenance" />
-        <KpiCard label="AMC Expired"  value={kpis.amcExpired}  icon={<AlertTriangle size={18} />} sublabel="action needed" />
-        <KpiCard label="AMC Expiring" value={kpis.amcExpiring} icon={<CalendarClock size={18} />} sublabel="within 90 days" />
-      </div>
+      <InsightsStrip>
+        <KpiTile
+          label="Total"
+          value={kpis.total}
+          sublabel="instruments"
+          icon={<FlaskConical size={16} />}
+          accent="brand"
+        >
+          <MiniDonut data={statusMix} size={32} />
+        </KpiTile>
+        <KpiTile
+          label="Operational"
+          value={kpis.working}
+          sublabel="working"
+          icon={<CheckCircle2 size={16} />}
+          accent="positive"
+        />
+        <KpiTile
+          label="Maintenance"
+          value={kpis.maintenance}
+          sublabel="under maintenance"
+          icon={<Wrench size={16} />}
+          accent="warning"
+        />
+        <KpiTile
+          label="AMC Expired"
+          value={kpis.amcExpired}
+          sublabel="action needed"
+          icon={<AlertTriangle size={16} />}
+          accent="negative"
+        />
+        <KpiTile
+          label="AMC Expiring"
+          value={kpis.amcExpiring}
+          sublabel="within 90 days"
+          icon={<CalendarClock size={16} />}
+          accent="warning"
+        />
+      </InsightsStrip>
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3 flex-wrap">

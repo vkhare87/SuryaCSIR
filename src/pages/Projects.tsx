@@ -3,9 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
 import { DataTable } from '../components/ui/DataTable';
-import { Card, Badge, StatCard } from '../components/ui/Cards';
+import { Card, Badge } from '../components/ui/Cards';
 import { EmptyState } from '../components/ui/EmptyState';
-import { Search, Filter, Briefcase, IndianRupee, PieChart, Users, Plus } from 'lucide-react';
+import { InsightsStrip } from '../components/viz/InsightsStrip';
+import { KpiTile } from '../components/viz/KpiTile';
+import { MiniDonut } from '../components/viz/MiniDonut';
+import { Search, Filter, Briefcase, IndianRupee, PieChart, Users, CheckCircle2, Plus } from 'lucide-react';
 import { useCanEdit } from '../lib/permissions/canEdit';
 import { ProjectFormModal } from '../components/ProjectFormModal';
 import type { ProjectInfo, ProjectStaff } from '../types';
@@ -47,12 +50,37 @@ export default function Projects() {
   }, [projectStaff, searchTerm]);
 
   const activeProjects = projects.filter(p => p.ProjectStatus === 'Active');
-  
+  const completedProjects = projects.filter(p => p.ProjectStatus === 'Completed');
+
   // Calculate total budget (rough estimation for mock data since it's strings)
   const totalBudget = activeProjects.reduce((sum, p) => {
     const val = parseFloat(p.SanctionedCost.replace(/[^0-9.-]+/g,""));
     return sum + (isNaN(val) ? 0 : val);
   }, 0);
+
+  const fundMix = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const p of projects) {
+      const k = p.FundType || 'Unspecified';
+      counts.set(k, (counts.get(k) ?? 0) + 1);
+    }
+    return Array.from(counts, ([label, value]) => ({ label, value }));
+  }, [projects]);
+
+  const statusMix = [
+    { label: 'Active', value: activeProjects.length },
+    { label: 'Completed', value: completedProjects.length },
+    { label: 'Other', value: projects.length - activeProjects.length - completedProjects.length },
+  ];
+
+  const projectScientistCount = useMemo(
+    () => projectStaff.filter(s => s.Designation?.includes('Scientist')).length,
+    [projectStaff],
+  );
+  const projectAssociateCount = useMemo(
+    () => projectStaff.filter(s => s.Designation?.includes('Associate')).length,
+    [projectStaff],
+  );
 
   const columns = [
     {
@@ -285,11 +313,40 @@ export default function Projects() {
 
       {activeTab === 'projects' ? (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <StatCard title="Total Projects" value={projects.length} icon={<Briefcase />} />
-            <StatCard title="Active Projects" value={activeProjects.length} valueColor="text-emerald-500" icon={<PieChart />} />
-            <StatCard title="Extramural Budget" value={`₹${totalBudget.toLocaleString()}L+`} icon={<IndianRupee />} />
-          </div>
+          <InsightsStrip className="lg:grid-cols-4 xl:grid-cols-4">
+            <KpiTile
+              label="Total Projects"
+              value={projects.length}
+              sublabel="all status"
+              icon={<Briefcase size={16} />}
+              accent="brand"
+            >
+              <MiniDonut data={statusMix} size={32} />
+            </KpiTile>
+            <KpiTile
+              label="Active Projects"
+              value={activeProjects.length}
+              sublabel="in progress"
+              icon={<CheckCircle2 size={16} />}
+              accent="positive"
+            />
+            <KpiTile
+              label="Funding Mix"
+              value={fundMix.length}
+              sublabel="fund types"
+              icon={<PieChart size={16} />}
+              accent="neutral"
+            >
+              <MiniDonut data={fundMix} size={32} />
+            </KpiTile>
+            <KpiTile
+              label="Extramural Budget"
+              value={`₹${totalBudget.toLocaleString()}L+`}
+              sublabel="sanctioned (active)"
+              icon={<IndianRupee size={16} />}
+              accent="warning"
+            />
+          </InsightsStrip>
 
           {!isLoading && projects.length === 0 ? (
             <EmptyState
@@ -314,11 +371,29 @@ export default function Projects() {
         </>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <StatCard title="Total Project Staff" value={projectStaff.length} icon={<Users />} />
-            <StatCard title="Project Associates" value={projectStaff.filter(s => s.Designation?.includes('Associate')).length} icon={<Briefcase />} />
-            <StatCard title="Project Scientists" value={projectStaff.filter(s => s.Designation?.includes('Scientist')).length} icon={<PieChart />} />
-          </div>
+          <InsightsStrip className="lg:grid-cols-3 xl:grid-cols-3">
+            <KpiTile
+              label="Total Project Staff"
+              value={projectStaff.length}
+              sublabel="across all projects"
+              icon={<Users size={16} />}
+              accent="brand"
+            />
+            <KpiTile
+              label="Project Associates"
+              value={projectAssociateCount}
+              sublabel="associate roles"
+              icon={<Briefcase size={16} />}
+              accent="neutral"
+            />
+            <KpiTile
+              label="Project Scientists"
+              value={projectScientistCount}
+              sublabel="scientist roles"
+              icon={<PieChart size={16} />}
+              accent="positive"
+            />
+          </InsightsStrip>
 
           <Card className="p-0 overflow-hidden">
             <DataTable 
