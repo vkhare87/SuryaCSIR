@@ -4,23 +4,17 @@ let supabaseInstance: SupabaseClient | null = null;
 
 // gotrue-js uses navigator.locks by default. React StrictMode in dev
 // double-mounts the AuthProvider, which can orphan the lock and stall
-// auth resolution for ~5s per cycle. Provide an in-memory lock that just
-// serializes calls in this tab — single-tab session sharing is the
-// existing behavior anyway, since localStorage is the session store.
-const inMemoryLock = (() => {
-  let chain: Promise<unknown> = Promise.resolve();
-  return <R>(_name: string, _acquireTimeout: number, fn: () => Promise<R>): Promise<R> => {
-    const next = chain.then(() => fn());
-    chain = next.catch(() => undefined);
-    return next;
-  };
-})();
+// auth resolution for ~5s per cycle. We don't need cross-call locking in
+// a single tab — localStorage is already the session store — so the lock
+// is a pure pass-through. Earlier attempts at a promise-chain serializer
+// deadlocked when a fetch hung mid-chain.
+const noopLock = <R>(_name: string, _acquireTimeout: number, fn: () => Promise<R>): Promise<R> => fn();
 
 const clientOptions = {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    lock: inMemoryLock,
+    lock: noopLock,
   },
 };
 
