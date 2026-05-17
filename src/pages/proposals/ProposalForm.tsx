@@ -18,6 +18,7 @@ import type { StaffMember } from '../../types';
 interface FormState {
   title: string;
   acronym: string;
+  piName: string;
   domainTheme: string;
   fundType: string;
   sponsorType: string;
@@ -36,9 +37,10 @@ interface FormState {
   coPIs: ProposalCoPI[];
 }
 
-const emptyState = (defaultDivision: string): FormState => ({
+const emptyState = (defaultDivision: string, defaultPiName: string): FormState => ({
   title: '',
   acronym: '',
+  piName: defaultPiName,
   domainTheme: '',
   fundType: '',
   sponsorType: '',
@@ -67,7 +69,7 @@ export default function ProposalForm() {
   const { staff } = useData();
   const { getProposal, createDraft, updateDraft } = useProposals();
 
-  const [state, setState] = useState<FormState>(() => emptyState(user?.divisionCode ?? ''));
+  const [state, setState] = useState<FormState>(() => emptyState(user?.divisionCode ?? '', user?.email ?? ''));
   const [loaded, setLoaded] = useState<Proposal | null>(null);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
@@ -88,6 +90,7 @@ export default function ProposalForm() {
         setState({
           title: p.title,
           acronym: p.acronym ?? '',
+          piName: p.piName,
           domainTheme: p.domainTheme,
           fundType: p.fundType,
           sponsorType: p.sponsorType,
@@ -128,6 +131,7 @@ export default function ProposalForm() {
       const payload: Partial<Proposal> = {
         title: state.title,
         acronym: state.acronym || null,
+        piName: state.piName,
         domainTheme: state.domainTheme,
         fundType: state.fundType,
         sponsorType: state.sponsorType,
@@ -254,7 +258,11 @@ export default function ProposalForm() {
       </Section>
 
       <Section title="Team">
-        <Field label="Principal Investigator">
+        <Field label="Principal Investigator (display name)" required>
+          <input className={inputCls} value={state.piName}
+            onChange={(e) => set('piName', e.target.value)} />
+        </Field>
+        <Field label="Logged in as">
           <input className={inputCls} value={user?.email ?? ''} disabled />
         </Field>
         <Field label="Co-PIs">

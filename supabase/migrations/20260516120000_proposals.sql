@@ -20,7 +20,13 @@ create or replace function public.proposals_caller_division()
 returns text
 language sql stable
 as $$
-  select division_code from public.user_profiles where user_id = auth.uid();
+  -- division_code lives on user_roles, scoped by the user's active_role.
+  select ur.division_code
+    from public.user_roles ur
+    join public.user_profiles up on up.user_id = ur.user_id
+   where ur.user_id = auth.uid()
+     and ur.role = up.active_role
+   limit 1;
 $$;
 
 -- ---------- Table: proposals ----------
@@ -80,18 +86,26 @@ create index proposals_division_code_idx    on public.proposals(division_code);
 create index proposals_status_idx           on public.proposals(status);
 create index proposals_created_at_idx       on public.proposals(created_at desc);
 
--- ---------- proposal_code generator ----------
-create sequence if not exists public.proposal_code_seq;
-
+-- ---------- proposal_code generator (per-year NNNN reset) ----------
 create or replace function public.proposals_set_code()
 returns trigger
 language plpgsql
 as $$
 declare
   v_year text := to_char(now(), 'YYYY');
-  v_num  int  := nextval('public.proposal_code_seq');
+  v_num  int;
 begin
   if new.proposal_code is null or new.proposal_code = '' then
+    -- xact-scoped advisory lock per year prevents two concurrent inserts
+    -- from picking the same NNNN.
+    perform pg_advisory_xact_lock(hashtext('proposal_code_' || v_year));
+    select coalesce(
+             max((substring(proposal_code from 'PROP-' || v_year || '-(\d+)$'))::int),
+             0
+           ) + 1
+      into v_num
+      from public.proposals
+     where proposal_code like 'PROP-' || v_year || '-%';
     new.proposal_code := 'PROP-' || v_year || '-' || lpad(v_num::text, 4, '0');
   end if;
   return new;

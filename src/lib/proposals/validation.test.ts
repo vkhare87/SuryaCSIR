@@ -4,6 +4,7 @@ import { draftSchema, submitSchema } from './validation';
 const validBase = {
   title: 'Novel battery cathode',
   acronym: 'NBC',
+  piName: 'Dr. A. Scientist',
   domainTheme: 'Energy Materials',
   fundType: 'External',
   sponsorType: 'Government',

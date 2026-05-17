@@ -16,6 +16,7 @@ const trlSchema = z.number().int().min(1).max(9).nullable();
 export const draftSchema = z.object({
   title: z.string().min(1, 'Title is required'),
   acronym: z.string().nullish(),
+  piName: z.string().nullish(),
   domainTheme: z.enum([...DOMAIN_THEMES]).nullish(),
   fundType: z.enum([...FUND_TYPES]).nullish(),
   sponsorType: z.enum([...SPONSOR_TYPES]).nullish(),
@@ -37,6 +38,7 @@ export const draftSchema = z.object({
 export const submitSchema = z.object({
   title: z.string().min(1, 'Title is required'),
   acronym: z.string().nullish(),
+  piName: z.string().min(1, 'PI name is required'),
   domainTheme: z.enum([...DOMAIN_THEMES]),
   fundType: z.enum([...FUND_TYPES]),
   sponsorType: z.enum([...SPONSOR_TYPES]),
