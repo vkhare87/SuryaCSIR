@@ -70,7 +70,9 @@ create table public.proposals (
   om_number                   text,
   om_date                     date,
 
-  linked_project_no           text references public."ProjectInfo"("ProjectNo"),
+  -- No FK on linked_project_no: ProjectInfo may not exist yet in fresh
+  -- deployments. proposal_link_project RPC validates existence at runtime.
+  linked_project_no           text,
   archived                    boolean default false,
 
   created_at                  timestamptz default now(),
@@ -535,14 +537,21 @@ create or replace function public.proposal_link_project(p_id uuid, p_project_no 
 returns void
 language plpgsql security definer set search_path = public
 as $$
-declare v_status text;
+declare
+  v_status text;
+  v_exists boolean;
 begin
   if not public.proposals_caller_is_admin() then raise exception 'not_admin'; end if;
   if p_project_no is null or length(trim(p_project_no)) = 0 then
     raise exception 'project_no_required';
   end if;
-  if not exists (select 1 from public."ProjectInfo" where "ProjectNo" = p_project_no) then
-    raise exception 'project_not_found';
+  -- Only validate against ProjectInfo if that table exists (init.sql applied).
+  if to_regclass('public."ProjectInfo"') is not null then
+    execute 'select exists (select 1 from public."ProjectInfo" where "ProjectNo" = $1)'
+      into v_exists using p_project_no;
+    if not v_exists then
+      raise exception 'project_not_found';
+    end if;
   end if;
 
   select status into v_status from public.proposals where id = p_id for update;
