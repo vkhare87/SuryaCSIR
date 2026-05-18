@@ -9,6 +9,7 @@ import {
   Cell,
 } from 'recharts';
 import { colorAt } from './palette';
+import { ChartEmpty } from './ChartEmpty';
 
 export interface GanttItem {
   name: string;
@@ -32,7 +33,7 @@ function formatDate(ms: number): string {
 }
 
 export function GanttLite({ items, height = 320, onClick }: GanttLiteProps) {
-  if (items.length === 0) return null;
+  if (items.length === 0) return <ChartEmpty height={height} />;
   const rows = items
     .map((it) => {
       const s = toMs(it.start);
@@ -42,7 +43,7 @@ export function GanttLite({ items, height = 320, onClick }: GanttLiteProps) {
     })
     .filter((r): r is NonNullable<typeof r> => r !== null);
 
-  if (rows.length === 0) return null;
+  if (rows.length === 0) return <ChartEmpty height={height} />;
   const minStart = Math.min(...rows.map((r) => r.start));
   const maxEnd = Math.max(...rows.map((r) => r.end));
 

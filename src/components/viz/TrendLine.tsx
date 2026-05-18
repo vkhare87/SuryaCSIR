@@ -1,5 +1,6 @@
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { SEMANTIC } from './palette';
+import { ChartEmpty } from './ChartEmpty';
 
 export interface TrendPoint {
   label: string;
@@ -14,7 +15,7 @@ interface TrendLineProps {
 }
 
 export function TrendLine({ data, height = 240, color = SEMANTIC.brand, yLabel }: TrendLineProps) {
-  if (data.length === 0) return null;
+  if (data.length === 0) return <ChartEmpty height={height} />;
   return (
     <div style={{ width: '100%', height }}>
       <ResponsiveContainer width="100%" height="100%">

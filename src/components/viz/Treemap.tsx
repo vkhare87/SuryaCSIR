@@ -1,5 +1,6 @@
 import { ResponsiveContainer, Treemap as RTreemap } from 'recharts';
 import { colorAt } from './palette';
+import { ChartEmpty } from './ChartEmpty';
 
 export interface TreemapDatum {
   name: string;
@@ -46,7 +47,7 @@ function CustomCell({ x = 0, y = 0, width = 0, height = 0, index = 0, name = '',
 }
 
 export function Treemap({ data, height = 280, onClick }: TreemapProps) {
-  if (data.length === 0) return null;
+  if (data.length === 0) return <ChartEmpty height={height} />;
   return (
     <div style={{ width: '100%', height }}>
       <ResponsiveContainer width="100%" height="100%">

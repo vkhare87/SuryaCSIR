@@ -1,5 +1,6 @@
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 import { colorAt } from './palette';
+import { ChartEmpty } from './ChartEmpty';
 import type { CategoryDatum } from './CategoryBar';
 
 interface CategoryDonutProps {
@@ -19,7 +20,7 @@ export function CategoryDonut({
   innerRadius = '55%',
   showLegend = true,
 }: CategoryDonutProps) {
-  if (data.length === 0 || data.every((d) => d.value === 0)) return null;
+  if (data.length === 0 || data.every((d) => d.value === 0)) return <ChartEmpty height={height} />;
   return (
     <div style={{ width: '100%', height }}>
       <ResponsiveContainer width="100%" height="100%">

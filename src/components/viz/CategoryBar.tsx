@@ -1,5 +1,6 @@
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { colorAt, SEMANTIC } from './palette';
+import { ChartEmpty } from './ChartEmpty';
 
 export interface CategoryDatum {
   label: string;
@@ -27,7 +28,7 @@ export function CategoryBar({
   xLabel,
   yLabel,
 }: CategoryBarProps) {
-  if (data.length === 0) return null;
+  if (data.length === 0) return <ChartEmpty height={height} />;
   const cells = data.map((_, i) => colorAt(i));
 
   return (

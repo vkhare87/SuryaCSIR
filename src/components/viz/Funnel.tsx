@@ -1,5 +1,6 @@
 import { Funnel as RFunnel, FunnelChart, LabelList, ResponsiveContainer, Tooltip, Cell } from 'recharts';
 import { colorAt } from './palette';
+import { ChartEmpty } from './ChartEmpty';
 
 export interface FunnelStage {
   name: string;
@@ -12,7 +13,7 @@ interface FunnelProps {
 }
 
 export function Funnel({ data, height = 280 }: FunnelProps) {
-  if (data.length === 0) return null;
+  if (data.length === 0 || data.every((d) => d.value === 0)) return <ChartEmpty height={height} />;
   return (
     <div style={{ width: '100%', height }}>
       <ResponsiveContainer width="100%" height="100%">

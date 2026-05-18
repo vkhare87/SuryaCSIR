@@ -1,4 +1,5 @@
 import { ResponsiveCalendar } from '@nivo/calendar';
+import { ChartEmpty } from './ChartEmpty';
 
 export interface CalendarDay {
   day: string; // YYYY-MM-DD
@@ -22,6 +23,7 @@ export function HeatmapCalendar({
   emptyColor = '#f0eee6',
   colors = ['#f5ede0', '#e8c8a8', '#d9966a', '#c96442'],
 }: HeatmapCalendarProps) {
+  if (data.length === 0) return <ChartEmpty height={height} message="No dated entries to plot" />;
   return (
     <div style={{ width: '100%', height }}>
       <ResponsiveCalendar
