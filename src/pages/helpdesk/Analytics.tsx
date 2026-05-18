@@ -6,6 +6,7 @@ import { CategoryBar } from '../../components/viz/CategoryBar';
 import { Heatmap } from '../../components/viz/Heatmap';
 import { Histogram } from '../../components/viz/Histogram';
 import { TrendLine } from '../../components/viz/TrendLine';
+import { HeatmapCalendar } from '../../components/viz/HeatmapCalendar';
 import { useChartFilter } from '../../utils/useChartFilter';
 import { URGENCY_SORT_ORDER, STATUS_SORT_ORDER, CATEGORY_CONFIG } from '../../lib/helpdesk/constants';
 
@@ -79,6 +80,28 @@ export default function HelpdeskAnalytics() {
       .slice(-30);
   }, [tickets]);
 
+  const calendarData = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const t of tickets) {
+      const day = (t.created_at || '').slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) continue;
+      counts.set(day, (counts.get(day) ?? 0) + 1);
+    }
+    return Array.from(counts, ([day, value]) => ({ day, value }));
+  }, [tickets]);
+
+  const calendarRange = useMemo(() => {
+    if (calendarData.length === 0) {
+      const now = new Date();
+      return { from: `${now.getFullYear()}-01-01`, to: `${now.getFullYear()}-12-31` };
+    }
+    const sorted = [...calendarData].sort((a, b) => a.day.localeCompare(b.day));
+    return {
+      from: sorted[0].day.slice(0, 4) + '-01-01',
+      to: sorted[sorted.length - 1].day.slice(0, 4) + '-12-31',
+    };
+  }, [calendarData]);
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <ChartCard title="Status">
@@ -113,6 +136,10 @@ export default function HelpdeskAnalytics() {
 
       <ChartCard title="Daily volume" subtitle="last 30 days with tickets">
         <TrendLine data={dailyVolume} />
+      </ChartCard>
+
+      <ChartCard title="Ticket creation calendar" subtitle="created_at heatmap" className="lg:col-span-2">
+        <HeatmapCalendar data={calendarData} from={calendarRange.from} to={calendarRange.to} height={220} />
       </ChartCard>
     </div>
   );

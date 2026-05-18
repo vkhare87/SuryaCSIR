@@ -4,6 +4,7 @@ import { ChartCard } from '../components/viz/ChartCard';
 import { CategoryDonut } from '../components/viz/CategoryDonut';
 import { CategoryBar } from '../components/viz/CategoryBar';
 import { Heatmap } from '../components/viz/Heatmap';
+import { HeatmapCalendar } from '../components/viz/HeatmapCalendar';
 import { useChartFilter } from '../utils/useChartFilter';
 
 export default function FacilitiesAnalytics() {
@@ -39,6 +40,28 @@ export default function FacilitiesAnalytics() {
     }
     return Array.from(counts, ([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);
   }, [equipment]);
+
+  const amcCalendar = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const e of equipment) {
+      const day = (e.amc_end_date || '').slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) continue;
+      counts.set(day, (counts.get(day) ?? 0) + 1);
+    }
+    return Array.from(counts, ([day, value]) => ({ day, value }));
+  }, [equipment]);
+
+  const amcRange = useMemo(() => {
+    if (amcCalendar.length === 0) {
+      const now = new Date();
+      return { from: `${now.getFullYear()}-01-01`, to: `${now.getFullYear() + 1}-12-31` };
+    }
+    const sorted = [...amcCalendar].sort((a, b) => a.day.localeCompare(b.day));
+    return {
+      from: sorted[0].day.slice(0, 4) + '-01-01',
+      to: sorted[sorted.length - 1].day.slice(0, 4) + '-12-31',
+    };
+  }, [amcCalendar]);
 
   const divLabHeatmap = useMemo(() => {
     const divs = Array.from(new Set(equipment.map((e) => e.Division).filter(Boolean))).sort();
@@ -87,6 +110,10 @@ export default function FacilitiesAnalytics() {
           cols={divLabHeatmap.lbls}
           onCellClick={(c) => toggleFilter({ dim: 'division', value: c.row })}
         />
+      </ChartCard>
+
+      <ChartCard title="AMC expiry calendar" subtitle="instrument AMC end dates" className="lg:col-span-2">
+        <HeatmapCalendar data={amcCalendar} from={amcRange.from} to={amcRange.to} height={220} />
       </ChartCard>
     </div>
   );

@@ -6,6 +6,7 @@ import { CategoryBar } from '../components/viz/CategoryBar';
 import { Treemap } from '../components/viz/Treemap';
 import { Heatmap } from '../components/viz/Heatmap';
 import { Histogram } from '../components/viz/Histogram';
+import { HeatmapCalendar } from '../components/viz/HeatmapCalendar';
 import { useChartFilter } from '../utils/useChartFilter';
 
 function parseCost(s: string | undefined): number {
@@ -76,6 +77,25 @@ export default function ProjectsAnalytics() {
 
   const costs = useMemo(() => projects.map((p) => parseCost(p.SanctionedCost)).filter((v) => v > 0), [projects]);
 
+  const calendarData = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const p of projects) {
+      const day = (p.StartDate || '').slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) continue;
+      counts.set(day, (counts.get(day) ?? 0) + 1);
+    }
+    return Array.from(counts, ([day, value]) => ({ day, value }));
+  }, [projects]);
+
+  const calendarRange = useMemo(() => {
+    if (calendarData.length === 0) {
+      const now = new Date();
+      return { from: `${now.getFullYear()}-01-01`, to: `${now.getFullYear()}-12-31` };
+    }
+    const sorted = [...calendarData].sort((a, b) => a.day.localeCompare(b.day));
+    return { from: sorted[0].day.slice(0, 4) + '-01-01', to: sorted[sorted.length - 1].day.slice(0, 4) + '-12-31' };
+  }, [calendarData]);
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <ChartCard title="Fund type">
@@ -121,6 +141,10 @@ export default function ProjectsAnalytics() {
           cols={divFundHeatmap.funds}
           onCellClick={(c) => toggleFilter({ dim: 'division', value: c.row })}
         />
+      </ChartCard>
+
+      <ChartCard title="Project starts" subtitle="calendar heatmap of StartDate" className="lg:col-span-2">
+        <HeatmapCalendar data={calendarData} from={calendarRange.from} to={calendarRange.to} height={220} />
       </ChartCard>
     </div>
   );

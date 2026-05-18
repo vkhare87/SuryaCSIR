@@ -12,6 +12,8 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@nivo/calendar": "^0.99.0",
+    "@nivo/core": "^0.99.0",
     "@react-pdf/renderer": "^4.5.1",
     "@supabase/supabase-js": "^2.99.2",
     "clsx": "^2.1.1",
@@ -19,7 +21,9 @@
     "lucide-react": "^0.577.0",
     "papaparse": "^5.5.3",
     "react": "^19.2.4",
+    "react-d3-tree": "^3.6.6",
     "react-dom": "^19.2.4",
+    "react-force-graph-2d": "^1.29.1",
     "react-router-dom": "^7.13.1",
     "recharts": "^3.8.0",
     "tailwind-merge": "^3.5.0",

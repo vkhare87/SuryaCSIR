@@ -1,12 +1,15 @@
 import { useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { ChartCard } from '../components/viz/ChartCard';
 import { CategoryBar } from '../components/viz/CategoryBar';
 import { CategoryDonut } from '../components/viz/CategoryDonut';
 import { Histogram } from '../components/viz/Histogram';
+import { OrgTree, type OrgNode } from '../components/viz/OrgTree';
+import { NetworkGraph, type GraphLink, type GraphNode } from '../components/viz/NetworkGraph';
 import { useChartFilter } from '../utils/useChartFilter';
+import { personNamesMatch } from '../utils/analytics';
 
 function yearsBetween(dateStr: string, ref = new Date()): number {
   const t = Date.parse(dateStr);
@@ -15,8 +18,73 @@ function yearsBetween(dateStr: string, ref = new Date()): number {
 }
 
 export default function StaffAnalytics() {
-  const { staff } = useData();
+  const { staff, scientificOutputs } = useData();
   const { filter, toggleFilter } = useChartFilter();
+  const navigate = useNavigate();
+
+  const orgTreeData = useMemo<OrgNode>(() => {
+    if (staff.length === 0) return { name: 'CSIR-AMPRI', children: [] };
+    const byId = new Map(staff.map((s) => [s.ID, s]));
+    const childrenById = new Map<string, string[]>();
+    const roots: string[] = [];
+    for (const s of staff) {
+      if (s.ReportingID && byId.has(s.ReportingID)) {
+        const list = childrenById.get(s.ReportingID) ?? [];
+        list.push(s.ID);
+        childrenById.set(s.ReportingID, list);
+      } else {
+        roots.push(s.ID);
+      }
+    }
+    const seen = new Set<string>();
+    const build = (id: string): OrgNode | null => {
+      if (seen.has(id)) return null;
+      seen.add(id);
+      const s = byId.get(id);
+      if (!s) return null;
+      const kidIds = childrenById.get(id) ?? [];
+      return {
+        name: s.Name,
+        attributes: { designation: s.Designation || s.Group || '' },
+        children: kidIds
+          .map(build)
+          .filter((n): n is OrgNode => n !== null)
+          .slice(0, 30),
+      };
+    };
+    const rootNodes = roots.map(build).filter((n): n is OrgNode => n !== null);
+    if (rootNodes.length === 1) return rootNodes[0];
+    return { name: 'CSIR-AMPRI', children: rootNodes };
+  }, [staff]);
+
+  const collabGraph = useMemo<{ nodes: GraphNode[]; links: GraphLink[] }>(() => {
+    if (staff.length === 0 || scientificOutputs.length === 0) return { nodes: [], links: [] };
+    const outputCount = new Map<string, number>();
+    const linkCount = new Map<string, number>();
+    for (const pub of scientificOutputs) {
+      const authors = pub.authors ?? [];
+      const matched = authors
+        .map((authorName) => staff.find((s) => personNamesMatch(s.Name, authorName))?.ID)
+        .filter((id): id is string => Boolean(id));
+      for (const id of matched) outputCount.set(id, (outputCount.get(id) ?? 0) + 1);
+      for (let i = 0; i < matched.length; i++) {
+        for (let j = i + 1; j < matched.length; j++) {
+          const [a, b] = [matched[i], matched[j]].sort();
+          const key = `${a}|${b}`;
+          linkCount.set(key, (linkCount.get(key) ?? 0) + 1);
+        }
+      }
+    }
+    const nodes: GraphNode[] = Array.from(outputCount, ([id, count]) => {
+      const s = staff.find((x) => x.ID === id);
+      return { id, label: s?.Name ?? id, group: s?.Division, value: count };
+    });
+    const links: GraphLink[] = Array.from(linkCount, ([key, value]) => {
+      const [source, target] = key.split('|');
+      return { source, target, value };
+    });
+    return { nodes, links };
+  }, [staff, scientificOutputs]);
 
   const byDivision = useMemo(() => {
     const counts = new Map<string, number>();
@@ -132,6 +200,35 @@ export default function StaffAnalytics() {
 
         <ChartCard title="Retirement runway" subtitle="from DOB + 60y">
           <CategoryBar data={retirementRunway} />
+        </ChartCard>
+
+        <ChartCard
+          title="Org hierarchy"
+          subtitle="reporting chain — click node to expand/collapse"
+          className="lg:col-span-2"
+          bodyClassName="min-h-0"
+        >
+          <OrgTree data={orgTreeData} height={520} />
+        </ChartCard>
+
+        <ChartCard
+          title="Collaboration network"
+          subtitle="co-authorship from scientific outputs — node size = publication count"
+          className="lg:col-span-2"
+          bodyClassName="min-h-0"
+        >
+          {collabGraph.nodes.length > 0 ? (
+            <NetworkGraph
+              nodes={collabGraph.nodes}
+              links={collabGraph.links}
+              height={520}
+              onNodeClick={(n) => navigate(`/staff/${n.id}`)}
+            />
+          ) : (
+            <div className="h-[400px] flex items-center justify-center text-sm text-text-muted">
+              No co-authorship data available yet.
+            </div>
+          )}
         </ChartCard>
       </div>
     </div>
