@@ -20,6 +20,7 @@ const PHD_DIM_LABELS: Record<string, string> = {
   status: 'Status',
   supervisor: 'Supervisor',
   specialization: 'Specialization',
+  division: 'Division',
 };
 import { useCanEdit } from '../lib/permissions/canEdit';
 import { PhDStudentFormModal } from '../components/PhDStudentFormModal';
@@ -59,6 +60,7 @@ export default function PhDTracker() {
       status: (s) => s.CurrentStatus,
       supervisor: (s) => s.SupervisorName,
       specialization: (s) => s.Specialization,
+      division: (s) => s.DivisionCode,
     });
   }, [phDStudents, searchTerm, statusFilter, filter]);
 

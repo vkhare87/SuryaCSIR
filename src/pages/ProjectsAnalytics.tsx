@@ -1,19 +1,127 @@
-import { AnalyticsPlaceholder } from '../components/viz/AnalyticsPlaceholder';
+import { useMemo } from 'react';
+import { useData } from '../contexts/DataContext';
+import { ChartCard } from '../components/viz/ChartCard';
+import { CategoryDonut } from '../components/viz/CategoryDonut';
+import { CategoryBar } from '../components/viz/CategoryBar';
+import { Treemap } from '../components/viz/Treemap';
+import { Heatmap } from '../components/viz/Heatmap';
+import { Histogram } from '../components/viz/Histogram';
+import { useChartFilter } from '../utils/useChartFilter';
+
+function parseCost(s: string | undefined): number {
+  if (!s) return 0;
+  const v = parseFloat(s.replace(/[^0-9.-]+/g, ''));
+  return Number.isFinite(v) ? v : 0;
+}
 
 export default function ProjectsAnalytics() {
+  const { projects } = useData();
+  const { filter, toggleFilter } = useChartFilter();
+
+  const fundMix = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const p of projects) {
+      const k = p.FundType || 'Unspecified';
+      counts.set(k, (counts.get(k) ?? 0) + 1);
+    }
+    return Array.from(counts, ([label, value]) => ({ label, value }));
+  }, [projects]);
+
+  const statusMix = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const p of projects) {
+      counts.set(p.ProjectStatus, (counts.get(p.ProjectStatus) ?? 0) + 1);
+    }
+    return Array.from(counts, ([label, value]) => ({ label, value }));
+  }, [projects]);
+
+  const sponsorerTreemap = useMemo(() => {
+    const totals = new Map<string, number>();
+    for (const p of projects) {
+      const k = p.SponsorerName || 'Unspecified';
+      totals.set(k, (totals.get(k) ?? 0) + parseCost(p.SanctionedCost));
+    }
+    return Array.from(totals, ([name, size]) => ({ name, size }))
+      .filter((d) => d.size > 0)
+      .sort((a, b) => b.size - a.size)
+      .slice(0, 15);
+  }, [projects]);
+
+  const piWorkload = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const p of projects) {
+      const k = p.PrincipalInvestigator || 'Unassigned';
+      counts.set(k, (counts.get(k) ?? 0) + 1);
+    }
+    return Array.from(counts, ([label, value]) => ({ label, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 10);
+  }, [projects]);
+
+  const divFundHeatmap = useMemo(() => {
+    const divs = Array.from(new Set(projects.map((p) => p.DivisionCode).filter(Boolean))).sort();
+    const funds = Array.from(new Set(projects.map((p) => p.FundType || 'Unspecified'))).sort();
+    const cells = [];
+    for (const d of divs) {
+      for (const f of funds) {
+        cells.push({
+          row: d,
+          col: f,
+          value: projects.filter((p) => p.DivisionCode === d && (p.FundType || 'Unspecified') === f).length,
+        });
+      }
+    }
+    return { cells, divs, funds };
+  }, [projects]);
+
+  const costs = useMemo(() => projects.map((p) => parseCost(p.SanctionedCost)).filter((v) => v > 0), [projects]);
+
   return (
-    <AnalyticsPlaceholder
-      section="Projects"
-      upcoming={[
-        'FundType donut',
-        'Top sponsorers treemap',
-        'Project status pie',
-        'Gantt-lite timeline',
-        'Cost histogram',
-        'PI workload bar',
-        'Division × FundType heatmap',
-        'Project-start calendar heatmap',
-      ]}
-    />
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <ChartCard title="Fund type">
+        <CategoryDonut
+          data={fundMix}
+          onSelect={(d) => toggleFilter({ dim: 'fundType', value: d.label })}
+          selected={filter?.dim === 'fundType' ? filter.value : null}
+        />
+      </ChartCard>
+
+      <ChartCard title="Project status">
+        <CategoryDonut
+          data={statusMix}
+          onSelect={(d) => toggleFilter({ dim: 'status', value: d.label })}
+          selected={filter?.dim === 'status' ? filter.value : null}
+        />
+      </ChartCard>
+
+      <ChartCard title="Top sponsorers" subtitle="treemap sized by sanctioned cost (₹L)" className="lg:col-span-2">
+        <Treemap
+          data={sponsorerTreemap}
+          onClick={(d) => toggleFilter({ dim: 'sponsorer', value: d.name })}
+        />
+      </ChartCard>
+
+      <ChartCard title="PI workload" subtitle="top 10 by project count">
+        <CategoryBar
+          data={piWorkload}
+          horizontal
+          onSelect={(d) => toggleFilter({ dim: 'pi', value: d.label })}
+          selected={filter?.dim === 'pi' ? filter.value : null}
+        />
+      </ChartCard>
+
+      <ChartCard title="Sanctioned cost distribution">
+        <Histogram values={costs} xLabel="₹L" yLabel="projects" />
+      </ChartCard>
+
+      <ChartCard title="Division × Fund Type" className="lg:col-span-2" bodyClassName="min-h-0">
+        <Heatmap
+          data={divFundHeatmap.cells}
+          rows={divFundHeatmap.divs}
+          cols={divFundHeatmap.funds}
+          onCellClick={(c) => toggleFilter({ dim: 'division', value: c.row })}
+        />
+      </ChartCard>
+    </div>
   );
 }
