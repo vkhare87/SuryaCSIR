@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { lazy, Suspense, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
 import { Card, Badge } from '../components/ui/Cards';
@@ -11,7 +11,10 @@ import {
   Search, Crown, Target, Phone, Users, Lightbulb, Info,
   Briefcase, Settings2, BookOpen, ChevronRight, AlertTriangle,
   CheckCircle2, Clock, ExternalLink, Building2, Plus, Edit,
+  BarChart3, LayoutGrid,
 } from 'lucide-react';
+
+const DivisionsAnalytics = lazy(() => import('./DivisionsAnalytics'));
 import clsx from 'clsx';
 import { EmptyState } from '../components/ui/EmptyState';
 import { useCanEdit } from '../lib/permissions/canEdit';
@@ -28,6 +31,7 @@ export default function Divisions() {
   const canEdit = useCanEdit('hr');
   const [editTarget, setEditTarget] = useState<DivisionInfo | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [view, setView] = useState<'detail' | 'analytics'>('detail');
 
   const filteredDivisions = divisions.filter(div => {
     const s = searchQuery.toLowerCase();
@@ -269,6 +273,36 @@ export default function Divisions() {
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto bg-background/50 p-8 space-y-8 stylish-scrollbar">
 
+        {/* View toggle */}
+        <div className="flex items-center gap-1 rounded-[10px] bg-surface border border-border p-1 w-fit">
+          <button
+            type="button"
+            onClick={() => setView('detail')}
+            className={clsx(
+              'px-3 py-1.5 text-sm font-medium rounded-[8px] inline-flex items-center gap-1.5 transition-colors',
+              view === 'detail'
+                ? 'bg-background text-text shadow-[0px_0px_0px_1px_var(--color-border)]'
+                : 'text-text-muted hover:text-text',
+            )}
+          >
+            <LayoutGrid size={14} />
+            Division Detail
+          </button>
+          <button
+            type="button"
+            onClick={() => setView('analytics')}
+            className={clsx(
+              'px-3 py-1.5 text-sm font-medium rounded-[8px] inline-flex items-center gap-1.5 transition-colors',
+              view === 'analytics'
+                ? 'bg-background text-text shadow-[0px_0px_0px_1px_var(--color-border)]'
+                : 'text-text-muted hover:text-text',
+            )}
+          >
+            <BarChart3 size={14} />
+            Analytics
+          </button>
+        </div>
+
         {/* Institute-wide insight strip */}
         <InsightsStrip>
           <KpiTile
@@ -312,6 +346,12 @@ export default function Divisions() {
           </div>
         </InsightsStrip>
 
+        {view === 'analytics' ? (
+          <Suspense fallback={<div className="text-sm text-text-muted py-12 text-center">Loading analytics…</div>}>
+            <DivisionsAnalytics />
+          </Suspense>
+        ) : (
+        <>
         {/* Header */}
         <div className="relative p-12 rounded-[32px] overflow-hidden border border-border glass">
           <div className="absolute inset-0 bg-gradient-to-br from-[#c96442]/10 via-transparent to-[#d97757]/5" />
@@ -641,6 +681,8 @@ export default function Divisions() {
               })}
             </div>
           </div>
+        )}
+        </>
         )}
 
       </div>

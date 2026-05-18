@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { lazy, Suspense, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -8,6 +8,17 @@ import { Button } from '../../components/ui/Button';
 import { InsightsStrip } from '../../components/viz/InsightsStrip';
 import { KpiTile } from '../../components/viz/KpiTile';
 import { MiniDonut } from '../../components/viz/MiniDonut';
+import { FilterChip } from '../../components/viz/FilterChip';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/Tabs';
+import { useChartFilter } from '../../utils/useChartFilter';
+import { applyChartFilter } from '../../utils/applyChartFilter';
+
+const CommitteesAnalytics = lazy(() => import('./Analytics'));
+
+const COMMITTEE_DIM_LABELS: Record<string, string> = {
+  type: 'Type',
+  status: 'Status',
+};
 import {
   Building2,
   Search,
@@ -18,6 +29,7 @@ import {
   Clock,
   AlertTriangle,
   Plus,
+  BarChart3,
 } from 'lucide-react';
 import { canCreateCommittee } from '../../lib/committees/permissions';
 import { CommitteeFormModal } from '../../components/committees/CommitteeFormModal';
@@ -31,17 +43,22 @@ export default function CommitteeList() {
   const [typeFilter, setTypeFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const { filter, clearFilter } = useChartFilter();
 
   // --- Derived State ---
 
   const filteredCommittees = useMemo(() => {
-    return committees.filter(c => {
+    const base = committees.filter(c => {
       const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesType = typeFilter === 'All' || c.committee_type === typeFilter;
       const matchesStatus = statusFilter === 'All' || c.status === statusFilter;
       return matchesSearch && matchesType && matchesStatus;
     });
-  }, [committees, searchTerm, typeFilter, statusFilter]);
+    return applyChartFilter(base, filter, {
+      type: (c) => c.committee_type,
+      status: (c) => c.status,
+    });
+  }, [committees, searchTerm, typeFilter, statusFilter, filter]);
 
   const kpis = useMemo(() => ({
     total: committees.length,
@@ -161,6 +178,18 @@ export default function CommitteeList() {
         </div>
       </div>
 
+      <Tabs defaultValue="table">
+        <TabsList>
+          <TabsTrigger value="table">Table</TabsTrigger>
+          <TabsTrigger value="analytics">
+            <BarChart3 size={12} className="inline mr-1" />
+            Analytics
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="table" className="mt-4 space-y-3">
+          <FilterChip filter={filter} onClear={clearFilter} labelMap={COMMITTEE_DIM_LABELS} />
+
       {/* Loading State */}
       {isLoading && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -246,6 +275,14 @@ export default function CommitteeList() {
           <span>{filteredCommittees.length} of {committees.length} committees</span>
         </div>
       )}
+        </TabsContent>
+
+        <TabsContent value="analytics" className="mt-4">
+          <Suspense fallback={<div className="text-sm text-text-muted py-12 text-center">Loading analytics…</div>}>
+            <CommitteesAnalytics />
+          </Suspense>
+        </TabsContent>
+      </Tabs>
       <CommitteeFormModal isOpen={showCreateModal} onClose={() => setShowCreateModal(false)} />
     </div>
   );

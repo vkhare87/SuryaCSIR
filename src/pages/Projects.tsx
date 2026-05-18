@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { lazy, Suspense, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -8,7 +8,20 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { InsightsStrip } from '../components/viz/InsightsStrip';
 import { KpiTile } from '../components/viz/KpiTile';
 import { MiniDonut } from '../components/viz/MiniDonut';
-import { Search, Filter, Briefcase, IndianRupee, PieChart, Users, CheckCircle2, Plus } from 'lucide-react';
+import { FilterChip } from '../components/viz/FilterChip';
+import { useChartFilter } from '../utils/useChartFilter';
+import { applyChartFilter } from '../utils/applyChartFilter';
+import { Search, Filter, Briefcase, IndianRupee, PieChart, Users, CheckCircle2, BarChart3, Plus } from 'lucide-react';
+
+const ProjectsAnalytics = lazy(() => import('./ProjectsAnalytics'));
+
+const PROJECT_DIM_LABELS: Record<string, string> = {
+  fundType: 'Fund Type',
+  status: 'Status',
+  sponsorer: 'Sponsorer',
+  division: 'Division',
+  pi: 'PI',
+};
 import { useCanEdit } from '../lib/permissions/canEdit';
 import { ProjectFormModal } from '../components/ProjectFormModal';
 import type { ProjectInfo, ProjectStaff } from '../types';
@@ -19,24 +32,32 @@ export default function Projects() {
   const canUpload = hasPermission(['HRAdmin', 'SystemAdmin', 'MasterAdmin']);
   const canEdit = useCanEdit('hr');
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'projects' | 'staff'>('projects');
+  const [activeTab, setActiveTab] = useState<'projects' | 'staff' | 'analytics'>('projects');
+  const { filter, clearFilter } = useChartFilter();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [showCreate, setShowCreate] = useState(false);
 
   const filteredProjects = useMemo(() => {
-    return projects.filter(p => {
+    const base = projects.filter(p => {
       const searchStr = searchTerm.toLowerCase();
-      const matchesSearch = 
-        (p.ProjectNo?.toLowerCase() || '').includes(searchStr) || 
+      const matchesSearch =
+        (p.ProjectNo?.toLowerCase() || '').includes(searchStr) ||
         (p.ProjectName?.toLowerCase() || '').includes(searchStr) ||
         (p.PrincipalInvestigator?.toLowerCase() || '').includes(searchStr);
-      
+
       const matchesStatus = statusFilter === 'ALL' || p.ProjectStatus === statusFilter;
-      
+
       return matchesSearch && matchesStatus;
     });
-  }, [projects, searchTerm, statusFilter]);
+    return applyChartFilter(base, filter, {
+      fundType: (p) => p.FundType,
+      status: (p) => p.ProjectStatus,
+      sponsorer: (p) => p.SponsorerName,
+      division: (p) => p.DivisionCode,
+      pi: (p) => p.PrincipalInvestigator,
+    });
+  }, [projects, searchTerm, statusFilter, filter]);
 
   const filteredStaff = useMemo(() => {
     return projectStaff.filter(s => {
@@ -309,9 +330,25 @@ export default function Projects() {
             <span className="absolute bottom-0 left-0 w-full h-0.5 bg-[#c96442] rounded-t-full" />
           )}
         </button>
+        <button
+          onClick={() => setActiveTab('analytics')}
+          className={`pb-3 text-sm font-bold transition-colors relative flex items-center gap-1.5 ${activeTab === 'analytics' ? 'text-[#c96442]' : 'text-text-muted hover:text-text'}`}
+        >
+          <BarChart3 size={14} />
+          Analytics
+          {activeTab === 'analytics' && (
+            <span className="absolute bottom-0 left-0 w-full h-0.5 bg-[#c96442] rounded-t-full" />
+          )}
+        </button>
       </div>
 
-      {activeTab === 'projects' ? (
+      <FilterChip filter={filter} onClear={clearFilter} labelMap={PROJECT_DIM_LABELS} />
+
+      {activeTab === 'analytics' ? (
+        <Suspense fallback={<div className="text-sm text-text-muted py-12 text-center">Loading analytics…</div>}>
+          <ProjectsAnalytics />
+        </Suspense>
+      ) : activeTab === 'projects' ? (
         <>
           <InsightsStrip className="lg:grid-cols-4 xl:grid-cols-4">
             <KpiTile

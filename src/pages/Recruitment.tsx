@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { lazy, Suspense, useMemo, useState } from 'react';
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
 import { Card, Badge } from '../components/ui/Cards';
@@ -6,6 +6,17 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { InsightsStrip } from '../components/viz/InsightsStrip';
 import { KpiTile } from '../components/viz/KpiTile';
 import { MiniBar } from '../components/viz/MiniBar';
+import { FilterChip } from '../components/viz/FilterChip';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/Tabs';
+import { useChartFilter } from '../utils/useChartFilter';
+
+const RecruitmentAnalytics = lazy(() => import('./RecruitmentAnalytics'));
+
+const RECRUITMENT_DIM_LABELS: Record<string, string> = {
+  status: 'Status',
+  vacancy: 'Vacancy',
+  division: 'Division',
+};
 import {
   UserPlus,
   Search,
@@ -16,6 +27,7 @@ import {
   FileText,
   CheckCircle2,
   Megaphone,
+  BarChart3,
 } from 'lucide-react';
 import type { VacancyPost } from '../types';
 
@@ -32,6 +44,7 @@ export default function Recruitment() {
   const { hasPermission } = useAuth();
   const canManage = hasPermission(['HRAdmin', 'SystemAdmin', 'MasterAdmin']);
   const [searchTerm, setSearchTerm] = useState('');
+  const { filter, clearFilter } = useChartFilter();
 
   // Per-vacancy applicant count and shortlisted/interviewed split.
   const stats = useMemo(() => {
@@ -128,7 +141,18 @@ export default function Recruitment() {
         />
       </InsightsStrip>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <Tabs defaultValue="table">
+        <TabsList>
+          <TabsTrigger value="table">Vacancies</TabsTrigger>
+          <TabsTrigger value="analytics">
+            <BarChart3 size={12} className="inline mr-1" />
+            Analytics
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="table" className="mt-4 space-y-3">
+          <FilterChip filter={filter} onClear={clearFilter} labelMap={RECRUITMENT_DIM_LABELS} />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="lg:col-span-2 p-0 overflow-hidden">
           <div className="p-4 border-b border-border flex justify-between items-center bg-surface-hover">
             <h3 className="font-bold text-text">Vacancies</h3>
@@ -228,7 +252,15 @@ export default function Recruitment() {
             View All Candidates
           </button>
         </Card>
-      </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="analytics" className="mt-4">
+          <Suspense fallback={<div className="text-sm text-text-muted py-12 text-center">Loading analytics…</div>}>
+            <RecruitmentAnalytics />
+          </Suspense>
+        </TabsContent>
+      </Tabs>
       </>
       )}
     </div>

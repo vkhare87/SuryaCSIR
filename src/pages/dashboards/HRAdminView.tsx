@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Network, UserCheck, Briefcase, Wrench } from 'lucide-react';
+import { Users, Network, UserCheck, Briefcase, Wrench, BarChart3 } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
 import { Card } from '../../components/ui/Cards';
 import { InsightsStrip } from '../../components/viz/InsightsStrip';
@@ -62,12 +62,21 @@ export function HRAdminView() {
             Manage staff records and personnel information
           </p>
         </div>
-        <button
-          onClick={() => navigate('/staff')}
-          className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#c96442] text-[#faf9f5] text-sm font-semibold rounded-[8px] hover:bg-[#b5593b] transition-colors shadow-[0px_0px_0px_1px_#b5593b]"
-        >
-          + Add Staff
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => navigate('/staff/analytics')}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-surface border border-border text-text text-sm font-semibold rounded-[8px] hover:bg-surface-hover transition-colors"
+          >
+            <BarChart3 size={14} />
+            Analytics
+          </button>
+          <button
+            onClick={() => navigate('/staff')}
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#c96442] text-[#faf9f5] text-sm font-semibold rounded-[8px] hover:bg-[#b5593b] transition-colors shadow-[0px_0px_0px_1px_#b5593b]"
+          >
+            + Add Staff
+          </button>
+        </div>
       </div>
 
       {/* Insight Strip */}

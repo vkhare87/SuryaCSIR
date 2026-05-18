@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { lazy, Suspense, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -8,7 +8,19 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { InsightsStrip } from '../components/viz/InsightsStrip';
 import { KpiTile } from '../components/viz/KpiTile';
 import { MiniDonut } from '../components/viz/MiniDonut';
-import { Search, Filter, GraduationCap, Users, FileCheck, Award, Plus, Edit } from 'lucide-react';
+import { FilterChip } from '../components/viz/FilterChip';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/Tabs';
+import { useChartFilter } from '../utils/useChartFilter';
+import { applyChartFilter } from '../utils/applyChartFilter';
+import { Search, Filter, GraduationCap, Users, FileCheck, Award, BarChart3, Plus, Edit } from 'lucide-react';
+
+const PhDAnalytics = lazy(() => import('./PhDAnalytics'));
+
+const PHD_DIM_LABELS: Record<string, string> = {
+  status: 'Status',
+  supervisor: 'Supervisor',
+  specialization: 'Specialization',
+};
 import { useCanEdit } from '../lib/permissions/canEdit';
 import { PhDStudentFormModal } from '../components/PhDStudentFormModal';
 import type { PhDStudent } from '../types';
@@ -30,19 +42,25 @@ export default function PhDTracker() {
   };
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const { filter, clearFilter } = useChartFilter();
 
   const filteredStudents = useMemo(() => {
-    return phDStudents.filter(s => {
-      const matchesSearch = 
-        s.StudentName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    const base = phDStudents.filter(s => {
+      const matchesSearch =
+        s.StudentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         s.SupervisorName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         s.ThesisTitle.toLowerCase().includes(searchTerm.toLowerCase());
-      
+
       const matchesStatus = statusFilter === 'ALL' || s.CurrentStatus === statusFilter;
-      
+
       return matchesSearch && matchesStatus;
     });
-  }, [phDStudents, searchTerm, statusFilter]);
+    return applyChartFilter(base, filter, {
+      status: (s) => s.CurrentStatus,
+      supervisor: (s) => s.SupervisorName,
+      specialization: (s) => s.Specialization,
+    });
+  }, [phDStudents, searchTerm, statusFilter, filter]);
 
   const ongoingCount = phDStudents.filter(s => s.CurrentStatus === 'Ongoing').length;
   const submittedCount = phDStudents.filter(s => s.CurrentStatus === 'Thesis Submitted').length;
@@ -209,26 +227,45 @@ export default function PhDTracker() {
         />
       </InsightsStrip>
 
-      {!isLoading && phDStudents.length === 0 ? (
-        <EmptyState
-          icon={GraduationCap}
-          title="No PhD students"
-          description="Student records haven't been loaded yet."
-          action={canUpload ? { label: 'Upload via Data Management', to: '/data' } : undefined}
-        />
-      ) : (
-        <Card className="p-0 overflow-hidden">
-          <DataTable
-            data={filteredStudents}
-            columns={columns}
-            keyExtractor={(item) => item.EnrollmentNo}
-          />
+      <Tabs defaultValue="table">
+        <TabsList>
+          <TabsTrigger value="table">Table</TabsTrigger>
+          <TabsTrigger value="analytics">
+            <BarChart3 size={12} className="inline mr-1" />
+            Analytics
+          </TabsTrigger>
+        </TabsList>
 
-          <div className="p-4 border-t border-border bg-surface-hover text-xs text-text-muted">
-            Showing {filteredStudents.length} scholars
-          </div>
-        </Card>
-      )}
+        <TabsContent value="table" className="mt-4 space-y-3">
+          <FilterChip filter={filter} onClear={clearFilter} labelMap={PHD_DIM_LABELS} />
+          {!isLoading && phDStudents.length === 0 ? (
+            <EmptyState
+              icon={GraduationCap}
+              title="No PhD students"
+              description="Student records haven't been loaded yet."
+              action={canUpload ? { label: 'Upload via Data Management', to: '/data' } : undefined}
+            />
+          ) : (
+            <Card className="p-0 overflow-hidden">
+              <DataTable
+                data={filteredStudents}
+                columns={columns}
+                keyExtractor={(item) => item.EnrollmentNo}
+              />
+
+              <div className="p-4 border-t border-border bg-surface-hover text-xs text-text-muted">
+                Showing {filteredStudents.length} scholars
+              </div>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="analytics" className="mt-4">
+          <Suspense fallback={<div className="text-sm text-text-muted py-12 text-center">Loading analytics…</div>}>
+            <PhDAnalytics />
+          </Suspense>
+        </TabsContent>
+      </Tabs>
 
       {canEdit && (
         <>

@@ -1,8 +1,8 @@
-import { useState, useMemo } from 'react';
+import { lazy, Suspense, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Search, Filter, Ticket as TicketIcon, AlertTriangle, CheckCircle2,
-  Clock, RotateCcw, Inbox, Plus,
+  Clock, RotateCcw, Inbox, Plus, BarChart3,
 } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -12,6 +12,19 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { InsightsStrip } from '../../components/viz/InsightsStrip';
 import { KpiTile } from '../../components/viz/KpiTile';
 import { MiniBar } from '../../components/viz/MiniBar';
+import { FilterChip } from '../../components/viz/FilterChip';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/Tabs';
+import { useChartFilter } from '../../utils/useChartFilter';
+import { applyChartFilter } from '../../utils/applyChartFilter';
+
+const HelpdeskAnalytics = lazy(() => import('./Analytics'));
+
+const TICKET_DIM_LABELS: Record<string, string> = {
+  status: 'Status',
+  urgency: 'Urgency',
+  category: 'Category',
+  assignee: 'Assignee',
+};
 import {
   URGENCY_COLORS, CATEGORY_CONFIG,
   URGENCY_SORT_ORDER, STATUS_SORT_ORDER,
@@ -36,6 +49,7 @@ export default function TicketList() {
   const [urgencyFilter, setUrgencyFilter] = useState<TicketUrgency | 'All'>('All');
   const [categoryFilter, setCategoryFilter] = useState<TicketCategory | 'All'>('All');
   const [scopeFilter, setScopeFilter] = useState<'all' | 'mine'>('all');
+  const { filter, clearFilter } = useChartFilter();
 
   const seesAll = user ? canViewAllTickets(user) : false;
 
@@ -53,7 +67,7 @@ export default function TicketList() {
 
   const filteredTickets = useMemo(() => {
     const term = searchTerm.toLowerCase();
-    return visibleTickets
+    const base = visibleTickets
       .filter((t) => {
         if (statusFilter !== 'All' && t.status !== statusFilter) return false;
         if (urgencyFilter !== 'All' && t.urgency !== urgencyFilter) return false;
@@ -74,7 +88,13 @@ export default function TicketList() {
         if (ss !== 0) return ss;
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       });
-  }, [visibleTickets, searchTerm, statusFilter, urgencyFilter, categoryFilter, scopeFilter, user]);
+    return applyChartFilter(base, filter, {
+      status: (t) => t.status,
+      urgency: (t) => t.urgency,
+      category: (t) => t.category,
+      assignee: (t) => t.assigned_to,
+    });
+  }, [visibleTickets, searchTerm, statusFilter, urgencyFilter, categoryFilter, scopeFilter, user, filter]);
 
   const kpis = useMemo(() => ({
     total: visibleTickets.length,
@@ -220,6 +240,18 @@ export default function TicketList() {
         )}
       </div>
 
+      <Tabs defaultValue="table">
+        <TabsList>
+          <TabsTrigger value="table">Table</TabsTrigger>
+          <TabsTrigger value="analytics">
+            <BarChart3 size={12} className="inline mr-1" />
+            Analytics
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="table" className="mt-4 space-y-3">
+          <FilterChip filter={filter} onClear={clearFilter} labelMap={TICKET_DIM_LABELS} />
+
       {isLoading && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => <CardSkeleton key={i} />)}
@@ -292,6 +324,14 @@ export default function TicketList() {
           Showing {filteredTickets.length} of {visibleTickets.length} ticket{visibleTickets.length === 1 ? '' : 's'}
         </div>
       )}
+        </TabsContent>
+
+        <TabsContent value="analytics" className="mt-4">
+          <Suspense fallback={<div className="text-sm text-text-muted py-12 text-center">Loading analytics…</div>}>
+            <HelpdeskAnalytics />
+          </Suspense>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

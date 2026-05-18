@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { lazy, Suspense, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -9,6 +9,18 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { InsightsStrip } from '../components/viz/InsightsStrip';
 import { KpiTile } from '../components/viz/KpiTile';
 import { MiniDonut } from '../components/viz/MiniDonut';
+import { FilterChip } from '../components/viz/FilterChip';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/Tabs';
+import { useChartFilter } from '../utils/useChartFilter';
+import { applyChartFilter } from '../utils/applyChartFilter';
+
+const FacilitiesAnalytics = lazy(() => import('./FacilitiesAnalytics'));
+
+const EQUIPMENT_DIM_LABELS: Record<string, string> = {
+  status: 'Status',
+  division: 'Division',
+  lab: 'Lab',
+};
 import {
   FlaskConical,
   MapPin,
@@ -20,6 +32,7 @@ import {
   Clock,
   Plus,
   CalendarClock,
+  BarChart3,
 } from 'lucide-react';
 import type { Equipment } from '../types';
 
@@ -64,6 +77,7 @@ export default function Facilities() {
   const [amcFilter, setAmcFilter] = useState('ALL');
   const [formOpen, setFormOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Equipment | null>(null);
+  const { filter, clearFilter } = useChartFilter();
 
   const isAdmin = user && (ADMIN_ROLES as readonly string[]).includes(user.activeRole);
 
@@ -76,7 +90,7 @@ export default function Facilities() {
   }, [equipment]);
 
   const filteredEquipment = useMemo(() => {
-    return equipment.filter(e => {
+    const base = equipment.filter(e => {
       const matchesSearch =
         e.Name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (e.instrument_code ?? '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -88,7 +102,12 @@ export default function Facilities() {
       const matchesAmc = amcFilter === 'ALL' || amcStatus(e.amc_end_date) === amcFilter;
       return matchesSearch && matchesStatus && matchesDivision && matchesAmc;
     });
-  }, [equipment, searchTerm, statusFilter, divisionFilter, amcFilter]);
+    return applyChartFilter(base, filter, {
+      status: (e) => e.WorkingStatus,
+      division: (e) => e.Division,
+      lab: (e) => e.lab_id,
+    });
+  }, [equipment, searchTerm, statusFilter, divisionFilter, amcFilter, filter]);
 
   const kpis = useMemo(() => ({
     total:    equipment.length,
@@ -311,30 +330,49 @@ export default function Facilities() {
         </div>
       </div>
 
-      {/* Table */}
-      {!isLoading && equipment.length === 0 ? (
-        <EmptyState
-          icon={Wrench}
-          title="No equipment registered"
-          description="Equipment records haven't been loaded yet."
-          action={canUpload ? { label: 'Upload via Data Management', to: '/data' } : undefined}
-        />
-      ) : (
-        <Card className="p-0 overflow-hidden">
-          <DataTable
-            data={filteredEquipment}
-            columns={columns}
-            keyExtractor={item => item.UInsID}
-          />
-          <div className="p-4 border-t border-border bg-surface-hover text-xs text-text-muted flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              <FlaskConical size={14} />
-              Institutional Instrument Management System
-            </div>
-            <span>{filteredEquipment.length} of {equipment.length} instruments</span>
-          </div>
-        </Card>
-      )}
+      {/* Tabs */}
+      <Tabs defaultValue="table">
+        <TabsList>
+          <TabsTrigger value="table">Table</TabsTrigger>
+          <TabsTrigger value="analytics">
+            <BarChart3 size={12} className="inline mr-1" />
+            Analytics
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="table" className="mt-4 space-y-3">
+          <FilterChip filter={filter} onClear={clearFilter} labelMap={EQUIPMENT_DIM_LABELS} />
+          {!isLoading && equipment.length === 0 ? (
+            <EmptyState
+              icon={Wrench}
+              title="No equipment registered"
+              description="Equipment records haven't been loaded yet."
+              action={canUpload ? { label: 'Upload via Data Management', to: '/data' } : undefined}
+            />
+          ) : (
+            <Card className="p-0 overflow-hidden">
+              <DataTable
+                data={filteredEquipment}
+                columns={columns}
+                keyExtractor={item => item.UInsID}
+              />
+              <div className="p-4 border-t border-border bg-surface-hover text-xs text-text-muted flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <FlaskConical size={14} />
+                  Institutional Instrument Management System
+                </div>
+                <span>{filteredEquipment.length} of {equipment.length} instruments</span>
+              </div>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="analytics" className="mt-4">
+          <Suspense fallback={<div className="text-sm text-text-muted py-12 text-center">Loading analytics…</div>}>
+            <FacilitiesAnalytics />
+          </Suspense>
+        </TabsContent>
+      </Tabs>
 
       {/* Add/Edit Modal */}
       {formOpen && (
