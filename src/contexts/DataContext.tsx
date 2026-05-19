@@ -24,6 +24,8 @@ import type {
   TicketResponse,
   TicketEvent,
   HelpdeskRouting,
+  CalendarEvent,
+  Holiday,
 } from '../types';
 import { supabase, isProvisioned } from '../utils/supabaseClient';
 import {
@@ -49,6 +51,8 @@ import {
   mapTicketResponseRow,
   mapTicketEventRow,
   mapHelpdeskRoutingRow,
+  mapCalendarEventRow,
+  mapHolidayRow,
 } from '../utils/dataMapper';
 import { useAuth } from './AuthContext';
 import { useToast } from './ToastContext';
@@ -107,6 +111,10 @@ interface DataContextType {
   ticketResponses: TicketResponse[];
   ticketEvents: TicketEvent[];
   helpdeskRouting: HelpdeskRouting[];
+  calendarEvents: CalendarEvent[];
+  holidays: Holiday[];
+  refreshCalendar: () => Promise<void>;
+  refreshHolidays: () => Promise<void>;
   isLoading: boolean;
   isBackendProvisioned: boolean;
   refreshData: () => Promise<void>;
@@ -147,6 +155,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [ticketResponses, setTicketResponses] = useState<TicketResponse[]>([]);
   const [ticketEvents, setTicketEvents] = useState<TicketEvent[]>([]);
   const [helpdeskRouting, setHelpdeskRouting] = useState<HelpdeskRouting[]>([]);
+  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
+  const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -173,6 +183,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setTicketResponses([]);
     setTicketEvents([]);
     setHelpdeskRouting([]);
+    setCalendarEvents([]);
+    setHolidays([]);
   };
 
   const loadData = async () => {
@@ -189,6 +201,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         divRes, staffRes, projRes, psRes, phdRes, equipRes, labsRes, soRes, ipRes, csRes,
         vaRes, vpRes,
         cmtRes, cmmRes, mtgRes, agiRes, actRes, mdcRes, tktRes, trsRes, tevRes, hrtRes,
+        ceRes, holRes,
       ] = await Promise.all([
         supabase.from('divisions').select('*'),
         supabase.from('staff').select('*'),
@@ -212,6 +225,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         supabase.from('ticket_responses').select('*'),
         supabase.from('ticket_events').select('*'),
         supabase.from('helpdesk_routing').select('*'),
+        supabase.from('calendar_events').select('*').order('event_date', { ascending: true }),
+        supabase.from('holidays').select('*').order('holiday_date', { ascending: true }),
       ]);
 
       // Surface per-table errors — Promise.all hides them as empty data
@@ -241,6 +256,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       checkTable('ticket_responses', trsRes);
       checkTable('ticket_events', tevRes);
       checkTable('helpdesk_routing', hrtRes);
+      checkTable('calendar_events', ceRes);
+      checkTable('holidays', holRes);
       if (tableErrors.length > 0) {
         const summary = `${tableErrors.length} table(s) failed to load: ${tableErrors.map(e => e.table).join(', ')}`;
         logger.error('partial_data_load_failed', new Error(summary), { tableErrors });
@@ -273,6 +290,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setTicketResponses(trsRes.data ? trsRes.data.map(mapTicketResponseRow) : []);
       setTicketEvents(tevRes.data ? tevRes.data.map(mapTicketEventRow) : []);
       setHelpdeskRouting(hrtRes.data ? hrtRes.data.map(mapHelpdeskRoutingRow) : []);
+      setCalendarEvents(ceRes.data ? ceRes.data.map(mapCalendarEventRow) : []);
+      setHolidays(holRes.data ? holRes.data.map(mapHolidayRow) : []);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load data';
       setError(message);
@@ -287,6 +306,34 @@ export function DataProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     loadData();
   }, [provisioned, role, divisionCode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const refreshCalendar = async () => {
+    if (!supabase) return;
+    const { data, error: err } = await supabase
+      .from('calendar_events')
+      .select('*')
+      .order('event_date', { ascending: true });
+    if (err) {
+      logger.error('refresh_calendar_failed', err);
+      pushToast(`Calendar refresh failed: ${err.message}`, 'error');
+      return;
+    }
+    setCalendarEvents(data ? data.map(mapCalendarEventRow) : []);
+  };
+
+  const refreshHolidays = async () => {
+    if (!supabase) return;
+    const { data, error: err } = await supabase
+      .from('holidays')
+      .select('*')
+      .order('holiday_date', { ascending: true });
+    if (err) {
+      logger.error('refresh_holidays_failed', err);
+      pushToast(`Holidays refresh failed: ${err.message}`, 'error');
+      return;
+    }
+    setHolidays(data ? data.map(mapHolidayRow) : []);
+  };
 
   return (
     <DataContext.Provider value={{
@@ -312,6 +359,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
       ticketResponses,
       ticketEvents,
       helpdeskRouting,
+      calendarEvents,
+      holidays,
+      refreshCalendar,
+      refreshHolidays,
       isLoading,
       isBackendProvisioned: provisioned,
       refreshData: loadData,
