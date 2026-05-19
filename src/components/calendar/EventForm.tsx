@@ -203,7 +203,7 @@ export function EventForm({
       {/* Teams URL */}
       <div>
         <label htmlFor="event-teams-url" className="block text-sm font-medium text-text mb-1">
-          Teams URL
+          MS Teams URL
         </label>
         <input
           id="event-teams-url"
