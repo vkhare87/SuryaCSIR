@@ -48,6 +48,7 @@ const TicketList        = lazy(() => import('./pages/helpdesk/TicketList'));
 const TicketDetail      = lazy(() => import('./pages/helpdesk/TicketDetail'));
 const TicketForm        = lazy(() => import('./pages/helpdesk/TicketForm'));
 const IrinsSync         = lazy(() => import('./pages/IrinsSync'));
+const HolidaysAdmin     = lazy(() => import('./pages/admin/HolidaysAdmin'));
 const Proposals         = lazy(() => import('./pages/proposals/Proposals'));
 const ProposalForm      = lazy(() => import('./pages/proposals/ProposalForm'));
 const ProposalDetail    = lazy(() => import('./pages/proposals/ProposalDetail'));
@@ -159,6 +160,7 @@ function App() {
             <Route path="/pms/audit" element={<ProtectedRoute allowedRoles={['HRAdmin','SystemAdmin','MasterAdmin']}><PmsAuditLog /></ProtectedRoute>} />
             <Route path="/db-wizard" element={<ProtectedRoute allowedRoles={['SystemAdmin','MasterAdmin']}><DatabaseWizard /></ProtectedRoute>} />
             <Route path="/irins-sync" element={<ProtectedRoute allowedRoles={['SystemAdmin','MasterAdmin']}><IrinsSync /></ProtectedRoute>} />
+            <Route path="/admin/holidays" element={<ProtectedRoute allowedRoles={['SystemAdmin', 'MasterAdmin']}><HolidaysAdmin /></ProtectedRoute>} />
             {/* Project Proposals — specific routes first */}
             <Route path="/proposals/new" element={<ProtectedRoute allowedRoles={['Scientist']}><ProposalForm /></ProtectedRoute>} />
             <Route path="/proposals/:id/edit" element={<ProtectedRoute><ProposalForm /></ProtectedRoute>} />

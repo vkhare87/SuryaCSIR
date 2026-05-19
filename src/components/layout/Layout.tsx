@@ -23,6 +23,7 @@ import {
   ChevronDown,
   ClipboardCheck,
   Ticket as TicketIcon,
+  CalendarDays,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -96,6 +97,7 @@ const NAV_SECTIONS: NavSection[] = [
       { path: '/data',         label: 'Data Import',     icon: Database,        allowedRoles: ['HRAdmin', 'SystemAdmin', 'MasterAdmin'] },
       { path: '/db-wizard',    label: 'DB Wizard',       icon: Database,        allowedRoles: ['SystemAdmin', 'MasterAdmin'] },
       { path: '/irins-sync',   label: 'IRINS Sync',      icon: Cloud,           allowedRoles: ['SystemAdmin', 'MasterAdmin'] },
+      { path: '/admin/holidays', label: 'Holidays',        icon: CalendarDays,    allowedRoles: ['SystemAdmin', 'MasterAdmin'] },
     ],
   },
 ];
