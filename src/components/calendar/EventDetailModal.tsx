@@ -153,26 +153,36 @@ export function EventDetailModal({
               </Link>
             )}
 
-            {isAction && (
+            {isAction && event.source.meeting_id && (
               <Link
-                to={`/committees/${event.source.meeting_id ?? ''}`}
+                to="/committees"
                 className="inline-flex items-center gap-2 text-sm text-[#c96442] hover:underline"
                 onClick={handleClose}
               >
-                Open Action Item <ExternalLink size={12} />
+                Go to Committees <ExternalLink size={12} />
               </Link>
             )}
 
-            {(canEdit || canEditHoliday) && (
+            {canEditHoliday && (
+              <div className="pt-3 border-t border-border">
+                <Link
+                  to="/admin/holidays"
+                  onClick={handleClose}
+                  className="inline-flex items-center gap-2 text-sm text-[#c96442] hover:underline"
+                >
+                  Manage in Holidays Admin <ExternalLink size={12} />
+                </Link>
+              </div>
+            )}
+
+            {canEdit && (
               <div className="flex justify-end gap-2 pt-3 border-t border-border">
-                {canEdit && (
-                  <button
-                    onClick={() => setMode('edit')}
-                    className="inline-flex items-center gap-1 text-sm text-text-muted hover:text-text px-3 py-1.5 hover:bg-surface-hover rounded-md"
-                  >
-                    <Edit2 size={14} /> Edit
-                  </button>
-                )}
+                <button
+                  onClick={() => setMode('edit')}
+                  className="inline-flex items-center gap-1 text-sm text-text-muted hover:text-text px-3 py-1.5 hover:bg-surface-hover rounded-md"
+                >
+                  <Edit2 size={14} /> Edit
+                </button>
                 {confirmingDelete ? (
                   <>
                     <button
@@ -183,8 +193,7 @@ export function EventDetailModal({
                     </button>
                     <button
                       onClick={async () => {
-                        if (isCalendarEvent) await onDelete(event.source.id);
-                        else if (isHoliday) await onDelete(event.source.id);
+                        await onDelete(event.source.id);
                         handleClose();
                       }}
                       className="text-sm bg-rose-500 text-white px-3 py-1.5 rounded-md hover:bg-rose-600"
