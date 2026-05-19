@@ -1,4 +1,4 @@
-import type { DivisionInfo, StaffMember, ProjectInfo, ProjectStaff, PhDStudent, Equipment, ScientificOutput, IPIntelligence, ContractStaff, VacancyAdvertisement, VacancyPost, Notification, Committee, CommitteeMember, Meeting, AgendaItem, ActionItem, MeetingDocument, Ticket, TicketResponse, TicketEvent, HelpdeskRouting } from '../types';
+import type { DivisionInfo, StaffMember, ProjectInfo, ProjectStaff, PhDStudent, Equipment, ScientificOutput, IPIntelligence, ContractStaff, VacancyAdvertisement, VacancyPost, Notification, Committee, CommitteeMember, Meeting, AgendaItem, ActionItem, MeetingDocument, Ticket, TicketResponse, TicketEvent, HelpdeskRouting, CalendarEvent, Holiday } from '../types';
 
 /**
  * These mappers will eventually transform raw Supabase rows 
@@ -232,6 +232,8 @@ export const mapMeetingRow = (row: any): Meeting => ({
   summary: row.summary || '',
   status: row.status || 'Scheduled',
   created_at: row.created_at || '',
+  teams_url: row.teams_url ?? null,
+  pamphlet_url: row.pamphlet_url ?? null,
 });
 
 export const mapAgendaItemRow = (row: any): AgendaItem => ({
@@ -300,4 +302,28 @@ export const mapHelpdeskRoutingRow = (row: any): HelpdeskRouting => ({
   category: row.category,
   target_type: row.target_type,
   target_id: row.target_id || '',
+});
+
+export const mapCalendarEventRow = (row: any): CalendarEvent => ({
+  id: String(row.id || ''),
+  title: row.title || '',
+  event_date: row.event_date || '',
+  event_kind: row.event_kind || 'Custom',
+  location: row.location || '',
+  teams_url: row.teams_url ?? null,
+  pamphlet_url: row.pamphlet_url ?? null,
+  description: row.description || '',
+  visibility: row.visibility || 'OrgWide',
+  division_code: row.division_code ?? null,
+  created_by: String(row.created_by || ''),
+  created_at: row.created_at || '',
+  updated_at: row.updated_at || '',
+});
+
+export const mapHolidayRow = (row: any): Holiday => ({
+  id: String(row.id || ''),
+  holiday_date: row.holiday_date || '',
+  name: row.name || '',
+  holiday_type: row.holiday_type || 'Gazetted',
+  year: parseInt(row.year || '0', 10),
 });
