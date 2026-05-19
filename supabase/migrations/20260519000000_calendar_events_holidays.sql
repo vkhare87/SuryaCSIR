@@ -42,12 +42,17 @@ ALTER TABLE public.meetings ADD COLUMN IF NOT EXISTS pamphlet_url text;
 
 -- Extend audit_log.entity_type CHECK to allow new entity kinds
 ALTER TABLE public.audit_log DROP CONSTRAINT IF EXISTS audit_log_entity_type_check;
-ALTER TABLE public.audit_log
-    ADD CONSTRAINT audit_log_entity_type_check
-    CHECK (entity_type IN (
-        'committee','meeting','action_item','ticket','ticket_response',
-        'calendar_event','holiday'
-    ));
+DO $$
+BEGIN
+    ALTER TABLE public.audit_log
+        ADD CONSTRAINT audit_log_entity_type_check
+        CHECK (entity_type IN (
+            'committee','meeting','action_item','ticket','ticket_response',
+            'calendar_event','holiday'
+        ));
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
 
 -- ══════════════════════════════════════════════════════════════════
 -- 2. INDEXES
@@ -66,8 +71,18 @@ CREATE INDEX IF NOT EXISTS holidays_date_idx ON public.holidays(holiday_date);
 ALTER TABLE public.calendar_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.holidays        ENABLE ROW LEVEL SECURITY;
 
+-- Drop all policies before (re-)creating them (idempotent)
+DROP POLICY IF EXISTS "calendar_events_select" ON public.calendar_events;
+DROP POLICY IF EXISTS "calendar_events_insert" ON public.calendar_events;
+DROP POLICY IF EXISTS "calendar_events_update" ON public.calendar_events;
+DROP POLICY IF EXISTS "calendar_events_delete" ON public.calendar_events;
+DROP POLICY IF EXISTS "holidays_select"         ON public.holidays;
+DROP POLICY IF EXISTS "holidays_insert"         ON public.holidays;
+DROP POLICY IF EXISTS "holidays_update"         ON public.holidays;
+DROP POLICY IF EXISTS "holidays_delete"         ON public.holidays;
+
 -- calendar_events SELECT
-CREATE POLICY calendar_events_select ON public.calendar_events FOR SELECT
+CREATE POLICY "calendar_events_select" ON public.calendar_events FOR SELECT
 TO authenticated
 USING (
     visibility = 'OrgWide'
@@ -85,74 +100,71 @@ USING (
 );
 
 -- calendar_events INSERT: role-gated
-CREATE POLICY calendar_events_insert ON public.calendar_events FOR INSERT
+CREATE POLICY "calendar_events_insert" ON public.calendar_events FOR INSERT
 TO authenticated
 WITH CHECK (
     created_by = auth.uid()
-    AND EXISTS (
-        SELECT 1 FROM public.user_roles ur
-        WHERE ur.user_id = auth.uid()
-          AND ur.role IN ('HRAdmin','SystemAdmin','Director','HOD','DivisionHead','MasterAdmin')
+    AND (
+        public.user_has_role('HRAdmin')
+        OR public.user_has_role('SystemAdmin')
+        OR public.user_has_role('Director')
+        OR public.user_has_role('HOD')
+        OR public.user_has_role('DivisionHead')
+        OR public.user_has_role('MasterAdmin')
     )
 );
 
 -- calendar_events UPDATE: creator OR SystemAdmin/MasterAdmin
-CREATE POLICY calendar_events_update ON public.calendar_events FOR UPDATE
+CREATE POLICY "calendar_events_update" ON public.calendar_events FOR UPDATE
 TO authenticated
 USING (
     created_by = auth.uid()
-    OR EXISTS (
-        SELECT 1 FROM public.user_roles ur
-        WHERE ur.user_id = auth.uid()
-          AND ur.role IN ('SystemAdmin','MasterAdmin')
-    )
+    OR public.user_has_role('SystemAdmin')
+    OR public.user_has_role('MasterAdmin')
+)
+WITH CHECK (
+    created_by = auth.uid()
+    OR public.user_has_role('SystemAdmin')
+    OR public.user_has_role('MasterAdmin')
 );
 
 -- calendar_events DELETE: creator OR SystemAdmin/MasterAdmin
-CREATE POLICY calendar_events_delete ON public.calendar_events FOR DELETE
+CREATE POLICY "calendar_events_delete" ON public.calendar_events FOR DELETE
 TO authenticated
 USING (
     created_by = auth.uid()
-    OR EXISTS (
-        SELECT 1 FROM public.user_roles ur
-        WHERE ur.user_id = auth.uid()
-          AND ur.role IN ('SystemAdmin','MasterAdmin')
-    )
+    OR public.user_has_role('SystemAdmin')
+    OR public.user_has_role('MasterAdmin')
 );
 
 -- holidays SELECT: all authenticated
-CREATE POLICY holidays_select ON public.holidays FOR SELECT
+CREATE POLICY "holidays_select" ON public.holidays FOR SELECT
 TO authenticated USING (true);
 
 -- holidays INSERT/UPDATE/DELETE: SystemAdmin or MasterAdmin only
-CREATE POLICY holidays_insert ON public.holidays FOR INSERT
+CREATE POLICY "holidays_insert" ON public.holidays FOR INSERT
 TO authenticated
 WITH CHECK (
-    EXISTS (
-        SELECT 1 FROM public.user_roles ur
-        WHERE ur.user_id = auth.uid()
-          AND ur.role IN ('SystemAdmin','MasterAdmin')
-    )
+    public.user_has_role('SystemAdmin')
+    OR public.user_has_role('MasterAdmin')
 );
 
-CREATE POLICY holidays_update ON public.holidays FOR UPDATE
+CREATE POLICY "holidays_update" ON public.holidays FOR UPDATE
 TO authenticated
 USING (
-    EXISTS (
-        SELECT 1 FROM public.user_roles ur
-        WHERE ur.user_id = auth.uid()
-          AND ur.role IN ('SystemAdmin','MasterAdmin')
-    )
+    public.user_has_role('SystemAdmin')
+    OR public.user_has_role('MasterAdmin')
+)
+WITH CHECK (
+    public.user_has_role('SystemAdmin')
+    OR public.user_has_role('MasterAdmin')
 );
 
-CREATE POLICY holidays_delete ON public.holidays FOR DELETE
+CREATE POLICY "holidays_delete" ON public.holidays FOR DELETE
 TO authenticated
 USING (
-    EXISTS (
-        SELECT 1 FROM public.user_roles ur
-        WHERE ur.user_id = auth.uid()
-          AND ur.role IN ('SystemAdmin','MasterAdmin')
-    )
+    public.user_has_role('SystemAdmin')
+    OR public.user_has_role('MasterAdmin')
 );
 
 -- ══════════════════════════════════════════════════════════════════
