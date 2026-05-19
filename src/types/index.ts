@@ -247,6 +247,8 @@ export interface Meeting {
   summary: string;
   status: 'Scheduled' | 'Completed' | 'Cancelled';
   created_at: string;
+  teams_url: string | null;
+  pamphlet_url: string | null;
 }
 
 export interface AgendaItem {
@@ -339,4 +341,30 @@ export interface HelpdeskRouting {
   category: TicketCategory;
   target_type: 'role' | 'division';
   target_id: string;
+}
+
+// --- Calendar Event Types ---
+
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  event_date: string;
+  event_kind: 'Custom' | 'Pamphlet' | 'Announcement';
+  location: string;
+  teams_url: string | null;
+  pamphlet_url: string | null;
+  description: string;
+  visibility: 'OrgWide' | 'Division' | 'Personal';
+  division_code: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Holiday {
+  id: string;
+  holiday_date: string;
+  name: string;
+  holiday_type: 'Gazetted' | 'Restricted' | 'Institute';
+  year: number;
 }
