@@ -1,5 +1,5 @@
 import type { ProjectInfo, StaffMember } from '../../types';
-import { parseDate } from '../../utils/dateUtils';
+import { parseDate, getRetirementDate } from '../../utils/dateUtils';
 import type { CalEvent } from './types';
 
 function isLeapYear(year: number): boolean {
@@ -36,11 +36,28 @@ export function deriveBirthdayEvents(
 }
 
 export function deriveRetirementEvents(
-  _staff: StaffMember[],
-  _year: number,
-  _month: number
+  staff: StaffMember[],
+  year: number,
+  month: number
 ): CalEvent[] {
-  return [];
+  const events: CalEvent[] = [];
+  for (const s of staff) {
+    const retirementDate = getRetirementDate(s.DOB);
+    if (!retirementDate) continue;
+    if (retirementDate.getFullYear() !== year) continue;
+    if (retirementDate.getMonth() !== month) continue;
+    events.push({
+      kind: 'retirement',
+      id: `retirement-${s.ID}-${year}`,
+      title: `${s.Name} — Retirement`,
+      location: s.Division || '',
+      date: retirementDate,
+      retirementDate,
+      meta: `Age 60 · ${s.Designation || ''}`,
+      source: s,
+    });
+  }
+  return events;
 }
 
 export function deriveProjectClosingEvents(

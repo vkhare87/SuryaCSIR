@@ -71,3 +71,40 @@ describe('deriveBirthdayEvents', () => {
     expect(deriveBirthdayEvents(staff, 2026, 5)).toHaveLength(0);
   });
 });
+
+import { deriveRetirementEvents } from './deriveEvents';
+
+describe('deriveRetirementEvents', () => {
+  function makeStaff(dob: string, id = 'S001', name = 'Alice'): StaffMember {
+    return {
+      ID: id, LabCode: '', EmployeeType: '', Name: name, Designation: '',
+      Group: '', Division: '', DoAPP: '', DOJ: '', DOB: dob, Cat: '',
+      AppointmentType: '', Level: '', CoreArea: '', Expertise: '',
+      Email: '', Ext: '', VidwanID: '', ReportingID: '',
+      HighestQualification: '', Gender: '',
+    };
+  }
+
+  it('emits a retirement event when DOB + 60yrs lands in the given month', () => {
+    const staff = [makeStaff('15/06/1966')];
+    const events = deriveRetirementEvents(staff, 2026, 5);
+    expect(events).toHaveLength(1);
+    expect(events[0].kind).toBe('retirement');
+    if (events[0].kind === 'retirement') {
+      expect(events[0].retirementDate.getFullYear()).toBe(2026);
+      expect(events[0].retirementDate.getMonth()).toBe(5);
+      expect(events[0].retirementDate.getDate()).toBe(15);
+    }
+  });
+
+  it('does not emit when the retirement month/year does not match', () => {
+    const staff = [makeStaff('15/06/1966')];
+    expect(deriveRetirementEvents(staff, 2026, 4)).toHaveLength(0);
+    expect(deriveRetirementEvents(staff, 2027, 5)).toHaveLength(0);
+  });
+
+  it('skips staff with missing or unparseable DOB', () => {
+    const staff = [makeStaff(''), makeStaff('garbage')];
+    expect(deriveRetirementEvents(staff, 2026, 5)).toHaveLength(0);
+  });
+});
