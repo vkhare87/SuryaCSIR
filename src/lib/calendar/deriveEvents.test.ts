@@ -108,3 +108,73 @@ describe('deriveRetirementEvents', () => {
     expect(deriveRetirementEvents(staff, 2026, 5)).toHaveLength(0);
   });
 });
+
+import { deriveProjectClosingEvents } from './deriveEvents';
+import type { ProjectInfo } from '../../types';
+
+describe('deriveProjectClosingEvents', () => {
+  function makeProject(
+    overrides: Partial<ProjectInfo> = {}
+  ): ProjectInfo {
+    return {
+      ProjectID: 'P1', ProjectNo: 'P-1', ProjectName: 'Solar Cell',
+      FundType: '', SponsorerType: '', SponsorerName: '',
+      ProjectCategory: '', ProjectStatus: 'Ongoing',
+      StartDate: '01/01/2024', CompletioDate: '15/06/2026',
+      SanctionedCost: '', UtilizedAmount: '',
+      PrincipalInvestigator: 'PI1', DivisionCode: 'D01',
+      Extension: '', ApprovalAuthority: '',
+      ...overrides,
+    };
+  }
+
+  it('emits a project closing event when CompletioDate falls inside the window', () => {
+    const projects = [makeProject({ CompletioDate: '15/06/2026' })];
+    const from = new Date(2026, 5, 1);
+    const to = new Date(2026, 5, 30);
+    const events = deriveProjectClosingEvents(projects, from, to);
+    expect(events).toHaveLength(1);
+    expect(events[0].kind).toBe('project_closing');
+    expect(events[0].date.getMonth()).toBe(5);
+    expect(events[0].date.getDate()).toBe(15);
+  });
+
+  it('excludes projects with CompletioDate outside the window', () => {
+    const projects = [
+      makeProject({ ProjectNo: 'A', CompletioDate: '15/05/2026' }),
+      makeProject({ ProjectNo: 'B', CompletioDate: '15/07/2026' }),
+    ];
+    const from = new Date(2026, 5, 1);
+    const to = new Date(2026, 5, 30);
+    expect(deriveProjectClosingEvents(projects, from, to)).toHaveLength(0);
+  });
+
+  it('excludes Completed projects', () => {
+    const projects = [
+      makeProject({ ProjectStatus: 'Completed', CompletioDate: '15/06/2026' }),
+    ];
+    const from = new Date(2026, 5, 1);
+    const to = new Date(2026, 5, 30);
+    expect(deriveProjectClosingEvents(projects, from, to)).toHaveLength(0);
+  });
+
+  it('skips projects with missing or unparseable CompletioDate', () => {
+    const projects = [
+      makeProject({ CompletioDate: '' }),
+      makeProject({ CompletioDate: 'garbage' }),
+    ];
+    const from = new Date(2026, 0, 1);
+    const to = new Date(2026, 11, 31);
+    expect(deriveProjectClosingEvents(projects, from, to)).toHaveLength(0);
+  });
+
+  it('treats window as inclusive on both ends', () => {
+    const projects = [
+      makeProject({ ProjectNo: 'A', CompletioDate: '01/06/2026' }),
+      makeProject({ ProjectNo: 'B', CompletioDate: '30/06/2026' }),
+    ];
+    const from = new Date(2026, 5, 1);
+    const to = new Date(2026, 5, 30);
+    expect(deriveProjectClosingEvents(projects, from, to)).toHaveLength(2);
+  });
+});

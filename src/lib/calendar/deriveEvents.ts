@@ -61,9 +61,32 @@ export function deriveRetirementEvents(
 }
 
 export function deriveProjectClosingEvents(
-  _projects: ProjectInfo[],
-  _from: Date,
-  _to: Date
+  projects: ProjectInfo[],
+  from: Date,
+  to: Date
 ): CalEvent[] {
-  return [];
+  const events: CalEvent[] = [];
+  const fromTime = new Date(from.getFullYear(), from.getMonth(), from.getDate()).getTime();
+  const toTime = new Date(to.getFullYear(), to.getMonth(), to.getDate()).getTime();
+  for (const p of projects) {
+    if ((p.ProjectStatus || '').toLowerCase() === 'completed') continue;
+    const closeDate = parseDate(p.CompletioDate);
+    if (!closeDate) continue;
+    const t = new Date(
+      closeDate.getFullYear(),
+      closeDate.getMonth(),
+      closeDate.getDate()
+    ).getTime();
+    if (t < fromTime || t > toTime) continue;
+    events.push({
+      kind: 'project_closing',
+      id: `project-closing-${p.ProjectNo}`,
+      title: `${p.ProjectName} — Closing`,
+      location: p.DivisionCode || '',
+      date: closeDate,
+      meta: `Project ${p.ProjectNo}`,
+      source: p,
+    });
+  }
+  return events;
 }
