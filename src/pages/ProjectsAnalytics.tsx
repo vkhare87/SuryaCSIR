@@ -8,12 +8,7 @@ import { Heatmap } from '../components/viz/Heatmap';
 import { Histogram } from '../components/viz/Histogram';
 import { HeatmapCalendar } from '../components/viz/HeatmapCalendar';
 import { useChartFilter } from '../utils/useChartFilter';
-
-function parseCost(s: string | undefined): number {
-  if (!s) return 0;
-  const v = parseFloat(s.replace(/[^0-9.-]+/g, ''));
-  return Number.isFinite(v) ? v : 0;
-}
+import { parseCost } from '../utils/parseCost';
 
 export default function ProjectsAnalytics() {
   const { projects } = useData();
