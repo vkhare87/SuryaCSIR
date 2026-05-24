@@ -13,6 +13,8 @@ import {
   getProjectFlags,
   getInstituteUtilization,
   getUtilizationByDivision,
+  getActiveProjectGantt,
+  getGanttWindow,
   getPublicationTrend,
   getIpPipeline,
   getAvgImpactByDivision,
@@ -84,6 +86,39 @@ describe('getUtilizationByDivision', () => {
     ]);
     expect(r[0]).toEqual({ label: 'A', value: 90 });
     expect(r[1]).toEqual({ label: 'B', value: 10 });
+  });
+});
+
+describe('getGanttWindow', () => {
+  it('spans full calendar years from start of current year', () => {
+    const w = getGanttWindow(3, NOW);
+    expect(w.start.getFullYear()).toBe(2026);
+    expect(w.start.getMonth()).toBe(0);
+    expect(w.end.getFullYear()).toBe(2028);
+    expect(w.end.getMonth()).toBe(11);
+  });
+});
+
+describe('getActiveProjectGantt', () => {
+  it('clamps overlapping projects to the window (no epoch dates)', () => {
+    const w = getGanttWindow(1, NOW);
+    const r = getActiveProjectGantt([proj({ StartDate: '2020-01-01', CompletioDate: '2030-01-01' })], w);
+    expect(r).toHaveLength(1);
+    expect((r[0].start as Date).getFullYear()).toBe(2026);
+    expect((r[0].end as Date).getFullYear()).toBe(2026);
+  });
+  it('excludes projects ending before the window', () => {
+    const w = getGanttWindow(1, NOW);
+    expect(getActiveProjectGantt([proj({ StartDate: '2019-01-01', CompletioDate: '2020-01-01' })], w)).toHaveLength(0);
+  });
+  it('excludes projects starting after the window', () => {
+    const w = getGanttWindow(1, NOW);
+    expect(getActiveProjectGantt([proj({ StartDate: '2030-01-01', CompletioDate: '2031-01-01' })], w)).toHaveLength(0);
+  });
+  it('drops unparseable or inverted dates', () => {
+    const w = getGanttWindow(5, NOW);
+    expect(getActiveProjectGantt([proj({ StartDate: '', CompletioDate: '' })], w)).toHaveLength(0);
+    expect(getActiveProjectGantt([proj({ StartDate: '2027-01-01', CompletioDate: '2026-01-01' })], w)).toHaveLength(0);
   });
 });
 

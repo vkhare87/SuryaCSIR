@@ -88,16 +88,39 @@ export function getUtilizationByDivision(projects: ProjectInfo[]): CategoryDatum
   );
 }
 
-export function getActiveProjectGantt(projects: ProjectInfo[]): GanttItem[] {
-  return projects
+export interface GanttWindow {
+  start: Date;
+  end: Date;
+}
+
+/** Calendar window starting Jan 1 of the current year, spanning `years` full years. */
+export function getGanttWindow(years: number, now: Date = new Date()): GanttWindow {
+  const y = now.getFullYear();
+  return { start: new Date(y, 0, 1), end: new Date(y + years - 1, 11, 31, 23, 59, 59) };
+}
+
+export function getActiveProjectGantt(projects: ProjectInfo[], window?: GanttWindow): GanttItem[] {
+  const items = projects
     .filter((p) => p.ProjectStatus === 'Active')
-    .map((p): GanttItem | null => {
+    .map((p): { name: string; start: Date; end: Date } | null => {
       const s = parseDate(p.StartDate);
       const e = parseDate(p.CompletioDate);
-      if (!s || !e) return null;
+      if (!s || !e || e.getTime() < s.getTime()) return null;
       return { name: (p.ProjectName || p.ProjectNo || '—').slice(0, 24), start: s, end: e };
     })
-    .filter((x): x is GanttItem => x !== null)
+    .filter((x): x is { name: string; start: Date; end: Date } => x !== null);
+
+  if (!window) return items.slice(0, 15);
+
+  const ws = window.start.getTime();
+  const we = window.end.getTime();
+  return items
+    .filter((it) => it.end.getTime() >= ws && it.start.getTime() <= we)
+    .map((it) => ({
+      name: it.name,
+      start: new Date(Math.max(it.start.getTime(), ws)),
+      end: new Date(Math.min(it.end.getTime(), we)),
+    }))
     .slice(0, 15);
 }
 

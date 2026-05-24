@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../../contexts/DataContext';
 import { ChartCard } from '../viz/ChartCard';
@@ -11,15 +11,26 @@ import {
   getInstituteUtilization,
   getUtilizationByDivision,
   getActiveProjectGantt,
+  getGanttWindow,
 } from '../../utils/directorMetrics';
+
+const GANTT_RANGES = [
+  { label: 'This year', years: 1 },
+  { label: '3 years', years: 3 },
+  { label: '5 years', years: 5 },
+] as const;
 
 export function ProjectFinanceSection() {
   const { projects } = useData();
   const navigate = useNavigate();
+  const [ganttYears, setGanttYears] = useState(1);
 
   const util = useMemo(() => getInstituteUtilization(projects), [projects]);
   const byDiv = useMemo(() => getUtilizationByDivision(projects), [projects]);
-  const gantt = useMemo(() => getActiveProjectGantt(projects), [projects]);
+  const gantt = useMemo(
+    () => getActiveProjectGantt(projects, getGanttWindow(ganttYears)),
+    [projects, ganttYears],
+  );
   const sponsorers = useMemo(() => {
     const m = new Map<string, number>();
     for (const p of projects) {
@@ -44,7 +55,24 @@ export function ProjectFinanceSection() {
         <ChartCard title="Utilization % by division">
           <CategoryBar data={byDiv} horizontal onSelect={() => navigate('/divisions')} />
         </ChartCard>
-        <ChartCard title="Active projects timeline" subtitle="start → completion (top 15)" className="lg:col-span-2">
+        <ChartCard
+          title="Active projects timeline"
+          subtitle="start → completion (top 15)"
+          className="lg:col-span-2"
+          action={
+            <select
+              value={ganttYears}
+              onChange={(e) => setGanttYears(Number(e.target.value))}
+              className="rounded-md border border-border bg-surface px-2 py-1 text-xs text-text"
+            >
+              {GANTT_RANGES.map((r) => (
+                <option key={r.years} value={r.years}>
+                  {r.label}
+                </option>
+              ))}
+            </select>
+          }
+        >
           <GanttLite items={gantt} onClick={() => navigate('/projects')} />
         </ChartCard>
         <ChartCard title="Top sponsorers" subtitle="sized by sanctioned cost" className="lg:col-span-2">
