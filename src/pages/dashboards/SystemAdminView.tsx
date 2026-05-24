@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Users, Wifi, Database, Shield, Activity, AlertTriangle,
   Briefcase, Microscope, FileText, Wrench, Lightbulb,
@@ -186,7 +187,9 @@ export function SystemAdminView() {
           <KpiCard label="Total Staff"   value={staff.length}        icon={<Users size={18} />}         sublabel={`${contractStaff.length} contract`} />
           <KpiCard label="PhD Students"  value={phDStudents.length}  icon={<BookOpen size={18} />}      sublabel="Enrolled scholars" />
           <KpiCard label="Open Vacancies" value={openVacancies}      icon={<ClipboardList size={18} />} sublabel={`${vacancyPosts.length} applicants`} />
-          <KpiCard label="Reg. Users"    value={userRoles.length}    icon={<Users size={18} />}         sublabel={`${pendingUsers} pending`} />
+          <Link to="/admin/access-requests" className="block">
+            <KpiCard label="Reg. Users"    value={userRoles.length}    icon={<Users size={18} />}         sublabel={`${pendingUsers} pending`} />
+          </Link>
         </div>
       </section>
 

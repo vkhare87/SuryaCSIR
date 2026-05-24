@@ -368,3 +368,17 @@ export interface Holiday {
   holiday_type: 'Gazetted' | 'Restricted' | 'Institute';
   year: number;
 }
+
+export interface AccessRequest {
+  id: string;
+  user_id: string;
+  email: string | null;
+  requested_roles: Role[];
+  requested_division: string | null;
+  justification: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  review_note: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+}

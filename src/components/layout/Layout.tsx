@@ -25,6 +25,7 @@ import {
   Ticket as TicketIcon,
   CalendarDays,
   UserCog,
+  UserCheck,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -96,6 +97,7 @@ const NAV_SECTIONS: NavSection[] = [
   {
     label: 'Admin',
     items: [
+      { path: '/admin/access-requests', label: 'Access Requests', icon: UserCheck, allowedRoles: ['SystemAdmin', 'MasterAdmin'] },
       { path: '/data',         label: 'Data Import',     icon: Database,        allowedRoles: ['HRAdmin', 'SystemAdmin', 'MasterAdmin'] },
       { path: '/db-wizard',    label: 'DB Wizard',       icon: Database,        allowedRoles: ['SystemAdmin', 'MasterAdmin'] },
       { path: '/irins-sync',   label: 'IRINS Sync',      icon: Cloud,           allowedRoles: ['SystemAdmin', 'MasterAdmin'] },
