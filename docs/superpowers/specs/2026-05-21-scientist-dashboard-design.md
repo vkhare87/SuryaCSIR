@@ -66,7 +66,7 @@ Stays at the bottom below the 3-col grid, unchanged. Conditionally rendered only
 
 ### Empty states
 
-Each widget renders an `<EmptyState>` (existing component) when its list is empty. No error-distinct variant needed — context-level toast already handles load failures.
+Compact widget cards render inline muted italic text (e.g. "No upcoming meetings.") when empty — the full `<EmptyState>` dashed-box component is too heavy inside these small cards and is reserved for full-page empties. No error-distinct variant needed — context-level toast already handles load failures.
 
 ### Responsive behaviour
 
