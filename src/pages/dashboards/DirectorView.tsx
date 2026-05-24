@@ -1,30 +1,42 @@
+import { useEffect, useState } from 'react';
 import { Users, Briefcase, BookOpen, Wrench, Microscope } from 'lucide-react';
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
 import { useData } from '../../contexts/DataContext';
 import { Card } from '../../components/ui/Cards';
 import { KpiCard } from '../../components/ui/KpiCard';
-import { getDivisionMetrics } from '../../utils/analytics';
+import { ThresholdControls } from '../../components/dashboard/ThresholdControls';
+import { AttentionStrip } from '../../components/dashboard/AttentionStrip';
+import { ProjectFinanceSection } from '../../components/dashboard/ProjectFinanceSection';
+import { ResearchSection } from '../../components/dashboard/ResearchSection';
+import { EquipmentOpsSection } from '../../components/dashboard/EquipmentOpsSection';
+import {
+  DEFAULT_THRESHOLDS,
+  THRESHOLD_KEYS,
+  type DirectorThresholds,
+} from '../../utils/directorMetrics';
+
+function loadThresholds(): DirectorThresholds {
+  const read = (key: string, fallback: number) => {
+    const v = Number(localStorage.getItem(key));
+    return Number.isFinite(v) && v > 0 ? v : fallback;
+  };
+  return {
+    lowBurnPct: read(THRESHOLD_KEYS.lowBurnPct, DEFAULT_THRESHOLDS.lowBurnPct),
+    endingDays: read(THRESHOLD_KEYS.endingDays, DEFAULT_THRESHOLDS.endingDays),
+    amcDays: read(THRESHOLD_KEYS.amcDays, DEFAULT_THRESHOLDS.amcDays),
+  };
+}
 
 export function DirectorView() {
   const { staff, projects, phDStudents, equipment, scientificOutputs, divisions } = useData();
+  const [thresholds, setThresholds] = useState<DirectorThresholds>(loadThresholds);
 
-  const activeProjects = projects.filter(p => p.ProjectStatus === 'Active').length;
-  const divisionMetrics = getDivisionMetrics({
-    divisions,
-    staff,
-    projects,
-    phDStudents,
-    scientificOutputs,
-    equipment,
-  });
+  useEffect(() => {
+    localStorage.setItem(THRESHOLD_KEYS.lowBurnPct, String(thresholds.lowBurnPct));
+    localStorage.setItem(THRESHOLD_KEYS.endingDays, String(thresholds.endingDays));
+    localStorage.setItem(THRESHOLD_KEYS.amcDays, String(thresholds.amcDays));
+  }, [thresholds]);
+
+  const activeProjects = projects.filter((p) => p.ProjectStatus === 'Active').length;
 
   return (
     <div className="space-y-8 pb-12">
@@ -34,111 +46,34 @@ export function DirectorView() {
           Director's Dashboard
         </h1>
         <p className="text-[#87867f] mt-1 text-sm font-medium">
-          CSIR-AMPRI — Institute-Wide Performance Overview
+          CSIR-AMPRI — Institute-Wide Decision Cockpit
         </p>
       </div>
 
-      {/* KPI Cards */}
+      {/* Compact KPI strip (retained counts) */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        <KpiCard
-          label="Total Staff"
-          value={staff.length}
-          icon={<Users size={18} />}
-          sublabel="Permanent personnel"
-        />
-        <KpiCard
-          label="Active Projects"
-          value={activeProjects}
-          icon={<Briefcase size={18} />}
-          sublabel={`of ${projects.length} total`}
-        />
-        <KpiCard
-          label="PhD Students"
-          value={phDStudents.length}
-          icon={<BookOpen size={18} />}
-          sublabel="Enrolled scholars"
-        />
-        <KpiCard
-          label="Equipment"
-          value={equipment.length}
-          icon={<Wrench size={18} />}
-          sublabel="Instruments & facilities"
-        />
-        <KpiCard
-          label="Scientific Outputs"
-          value={scientificOutputs.length}
-          icon={<Microscope size={18} />}
-          sublabel="Publications & IP"
-        />
+        <KpiCard label="Total Staff" value={staff.length} icon={<Users size={18} />} sublabel="Permanent personnel" />
+        <KpiCard label="Active Projects" value={activeProjects} icon={<Briefcase size={18} />} sublabel={`of ${projects.length} total`} />
+        <KpiCard label="PhD Students" value={phDStudents.length} icon={<BookOpen size={18} />} sublabel="Enrolled scholars" />
+        <KpiCard label="Equipment" value={equipment.length} icon={<Wrench size={18} />} sublabel="Instruments & facilities" />
+        <KpiCard label="Scientific Outputs" value={scientificOutputs.length} icon={<Microscope size={18} />} sublabel="Publications & IP" />
       </div>
 
-      {/* Division Scorecards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-        {divisionMetrics.map(metric => (
-          <Card key={metric.divCode} className="space-y-4">
-            <div>
-              <div className="text-xs font-bold text-[#c96442] font-mono">{metric.divCode}</div>
-              <h2 className="text-base font-[500] text-text font-serif truncate" title={metric.divName}>
-                {metric.divName}
-              </h2>
-            </div>
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div>
-                <div className="text-2xl font-bold text-text">{metric.staffCount}</div>
-                <div className="text-[10px] uppercase tracking-widest text-text-muted">Staff</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-text">{metric.activeProjectCount}</div>
-                <div className="text-[10px] uppercase tracking-widest text-text-muted">Active Projects</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-text">{metric.scientificOutputCount}</div>
-                <div className="text-[10px] uppercase tracking-widest text-text-muted">Outputs</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-text">{metric.phdStudentCount}</div>
-                <div className="text-[10px] uppercase tracking-widest text-text-muted">PhDs</div>
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
+      <ThresholdControls
+        thresholds={thresholds}
+        onChange={setThresholds}
+        onReset={() => setThresholds(DEFAULT_THRESHOLDS)}
+      />
 
-      {/* Division Comparison Chart */}
-      <Card className="space-y-5">
-        <div>
-          <h2 className="text-base font-semibold text-[#4d4c48] uppercase tracking-wide">
-            Division Comparison
-          </h2>
-          <p className="text-xs text-text-muted mt-1">Projects and scientific outputs by division</p>
-        </div>
-        <div className="h-72">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={divisionMetrics} margin={{ top: 10, right: 16, left: -20, bottom: 0 }}>
-              <CartesianGrid stroke="#e8e6dc" vertical={false} />
-              <XAxis dataKey="divCode" stroke="#87867f" tickLine={false} axisLine={false} />
-              <YAxis stroke="#87867f" tickLine={false} axisLine={false} allowDecimals={false} />
-              <Tooltip
-                contentStyle={{
-                  background: '#faf9f5',
-                  border: '1px solid #e8e6dc',
-                  borderRadius: 8,
-                  color: '#141413',
-                }}
-              />
-              <Bar dataKey="projectCount" name="Projects" fill="#c96442" radius={[6, 6, 0, 0]} />
-              <Bar dataKey="scientificOutputCount" name="Outputs" fill="#5e5d59" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </Card>
+      <AttentionStrip thresholds={thresholds} />
+      <ProjectFinanceSection />
+      <ResearchSection />
+      <EquipmentOpsSection />
 
-      {/* Division Breakdown Table */}
+      {/* Division breakdown table (retained) */}
       <Card className="p-0 overflow-hidden">
         <div className="px-6 py-4 border-b border-[#f0eee6]">
-          <h2 className="text-base font-semibold text-[#4d4c48] uppercase tracking-wide">
-            Division Breakdown
-          </h2>
+          <h2 className="text-base font-semibold text-[#4d4c48] uppercase tracking-wide">Division Breakdown</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -152,7 +87,7 @@ export function DirectorView() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#f0eee6]">
-              {divisions.map(div => (
+              {divisions.map((div) => (
                 <tr key={div.divCode} className="hover:bg-[#f5f4ed] transition-colors">
                   <td className="px-6 py-4 font-semibold text-[#c96442] font-mono text-xs">{div.divCode}</td>
                   <td className="px-6 py-4 text-[#4d4c48] font-medium">{div.divName}</td>
