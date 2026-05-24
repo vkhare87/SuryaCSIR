@@ -5,11 +5,15 @@ import { useData } from '../contexts/DataContext';
 import { useToast } from '../contexts/ToastContext';
 import { Card } from '../components/ui/Cards';
 import { EmptyState } from '../components/ui/EmptyState';
+import { ManageUsersTab } from '../components/admin/ManageUsersTab';
 import type { AccessRequest, Role } from '../types';
+
+type Tab = 'pending' | 'users';
 
 export default function AccessRequests() {
   const { staff, divisions } = useData();
   const { push } = useToast();
+  const [tab, setTab] = useState<Tab>('pending');
   const [requests, setRequests] = useState<AccessRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState<Record<string, { roles: Role[]; division: string }>>({});
@@ -63,11 +67,28 @@ export default function AccessRequests() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-[500] text-text font-serif">Access Requests</h1>
-        <p className="text-text-muted mt-1">Review and grant role access to new users</p>
+        <h1 className="text-2xl font-[500] text-text font-serif">Access &amp; Roles</h1>
+        <p className="text-text-muted mt-1">Grant access to new users and manage existing role assignments</p>
       </div>
 
-      {loading ? (
+      <div className="inline-flex rounded-lg border border-border overflow-hidden text-sm">
+        <button
+          onClick={() => setTab('pending')}
+          className={`px-4 py-2 ${tab === 'pending' ? 'bg-surface-hover text-text font-medium' : 'bg-surface text-text-muted hover:text-text'}`}
+        >
+          Pending Requests
+        </button>
+        <button
+          onClick={() => setTab('users')}
+          className={`px-4 py-2 border-l border-border ${tab === 'users' ? 'bg-surface-hover text-text font-medium' : 'bg-surface text-text-muted hover:text-text'}`}
+        >
+          Manage Users
+        </button>
+      </div>
+
+      {tab === 'users' ? (
+        <ManageUsersTab />
+      ) : loading ? (
         <p className="text-sm text-text-muted">Loading…</p>
       ) : requests.length === 0 ? (
         <Card><EmptyState icon={UserCheck} title="No pending requests" description="New access requests will appear here." /></Card>
