@@ -37,9 +37,9 @@ Replace the current research-only view with a combined hub: operations strip at 
 | Upcoming Meetings | same as KPI meetings | next 5 by `meeting_date` ascending, only future dates |
 | This Week | `calendarEvents` + `holidays` | next 7 days, sorted by date |
 | Action Items | `actionItems` | assignee match, show up to 10, sorted by `due_date` |
-| My Projects | `projects` + `projectStaff` | existing logic; add `FundingAgency` + `EndDate` columns |
-| PhD Supervisees | `phDStudents` | existing logic; add `EnrollmentYear` + `ExpectedCompletion` columns |
-| My Proposals | `ProposalsContext.proposals` | where `pi_id === user.id` OR scientist is in `coPIs`; show title, stage badge, submission deadline |
+| My Projects | `projects` + `projectStaff` | existing logic; add `SponsorerName` + `CompletioDate` columns |
+| PhD Supervisees | `phDStudents` | existing logic; add `Specialization` column (keep `CurrentStatus`) — no enrollment-year/completion fields exist in schema |
+| My Proposals | `ProposalsContext.proposals` + `proposal_copis` query | PI match: `piUserId === user.id`. Co-PI match: one supabase query to `proposal_copis` where `staff_id === ownStaff.ID` → proposal IDs. Show title, status badge, PI/Co-PI tag |
 
 ### Assignee matching for action items
 
