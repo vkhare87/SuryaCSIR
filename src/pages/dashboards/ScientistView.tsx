@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Briefcase, BookOpen, FileText, CalendarDays, ClipboardList, Lightbulb,
+  Briefcase, BookOpen, FileText, CalendarDays, CalendarClock, ClipboardList, Lightbulb,
 } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -107,10 +107,10 @@ export function ScientistView() {
       </div>
 
       {/* --- 1. KPI strip --- */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <KpiCard label="Upcoming Meetings" value={ownMeetings.length} icon={<CalendarDays size={18} />} sublabel="Committees you sit on" />
         <KpiCard label="Open Action Items" value={ownActionItems.length} icon={<ClipboardList size={18} />} sublabel="Assigned to you" />
-        <KpiCard label="Events This Week" value={weekEvents.length} icon={<CalendarDays size={18} />} sublabel="Next 7 days" />
+        <KpiCard label="Events This Week" value={weekEvents.length} icon={<CalendarClock size={18} />} sublabel="Next 7 days" />
       </div>
 
       {/* --- 2. Operations row --- */}
