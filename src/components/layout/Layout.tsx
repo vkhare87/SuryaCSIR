@@ -24,6 +24,7 @@ import {
   ClipboardCheck,
   Ticket as TicketIcon,
   CalendarDays,
+  UserCog,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -67,9 +68,10 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    label: 'People',
+    label: 'Unified Human Resource',
     items: [
       { path: '/staff',        label: 'Human Capital',   icon: Users,           allowedRoles: ['Director', 'DivisionHead', 'HRAdmin', 'SystemAdmin', 'MasterAdmin'] },
+      { path: '/staff/project', label: 'Project Staff',   icon: UserCog,         allowedRoles: ['Director', 'DivisionHead', 'HRAdmin', 'SystemAdmin', 'MasterAdmin'] },
       { path: '/phd',          label: 'PhD Tracker',     icon: BookOpen,        allowedRoles: ['Director', 'DivisionHead', 'Scientist', 'SystemAdmin', 'MasterAdmin'] },
       { path: '/divisions',    label: 'Divisions',       icon: Network,         allowedRoles: ['Director', 'SystemAdmin', 'MasterAdmin'] },
       { path: '/recruitment',  label: 'Recruitment',     icon: FileText,        allowedRoles: ['HRAdmin', 'SystemAdmin', 'MasterAdmin'] },

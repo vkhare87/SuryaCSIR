@@ -15,6 +15,7 @@ import { ROLE_ROUTES } from './constants/roleRoutes';
 // payload manageable. Heavy deps (@react-pdf, xlsx, recharts) live behind
 // these boundaries.
 const HumanCapital      = lazy(() => import('./pages/HumanCapital'));
+const ProjectStaffRoster = lazy(() => import('./pages/ProjectStaffRoster'));
 const StaffAnalytics    = lazy(() => import('./pages/StaffAnalytics'));
 const StaffDetail       = lazy(() => import('./pages/StaffDetail'));
 const Projects          = lazy(() => import('./pages/Projects'));
@@ -124,6 +125,7 @@ function App() {
             <Route path="/pending"       element={<ProtectedRoute allowedRoles={['DefaultUser']}><Dashboard /></ProtectedRoute>} />
             <Route path="/staff" element={<HumanCapital />} />
             <Route path="/staff/analytics" element={<StaffAnalytics />} />
+            <Route path="/staff/project" element={<ProjectStaffRoster />} />
             <Route path="/staff/:id" element={<StaffDetail />} />
             <Route path="/projects" element={<Projects />} />
             <Route path="/projects/:id" element={<ProjectDetail />} />
