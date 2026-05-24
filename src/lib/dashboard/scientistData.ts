@@ -24,6 +24,7 @@ export function deriveOwnMeetings(
       const d = parseISODate(m.meeting_date);
       return d !== null && d.getTime() >= now.getTime();
     })
+    // Correct because meeting_date is a YYYY-MM-DD ISO string (DB-enforced); lexical = chronological.
     .sort((a, b) => a.meeting_date.localeCompare(b.meeting_date));
 }
 
@@ -41,9 +42,11 @@ export function deriveUpcomingWeekEvents(
   now: Date,
 ): WeekEvent[] {
   const start = now.getTime();
+  // Inclusive 7-day window: today .. now+7d (both endpoints included).
   const end = start + 7 * 24 * 60 * 60 * 1000;
   const inWindow = (iso: string): boolean => {
     const d = parseISODate(iso);
+    // <= end is intentional — the window is inclusive of the boundary day.
     return d !== null && d.getTime() >= start && d.getTime() <= end;
   };
 
@@ -55,6 +58,7 @@ export function deriveUpcomingWeekEvents(
     .filter(e => inWindow(e.event_date))
     .map(e => ({ id: e.id, label: e.title, date: e.event_date, kind: 'EVT' as const }));
 
+  // Correct because event_date / holiday_date are YYYY-MM-DD ISO strings (DB-enforced); lexical = chronological.
   return [...hol, ...evt].sort((a, b) => a.date.localeCompare(b.date));
 }
 
@@ -64,5 +68,6 @@ export function deriveOwnActionItems(items: ActionItem[], staffName: string): Ac
   return items
     .filter(i => i.status !== 'Completed')
     .filter(i => staffNameMatchesAuthor(staffName, i.assigned_to))
+    // Correct because deadline is a YYYY-MM-DD ISO string (DB-enforced); lexical = chronological.
     .sort((a, b) => (a.deadline || '').localeCompare(b.deadline || ''));
 }

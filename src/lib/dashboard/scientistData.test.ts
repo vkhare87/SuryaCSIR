@@ -71,6 +71,14 @@ describe('deriveUpcomingWeekEvents', () => {
     ];
     expect(deriveUpcomingWeekEvents(events, [], NOW)).toEqual([]);
   });
+
+  it('includes an event dated exactly NOW+7d (boundary inclusive)', () => {
+    // NOW = 2026-05-21; NOW+7d = 2026-05-28 — must be included.
+    const events = [calEvent({ id: 'E_BOUND', event_date: '2026-05-28', title: 'Boundary Day' })];
+    const result = deriveUpcomingWeekEvents(events, [], NOW);
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe('E_BOUND');
+  });
 });
 
 describe('deriveOwnActionItems', () => {
@@ -83,5 +91,9 @@ describe('deriveOwnActionItems', () => {
     ];
     const result = deriveOwnActionItems(items, 'Alice Researcher');
     expect(result.map(i => i.id)).toEqual(['A2', 'A1']);
+  });
+
+  it('returns [] when staffName is empty (guard clause)', () => {
+    expect(deriveOwnActionItems([action()], '')).toEqual([]);
   });
 });
