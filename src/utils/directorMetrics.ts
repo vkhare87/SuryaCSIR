@@ -128,13 +128,30 @@ export function getActiveProjectGantt(projects: ProjectInfo[], window?: GanttWin
 
 const IP_STAGES: IPIntelligence['status'][] = ['Filed', 'Published', 'Granted'];
 
-export function getPublicationTrend(outputs: ScientificOutput[]): TrendPoint[] {
-  const m = new Map<number, number>();
+/**
+ * Publication counts per year, ascending. When `years` is given, restrict to the last
+ * `years` calendar years (ending this year) and emit a point for every year, zero-filled.
+ */
+export function getPublicationTrend(
+  outputs: ScientificOutput[],
+  years?: number,
+  now: Date = new Date(),
+): TrendPoint[] {
+  const counts = new Map<number, number>();
   for (const o of outputs) {
     if (!o.year) continue;
-    m.set(o.year, (m.get(o.year) ?? 0) + 1);
+    counts.set(o.year, (counts.get(o.year) ?? 0) + 1);
   }
-  return Array.from(m, ([y, value]) => ({ label: String(y), value })).sort((a, b) => a.label.localeCompare(b.label));
+  if (years == null) {
+    return Array.from(counts, ([y, value]) => ({ label: String(y), value })).sort((a, b) =>
+      a.label.localeCompare(b.label),
+    );
+  }
+  const cy = now.getFullYear();
+  const startY = cy - years + 1;
+  const pts: TrendPoint[] = [];
+  for (let y = startY; y <= cy; y++) pts.push({ label: String(y), value: counts.get(y) ?? 0 });
+  return pts;
 }
 
 export function getIpPipeline(ip: IPIntelligence[]): FunnelStage[] {

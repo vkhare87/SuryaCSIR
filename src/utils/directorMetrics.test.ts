@@ -123,9 +123,19 @@ describe('getActiveProjectGantt', () => {
 });
 
 describe('getPublicationTrend', () => {
-  it('counts by year ascending', () => {
+  it('counts by year ascending (all years)', () => {
     const r = getPublicationTrend([out({ year: 2024 }), out({ year: 2025 }), out({ year: 2025 })]);
     expect(r).toEqual([{ label: '2024', value: 1 }, { label: '2025', value: 2 }]);
+  });
+  it('zero-fills a fixed N-year window ending this year', () => {
+    const r = getPublicationTrend([out({ year: 2024 }), out({ year: 2024 }), out({ year: 2026 })], 5, NOW);
+    expect(r.map((p) => p.label)).toEqual(['2022', '2023', '2024', '2025', '2026']);
+    expect(r.map((p) => p.value)).toEqual([0, 0, 2, 0, 1]);
+  });
+  it('excludes years outside the window', () => {
+    const r = getPublicationTrend([out({ year: 2019 }), out({ year: 2026 })], 3, NOW);
+    expect(r.map((p) => p.label)).toEqual(['2024', '2025', '2026']);
+    expect(r.find((p) => p.label === '2026')!.value).toBe(1);
   });
 });
 

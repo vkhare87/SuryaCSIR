@@ -27,10 +27,8 @@ export function ProjectFinanceSection() {
 
   const util = useMemo(() => getInstituteUtilization(projects), [projects]);
   const byDiv = useMemo(() => getUtilizationByDivision(projects), [projects]);
-  const gantt = useMemo(
-    () => getActiveProjectGantt(projects, getGanttWindow(ganttYears)),
-    [projects, ganttYears],
-  );
+  const ganttWindow = useMemo(() => getGanttWindow(ganttYears), [ganttYears]);
+  const gantt = useMemo(() => getActiveProjectGantt(projects, ganttWindow), [projects, ganttWindow]);
   const sponsorers = useMemo(() => {
     const m = new Map<string, number>();
     for (const p of projects) {
@@ -73,7 +71,7 @@ export function ProjectFinanceSection() {
             </select>
           }
         >
-          <GanttLite items={gantt} onClick={() => navigate('/projects')} />
+          <GanttLite items={gantt} domainStart={ganttWindow.start} domainEnd={ganttWindow.end} onClick={() => navigate('/projects')} />
         </ChartCard>
         <ChartCard title="Top sponsorers" subtitle="sized by sanctioned cost" className="lg:col-span-2">
           <Treemap data={sponsorers} onClick={() => navigate('/projects')} />

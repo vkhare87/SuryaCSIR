@@ -22,6 +22,9 @@ interface GanttLiteProps {
   items: GanttItem[];
   height?: number;
   onClick?: (item: GanttItem) => void;
+  /** Explicit X-axis bounds. When set, rows are clamped/filtered to this range and the axis is fixed to it. */
+  domainStart?: Date | string;
+  domainEnd?: Date | string;
 }
 
 function toMs(d: Date | string): number {
@@ -32,20 +35,30 @@ function formatDate(ms: number): string {
   return new Date(ms).toLocaleDateString(undefined, { year: 'numeric', month: 'short' });
 }
 
-export function GanttLite({ items, height = 320, onClick }: GanttLiteProps) {
+export function GanttLite({ items, height = 320, onClick, domainStart, domainEnd }: GanttLiteProps) {
   if (items.length === 0) return <ChartEmpty height={height} />;
+
+  const domMin = domainStart != null ? toMs(domainStart) : null;
+  const domMax = domainEnd != null ? toMs(domainEnd) : null;
+  const hasDomain = domMin != null && domMax != null && Number.isFinite(domMin) && Number.isFinite(domMax);
+
   const rows = items
     .map((it) => {
-      const s = toMs(it.start);
-      const e = toMs(it.end);
+      let s = toMs(it.start);
+      let e = toMs(it.end);
       if (!Number.isFinite(s) || !Number.isFinite(e)) return null;
+      if (hasDomain) {
+        if (e < domMin! || s > domMax!) return null; // outside window
+        s = Math.max(s, domMin!);
+        e = Math.min(e, domMax!);
+      }
       return { name: it.name, start: s, end: e, duration: Math.max(0, e - s), offset: s, raw: it };
     })
     .filter((r): r is NonNullable<typeof r> => r !== null);
 
   if (rows.length === 0) return <ChartEmpty height={height} />;
-  const minStart = Math.min(...rows.map((r) => r.start));
-  const maxEnd = Math.max(...rows.map((r) => r.end));
+  const minStart = hasDomain ? domMin! : Math.min(...rows.map((r) => r.start));
+  const maxEnd = hasDomain ? domMax! : Math.max(...rows.map((r) => r.end));
 
   return (
     <div style={{ width: '100%', height }}>
