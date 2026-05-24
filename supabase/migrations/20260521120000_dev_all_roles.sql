@@ -1,4 +1,5 @@
 -- 20260521120000_dev_all_roles.sql
+-- ⚠ DEV ONLY — grants every role to one user for role-switcher testing. Do NOT apply in production.
 -- Grants all application roles to vivek.khare@csir.res.in for development
 -- role-switching. Idempotent: safe to re-run. Resolves auth UUID by email.
 
@@ -28,6 +29,10 @@ BEGIN
   UPDATE public.user_profiles
   SET active_role = 'SystemAdmin'
   WHERE user_id = v_user_id;
+
+  IF NOT FOUND THEN
+    RAISE NOTICE 'user_profiles row not found for %; active_role not set.', v_user_id;
+  END IF;
 
   RAISE NOTICE 'Granted % roles to vivek.khare@csir.res.in', array_length(v_roles, 1);
 END $$;
