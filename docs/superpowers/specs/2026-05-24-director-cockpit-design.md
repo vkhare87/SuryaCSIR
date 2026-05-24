@@ -12,12 +12,15 @@ Today the Director dashboard shows raw counts (staff, projects, PhDs, equipment,
 division scorecards and one bar chart. It tells the Director *how many*, never *what needs a decision*.
 
 This rebuild adds a **decision cockpit**: a top section that surfaces problems needing attention now,
-backed by charts that explain the situation and support the call. The existing count cards, division
-scorecards, comparison chart, and breakdown table are **kept below** the cockpit as reference.
+backed by charts that explain the situation and support the call. The raw counts are **retained as a
+compact KPI strip**, and the division breakdown table is **kept as reference**. The bulky division
+scorecards and the division comparison bar chart are **removed** (their insight is absorbed by the
+cockpit's per-division charts).
 
 ## Principles
 
-- **Cockpit on top, current overview retained below.** No existing functionality removed.
+- **Cockpit dominates; counts compressed to a thin KPI strip.** Numbers retained, but they no longer
+  take up the whole screen.
 - **Decision-first.** Every cockpit element answers "what should the Director do / look at?"
 - **Drill-down only.** Flags and chart elements navigate to existing detail/list pages. No new
   writes, no new tables, no schema or RLS changes.
@@ -36,15 +39,16 @@ scorecards, comparison chart, and breakdown table are **kept below** the cockpit
 ## Page Structure (top → bottom)
 
 1. Header (existing)
-2. **Threshold controls** (new — tunable inputs)
-3. **Attention Strip** (new — derived flags)
-4. **Domain: Project & Finance** (new)
-5. **Domain: Research Productivity** (new)
-6. **Domain: Equipment & Operations** (new)
-7. Existing KPI count cards (retained)
-8. Existing division scorecards (retained)
-9. Existing division comparison chart (retained)
-10. Existing division breakdown table (retained)
+2. **Compact KPI strip** — the 5 count cards (Staff, Active Projects, PhD, Equipment, Outputs) in one
+   tight row (retained, compressed). Quick-glance reference under the header.
+3. **Threshold controls** (new — tunable inputs)
+4. **Attention Strip** (new — derived flags)
+5. **Domain: Project & Finance** (new)
+6. **Domain: Research Productivity** (new)
+7. **Domain: Equipment & Operations** (new)
+8. **Division breakdown table** (retained) — strength / sanctioned / HoD reference at bottom.
+
+**Removed:** division scorecards grid and division comparison bar chart.
 
 ---
 
