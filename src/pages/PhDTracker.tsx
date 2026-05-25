@@ -143,7 +143,7 @@ export default function PhDTracker() {
       cell: (s: PhDStudent) => (
         <button
           onClick={(e) => { e.stopPropagation(); setEditTarget(s); }}
-          className="p-1.5 border border-border rounded-md hover:bg-surface-hover text-text-muted hover:text-text"
+          className="p-2 border border-border rounded-md hover:bg-surface-hover text-text-muted hover:text-text"
           title="Edit student"
         >
           <Edit size={12} />
