@@ -43,6 +43,32 @@ export default function Proposals() {
 
   const showCreate = user ? canCreateProposal(user) : false;
 
+  const renderProposalCard = (p: Proposal) => (
+    <Card className="h-full flex flex-col bg-surface hover:bg-surface-hover hover:border-[#c96442]/50 transition-colors">
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div className="min-w-0">
+          <h3 className="font-bold text-text line-clamp-2" title={p.title}>{p.title}</h3>
+          <div className="text-xs text-text-muted mt-0.5 font-mono">{p.proposalCode}</div>
+        </div>
+        <Badge variant={STATUS_BADGE_VARIANT[p.status]}>{STATUS_LABELS[p.status]}</Badge>
+      </div>
+      <div className="pt-3 border-t border-border/50 text-xs text-text-muted space-y-1.5 mt-auto">
+        <div className="flex items-center justify-between gap-2">
+          <span>PI</span>
+          <span className="text-text truncate max-w-[160px]" title={p.piName}>{p.piName}</span>
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <span>Budget</span>
+          <span className="text-text">₹{p.requestedBudget.toLocaleString('en-IN')}</span>
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <span>Created</span>
+          <span className="text-text">{new Date(p.createdAt).toLocaleDateString('en-IN')}</span>
+        </div>
+      </div>
+    </Card>
+  );
+
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
@@ -103,6 +129,7 @@ export default function Proposals() {
           data={filtered}
           keyExtractor={(p) => p.id}
           onRowClick={(p) => navigate(`/proposals/${p.id}`)}
+          renderGridItem={renderProposalCard}
           columns={[
             { header: 'Code',    cell: (p) => p.proposalCode },
             { header: 'Title',   cell: (p) => p.title },
