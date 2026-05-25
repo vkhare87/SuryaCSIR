@@ -218,6 +218,38 @@ export default function Facilities() {
     },
   ];
 
+  const renderEquipmentCard = (e: Equipment) => {
+    let variant: 'success' | 'warning' | 'danger' | 'neutral' = 'neutral';
+    if (e.WorkingStatus === 'Working') variant = 'success';
+    else if (e.WorkingStatus === 'Under Maintenance') variant = 'warning';
+    else variant = 'danger';
+    return (
+      <Card className="h-full flex flex-col bg-surface hover:bg-surface-hover hover:border-[#c96442]/50 transition-colors">
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div className="min-w-0">
+            <h3 className="font-bold text-text truncate" title={e.Name}>{e.Name}</h3>
+            <div className="text-xs text-text-muted mt-0.5 font-mono truncate">{e.instrument_code ?? e.UInsID}</div>
+          </div>
+          <Badge variant={variant}>{e.WorkingStatus}</Badge>
+        </div>
+        <div className="pt-3 border-t border-border/50 text-xs text-text-muted space-y-1.5 mt-auto">
+          <div className="flex items-center justify-between gap-2">
+            <span>Location</span>
+            <span className="text-text truncate max-w-[160px]" title={e.Location}>{e.Location}</span>
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <span>Division</span>
+            <span className="text-[#c96442] font-bold uppercase">{e.Division}</span>
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <span>AMC End</span>
+            <AmcBadge dateStr={e.amc_end_date} />
+          </div>
+        </div>
+      </Card>
+    );
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -355,6 +387,8 @@ export default function Facilities() {
                 data={filteredEquipment}
                 columns={columns}
                 keyExtractor={item => item.UInsID}
+                onRowClick={item => navigate(`/facilities/${item.UInsID}`)}
+                renderGridItem={renderEquipmentCard}
               />
               <div className="p-4 border-t border-border bg-surface-hover text-xs text-text-muted flex justify-between items-center">
                 <div className="flex items-center gap-2">
