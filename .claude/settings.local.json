@@ -62,7 +62,9 @@
       "Skill(superpowers:finishing-a-development-branch:*)",
       "Bash(ls src/utils/*.test.ts src/**/*.test.tsx)",
       "Bash(grep -l \"vitest\\\\|jsdom\" vite.config.ts vitest.config.ts)",
-      "Bash(gh issue *)"
+      "Bash(gh issue *)",
+      "Bash(git fetch *)",
+      "Bash(git rev-list *)"
     ]
   }
 }
