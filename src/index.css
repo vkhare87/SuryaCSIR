@@ -88,7 +88,28 @@
   }
 }
 
+@keyframes sun-rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes sun-pulse {
+  0%, 100% { opacity: 0.75; }
+  50% { opacity: 1; }
+}
+
+@keyframes amber-glow-breathe {
+  0%, 100% { opacity: 0.35; transform: scale(1); }
+  50% { opacity: 0.55; transform: scale(1.08); }
+}
+
 @layer utilities {
+  .animate-sun {
+    animation: sun-rotate 60s linear infinite, sun-pulse 5s ease-in-out infinite;
+  }
+  .animate-amber-glow {
+    animation: amber-glow-breathe 7s ease-in-out infinite;
+  }
   .glass {
     @apply bg-surface/80 backdrop-blur-md border border-border;
   }
