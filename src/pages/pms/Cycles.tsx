@@ -79,7 +79,7 @@ export default function Cycles() {
           onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
         />
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className="block text-sm font-medium text-text-muted mb-1">Start Date</label>
           <input
