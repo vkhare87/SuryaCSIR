@@ -141,7 +141,7 @@ export default function Facilities() {
       header: 'Instrument',
       cell: (e: Equipment) => (
         <button
-          onClick={() => navigate(`/facilities/${e.UInsID}`)}
+          onClick={(ev) => { ev.stopPropagation(); navigate(`/facilities/${e.UInsID}`); }}
           className="text-left group"
         >
           <div className="font-semibold text-text group-hover:text-[#c96442] transition-colors">{e.Name}</div>
