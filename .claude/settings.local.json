@@ -40,7 +40,29 @@
       "Bash(git stash *)",
       "PowerShell(Get-ChildItem *)",
       "WebSearch",
-      "Skill(health)"
+      "Skill(health)",
+      "Bash(npm test *)",
+      "Bash(git checkout *)",
+      "Bash(git pull *)",
+      "Skill(superpowers:brainstorming)",
+      "Skill(superpowers:brainstorming:*)",
+      "Bash(New-Item -ItemType Directory -Force \"C:\\\\Users\\\\HP\\\\Desktop\\\\Claude\\\\Surya\\\\.superpowers\\\\brainstorm\\\\818-1779346532\\\\content\")",
+      "Bash(Out-Null)",
+      "Bash(Write-Output \"ok\")",
+      "Skill(superpowers:writing-plans)",
+      "Skill(superpowers:writing-plans:*)",
+      "Bash(bash \"C:\\\\Users\\\\HP\\\\.claude\\\\plugins\\\\cache\\\\claude-plugins-official\\\\superpowers\\\\5.1.0\\\\skills\\\\brainstorming\\\\scripts\\\\stop-server.sh\" \"C:\\\\Users\\\\HP\\\\Desktop\\\\Claude\\\\Surya\\\\.superpowers\\\\brainstorm\\\\818-1779346532\")",
+      "Skill(superpowers:subagent-driven-development)",
+      "Skill(superpowers:subagent-driven-development:*)",
+      "Bash(npx vitest *)",
+      "Bash(git -C \"C:\\\\Users\\\\HP\\\\Desktop\\\\Claude\\\\Surya\" checkout feat/scientist-dashboard)",
+      "Bash(git -C \"C:\\\\Users\\\\HP\\\\Desktop\\\\Claude\\\\Surya\" add supabase/migrations/20260521120000_dev_all_roles.sql)",
+      "Bash(git -C \"C:\\\\Users\\\\HP\\\\Desktop\\\\Claude\\\\Surya\" commit -m \"feat: grant all roles to dev user for role-switching\")",
+      "Skill(superpowers:finishing-a-development-branch)",
+      "Skill(superpowers:finishing-a-development-branch:*)",
+      "Bash(ls src/utils/*.test.ts src/**/*.test.tsx)",
+      "Bash(grep -l \"vitest\\\\|jsdom\" vite.config.ts vitest.config.ts)",
+      "Bash(gh issue *)"
     ]
   }
 }
