@@ -45,7 +45,6 @@ const EvaluateReport    = lazy(() => import('./pages/pms/EvaluateReport'));
 const ChairmanQueue     = lazy(() => import('./pages/pms/ChairmanQueue'));
 const CommitteeQueue    = lazy(() => import('./pages/pms/CommitteeQueue'));
 const PmsAuditLog       = lazy(() => import('./pages/pms/AuditLog'));
-const DatabaseWizard    = lazy(() => import('./pages/DatabaseWizard'));
 const TicketList        = lazy(() => import('./pages/helpdesk/TicketList'));
 const TicketDetail      = lazy(() => import('./pages/helpdesk/TicketDetail'));
 const TicketForm        = lazy(() => import('./pages/helpdesk/TicketForm'));
@@ -161,7 +160,7 @@ function App() {
             <Route path="/pms/chairman" element={<ProtectedRoute><ChairmanQueue /></ProtectedRoute>} />
             <Route path="/pms/committee" element={<ProtectedRoute allowedRoles={['EmpoweredCommittee']}><CommitteeQueue /></ProtectedRoute>} />
             <Route path="/pms/audit" element={<ProtectedRoute allowedRoles={['HRAdmin','SystemAdmin','MasterAdmin']}><PmsAuditLog /></ProtectedRoute>} />
-            <Route path="/db-wizard" element={<ProtectedRoute allowedRoles={['SystemAdmin','MasterAdmin']}><DatabaseWizard /></ProtectedRoute>} />
+            <Route path="/db-wizard" element={<Navigate to="/data" replace />} />
             <Route path="/irins-sync" element={<ProtectedRoute allowedRoles={['SystemAdmin','MasterAdmin']}><IrinsSync /></ProtectedRoute>} />
             <Route path="/admin/holidays" element={<ProtectedRoute allowedRoles={['SystemAdmin', 'MasterAdmin']}><HolidaysAdmin /></ProtectedRoute>} />
             <Route path="/admin/access-requests" element={<ProtectedRoute allowedRoles={['SystemAdmin', 'MasterAdmin']}><AccessRequests /></ProtectedRoute>} />
