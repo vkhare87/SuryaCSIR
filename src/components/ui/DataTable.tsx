@@ -30,18 +30,19 @@ export function DataTable<T>({
   itemsPerPage = 10,
   renderGridItem 
 }: DataTableProps<T>) {
-  const { isMobile } = useUI();
+  const { isMobile, isTablet } = useUI();
+  const cardMode = isMobile || isTablet;
   const [viewMode, setViewMode] = useState<'list' | 'grid'>(
-    isMobile && renderGridItem ? 'grid' : 'list'
+    cardMode && renderGridItem ? 'grid' : 'list'
   );
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Sync viewMode with isMobile if it changes
+  // Default to card grid on phone/tablet when a custom card renderer exists
   useEffect(() => {
-    if (isMobile && renderGridItem) {
+    if (cardMode && renderGridItem) {
       setViewMode('grid');
     }
-  }, [isMobile, renderGridItem]);
+  }, [cardMode, renderGridItem]);
 
   // Reset page when data length changes significantly (e.g. after a filter)
   useEffect(() => {
@@ -57,6 +58,8 @@ export function DataTable<T>({
 
   const handlePrev = () => setCurrentPage(p => Math.max(1, p - 1));
   const handleNext = () => setCurrentPage(p => Math.min(totalPages, p + 1));
+
+  const showGenericCards = cardMode && !renderGridItem;
 
   return (
     <div className="space-y-4">
@@ -120,21 +123,51 @@ export function DataTable<T>({
       )}
 
       {/* Main Content Area */}
-      {viewMode === 'grid' && renderGridItem ? (
+      {renderGridItem && viewMode === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {paginatedData.map(item => (
-            <div 
-              key={keyExtractor(item)} 
-              onClick={() => onRowClick && onRowClick(item)} 
+            <div
+              key={keyExtractor(item)}
+              onClick={() => onRowClick && onRowClick(item)}
               className={clsx("h-full", onRowClick && "cursor-pointer transition-transform hover:-translate-y-1")}
             >
               {renderGridItem(item)}
             </div>
           ))}
           {paginatedData.length === 0 && (
-             <div className="col-span-full py-16 text-center text-text-muted bg-surface/50 rounded-2xl border-2 border-dashed border-border">
-               No records found matching your criteria.
-             </div>
+            <div className="col-span-full py-16 text-center text-text-muted bg-surface/50 rounded-2xl border-2 border-dashed border-border">
+              No records found matching your criteria.
+            </div>
+          )}
+        </div>
+      ) : showGenericCards ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {paginatedData.length === 0 ? (
+            <div className="col-span-full py-12 text-center text-text-muted bg-surface/50 rounded-2xl border-2 border-dashed border-border">
+              No records found.
+            </div>
+          ) : (
+            paginatedData.map(row => (
+              <Card
+                key={keyExtractor(row)}
+                onClick={() => onRowClick && onRowClick(row)}
+                className={clsx("space-y-2", onRowClick && "cursor-pointer hover:bg-surface-hover transition-colors")}
+              >
+                {columns.filter(c => c.header).map((col, i) => (
+                  <div key={i} className="flex items-start justify-between gap-3 text-sm">
+                    <span className="text-text-muted text-xs font-medium shrink-0">{col.header}</span>
+                    <span className="text-text text-right min-w-0">
+                      {col.cell ? col.cell(row) : (col.accessorKey ? String(row[col.accessorKey] ?? '') : null)}
+                    </span>
+                  </div>
+                ))}
+                {columns.filter(c => !c.header).map((col, i) => (
+                  <div key={`act-${i}`} className="flex justify-end pt-1">
+                    {col.cell ? col.cell(row) : null}
+                  </div>
+                ))}
+              </Card>
+            ))
           )}
         </div>
       ) : (
@@ -159,8 +192,8 @@ export function DataTable<T>({
                   </tr>
                 ) : (
                   paginatedData.map((row, rowIndex) => (
-                    <tr 
-                      key={keyExtractor(row)} 
+                    <tr
+                      key={keyExtractor(row)}
                       onClick={() => onRowClick && onRowClick(row)}
                       className={clsx(
                         "border-b border-border/50 hover:bg-surface-hover transition-colors",
@@ -170,8 +203,8 @@ export function DataTable<T>({
                     >
                       {columns.map((col, colIndex) => (
                         <td key={colIndex} className={clsx("px-6 py-4 whitespace-nowrap", col.className)}>
-                          {col.cell 
-                            ? col.cell(row) 
+                          {col.cell
+                            ? col.cell(row)
                             : (col.accessorKey ? String(row[col.accessorKey] ?? '') : null)}
                         </td>
                       ))}
