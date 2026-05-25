@@ -152,6 +152,36 @@ export default function PhDTracker() {
     }] : []),
   ];
 
+  const renderStudentCard = (s: PhDStudent) => {
+    let variant: 'success' | 'warning' | 'info' | 'neutral' = 'neutral';
+    if (s.CurrentStatus === 'Ongoing') variant = 'info';
+    if (s.CurrentStatus === 'Thesis Submitted') variant = 'success';
+    return (
+      <Card className="h-full flex flex-col bg-surface hover:bg-surface-hover hover:border-[#c96442]/50 transition-colors">
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div className="min-w-0">
+            <h3 className="font-bold text-text truncate" title={s.StudentName}>{s.StudentName}</h3>
+            <div className="text-xs text-text-muted mt-0.5 truncate">{s.Specialization}</div>
+          </div>
+          <Badge variant={variant}>{s.CurrentStatus}</Badge>
+        </div>
+        <div className="text-xs italic text-text-muted line-clamp-2 mb-3" title={s.ThesisTitle}>
+          "{s.ThesisTitle}"
+        </div>
+        <div className="pt-3 border-t border-border/50 text-xs text-text-muted space-y-1.5 mt-auto">
+          <div className="flex items-center justify-between gap-2">
+            <span>Enrollment</span>
+            <span className="font-mono text-text">{s.EnrollmentNo}</span>
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <span>Supervisor</span>
+            <span className="text-text truncate max-w-[160px]" title={s.SupervisorName}>{s.SupervisorName}</span>
+          </div>
+        </div>
+      </Card>
+    );
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -253,6 +283,7 @@ export default function PhDTracker() {
                 data={filteredStudents}
                 columns={columns}
                 keyExtractor={(item) => item.EnrollmentNo}
+                renderGridItem={renderStudentCard}
               />
 
               <div className="p-4 border-t border-border bg-surface-hover text-xs text-text-muted">
