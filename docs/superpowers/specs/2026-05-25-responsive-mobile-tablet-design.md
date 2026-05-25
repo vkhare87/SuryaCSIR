@@ -13,7 +13,7 @@ Make SURYA usable on phones (360px+) and tablets (768–1024px) without horizont
 ## Decisions (locked)
 
 - **Scope:** Priority flows first. Defer rarely-used admin pages (Data Import, DB Wizard, IRINS Sync, Holidays).
-- **Tablet behavior:** Tablet = small desktop. Keep tables/charts/multi-column; sidebar already auto-collapses; grids drop to 2 columns. Desktop layout returns at `lg:` (1024px+).
+- **Tablet behavior:** Tablet = small desktop for general layout (charts/multi-column stay; grids drop to 2 columns; desktop returns at `lg:`). **Exception:** list-only data tables get card style on tablet too — cards read better than wide rows on tablet portrait and look more appealing. List/grid toggle stays available so tablet users can still flip back to the table.
 - **Strategy:** CSS-first (Tailwind `sm:/md:/lg:` utilities) fixing shared primitives once. JS `useUI().isMobile` branching only where CSS can't express the change (table→card swap on pages without `renderGridItem`).
 - **Min target width:** 360px.
 
@@ -55,7 +55,7 @@ Make SURYA usable on phones (360px+) and tablets (768–1024px) without horizont
 8. Calendar (`Calendar.tsx`)
 9. Helpdesk (`Helpdesk.tsx`)
 
-Out of scope this pass: ProjectStaffRoster and Intelligence tables get `overflow-x-auto` left as-is (acceptable horizontal scroll) unless trivially fixable.
+ProjectStaffRoster and Intelligence tables: no hand-styled cards this pass — they inherit the generic stacked-card fallback (Unit 1a Change 1) on phone + tablet automatically, and keep the full table at `lg:`+.
 
 ---
 
@@ -63,10 +63,15 @@ Out of scope this pass: ProjectStaffRoster and Intelligence tables get `overflow
 
 ### Unit 1 — Shared primitives (highest leverage)
 
-**1a. `DataTable.tsx`** — make the no-`renderGridItem` path degrade gracefully.
-- Today: pages without `renderGridItem` show a wide `overflow-x-auto` table on phone.
-- Change: when `isMobile && !renderGridItem`, render a generic stacked "label: value" card per row built from `columns` (header = label, cell/accessor = value). Keeps every list readable on phone with zero per-page work, while pages that supply a custom `renderGridItem` still win.
-- Acceptance: every DataTable list is readable at 360px with no horizontal scroll.
+**1a. `DataTable.tsx`** — degrade gracefully AND default to cards on tablet.
+- Today: pages without `renderGridItem` show a wide `overflow-x-auto` table on phone; grid default only triggers when `isMobile`.
+- Change 1 (fallback): when `(isMobile || isTablet) && !renderGridItem`, render a generic stacked "label: value" card per row built from `columns` (header = label, cell/accessor = value). Keeps every list readable with zero per-page work.
+- Change 2 (default view): default `viewMode` to `grid` when `(isMobile || isTablet) && renderGridItem` (was `isMobile` only), and update the sync effect to match. List/grid toggle still lets tablet/desktop users flip back to the table.
+- Acceptance: every DataTable list is readable at 360px (no horizontal scroll) and shows cards by default at 768px.
+
+**1a-pages. Author `renderGridItem` cards for list-only priority tables.**
+- `PhDTracker`, `Proposals`, `Facilities` — give each a proper card renderer (matching the existing staff/project card style) so they show appealing cards on phone + tablet instead of the generic fallback.
+- Acceptance: these three render hand-styled cards by default at 360px and 768px; table still reachable via toggle at `lg:`+.
 
 **1b. `Modal.tsx`** — bottom-sheet on phone.
 - Change: `max-sm:` → full-width, bottom-anchored, `rounded-t-2xl`, `max-h-[92vh]`; `sm:` keeps centered dialog. Reduce body padding to `px-4 sm:px-6`.
