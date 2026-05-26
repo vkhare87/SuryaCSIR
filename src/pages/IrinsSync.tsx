@@ -66,48 +66,12 @@ export default function IrinsSync() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // --- Trigger sync ---
+  // --- Refresh ---
+  // Phase 1: sync runs server-side via `npm run sync:irins`.
+  // This button only refreshes the view. Phase 2 wires an Edge Function here.
   const triggerSync = async () => {
-    if (!supabase) return;
     setSyncing(true);
     try {
-      const { data: log } = await supabase
-        .from('irins_sync_log')
-        .insert({ triggered_by: 'manual', total_scientists: staff.length })
-        .select('id')
-        .single();
-
-      let succeeded = 0;
-      let failed = 0;
-      const errors: Array<{ vidwan: string; name: string; error: string }> = [];
-
-      for (const s of staff) {
-        const vidwanId = s.VidwanID;
-        if (!vidwanId) continue;
-        try {
-          await supabase.from('irins_profiles').upsert({
-            vidwan_id: vidwanId,
-            profile_data: { status: 'pending_full_sync' },
-            synced_at: new Date().toISOString(),
-          });
-          succeeded++;
-        } catch (err) {
-          failed++;
-          errors.push({ vidwan: vidwanId, name: s.StaffName || vidwanId, error: String(err) });
-        }
-      }
-
-      await supabase
-        .from('irins_sync_log')
-        .update({
-          status: failed === 0 ? 'success' : succeeded > 0 ? 'partial' : 'failed',
-          completed_at: new Date().toISOString(),
-          succeeded,
-          failed,
-          error_details: errors.length ? errors : null,
-        })
-        .eq('id', log?.id);
-
       await loadData();
     } finally {
       setSyncing(false);
@@ -172,7 +136,7 @@ export default function IrinsSync() {
           IRINS Data Sync
         </h1>
         <p className="text-text-muted mt-1">
-          Sync scientist profiles from ampri.irins.org. Full sync with publications/patents runs via GitHub Action weekly.
+          Scientist profiles mirrored from ampri.irins.org (publications, patents, awards, citations). Refresh runs server-side via the sync script.
         </p>
       </div>
 
@@ -209,10 +173,10 @@ export default function IrinsSync() {
             className="flex items-center gap-2 px-5 py-2.5 bg-[#c96442] text-white rounded-lg text-sm font-semibold hover:bg-[#b5593b] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <RefreshCw size={15} className={syncing ? 'animate-spin' : ''} />
-            {syncing ? 'Syncing...' : 'Sync All'}
+            {syncing ? 'Refreshing...' : 'Refresh'}
           </button>
           <span className="text-xs text-text-muted">
-            Full data sync (publications, patents, awards) via GitHub Action. This creates placeholder records.
+            Data is fetched server-side. Run <code className="font-mono">npm run sync:irins</code> to refresh profiles.
           </span>
         </div>
       </Card>
