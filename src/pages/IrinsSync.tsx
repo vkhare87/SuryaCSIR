@@ -7,7 +7,7 @@ import { supabase } from '../utils/supabaseClient';
 // Raw staff row from Supabase (quoted CamelCase columns)
 interface StaffRow {
   ID: string;
-  StaffName: string;
+  Name: string;
   Designation: string;
   Division: string;
   VidwanID: string;
@@ -56,7 +56,7 @@ export default function IrinsSync() {
     const [profilesRes, logsRes, staffRes] = await Promise.all([
       supabase.from('irins_profiles').select('*').order('synced_at', { ascending: false }),
       supabase.from('irins_sync_log').select('*').order('started_at', { ascending: false }).limit(20),
-      supabase.from('staff').select('*').eq('Group', 'Scientific').neq('VidwanID', '').not('VidwanID', 'is', null).order('StaffName'),
+      supabase.from('staff').select('*').eq('Group', 'Scientific').neq('VidwanID', '').not('VidwanID', 'is', null).order('Name'),
     ]);
     if (profilesRes.data) setProfiles(profilesRes.data);
     if (logsRes.data) setSyncLogs(logsRes.data);
@@ -86,7 +86,7 @@ export default function IrinsSync() {
   }));
 
   const filtered = scientists.filter(s =>
-    !search || s.StaffName?.toLowerCase().includes(search.toLowerCase())
+    !search || s.Name?.toLowerCase().includes(search.toLowerCase())
   );
 
   // --- Stats ---
@@ -221,7 +221,7 @@ export default function IrinsSync() {
                 <div className={clsx('w-2 h-2 rounded-full shrink-0', profile ? 'bg-emerald-500' : 'bg-amber-400')} />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-text truncate">
-                    {s.StaffName || 'Unknown'}
+                    {s.Name || 'Unknown'}
                   </p>
                   <p className="text-xs text-text-muted truncate">
                     {s.Designation} · {s.Division}

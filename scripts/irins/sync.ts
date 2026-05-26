@@ -9,16 +9,16 @@ if (!url || !key) { console.error('Set SUPABASE_URL and SUPABASE_SERVICE_KEY'); 
 const supabase = createClient(url, key);
 const onlyVidwan = process.argv.find((a) => a.startsWith('--vidwan='))?.split('=')[1];
 
-interface StaffRow { ID: string; StaffName: string; VidwanID: string }
+interface StaffRow { ID: string; Name: string; VidwanID: string }
 
 async function main() {
   const { data: staff, error } = await supabase
     .from('staff')
-    .select('"ID","StaffName","VidwanID"')
+    .select('"ID","Name","VidwanID"')
     .eq('Group', 'Scientific')
     .neq('VidwanID', '')
     .not('VidwanID', 'is', null)
-    .order('StaffName');
+    .order('Name');
   if (error) { console.error('staff load failed:', error.message); process.exit(1); }
 
   let list = (staff ?? []) as StaffRow[];
@@ -39,7 +39,7 @@ async function main() {
   for (let i = 0; i < list.length; i++) {
     const s = list[i];
     const id = s.VidwanID;
-    process.stdout.write(`[${i + 1}/${list.length}] ${s.StaffName} (${id}) ... `);
+    process.stdout.write(`[${i + 1}/${list.length}] ${s.Name} (${id}) ... `);
     try {
       const pageHtml = await fetchProfileHtml(id);
       const pubPages = await fetchAllPublications(id, { delayMs: 200 });
@@ -48,7 +48,7 @@ async function main() {
 
       if (profile._meta.status === 'parse_empty') {
         console.log('parse_empty (skipped upsert)');
-        failed++; errors.push({ vidwan: id, name: s.StaffName, error: 'parse_empty' });
+        failed++; errors.push({ vidwan: id, name: s.Name, error: 'parse_empty' });
         continue;
       }
 
@@ -63,7 +63,7 @@ async function main() {
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       console.log(`FAIL ${msg}`);
-      failed++; errors.push({ vidwan: id, name: s.StaffName, error: msg });
+      failed++; errors.push({ vidwan: id, name: s.Name, error: msg });
     }
   }
 
