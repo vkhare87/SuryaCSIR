@@ -64,7 +64,14 @@
       "Bash(grep -l \"vitest\\\\|jsdom\" vite.config.ts vitest.config.ts)",
       "Bash(gh issue *)",
       "Bash(git fetch *)",
-      "Bash(git rev-list *)"
+      "Bash(git rev-list *)",
+      "Bash(netstat -ano)",
+      "Bash(taskkill //PID 25992 //F)",
+      "mcp__Claude_Preview__preview_start",
+      "Skill(browse)",
+      "Skill(browse:*)",
+      "Bash(/c/Users/HP/.claude/skills/gstack/browse/dist/browse goto *)",
+      "Bash(xargs -I{} sed -n '{},+30p' irins2.html)"
     ]
   }
 }
