@@ -3,6 +3,7 @@ import type {
   IrinsCitations, IrinsPublication, IrinsProfile,
   IrinsExperience, IrinsQualification, IrinsAward, IrinsPatent, IrinsProject,
 } from './types';
+import { PARSE_VERSION } from './types';
 
 const toInt = (v: unknown): number | undefined => {
   const n = parseInt(String(v ?? '').replace(/[^\d]/g, ''), 10);
@@ -123,7 +124,7 @@ export function parseProfilePage(html: string): ProfilePagePart {
 
   const professional_bodies = childTexts(doc, 'list_org');
 
-  // designation/division from the current experience entry (period includes "Present").
+  // designation from the current experience entry (period includes "Present").
   const current = experience.find((e) => /Present/i.test(e.period));
   const designation = current ? current.role.split(/\s{2,}|(?<=\b[A-Z])\s(?=[A-Z])/)[0].split(/\s/).slice(0, 3).join(' ') : '';
   const division = '';
@@ -131,5 +132,35 @@ export function parseProfilePage(html: string): ProfilePagePart {
   return {
     name, designation, division, photo_url, academic_ids, expertise,
     experience, qualifications, awards, patents, projects, professional_bodies,
+  };
+}
+
+export function assembleProfile(
+  pageHtml: string,
+  publicationPagesHtml: string[],
+  citationsJson: string,
+): IrinsProfile {
+  const page = parseProfilePage(pageHtml);
+  const publications = publicationPagesHtml.flatMap(parsePublications);
+  const citations = parseCitations(citationsJson);
+  const status: IrinsProfile['_meta']['status'] = page.name ? 'ok' : 'parse_empty';
+
+  return {
+    name: page.name ?? '',
+    designation: page.designation ?? '',
+    division: page.division ?? '',
+    photo_url: page.photo_url ?? '',
+    academic_ids: page.academic_ids ?? { orcid: '', scopus: '', researcher_id: '', google_scholar: '' },
+    expertise: page.expertise ?? [],
+    citations,
+    experience: page.experience ?? [],
+    qualifications: page.qualifications ?? [],
+    awards: page.awards ?? [],
+    theses: [],
+    professional_bodies: page.professional_bodies ?? [],
+    projects: page.projects ?? [],
+    patents: page.patents ?? [],
+    publications,
+    _meta: { parse_version: PARSE_VERSION, status, synced_at: new Date().toISOString() },
   };
 }

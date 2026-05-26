@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { parseCitations, parsePublications, parseProfilePage } from './parser';
+import { parseCitations, parsePublications, parseProfilePage, assembleProfile } from './parser';
 
 const fx = (f: string) => readFileSync(join(process.cwd(), 'scripts/irins/__fixtures__', f), 'utf8');
 
@@ -53,5 +53,25 @@ describe('parseProfilePage', () => {
   it('missing-name page yields empty name (caller treats as parse_empty)', () => {
     const p = parseProfilePage('<html><body><div>nothing</div></body></html>');
     expect(p.name ?? '').toBe('');
+  });
+});
+
+describe('assembleProfile', () => {
+  it('merges page + publications + citations into IrinsProfile', () => {
+    const p = assembleProfile(
+      fx('profile-625115.html'),
+      [fx('publications-625115-page0.html')],
+      fx('citations-625115.json'),
+    );
+    expect(p.name?.toLowerCase()).toContain('karthikeyan');
+    expect(p.publications.length).toBe(10);
+    expect(p.citations.h_index).toBe(64);
+    expect(p._meta.status).toBe('ok');
+    expect(p._meta.parse_version).toBe(1);
+  });
+
+  it('flags parse_empty when name missing', () => {
+    const p = assembleProfile('<html></html>', [], '{}');
+    expect(p._meta.status).toBe('parse_empty');
   });
 });
