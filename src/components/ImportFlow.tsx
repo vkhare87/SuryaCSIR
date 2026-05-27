@@ -197,17 +197,16 @@ export function ImportFlow({ type, showTypePicker = false, onComplete }: ImportF
 
           <div>
             <label className="block text-sm font-bold text-text mb-2">Data File</label>
-            <div
-              className="border-2 border-dashed border-border rounded-xl p-8 text-center hover:bg-surface-hover/50 transition-colors cursor-pointer"
+            <label
+              className="block border-2 border-dashed border-border rounded-xl p-8 text-center hover:bg-surface-hover/50 transition-colors cursor-pointer"
               onDrop={handleDrop}
               onDragOver={handleDragOver}
-              onClick={() => fileInputRef.current?.click()}
             >
               <input
                 ref={fileInputRef}
                 type="file"
                 accept=".csv,.xlsx,.xls"
-                className="absolute w-0 h-0 opacity-0 pointer-events-none"
+                className="sr-only"
                 onChange={handleFileChange}
               />
               <FileSpreadsheet className="w-12 h-12 text-[#c96442] mb-3 mx-auto opacity-80" />
@@ -215,7 +214,7 @@ export function ImportFlow({ type, showTypePicker = false, onComplete }: ImportF
                 {file ? file.name : 'Click or drag & drop a file here'}
               </p>
               <p className="text-xs text-text-muted">Supports .xlsx, .xls, and .csv</p>
-            </div>
+            </label>
           </div>
 
           {parseError && (
