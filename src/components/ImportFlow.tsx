@@ -207,7 +207,7 @@ export function ImportFlow({ type, showTypePicker = false, onComplete }: ImportF
                 ref={fileInputRef}
                 type="file"
                 accept=".csv,.xlsx,.xls"
-                className="hidden"
+                className="absolute w-0 h-0 opacity-0 pointer-events-none"
                 onChange={handleFileChange}
               />
               <FileSpreadsheet className="w-12 h-12 text-[#c96442] mb-3 mx-auto opacity-80" />
