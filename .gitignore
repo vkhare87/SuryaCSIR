@@ -7,3 +7,6 @@ dist/
 .DS_Store
 .superpowers/
 .gstack/
+
+# Auto-generated SQL rollups (sources live in supabase/migrations + seed + mock)
+supabase/bundles/

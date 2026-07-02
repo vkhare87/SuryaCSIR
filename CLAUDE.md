@@ -40,8 +40,11 @@ Every staff member logs in and sees their role-scoped slice of the institute.
 ├── package.json, vite.config.ts, tsconfig*.json, eslint.config.js, index.html
 ├── src/                  Application source (see "Where things live")
 ├── supabase/
-│   ├── migrations/       Single consolidated init.sql; never edit it — add new timestamped files
-│   └── seed.sql          Bootstrap data (first SystemAdmin)
+│   ├── migrations/       Schema only — append new timestamped files; never edit shipped ones
+│   ├── seed/             Bootstrap data the app needs to function (runs on every env)
+│   ├── mock/             CSIR-AMPRI demo fixture (dev only — NEVER in prod)
+│   ├── ops/              wipe_data.sql + README on apply order
+│   └── bundles/          Auto-generated rollups (gitignored)
 ├── docs/                 Architecture / Stack / Structure / Data Model
 └── .claude/              Project-scoped agents, commands, skills
 ```
@@ -67,6 +70,8 @@ Every staff member logs in and sees their role-scoped slice of the institute.
 | Supabase client | `src/utils/supabaseClient.ts` (module-level singleton) |
 | New Supabase entity | type → `src/types/index.ts`; mock → `mockData.ts`; mapper → `dataMapper.ts`; load → `DataContext.tsx`; upload → `dataMigration.ts` |
 | New migration | `supabase/migrations/<TS>_<name>.sql` (timestamp `YYYYMMDDHHMMSS`) — never edit `00000000000000_init.sql` |
+| Bootstrap data (app needs it to run) | `supabase/seed/<NN>_<name>.sql` |
+| Demo / sample data (dev only) | `supabase/mock/<NN>_<name>.sql` |
 
 ---
 
