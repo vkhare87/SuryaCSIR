@@ -13,25 +13,34 @@ import { ProjectStaffView }   from './dashboards/ProjectStaffView';
 import { GuestView }          from './dashboards/GuestView';
 import { PendingAccessView }  from './dashboards/PendingAccessView';
 import { EmpoweredCommitteeView } from './dashboards/EmpoweredCommitteeView';
+import { MyActions } from '../components/MyActions';
 
 export default function Dashboard() {
   const { activeRole } = useAuth();
 
+  // Unified pending-actions inbox above every working-role dashboard.
+  const withActions = (view: React.ReactNode) => (
+    <div className="space-y-6">
+      <MyActions />
+      {view}
+    </div>
+  );
+
   switch (activeRole) {
-    case 'Director':     return <DirectorView />;
-    case 'DivisionHead': return <DivisionHeadView />;
-    case 'HOD':          return <HoDView />;
-    case 'Scientist':    return <ScientistView />;
-    case 'Technician':   return <TechnicianView />;
-    case 'HRAdmin':      return <HRAdminView />;
-    case 'FinanceAdmin': return <FinanceAdminView />;
-    case 'SystemAdmin':  return <SystemAdminView />;
-    case 'MasterAdmin':  return <MasterAdminView />;
-    case 'Student':      return <StudentView />;
-    case 'ProjectStaff': return <ProjectStaffView />;
+    case 'Director':     return withActions(<DirectorView />);
+    case 'DivisionHead': return withActions(<DivisionHeadView />);
+    case 'HOD':          return withActions(<HoDView />);
+    case 'Scientist':    return withActions(<ScientistView />);
+    case 'Technician':   return withActions(<TechnicianView />);
+    case 'HRAdmin':      return withActions(<HRAdminView />);
+    case 'FinanceAdmin': return withActions(<FinanceAdminView />);
+    case 'SystemAdmin':  return withActions(<SystemAdminView />);
+    case 'MasterAdmin':  return withActions(<MasterAdminView />);
+    case 'Student':      return withActions(<StudentView />);
+    case 'ProjectStaff': return withActions(<ProjectStaffView />);
     case 'Guest':        return <GuestView />;
     case 'DefaultUser':         return <PendingAccessView />;
-    case 'EmpoweredCommittee':  return <EmpoweredCommitteeView />;
+    case 'EmpoweredCommittee':  return withActions(<EmpoweredCommitteeView />);
     default:
       return (
         <div className="flex flex-col items-center justify-center h-64 gap-4 text-[#87867f]">

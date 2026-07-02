@@ -38,12 +38,7 @@ import { useUI } from '../../contexts/UIContext';
 import { useData } from '../../contexts/DataContext';
 import type { Role } from '../../types';
 import { ROLE_ROUTES } from '../../constants/roleRoutes';
-
-const ALL_ROLES: Role[] = [
-  'Director', 'DivisionHead', 'HOD', 'Scientist', 'Technician',
-  'HRAdmin', 'FinanceAdmin', 'SystemAdmin', 'MasterAdmin',
-  'Student', 'ProjectStaff', 'Guest', 'DefaultUser', 'EmpoweredCommittee',
-];
+import { ACCESS_MAP } from '../../constants/access';
 
 import type { LucideIcon } from 'lucide-react';
 
@@ -63,44 +58,44 @@ const NAV_SECTIONS: NavSection[] = [
   {
     label: 'Overview',
     items: [
-      { path: '/',             label: 'Dashboard',       icon: LayoutDashboard, allowedRoles: ALL_ROLES },
-      { path: '/intelligence', label: 'Intelligence',    icon: Microscope,      allowedRoles: ['Director', 'DivisionHead', 'Scientist', 'SystemAdmin', 'MasterAdmin'] },
-      { path: '/calendar',     label: 'Calendar',        icon: CalendarIcon,    allowedRoles: ALL_ROLES },
+      { path: '/',             label: 'Dashboard',       icon: LayoutDashboard, allowedRoles: ACCESS_MAP['/'] },
+      { path: '/intelligence', label: 'Intelligence',    icon: Microscope,      allowedRoles: ACCESS_MAP['/intelligence'] },
+      { path: '/calendar',     label: 'Calendar',        icon: CalendarIcon,    allowedRoles: ACCESS_MAP['/calendar'] },
     ],
   },
   {
     label: 'Unified Human Resource',
     items: [
-      { path: '/staff',        label: 'Human Capital',   icon: Users,           allowedRoles: ['Director', 'DivisionHead', 'HRAdmin', 'SystemAdmin', 'MasterAdmin'] },
-      { path: '/staff/project', label: 'Project Staff',   icon: UserCog,         allowedRoles: ['Director', 'DivisionHead', 'HRAdmin', 'SystemAdmin', 'MasterAdmin'] },
-      { path: '/phd',          label: 'PhD Tracker',     icon: BookOpen,        allowedRoles: ['Director', 'DivisionHead', 'Scientist', 'SystemAdmin', 'MasterAdmin'] },
-      { path: '/divisions',    label: 'Divisions',       icon: Network,         allowedRoles: ['Director', 'SystemAdmin', 'MasterAdmin'] },
-      { path: '/recruitment',  label: 'Recruitment',     icon: FileText,        allowedRoles: ['HRAdmin', 'SystemAdmin', 'MasterAdmin'] },
+      { path: '/staff',        label: 'Human Capital',   icon: Users,           allowedRoles: ACCESS_MAP['/staff'] },
+      { path: '/staff/project', label: 'Project Staff',   icon: UserCog,         allowedRoles: ACCESS_MAP['/staff/project'] },
+      { path: '/phd',          label: 'PhD Tracker',     icon: BookOpen,        allowedRoles: ACCESS_MAP['/phd'] },
+      { path: '/divisions',    label: 'Divisions',       icon: Network,         allowedRoles: ACCESS_MAP['/divisions'] },
+      { path: '/recruitment',  label: 'Recruitment',     icon: FileText,        allowedRoles: ACCESS_MAP['/recruitment'] },
     ],
   },
   {
     label: 'Research Ops',
     items: [
-      { path: '/projects',     label: 'Projects',        icon: Briefcase,       allowedRoles: ['Director', 'DivisionHead', 'Scientist', 'FinanceAdmin', 'SystemAdmin', 'MasterAdmin'] },
-      { path: '/proposals',    label: 'Proposals',       icon: FileText,        allowedRoles: ['Scientist', 'HOD', 'DivisionHead', 'Director', 'HRAdmin', 'SystemAdmin', 'MasterAdmin'] },
-      { path: '/facilities',   label: 'Instruments',     icon: Building2,       allowedRoles: ['Director', 'DivisionHead', 'Technician', 'SystemAdmin', 'MasterAdmin'] },
+      { path: '/projects',     label: 'Projects',        icon: Briefcase,       allowedRoles: ACCESS_MAP['/projects'] },
+      { path: '/proposals',    label: 'Proposals',       icon: FileText,        allowedRoles: ACCESS_MAP['/proposals'] },
+      { path: '/facilities',   label: 'Instruments',     icon: Building2,       allowedRoles: ACCESS_MAP['/facilities'] },
     ],
   },
   {
     label: 'Governance',
     items: [
-      { path: '/committees',   label: 'Committees',      icon: Building2,       allowedRoles: ALL_ROLES },
-      { path: '/helpdesk',     label: 'Helpdesk',        icon: TicketIcon,      allowedRoles: ALL_ROLES },
-      { path: '/pms',          label: 'Performance Mgmt',icon: ClipboardCheck,  allowedRoles: ['Scientist','HOD','DivisionHead','Director','EmpoweredCommittee','HRAdmin','SystemAdmin','MasterAdmin'] },
+      { path: '/committees',   label: 'Committees',      icon: Building2,       allowedRoles: ACCESS_MAP['/committees'] },
+      { path: '/helpdesk',     label: 'Helpdesk',        icon: TicketIcon,      allowedRoles: ACCESS_MAP['/helpdesk'] },
+      { path: '/pms',          label: 'Performance Mgmt',icon: ClipboardCheck,  allowedRoles: ACCESS_MAP['/pms'] },
     ],
   },
   {
     label: 'Admin',
     items: [
-      { path: '/admin/access-requests', label: 'Access Requests', icon: UserCheck, allowedRoles: ['SystemAdmin', 'MasterAdmin'] },
-      { path: '/data',         label: 'Data Management', icon: Database,        allowedRoles: ['HRAdmin', 'SystemAdmin', 'MasterAdmin'] },
-      { path: '/irins-sync',   label: 'IRINS Sync',      icon: Cloud,           allowedRoles: ['SystemAdmin', 'MasterAdmin'] },
-      { path: '/admin/holidays', label: 'Holidays',        icon: CalendarDays,    allowedRoles: ['SystemAdmin', 'MasterAdmin'] },
+      { path: '/admin/access-requests', label: 'Access Requests', icon: UserCheck, allowedRoles: ACCESS_MAP['/admin/access-requests'] },
+      { path: '/data',         label: 'Data Management', icon: Database,        allowedRoles: ACCESS_MAP['/data'] },
+      { path: '/irins-sync',   label: 'IRINS Sync',      icon: Cloud,           allowedRoles: ACCESS_MAP['/irins-sync'] },
+      { path: '/admin/holidays', label: 'Holidays',        icon: CalendarDays,    allowedRoles: ACCESS_MAP['/admin/holidays'] },
     ],
   },
 ];
