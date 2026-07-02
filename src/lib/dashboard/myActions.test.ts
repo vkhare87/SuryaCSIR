@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { deriveMyActions, type MyActionsInput } from './myActions';
 import type { PMSReport, PMSEvaluation } from '../../types/pms';
 import type { Proposal } from '../../types/proposal';
+import type { ProjectReport } from '../../types/projectReport';
 import type { ActionItem, Ticket } from '../../types';
 
 const base: MyActionsInput = {
@@ -11,9 +12,18 @@ const base: MyActionsInput = {
   reports: [],
   evaluations: [],
   proposals: [],
+  progressReports: [],
   actionItems: [],
   tickets: [],
 };
+
+const progressReport = (over: Partial<ProjectReport>): ProjectReport => ({
+  id: 'g1', projectNo: 'P1', projectName: 'Coating', divisionCode: 'D1',
+  periodType: 'Q', periodLabel: 'Q1 2026-27', dueDate: '2026-08-01', status: 'DRAFT',
+  objectivesProgress: '', milestones: '', expenditureSummary: '', outcomes: '', remarks: '',
+  reviewNotes: null, reviewedBy: null, reviewedAt: null,
+  submittedBy: 'u1', submittedAt: null, createdAt: '', updatedAt: '', ...over,
+});
 
 const report = (over: Partial<PMSReport>): PMSReport => ({
   id: 'r1', cycleId: 'c1', scientistId: 'u1', status: 'DRAFT',
@@ -88,6 +98,19 @@ describe('deriveMyActions', () => {
 
     const admin = deriveMyActions({ ...base, role: 'HRAdmin', proposals });
     expect(admin.map(a => a.id)).toContain('prop-review-p3');
+  });
+
+  it('surfaces own draft/revision progress reports; review queue only for reviewers', () => {
+    const progressReports = [
+      progressReport({}),
+      progressReport({ id: 'g2', status: 'REVISION_REQUESTED' }),
+      progressReport({ id: 'g3', submittedBy: 'u2', status: 'SUBMITTED' }),
+    ];
+    const scientist = deriveMyActions({ ...base, progressReports });
+    expect(scientist.map(a => a.id).sort()).toEqual(['pr-g1', 'pr-g2']);
+
+    const hod = deriveMyActions({ ...base, role: 'HOD', progressReports });
+    expect(hod.map(a => a.id)).toContain('pr-review-g3');
   });
 
   it('surfaces assigned action items and open tickets, sorted due-first', () => {

@@ -1,11 +1,12 @@
 import type { ActionItem, Ticket, Role } from '../../types';
 import type { PMSReport, PMSEvaluation } from '../../types/pms';
 import type { Proposal } from '../../types/proposal';
+import type { ProjectReport } from '../../types/projectReport';
 import { staffNameMatchesAuthor } from '../../utils/dateUtils';
 
 export interface MyAction {
   id: string;
-  kind: 'pms-draft' | 'pms-evaluation' | 'proposal' | 'action-item' | 'ticket';
+  kind: 'pms-draft' | 'pms-evaluation' | 'proposal' | 'action-item' | 'ticket' | 'progress-report';
   label: string;
   detail: string;
   due: string | null;
@@ -13,6 +14,7 @@ export interface MyAction {
 }
 
 const PROPOSAL_REVIEWERS: Role[] = ['HRAdmin', 'SystemAdmin', 'MasterAdmin'];
+const PROGRESS_REVIEWERS: Role[] = ['HOD', 'DivisionHead', 'Director', 'HRAdmin', 'SystemAdmin', 'MasterAdmin'];
 
 export interface MyActionsInput {
   userId: string;
@@ -21,13 +23,14 @@ export interface MyActionsInput {
   reports: PMSReport[];
   evaluations: PMSEvaluation[];
   proposals: Proposal[];
+  progressReports: ProjectReport[];
   actionItems: ActionItem[];
   tickets: Ticket[];
 }
 
 /** Pending items requiring the current user's action, most urgent first (nulls-last by due date). */
 export function deriveMyActions(input: MyActionsInput): MyAction[] {
-  const { userId, staffName, role, reports, evaluations, proposals, actionItems, tickets } = input;
+  const { userId, staffName, role, reports, evaluations, proposals, progressReports, actionItems, tickets } = input;
   const actions: MyAction[] = [];
 
   for (const r of reports) {
@@ -83,6 +86,28 @@ export function deriveMyActions(input: MyActionsInput): MyAction[] {
         detail: p.title,
         due: null,
         link: `/proposals/${p.id}`,
+      });
+    }
+  }
+
+  for (const pr of progressReports) {
+    if (pr.submittedBy === userId && (pr.status === 'DRAFT' || pr.status === 'REVISION_REQUESTED')) {
+      actions.push({
+        id: `pr-${pr.id}`,
+        kind: 'progress-report',
+        label: pr.status === 'REVISION_REQUESTED' ? 'Progress report needs revision' : 'Progress report in draft',
+        detail: `${pr.projectName} · ${pr.periodLabel}`,
+        due: pr.dueDate,
+        link: `/reports/${pr.id}`,
+      });
+    } else if (PROGRESS_REVIEWERS.includes(role) && (pr.status === 'SUBMITTED' || pr.status === 'UNDER_REVIEW')) {
+      actions.push({
+        id: `pr-review-${pr.id}`,
+        kind: 'progress-report',
+        label: 'Progress report awaiting review',
+        detail: `${pr.projectName} · ${pr.periodLabel}`,
+        due: pr.dueDate,
+        link: `/reports/${pr.id}`,
       });
     }
   }

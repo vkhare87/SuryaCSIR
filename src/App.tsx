@@ -54,6 +54,9 @@ const HolidaysAdmin     = lazy(() => import('./pages/admin/HolidaysAdmin'));
 const Proposals         = lazy(() => import('./pages/proposals/Proposals'));
 const ProposalForm      = lazy(() => import('./pages/proposals/ProposalForm'));
 const ProposalDetail    = lazy(() => import('./pages/proposals/ProposalDetail'));
+const ProjectReports    = lazy(() => import('./pages/reports/ProjectReports'));
+const ProjectReportForm = lazy(() => import('./pages/reports/ProjectReportForm'));
+const ProjectReportDetail = lazy(() => import('./pages/reports/ProjectReportDetail'));
 
 function RouteFallback() {
   return (
@@ -171,6 +174,11 @@ function App() {
             <Route path="/proposals/:id/edit" element={<ProtectedRoute><ProposalForm /></ProtectedRoute>} />
             <Route path="/proposals/:id" element={<ProtectedRoute><ProposalDetail /></ProtectedRoute>} />
             <Route path="/proposals" element={<ProtectedRoute allowedRoles={ACCESS_MAP['/proposals']}><Proposals /></ProtectedRoute>} />
+            {/* Project Progress Reports — specific routes first */}
+            <Route path="/reports/new" element={<ProtectedRoute allowedRoles={ACCESS_MAP['/reports/new']}><ProjectReportForm /></ProtectedRoute>} />
+            <Route path="/reports/:id/edit" element={<ProtectedRoute allowedRoles={ACCESS_MAP['/reports/new']}><ProjectReportForm /></ProtectedRoute>} />
+            <Route path="/reports/:id" element={<ProtectedRoute allowedRoles={ACCESS_MAP['/reports']}><ProjectReportDetail /></ProtectedRoute>} />
+            <Route path="/reports" element={<ProtectedRoute allowedRoles={ACCESS_MAP['/reports']}><ProjectReports /></ProtectedRoute>} />
             </Route>
           </Route>
         </Route>

@@ -8,6 +8,7 @@ import type {
 import { supabase, isProvisioned } from '../utils/supabaseClient';
 import { useAuth } from './AuthContext';
 import { registerDocument, unregisterDocument } from '../lib/documents/registry';
+import { fileFinalizedReport } from '../lib/pms/fileFinalized';
 import { SCORE_RANGE } from '../lib/pms/constants';
 import {
   mapCycleRow, mapReportRow, mapSectionRow,
@@ -415,6 +416,23 @@ export function PMSProvider({ children }: { children: ReactNode }) {
     setReports(prev => prev.map(r =>
       r.id === reportId ? { ...r, status: 'FINALIZED' as const } : r
     ));
+
+    // File the finalized report PDF into the documents registry for RAG (T2). Non-fatal.
+    try {
+      const full = await getReport(reportId);
+      const chairman = await getChairmanReview(reportId);
+      void fileFinalizedReport({
+        report: full,
+        sections: full.sections,
+        annexures: full.annexures,
+        finalScore,
+        justification,
+        recommendedMin: chairman?.recommendedMin,
+        recommendedMax: chairman?.recommendedMax,
+      });
+    } catch (e) {
+      console.error('[pms] finalized filing skipped', e);
+    }
   }
 
   async function markNotificationRead(id: string): Promise<void> {

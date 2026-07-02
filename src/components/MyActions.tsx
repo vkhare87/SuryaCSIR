@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
 import { usePMS } from '../contexts/PMSContext';
 import { useProposals } from '../contexts/ProposalsContext';
+import { useProjectReports } from '../contexts/ProjectReportsContext';
 import { Card, Badge } from './ui/Cards';
 import { deriveMyActions } from '../lib/dashboard/myActions';
 import { ACCESS_MAP, type AccessPath } from '../constants/access';
@@ -15,6 +16,7 @@ const KIND_BADGE: Record<string, { label: string; variant: 'info' | 'warning' | 
   'proposal':       { label: 'Proposal',  variant: 'info' },
   'action-item':    { label: 'Committee', variant: 'neutral' },
   'ticket':         { label: 'Helpdesk',  variant: 'warning' },
+  'progress-report': { label: 'Progress', variant: 'info' },
 };
 
 // Discovery chips shown when the inbox is empty — first visit orientation.
@@ -22,6 +24,7 @@ const AREA_LABELS: Partial<Record<AccessPath, string>> = {
   '/staff': 'Human Capital',
   '/projects': 'Projects',
   '/proposals': 'Proposals',
+  '/reports': 'Progress Reports',
   '/phd': 'PhD Tracker',
   '/facilities': 'Instruments',
   '/pms': 'Performance Mgmt',
@@ -36,6 +39,7 @@ export function MyActions() {
   const { staff, actionItems, tickets } = useData();
   const { reports, evaluations } = usePMS();
   const { proposals } = useProposals();
+  const { reports: progressReports } = useProjectReports();
 
   const staffName = useMemo(
     () => staff.find(s => s.Email === user?.email)?.Name ?? '',
@@ -51,10 +55,11 @@ export function MyActions() {
       reports,
       evaluations,
       proposals,
+      progressReports,
       actionItems,
       tickets,
     });
-  }, [user, staffName, reports, evaluations, proposals, actionItems, tickets]);
+  }, [user, staffName, reports, evaluations, proposals, progressReports, actionItems, tickets]);
 
   const areas = useMemo(() => {
     if (!user) return [];

@@ -26,6 +26,8 @@ export const ACCESS_MAP = {
   '/recruitment':             DATA_ADMINS,
   '/projects':                ['Director', 'DivisionHead', 'Scientist', 'FinanceAdmin', ...ADMINS] as Role[],
   '/proposals':               [...PMS_AUTHORS, ...DATA_ADMINS] as Role[],
+  '/reports':                 [...PMS_AUTHORS, ...DATA_ADMINS] as Role[],
+  '/reports/new':             PMS_AUTHORS,
   '/facilities':              ['Director', 'DivisionHead', 'Technician', ...ADMINS] as Role[],
   '/committees':              ALL_ROLES,
   '/helpdesk':                ALL_ROLES,

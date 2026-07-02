@@ -54,6 +54,77 @@ export async function registerDocument(input: RegisterDocInput): Promise<string 
   return data?.id ?? null;
 }
 
+const SHARED_BUCKET = 'documents';
+
+function sanitize(name: string): string {
+  return name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 120);
+}
+
+export interface UploadDocInput {
+  entityType: string;
+  entityId: string;
+  docType: string;
+  accessTier: DocAccessTier;
+  divisionCode?: string | null;
+}
+
+/**
+ * Upload a file to the shared documents bucket and register it. Used by new
+ * modules (T2+) that have no legacy bucket of their own. Files land under
+ * `{entityType}/{entityId}/{epoch}_{name}`. Returns document id or an error.
+ */
+export async function uploadDocument(
+  file: File,
+  input: UploadDocInput,
+): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  if (!supabase) return { ok: false, error: 'Database not provisioned' };
+  const path = `${input.entityType}/${input.entityId}/${Date.now()}_${sanitize(file.name)}`;
+  const { error: upErr } = await supabase.storage.from(SHARED_BUCKET).upload(path, file, {
+    contentType: file.type, upsert: false,
+  });
+  if (upErr) return { ok: false, error: upErr.message };
+
+  const id = await registerDocument({
+    entityType: input.entityType,
+    entityId: input.entityId,
+    docType: input.docType,
+    title: file.name,
+    storageBucket: SHARED_BUCKET,
+    storagePath: path,
+    fileName: file.name,
+    fileSize: file.size,
+    mimeType: file.type,
+    accessTier: input.accessTier,
+    divisionCode: input.divisionCode ?? null,
+  });
+  if (!id) {
+    await supabase.storage.from(SHARED_BUCKET).remove([path]);
+    return { ok: false, error: 'Registry insert failed' };
+  }
+  return { ok: true, id };
+}
+
+/** Signed URL for a document in the shared bucket. */
+export async function getDocumentUrl(storagePath: string): Promise<string | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase.storage.from(SHARED_BUCKET).createSignedUrl(storagePath, 60);
+  if (error) return null;
+  return data?.signedUrl ?? null;
+}
+
+/** List registry rows for one entity (shared bucket). */
+export async function listDocuments(entityType: string, entityId: string) {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from('documents')
+    .select('id, doc_type, title, storage_path, file_name, file_size, created_at, ingest_status')
+    .eq('entity_type', entityType)
+    .eq('entity_id', entityId)
+    .order('created_at', { ascending: false });
+  if (error) { logger.error('[documents] list failed', error); return []; }
+  return data ?? [];
+}
+
 /** Remove the registry row for a deleted file. Non-fatal, mirrors registerDocument. */
 export async function unregisterDocument(storageBucket: string, storagePath: string): Promise<void> {
   if (!supabase) return;
