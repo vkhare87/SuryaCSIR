@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
+import { useAuth } from '../contexts/AuthContext';
 import { Card, Badge, StatCard } from '../components/ui/Cards';
 import { Button } from '../components/ui/Button';
+import { DocumentPanel } from '../components/ui/DocumentPanel';
 import {
   ArrowLeft, Mail, Phone, MapPin, Award, BookOpen, Briefcase,
   ChevronRight, GitBranch, GraduationCap,
@@ -22,6 +24,7 @@ export default function StaffDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const canEdit = useCanEdit('hr');
+  const { user } = useAuth();
   const [editOpen, setEditOpen] = useState(false);
   const {
     staff,
@@ -498,6 +501,34 @@ export default function StaffDetail() {
                   </>
                 )}
               </Card>
+            );
+          })()}
+
+          {/* Expertise / CV documents + publication full-texts (T3) */}
+          {(() => {
+            const isOwnProfile = Boolean(user?.email && member.Email && user.email.toLowerCase() === member.Email.toLowerCase());
+            const canUpload = isOwnProfile || canEdit;
+            return (
+              <>
+                <DocumentPanel
+                  entityType="staff_profile"
+                  entityId={member.ID}
+                  docType="expertise"
+                  accessTier="institute"
+                  title="Expertise & CV Documents"
+                  canUpload={canUpload}
+                  divisionCode={member.Division}
+                />
+                <DocumentPanel
+                  entityType="publication"
+                  entityId={member.ID}
+                  docType="full_text"
+                  accessTier="institute"
+                  title="Publication Full-Texts"
+                  canUpload={canUpload}
+                  divisionCode={member.Division}
+                />
+              </>
             );
           })()}
 
