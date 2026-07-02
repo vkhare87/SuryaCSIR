@@ -2,6 +2,7 @@ import { supabase } from '../../utils/supabaseClient';
 import type { ProposalDocType, ProposalDocument } from '../../types/proposal';
 import { mapDocumentRow } from '../../utils/proposalMappers';
 import { ALLOWED_MIME_TYPES, MAX_FILE_SIZE_BYTES } from './constants';
+import { registerDocument } from '../documents/registry';
 
 const BUCKET = 'proposal-documents';
 
@@ -55,6 +56,22 @@ export async function uploadProposalDoc(
     await supabase.storage.from(BUCKET).remove([path]);
     return { ok: false, error: insertErr?.message ?? 'Insert failed' };
   }
+
+  // Dual-write into the unified registry (T1). Non-fatal.
+  // ponytail: tier 'owner' — proposal division code isn't in scope here;
+  // widen to 'division' when uploads pass divisionCode through.
+  void registerDocument({
+    entityType: 'proposal',
+    entityId: proposalId,
+    docType,
+    title: file.name,
+    storageBucket: BUCKET,
+    storagePath: path,
+    fileName: file.name,
+    fileSize: file.size,
+    mimeType: file.type,
+    accessTier: 'owner',
+  });
 
   return { ok: true, document: mapDocumentRow(data) };
 }

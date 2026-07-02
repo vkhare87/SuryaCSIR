@@ -64,6 +64,8 @@ Every staff member logs in and sees their role-scoped slice of the institute.
 | Modal/overlay (top-level) | `src/components/<Name>.tsx` |
 | Context | `src/contexts/<Name>Context.tsx` (provider + `use<Name>` hook in same file) |
 | PMS business logic | `src/lib/pms/{constants,permissions,scoring,validation}.ts` |
+| File upload (any module) | register in unified registry via `src/lib/documents/registry.ts` (`documents` table = RAG ingest queue; see `docs/OVERHAUL-PLAN.md` T1) |
+| Page access roles | `src/constants/access.ts` `ACCESS_MAP` — single source for nav + route guards |
 | Domain types | `src/types/index.ts` (single barrel) |
 | Pure utility | `src/utils/<name>.ts` (camelCase) |
 | Mock data | `src/utils/mockData.ts` |

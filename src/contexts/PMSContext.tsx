@@ -7,6 +7,7 @@ import type {
 } from '../types/pms';
 import { supabase, isProvisioned } from '../utils/supabaseClient';
 import { useAuth } from './AuthContext';
+import { registerDocument, unregisterDocument } from '../lib/documents/registry';
 import { SCORE_RANGE } from '../lib/pms/constants';
 import {
   mapCycleRow, mapReportRow, mapSectionRow,
@@ -258,6 +259,19 @@ export function PMSProvider({ children }: { children: ReactNode }) {
       .select()
       .single();
     if (dbErr) throw dbErr;
+    // Dual-write into the unified registry (T1). Non-fatal.
+    void registerDocument({
+      entityType: 'pms_report',
+      entityId: reportId,
+      docType: 'annexure',
+      title: file.name,
+      storageBucket: 'annexures',
+      storagePath: path,
+      fileName: file.name,
+      fileSize: file.size,
+      mimeType: file.type,
+      accessTier: 'confidential',
+    });
     return mapAnnexureRow(row as Record<string, unknown>);
   }
 
@@ -267,6 +281,7 @@ export function PMSProvider({ children }: { children: ReactNode }) {
     if (storageErr) throw storageErr;
     const { error: dbErr } = await supabase.from('pms_annexures').delete().eq('id', annexureId);
     if (dbErr) throw dbErr;
+    void unregisterDocument('annexures', filePath);
   }
 
   async function submitReport(reportId: string): Promise<void> {
