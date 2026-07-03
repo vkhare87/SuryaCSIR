@@ -28,17 +28,19 @@ export async function fileFinalizedReport(input: FileFinalizedInput): Promise<vo
       import('../../components/pms/ReportPDF'),
     ]);
 
-    const blob = await pdf(
-      createElement(ReportPDF, {
-        report: input.report,
-        sections: input.sections,
-        annexures: input.annexures,
-        finalScore: input.finalScore,
-        justification: input.justification,
-        recommendedMin: input.recommendedMin,
-        recommendedMax: input.recommendedMax,
-      }),
-    ).toBlob();
+    // @react-pdf's pdf() expects a Document element; ReportPDF wraps one. Cast bridges
+    // the wrapper's element type to the renderer's expected ReactElement<DocumentProps>.
+    const doc = createElement(ReportPDF, {
+      report: input.report,
+      sections: input.sections,
+      annexures: input.annexures,
+      finalScore: input.finalScore,
+      justification: input.justification,
+      recommendedMin: input.recommendedMin,
+      recommendedMax: input.recommendedMax,
+    }) as unknown as Parameters<typeof pdf>[0];
+
+    const blob = await pdf(doc).toBlob();
 
     const path = `${input.report.id}/finalized_${Date.now()}.pdf`;
     const { error: upErr } = await supabase.storage.from('annexures').upload(path, blob, {

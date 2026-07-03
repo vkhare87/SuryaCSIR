@@ -71,7 +71,7 @@ export function ImportFlow({ type, showTypePicker = false, onComplete }: ImportF
     setParseError(null);
   };
 
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+  const handleDrop = (e: React.DragEvent<HTMLElement>) => {
     e.preventDefault();
     const dropped = e.dataTransfer.files?.[0] ?? null;
     if (dropped) {
@@ -80,7 +80,7 @@ export function ImportFlow({ type, showTypePicker = false, onComplete }: ImportF
     }
   };
 
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+  const handleDragOver = (e: React.DragEvent<HTMLElement>) => {
     e.preventDefault();
   };
 
