@@ -29,7 +29,12 @@ disable that policy for the worker host.
 ```bash
 python worker.py            # poll loop (sleeps POLL_INTERVAL_S between passes)
 python worker.py --once     # single pass, then exit (deploy verify / cron)
+uvicorn api:app --port 8000 # Ask SURYA /query endpoint (T5)
 ```
+
+`/query` uses the caller's Supabase JWT for every read, so RLS is the only
+doc-scoping gate — the query service needs `SUPABASE_ANON_KEY` but no service
+key. Structured questions run only whitelisted functions in `analytics.py`.
 
 ## Test
 

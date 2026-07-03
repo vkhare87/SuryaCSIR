@@ -51,6 +51,7 @@ const TicketDetail      = lazy(() => import('./pages/helpdesk/TicketDetail'));
 const TicketForm        = lazy(() => import('./pages/helpdesk/TicketForm'));
 const IrinsSync         = lazy(() => import('./pages/IrinsSync'));
 const RagMonitor        = lazy(() => import('./pages/RagMonitor'));
+const AskSurya          = lazy(() => import('./pages/AskSurya'));
 const HolidaysAdmin     = lazy(() => import('./pages/admin/HolidaysAdmin'));
 const Proposals         = lazy(() => import('./pages/proposals/Proposals'));
 const ProposalForm      = lazy(() => import('./pages/proposals/ProposalForm'));
@@ -152,6 +153,7 @@ function App() {
             <Route path="/helpdesk" element={<ProtectedRoute><TicketList /></ProtectedRoute>} />
             <Route path="/recruitment" element={<ProtectedRoute allowedRoles={ACCESS_MAP['/recruitment']}><Recruitment /></ProtectedRoute>} />
             <Route path="/calendar" element={<ProtectedRoute><Calendar /></ProtectedRoute>} />
+            <Route path="/ask" element={<ProtectedRoute allowedRoles={ACCESS_MAP['/ask']}><AskSurya /></ProtectedRoute>} />
             <Route path="/data" element={<ProtectedRoute allowedRoles={ACCESS_MAP['/data']}><DataManagement /></ProtectedRoute>} />
             <Route path="/pms" element={<ProtectedRoute allowedRoles={ACCESS_MAP['/pms']}><PMSIndex /></ProtectedRoute>} />
             <Route path="/pms/cycles" element={<ProtectedRoute allowedRoles={ACCESS_MAP['/pms/cycles']}><PMSCycles /></ProtectedRoute>} />

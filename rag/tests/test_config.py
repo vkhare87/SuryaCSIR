@@ -2,7 +2,7 @@ import pytest
 from config import load_config
 
 BASE = {
-    "SUPABASE_URL": "http://x", "SUPABASE_SERVICE_KEY": "k",
+    "SUPABASE_URL": "http://x", "SUPABASE_SERVICE_KEY": "k", "SUPABASE_ANON_KEY": "a",
     "OPENLLM_BASE_URL": "http://llm/v1", "OPENLLM_MODEL": "m",
     "OCR_BACKEND": "null", "LLM_BACKEND": "fake",
     "POLL_INTERVAL_S": "30", "BATCH_SIZE": "5",

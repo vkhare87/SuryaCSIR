@@ -1,0 +1,42 @@
+import { supabase } from '../../utils/supabaseClient';
+
+export interface AskCitation {
+  document_id: string;
+  title: string;
+  node_title: string;
+  page_start: number;
+  page_end: number;
+}
+
+export interface AskAnswer {
+  answer: string;
+  mode: 'document' | 'structured';
+  citations: AskCitation[];
+}
+
+// The RAG /query response uses dataclass field names (text/mode/citations); normalize here.
+interface QueryResponse {
+  text: string;
+  mode: 'document' | 'structured';
+  citations: AskCitation[];
+}
+
+export async function askSurya(question: string): Promise<AskAnswer> {
+  const base = import.meta.env.VITE_RAG_URL;
+  if (!base) throw new Error('VITE_RAG_URL is not configured');
+  if (!supabase) throw new Error('Not signed in');
+
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+  if (!token) throw new Error('Not signed in');
+
+  const res = await fetch(`${base}/query`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ question }),
+  });
+  if (!res.ok) throw new Error(`Ask SURYA failed (${res.status})`);
+
+  const data = (await res.json()) as QueryResponse;
+  return { answer: data.text, mode: data.mode, citations: data.citations ?? [] };
+}

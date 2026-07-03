@@ -16,6 +16,7 @@ const PMS_AUTHORS: Role[] = ['Scientist', 'HOD', 'DivisionHead', 'Director'];
 // committees) are intentionally absent — they stay open, RLS scopes data.
 export const ACCESS_MAP = {
   '/':                        ALL_ROLES,
+  '/ask':                     ALL_ROLES,
   '/calendar':                ALL_ROLES,
   '/intelligence':            ['Director', 'DivisionHead', 'Scientist', ...ADMINS] as Role[],
   '/staff':                   ['Director', 'DivisionHead', 'HRAdmin', ...ADMINS] as Role[],

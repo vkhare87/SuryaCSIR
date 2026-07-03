@@ -2,3 +2,5 @@ pymupdf>=1.24
 pytesseract>=0.3.13
 pillow>=10
 supabase>=2.7
+fastapi>=0.110
+uvicorn>=0.29

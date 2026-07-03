@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 REQUIRED = [
-    "SUPABASE_URL", "SUPABASE_SERVICE_KEY", "OPENLLM_BASE_URL",
+    "SUPABASE_URL", "SUPABASE_SERVICE_KEY", "SUPABASE_ANON_KEY", "OPENLLM_BASE_URL",
     "OPENLLM_MODEL", "OCR_BACKEND", "LLM_BACKEND",
     "POLL_INTERVAL_S", "BATCH_SIZE",
 ]
@@ -11,6 +11,7 @@ REQUIRED = [
 class Config:
     supabase_url: str
     supabase_service_key: str
+    supabase_anon_key: str
     openllm_base_url: str
     openllm_model: str
     ocr_backend: str
@@ -26,6 +27,7 @@ def load_config(env: dict) -> Config:
     return Config(
         supabase_url=env["SUPABASE_URL"],
         supabase_service_key=env["SUPABASE_SERVICE_KEY"],
+        supabase_anon_key=env["SUPABASE_ANON_KEY"],
         openllm_base_url=env["OPENLLM_BASE_URL"],
         openllm_model=env["OPENLLM_MODEL"],
         ocr_backend=env["OCR_BACKEND"],

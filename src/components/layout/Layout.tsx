@@ -27,6 +27,7 @@ import {
   UserCog,
   UserCheck,
   ScanText,
+  Sparkles,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -60,6 +61,7 @@ const NAV_SECTIONS: NavSection[] = [
     label: 'Overview',
     items: [
       { path: '/',             label: 'Dashboard',       icon: LayoutDashboard, allowedRoles: ACCESS_MAP['/'] },
+      { path: '/ask',          label: 'Ask SURYA',       icon: Sparkles,        allowedRoles: ACCESS_MAP['/ask'] },
       { path: '/intelligence', label: 'Intelligence',    icon: Microscope,      allowedRoles: ACCESS_MAP['/intelligence'] },
       { path: '/calendar',     label: 'Calendar',        icon: CalendarIcon,    allowedRoles: ACCESS_MAP['/calendar'] },
     ],
