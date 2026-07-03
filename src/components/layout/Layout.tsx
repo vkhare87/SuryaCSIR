@@ -26,6 +26,7 @@ import {
   CalendarDays,
   UserCog,
   UserCheck,
+  ScanText,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -96,6 +97,7 @@ const NAV_SECTIONS: NavSection[] = [
       { path: '/admin/access-requests', label: 'Access Requests', icon: UserCheck, allowedRoles: ACCESS_MAP['/admin/access-requests'] },
       { path: '/data',         label: 'Data Management', icon: Database,        allowedRoles: ACCESS_MAP['/data'] },
       { path: '/irins-sync',   label: 'IRINS Sync',      icon: Cloud,           allowedRoles: ACCESS_MAP['/irins-sync'] },
+      { path: '/admin/rag',    label: 'RAG Ingestion',   icon: ScanText,        allowedRoles: ACCESS_MAP['/admin/rag'] },
       { path: '/admin/holidays', label: 'Holidays',        icon: CalendarDays,    allowedRoles: ACCESS_MAP['/admin/holidays'] },
     ],
   },

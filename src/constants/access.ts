@@ -41,6 +41,7 @@ export const ACCESS_MAP = {
   '/admin/access-requests':   ADMINS,
   '/data':                    DATA_ADMINS,
   '/irins-sync':              ADMINS,
+  '/admin/rag':               ADMINS,
   '/admin/holidays':          ADMINS,
 } as const satisfies Record<string, Role[]>;
 
