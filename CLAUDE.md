@@ -230,10 +230,14 @@ Read the relevant `.claude/skills/*` before working on PMS, RLS, or new UI primi
 
 **Open:**
 - **HR column casing**: `"divCode"`, `"DOJ"`, `"CompletioDate"` (typo) etc. — quoted CamelCase, mirrors source Excel. Renaming to snake_case is a coordinated DB-migration + code-change task; out of scope for now.
-- **Bundle size**: production `index.js` is ~3.3 MB raw / 993 KB gzipped. No code-splitting yet. Heavy contributors: `@react-pdf/renderer`, `xlsx`, `recharts`. Lazy-load PDF/Excel routes via `React.lazy()` to drop initial payload.
 - **`dataMigration.ts` tests**: still no unit test coverage. Lowest-cost win is reviving the parser/transform spec sheet into vitest cases.
 - **DataContext error surfacing**: toast now fires on full failure + on partial table failure, but `error` state in context is still only consumed by `DataManagement.tsx`. Pages don't render an inline banner.
 - **PMS audit log table** (`pms_audit_logs`) and **module audit log** (`audit_log`) live in two tables with different shapes — unified in `AuditLog.tsx` via tabs, but no merged-timeline view.
+
+**Resolved (2026-07-03):**
+- ~~Bundle size ~3.3 MB / 993 KB gz, no code-splitting~~ — routes lazy-loaded via `React.lazy()`; prod index chunk now ~359 KB / ~95 KB gz.
+- ~~Green build~~ — fixed React 19 types drift (`ImportFlow` drag handlers, `fileFinalized` @react-pdf cast). `npm run build` passes.
+- **RAG stack (T4–T6) shipped** — server-side Python worker in `rag/` (parse → PageIndex tree → `doc_indexes`, OCR/LLM behind adapters), Ask SURYA `/query` (FastAPI, caller-JWT end-to-end so RLS is the only doc gate; whitelisted analytics only), `/ask` + `/admin/rag` SPA pages, query log + feedback, collection indexes, eval harness. Migrations `20260702000000/010000/020000/030000`. Not yet run E2E (needs service key + native-DLL policy allowed on host). Specs/plans in `docs/superpowers/`.
 
 **Resolved (2026-05-16):**
 - ~~`scientificOutputs` / `ipIntelligence` Supabase wire-up~~ — loaded in `DataContext`.
