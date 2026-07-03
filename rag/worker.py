@@ -7,6 +7,7 @@ from parse import parse_pdf
 from pageindex import build_tree
 from ocr import make_ocr
 from llm import make_llm
+from corpus import build_collection_summaries
 
 
 def process_document(doc, db, ocr, llm) -> None:
@@ -33,12 +34,24 @@ def run_once(db, ocr, llm) -> int:
         count += 1
 
 
+def build_collections(db, llm) -> int:
+    """Rebuild collection_indexes from the current doc_indexes root summaries."""
+    rows = db.fetch_index_summaries()
+    collections = build_collection_summaries(rows, llm)
+    db.save_collections(collections, getattr(llm, "model", "unknown"))
+    return len(collections)
+
+
 def main():
     cfg = load_config(os.environ)
     ocr = make_ocr(cfg.ocr_backend)
     llm = make_llm(cfg.llm_backend, cfg.openllm_base_url, cfg.openllm_model)
     from db import SupabaseDB
     db = SupabaseDB(cfg)
+    if "--build-collections" in sys.argv:
+        n = build_collections(db, llm)
+        print(f"[rag] built {n} collection index(es)", flush=True)
+        return
     once = "--once" in sys.argv
     while True:
         n = run_once(db, ocr, llm)

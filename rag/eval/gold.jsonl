@@ -1,0 +1,4 @@
+{"question": "COUNT documents by ingestion status", "expected_mode": "structured"}
+{"question": "What outcomes did the 2025 progress reports highlight?", "expected_mode": "document"}
+{"question": "Which division has the most external projects?", "expected_mode": "document"}
+{"question": "COUNT projects per division", "expected_mode": "structured"}

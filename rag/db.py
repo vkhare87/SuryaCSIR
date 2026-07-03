@@ -69,3 +69,23 @@ class SupabaseDB:
         self.c.table("documents").update(
             {"ingest_status": status, "ingest_error": error}
         ).eq("id", document_id).execute()
+
+    def fetch_index_summaries(self):
+        # Root summary per indexed doc, joined to its entity_type. Service role.
+        rows = (self.c.table("doc_indexes")
+                .select("tree, documents(entity_type)").execute().data) or []
+        out = []
+        for r in rows:
+            doc = r.get("documents") or {}
+            root = (r.get("tree") or {}).get("root") or {}
+            out.append({"entity_type": doc.get("entity_type", "unknown"),
+                        "root_summary": root.get("summary", "")})
+        return out
+
+    def save_collections(self, collections, model):
+        for c in collections:
+            self.c.table("collection_indexes").upsert({
+                "collection_key": c["collection_key"], "title": c["title"],
+                "summary": c["summary"], "document_count": c["document_count"],
+                "model": model,
+            }).execute()

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { RefreshCw, ScanText } from 'lucide-react';
 import { Card, Badge } from '../components/ui/Cards';
 import { EmptyState } from '../components/ui/EmptyState';
-import { fetchMonitorRows, requeueDocument, countByStatus } from '../lib/rag/monitor';
+import { fetchMonitorRows, requeueDocument, requeueAll, countByStatus } from '../lib/rag/monitor';
 import type { MonitorRow, IngestStatus } from '../lib/rag/monitor';
 
 const STATUS_ORDER: IngestStatus[] = ['pending', 'processing', 'indexed', 'failed', 'skipped'];
@@ -54,12 +54,20 @@ export default function RagMonitor() {
           <h1 className="text-2xl font-semibold text-text">RAG Ingestion</h1>
           <p className="text-sm text-text-muted">Document indexing queue and pipeline health.</p>
         </div>
-        <button
-          onClick={() => void load()}
-          className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-1.5 text-sm text-text-muted hover:bg-surface-hover"
-        >
-          <RefreshCw className="h-4 w-4" /> Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={async () => { await requeueAll(); await load(); }}
+            className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-1.5 text-sm text-text-muted hover:bg-surface-hover"
+          >
+            Re-index all
+          </button>
+          <button
+            onClick={() => void load()}
+            className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-1.5 text-sm text-text-muted hover:bg-surface-hover"
+          >
+            <RefreshCw className="h-4 w-4" /> Refresh
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">

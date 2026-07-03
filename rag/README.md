@@ -30,6 +30,8 @@ disable that policy for the worker host.
 python worker.py            # poll loop (sleeps POLL_INTERVAL_S between passes)
 python worker.py --once     # single pass, then exit (deploy verify / cron)
 uvicorn api:app --port 8000 # Ask SURYA /query endpoint (T5)
+python worker.py --build-collections   # rebuild collection_indexes rollups (T6)
+python eval/run_eval.py                 # score router vs eval/gold.jsonl (T6)
 ```
 
 `/query` uses the caller's Supabase JWT for every read, so RLS is the only

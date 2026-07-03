@@ -51,3 +51,9 @@ export async function requeueDocument(docId: string): Promise<void> {
   const { error } = await supabase.rpc('rag_requeue_document', { p_doc_id: docId });
   if (error) throw error;
 }
+
+export async function requeueAll(): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.rpc('rag_requeue_all');
+  if (error) throw error;
+}

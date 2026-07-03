@@ -80,4 +80,20 @@ def query(body: QueryIn, authorization: str | None = Header(default=None)):
         answer = _answer_for_structured(question, client)
     else:
         answer = traverse(_read_docs(client), question, _LLM)
-    return dataclasses.asdict(answer)
+
+    payload = dataclasses.asdict(answer)
+    payload["query_id"] = _log_query(client, question, answer)
+    return payload
+
+
+def _log_query(client, question, answer):
+    """Persist the query as a row owned by the caller (RLS: user_id = auth.uid()).
+    Best-effort — a logging failure must not break the answer."""
+    try:
+        row = (client.table("query_log").insert({
+            "question": question, "mode": answer.mode, "answer": answer.text,
+            "citations": [dataclasses.asdict(c) for c in answer.citations],
+        }).execute().data)
+        return row[0]["id"] if row else None
+    except Exception:
+        return None
