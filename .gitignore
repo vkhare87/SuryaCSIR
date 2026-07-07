@@ -16,3 +16,4 @@ rag/.venv/
 rag/.env
 __pycache__/
 .pytest_cache/
+rag/eval/corpus.json

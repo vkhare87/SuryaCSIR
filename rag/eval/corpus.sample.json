@@ -1,0 +1,8 @@
+[
+  {
+    "id": "REPLACE-document-uuid",
+    "title": "REPLACE with documents.title",
+    "storage_path": "REPLACE with documents.storage_path",
+    "tree": { "root": { "nodes": [ { "title": "…", "summary": "…", "page_start": 1, "page_end": 2 } ] } }
+  }
+]
