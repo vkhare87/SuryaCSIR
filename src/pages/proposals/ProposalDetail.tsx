@@ -10,6 +10,7 @@ import {
 } from '../../lib/proposals/constants';
 import { canEditProposal, canUpdateStatus, nextAllowedTransitions } from '../../lib/proposals/permissions';
 import StatusUpdateModal from '../../components/proposals/StatusUpdateModal';
+import { SimilarWorkPanel } from '../../components/SimilarWorkPanel';
 import type { Proposal } from '../../types/proposal';
 
 export default function ProposalDetail() {
@@ -85,6 +86,8 @@ export default function ProposalDetail() {
         <Block label="Objectives"        text={proposal.objectives} />
         <Block label="Expected Outcomes" text={proposal.expectedOutcomes} />
       </Card>
+
+      <SimilarWorkPanel text={`${proposal.title}. ${proposal.abstract}`} />
 
       {proposal.coPIs && proposal.coPIs.length > 0 && (
         <Card className="p-4">
