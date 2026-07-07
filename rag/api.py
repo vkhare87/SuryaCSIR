@@ -26,8 +26,14 @@ _LLM = make_llm(
 )
 
 
+class HistoryTurn(BaseModel):
+    question: str
+    answer: str
+
+
 class QueryIn(BaseModel):
     question: str
+    history: list[HistoryTurn] | None = None
 
 
 @app.post("/query")
@@ -46,7 +52,8 @@ def query(body: QueryIn, authorization: str | None = Header(default=None)):
     client = scoped_client(_ANON_URL, _ANON_KEY, jwt)
 
     started = time.perf_counter()
-    answer = handle_query(question, client, _LLM)
+    history = [t.model_dump() for t in body.history] if body.history else None
+    answer = handle_query(question, client, _LLM, history=history)
     latency_ms = int((time.perf_counter() - started) * 1000)
     payload = dataclasses.asdict(answer)
     payload["query_id"] = log_query(client, question, answer, latency_ms=latency_ms)

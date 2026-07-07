@@ -11,7 +11,7 @@ export interface AskCitation {
 
 export interface AskAnswer {
   answer: string;
-  mode: 'document' | 'structured';
+  mode: 'document' | 'structured' | 'hybrid';
   citations: AskCitation[];
   queryId: string | null;
 }
@@ -19,12 +19,17 @@ export interface AskAnswer {
 // The RAG /query response uses dataclass field names (text/mode/citations); normalize here.
 interface QueryResponse {
   text: string;
-  mode: 'document' | 'structured';
+  mode: 'document' | 'structured' | 'hybrid';
   citations: AskCitation[];
   query_id: string | null;
 }
 
-export async function askSurya(question: string): Promise<AskAnswer> {
+export interface AskHistoryTurn {
+  question: string;
+  answer: string;
+}
+
+export async function askSurya(question: string, history?: AskHistoryTurn[]): Promise<AskAnswer> {
   const base = import.meta.env.VITE_RAG_URL;
   if (!base) throw new Error('VITE_RAG_URL is not configured');
   if (!supabase) throw new Error('Not signed in');
@@ -36,7 +41,7 @@ export async function askSurya(question: string): Promise<AskAnswer> {
   const res = await fetch(`${base}/query`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ question }),
+    body: JSON.stringify(history?.length ? { question, history } : { question }),
   });
   if (!res.ok) throw new Error(`Ask SURYA failed (${res.status})`);
 

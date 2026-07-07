@@ -69,8 +69,23 @@ def _merge_hybrid(structured, doc) -> Answer:
     return Answer(f"{structured.text}\n\n{doc.text}", "hybrid", doc.citations)
 
 
-def handle_query(question, client, llm):
-    """Route and answer. client must be the caller's RLS-scoped client."""
+HISTORY_MAX_TURNS = 3
+HISTORY_ANSWER_CHARS = 300
+
+
+def _with_history(question, history):
+    """Prepend a condensed transcript so route, picks and answer all see the
+    conversation. The raw question is what gets logged (api.py logs its own copy)."""
+    turns = [f"Q: {h.get('question', '')}\nA: {(h.get('answer') or '')[:HISTORY_ANSWER_CHARS]}"
+             for h in history[-HISTORY_MAX_TURNS:]]
+    return "Earlier in this conversation:\n" + "\n".join(turns) + f"\n\nCurrent question: {question}"
+
+
+def handle_query(question, client, llm, history=None):
+    """Route and answer. client must be the caller's RLS-scoped client.
+    history: optional [{'question','answer'}] recent turns for follow-ups."""
+    if history:
+        question = _with_history(question, history)
     decision = decide(question, llm, CATALOG)
     fetch_texts = make_fetch_texts(client)
     if decision["route"] in ("structured", "hybrid"):

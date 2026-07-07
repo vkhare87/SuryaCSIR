@@ -151,6 +151,53 @@ def test_handle_query_structured_failure_falls_back_to_documents():
     assert ans.text == REFUSAL_TEXT
 
 
+# ---------- history (P3) ----------
+
+def test_handle_query_history_reaches_prompts():
+    seen = {}
+
+    class SpyLLM(FakeLLM):
+        def route(self, question, catalog):
+            seen["route_q"] = question
+            return super().route(question, catalog)
+
+        def answer(self, question, context):
+            seen["answer_q"] = question
+            return super().answer(question, context)
+
+    client = _FakeClient({
+        "doc_indexes": [
+            {"document_id": "d1", "tree": _tree("A"), "documents": {"id": "d1", "title": "A"}},
+        ],
+        "doc_pages": [{"page": 1, "text": "A intro page body"}],
+    })
+    history = [{"question": "What is LWMD?", "answer": "A division working on waste."}]
+    handle_query("what about its projects?", client, SpyLLM(), history=history)
+    for key in ("route_q", "answer_q"):
+        assert "What is LWMD?" in seen[key]
+        assert "what about its projects?" in seen[key]
+
+
+def test_handle_query_history_caps_turns_and_answer_length():
+    from query_service import _with_history, HISTORY_MAX_TURNS
+    history = [{"question": f"q{i}", "answer": "a" * 1000} for i in range(5)]
+    combined = _with_history("now", history)
+    assert "q0" not in combined and "q1" not in combined      # only last 3 turns
+    assert sum(1 for _ in range(5) if f"q{_}" in combined) == HISTORY_MAX_TURNS
+    assert "a" * 301 not in combined                           # answers truncated
+
+
+def test_handle_query_no_history_unchanged():
+    client = _FakeClient({
+        "doc_indexes": [
+            {"document_id": "d1", "tree": _tree("A"), "documents": {"id": "d1", "title": "A"}},
+        ],
+        "doc_pages": [{"page": 1, "text": "A intro page body"}],
+    })
+    ans = handle_query("what is in the intro", client, FakeLLM(), history=None)
+    assert "A intro page body" in ans.text
+
+
 # ---------- log_query ----------
 
 def test_log_query_returns_id():
