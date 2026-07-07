@@ -10,6 +10,7 @@ import type {
   Lab,
   ScientificOutput,
   IPIntelligence,
+  MoU,
   ContractStaff,
   VacancyAdvertisement,
   VacancyPost,
@@ -38,6 +39,7 @@ import {
   mapLabRow,
   mapScientificOutputRow,
   mapIPIntelligenceRow,
+  mapMoURow,
   mapContractStaffRow,
   mapVacancyAdvertisementRow,
   mapVacancyPostRow,
@@ -97,6 +99,7 @@ interface DataContextType {
   contractStaff: ContractStaff[];
   scientificOutputs: ScientificOutput[];
   ipIntelligence: IPIntelligence[];
+  mous: MoU[];
   equipment: Equipment[];
   labs: Lab[];
   vacancyAdvertisements: VacancyAdvertisement[];
@@ -141,6 +144,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [contractStaff, setContractStaff] = useState<ContractStaff[]>([]);
   const [scientificOutputs, setScientificOutputs] = useState<ScientificOutput[]>([]);
   const [ipIntelligence, setIPIntelligence] = useState<IPIntelligence[]>([]);
+  const [mous, setMous] = useState<MoU[]>([]);
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [labs, setLabs] = useState<Lab[]>([]);
   const [vacancyAdvertisements, setVacancyAdvertisements] = useState<VacancyAdvertisement[]>([]);
@@ -171,6 +175,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setLabs([]);
     setScientificOutputs([]);
     setIPIntelligence([]);
+    setMous([]);
     setVacancyAdvertisements([]);
     setVacancyPosts([]);
     setCommittees([]);
@@ -201,7 +206,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         divRes, staffRes, projRes, psRes, phdRes, equipRes, labsRes, soRes, ipRes, csRes,
         vaRes, vpRes,
         cmtRes, cmmRes, mtgRes, agiRes, actRes, mdcRes, tktRes, trsRes, tevRes, hrtRes,
-        ceRes, holRes,
+        ceRes, holRes, mouRes,
       ] = await Promise.all([
         supabase.from('divisions').select('*'),
         supabase.from('staff').select('*'),
@@ -227,6 +232,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         supabase.from('helpdesk_routing').select('*'),
         supabase.from('calendar_events').select('*').order('event_date', { ascending: true }),
         supabase.from('holidays').select('*').order('holiday_date', { ascending: true }),
+        supabase.from('mous').select('*'),
       ]);
 
       // Surface per-table errors — Promise.all hides them as empty data
@@ -258,6 +264,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       checkTable('helpdesk_routing', hrtRes);
       checkTable('calendar_events', ceRes);
       checkTable('holidays', holRes);
+      checkTable('mous', mouRes);
       if (tableErrors.length > 0) {
         const summary = `${tableErrors.length} table(s) failed to load: ${tableErrors.map(e => e.table).join(', ')}`;
         logger.error('partial_data_load_failed', new Error(summary), { tableErrors });
@@ -278,6 +285,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setLabs(labsRes.data ? labsRes.data.map(mapLabRow) : []);
       setScientificOutputs(soRes.data ? soRes.data.map(mapScientificOutputRow) : []);
       setIPIntelligence(ipRes.data ? ipRes.data.map(mapIPIntelligenceRow) : []);
+      setMous(mouRes.data ? mouRes.data.map(mapMoURow) : []);
       setVacancyAdvertisements(vaRes.data ? vaRes.data.map(mapVacancyAdvertisementRow) : []);
       setVacancyPosts(vpRes.data ? vpRes.data.map(mapVacancyPostRow) : []);
       setCommittees(cmtRes.data ? cmtRes.data.map(mapCommitteeRow) : []);
@@ -345,6 +353,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       contractStaff,
       scientificOutputs,
       ipIntelligence,
+      mous,
       equipment,
       labs,
       vacancyAdvertisements,

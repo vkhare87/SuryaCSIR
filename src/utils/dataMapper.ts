@@ -1,4 +1,4 @@
-import type { DivisionInfo, StaffMember, ProjectInfo, ProjectStaff, PhDStudent, Equipment, ScientificOutput, IPIntelligence, ContractStaff, VacancyAdvertisement, VacancyPost, Notification, Committee, CommitteeMember, Meeting, AgendaItem, ActionItem, MeetingDocument, Ticket, TicketResponse, TicketEvent, HelpdeskRouting, CalendarEvent, Holiday } from '../types';
+import type { DivisionInfo, StaffMember, ProjectInfo, ProjectStaff, PhDStudent, Equipment, ScientificOutput, IPIntelligence, MoU, ContractStaff, VacancyAdvertisement, VacancyPost, Notification, Committee, CommitteeMember, Meeting, AgendaItem, ActionItem, MeetingDocument, Ticket, TicketResponse, TicketEvent, HelpdeskRouting, CalendarEvent, Holiday } from '../types';
 
 /**
  * These mappers will eventually transform raw Supabase rows 
@@ -147,6 +147,19 @@ export const mapIPIntelligenceRow = (row: any): IPIntelligence => ({
   grantDate: row.grant_date || undefined,
   inventors: Array.isArray(row.inventors) ? row.inventors : [],
   divisionCode: row.division_code || '',
+});
+
+export const mapMoURow = (row: any): MoU => ({
+  id: String(row.id || ''),
+  partnerName: row.partner_name || '',
+  partnerType: row.partner_type || 'Other',
+  purpose: row.purpose || '',
+  signedDate: row.signed_date || '',
+  validUntil: row.valid_until || '',
+  status: row.status || 'Active',
+  divisionCode: row.division_code || '',
+  linkedProjectNo: row.linked_project_no || undefined,
+  remarks: row.remarks || undefined,
 });
 
 export const mapContractStaffRow = (row: any): ContractStaff => ({

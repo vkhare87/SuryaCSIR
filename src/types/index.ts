@@ -136,6 +136,19 @@ export interface IPIntelligence {
   divisionCode: string;
 }
 
+export interface MoU {
+  id: string;
+  partnerName: string;
+  partnerType: 'Academic' | 'Industry' | 'Government' | 'International' | 'Other';
+  purpose: string;
+  signedDate: string;
+  validUntil: string;
+  status: 'Active' | 'Expired' | 'Under Renewal' | 'Terminated';
+  divisionCode: string;
+  linkedProjectNo?: string;
+  remarks?: string;
+}
+
 // UI State Types
 
 export type Role =
