@@ -12,6 +12,7 @@ import {
   LayoutDashboard,
   Calendar as CalendarIcon,
   Building2,
+  Handshake,
   FileText,
   Search,
   Database,
@@ -83,6 +84,7 @@ const NAV_SECTIONS: NavSection[] = [
       { path: '/proposals',    label: 'Proposals',       icon: FileText,        allowedRoles: ACCESS_MAP['/proposals'] },
       { path: '/reports',      label: 'Progress Reports',icon: ClipboardCheck,  allowedRoles: ACCESS_MAP['/reports'] },
       { path: '/facilities',   label: 'Instruments',     icon: Building2,       allowedRoles: ACCESS_MAP['/facilities'] },
+      { path: '/partnerships', label: 'Partnerships',    icon: Handshake,       allowedRoles: ACCESS_MAP['/partnerships'] },
     ],
   },
   {

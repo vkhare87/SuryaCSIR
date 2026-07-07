@@ -24,6 +24,7 @@ const ProjectDetail     = lazy(() => import('./pages/ProjectDetail'));
 const PhDTracker        = lazy(() => import('./pages/PhDTracker'));
 const Divisions         = lazy(() => import('./pages/Divisions'));
 const Intelligence      = lazy(() => import('./pages/Intelligence'));
+const Partnerships      = lazy(() => import('./pages/Partnerships'));
 const Facilities        = lazy(() => import('./pages/Facilities'));
 const InstrumentDetail  = lazy(() => import('./pages/InstrumentDetail'));
 const CommitteeList     = lazy(() => import('./pages/committees/CommitteeList'));
@@ -140,6 +141,7 @@ function App() {
             <Route path="/divisions" element={<ProtectedRoute allowedRoles={ACCESS_MAP['/divisions']}><Divisions /></ProtectedRoute>} />
             <Route path="/intelligence" element={<ProtectedRoute allowedRoles={ACCESS_MAP['/intelligence']}><Intelligence /></ProtectedRoute>} />
             <Route path="/facilities" element={<ProtectedRoute allowedRoles={ACCESS_MAP['/facilities']}><Facilities /></ProtectedRoute>} />
+            <Route path="/partnerships" element={<ProtectedRoute allowedRoles={ACCESS_MAP['/partnerships']}><Partnerships /></ProtectedRoute>} />
             <Route path="/facilities/:uInsID" element={<InstrumentDetail />} />
             {/* Committee Management — specific routes first (Pitfall 6) */}
             <Route path="/committees/:id/meetings/:meetId" element={<MeetingDetail />} />
