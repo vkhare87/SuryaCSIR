@@ -75,13 +75,14 @@ def find_similar(text, client, llm):
     return matches
 
 
-def log_query(client, question, answer):
+def log_query(client, question, answer, latency_ms=None):
     """Persist the query as a row owned by the caller (RLS: user_id = auth.uid()).
     Best-effort — a logging failure must not break the answer. Returns row id or None."""
     try:
         row = (client.table("query_log").insert({
             "question": question, "mode": answer.mode, "answer": answer.text,
             "citations": [dataclasses.asdict(c) for c in answer.citations],
+            "latency_ms": latency_ms,
         }).execute().data)
         return row[0]["id"] if row else None
     except Exception:

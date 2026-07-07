@@ -6,6 +6,7 @@ doc-scoping gate. Structured questions run only whitelisted analytics functions.
 
 import dataclasses
 import os
+import time
 
 from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel
@@ -44,9 +45,11 @@ def query(body: QueryIn, authorization: str | None = Header(default=None)):
         raise HTTPException(status_code=401, detail="invalid token")
     client = scoped_client(_ANON_URL, _ANON_KEY, jwt)
 
+    started = time.perf_counter()
     answer = handle_query(question, client, _LLM)
+    latency_ms = int((time.perf_counter() - started) * 1000)
     payload = dataclasses.asdict(answer)
-    payload["query_id"] = log_query(client, question, answer)
+    payload["query_id"] = log_query(client, question, answer, latency_ms=latency_ms)
     return payload
 
 

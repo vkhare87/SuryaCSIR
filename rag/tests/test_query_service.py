@@ -152,3 +152,24 @@ def test_find_similar_returns_citation_dicts():
 def test_find_similar_empty_corpus():
     client = _FakeClient({"doc_indexes": []})
     assert find_similar("anything", client, FakeLLM()) == []
+
+
+def test_log_query_records_latency():
+    class _InsertTable:
+        payload = None
+        def insert(self, payload):
+            self.payload = payload
+            return self
+        def execute(self):
+            return _FakeExec([{"id": "q1"}])
+
+    class _InsertClient:
+        def __init__(self):
+            self.tbl = _InsertTable()
+        def table(self, _name):
+            return self.tbl
+
+    client = _InsertClient()
+    row_id = log_query(client, "q?", Answer("ans", "document", []), latency_ms=123)
+    assert row_id == "q1"
+    assert client.tbl.payload["latency_ms"] == 123
