@@ -1,5 +1,5 @@
 import pytest
-from analytics import run_analytics, ANALYTICS
+from analytics import run_analytics, ANALYTICS, CATALOG
 
 
 class _FakeTable:
@@ -37,3 +37,7 @@ def test_whitelisted_function_runs():
 
 def test_registry_names_are_callable():
     assert all(callable(fn) for fn in ANALYTICS.values())
+
+
+def test_catalog_mirrors_analytics():
+    assert set(CATALOG) == set(ANALYTICS)

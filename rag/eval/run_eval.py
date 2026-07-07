@@ -17,8 +17,9 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from router import route  # noqa: E402
+from router import decide  # noqa: E402
 from retrieval import traverse  # noqa: E402
+from analytics import CATALOG  # noqa: E402
 from llm import make_llm, REFUSAL_TEXT  # noqa: E402
 
 
@@ -26,7 +27,8 @@ def run_eval(cases, llm) -> dict:
     """Score router mode per case; cases flagged expect_refusal also assert that
     traversal over an empty corpus refuses (grounding invariant, zero citations)."""
     total = len(cases)
-    correct = sum(1 for c in cases if route(c["question"], llm) == c["expected_mode"])
+    correct = sum(1 for c in cases
+                  if decide(c["question"], llm, CATALOG)["route"] == c["expected_mode"])
     refusal_cases = [c for c in cases if c.get("expect_refusal")]
     refusal_ok = 0
     for c in refusal_cases:

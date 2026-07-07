@@ -18,6 +18,12 @@ ANALYTICS = {
     "count_documents_by_status": _count_documents_by_status,
 }
 
+# One-line descriptions shown to the router LLM. Keys must mirror ANALYTICS
+# (enforced by test_analytics), keeping prompt and whitelist in lockstep.
+CATALOG = {
+    "count_documents_by_status": "Count institute documents grouped by ingestion status.",
+}
+
 
 def run_analytics(name: str, params, client) -> Answer:
     fn = ANALYTICS.get(name)

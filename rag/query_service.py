@@ -3,11 +3,10 @@ module so the logic stays testable on hosts where fastapi/pydantic native wheels
 blocked (dev laptop WDAC)."""
 
 import dataclasses
-import json
 
-from router import route
+from router import decide
 from retrieval import traverse, flatten
-from analytics import run_analytics, ANALYTICS
+from analytics import run_analytics, CATALOG
 
 
 def parse_bearer(authorization) -> str:
@@ -34,25 +33,22 @@ def read_docs(client):
     return docs
 
 
-def answer_for_structured(question, client, llm):
-    """Ask the llm for {function, params}; run only if whitelisted, else fall back to
-    document traversal. The whitelist check is the no-free-form-SQL guarantee."""
+def _run_structured(function, params, client):
+    """None on any failure (bad params, db error) so the caller can fall back to
+    the document path instead of surfacing a 500."""
     try:
-        proposal = json.loads(llm.summarize(question))
-        name = proposal.get("function")
-        params = proposal.get("params", {})
+        return run_analytics(function, params, client)
     except Exception:
-        name = None
-        params = {}
-    if name not in ANALYTICS:
-        return traverse(read_docs(client), question, llm)
-    return run_analytics(name, params, client)
+        return None
 
 
 def handle_query(question, client, llm):
     """Route and answer. client must be the caller's RLS-scoped client."""
-    if route(question, llm) == "structured":
-        return answer_for_structured(question, client, llm)
+    decision = decide(question, llm, CATALOG)
+    if decision["route"] == "structured":
+        structured = _run_structured(decision["function"], decision["params"], client)
+        if structured is not None:
+            return structured
     return traverse(read_docs(client), question, llm)
 
 
