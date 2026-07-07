@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { RefreshCw, ScanText } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { Card, Badge } from '../components/ui/Cards';
 import { EmptyState } from '../components/ui/EmptyState';
-import { fetchMonitorRows, requeueDocument, requeueAll, countByStatus } from '../lib/rag/monitor';
-import type { MonitorRow, IngestStatus } from '../lib/rag/monitor';
+import {
+  fetchMonitorRows, fetchLatencies, requeueDocument, requeueAll, countByStatus, percentile,
+} from '../lib/rag/monitor';
+import type { MonitorRow, IngestStatus, LatencyPoint } from '../lib/rag/monitor';
 
 const STATUS_ORDER: IngestStatus[] = ['pending', 'processing', 'indexed', 'failed', 'skipped'];
 
@@ -17,12 +20,14 @@ const STATUS_VARIANT: Record<IngestStatus, 'success' | 'warning' | 'danger' | 'i
 
 export default function RagMonitor() {
   const [rows, setRows] = useState<MonitorRow[]>([]);
+  const [latencies, setLatencies] = useState<LatencyPoint[]>([]);
   const [loading, setLoading] = useState(true);
 
   async function load() {
     setLoading(true);
     try {
       setRows(await fetchMonitorRows());
+      setLatencies(await fetchLatencies());
     } catch (e) {
       console.error('Failed to load RAG monitor', e);
       setRows([]);
@@ -37,6 +42,11 @@ export default function RagMonitor() {
     () => countByStatus(rows.map((r) => ({ ingest_status: r.status }))),
     [rows],
   );
+
+  const latencyStats = useMemo(() => {
+    const values = latencies.map((l) => l.latencyMs);
+    return { p50: percentile(values, 50), p90: percentile(values, 90), p99: percentile(values, 99) };
+  }, [latencies]);
 
   async function requeue(id: string) {
     try {
@@ -78,6 +88,32 @@ export default function RagMonitor() {
           </Card>
         ))}
       </div>
+
+      {latencies.length > 0 && (
+        <Card className="p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-medium text-text">Query latency (last {latencies.length})</div>
+            <div className="flex gap-4 text-sm text-text-muted">
+              <span>p50 {latencyStats.p50 != null ? `${latencyStats.p50} ms` : '—'}</span>
+              <span>p90 {latencyStats.p90 != null ? `${latencyStats.p90} ms` : '—'}</span>
+              <span>p99 {latencyStats.p99 != null ? `${latencyStats.p99} ms` : '—'}</span>
+            </div>
+          </div>
+          <div className="h-40">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={latencies}>
+                <XAxis dataKey="createdAt" hide />
+                <YAxis width={48} tick={{ fontSize: 11 }} />
+                <Tooltip
+                  formatter={(v) => [`${v} ms`, 'latency']}
+                  labelFormatter={(l) => new Date(l as string).toLocaleString()}
+                />
+                <Line type="monotone" dataKey="latencyMs" dot={false} stroke="#3b82f6" strokeWidth={1.5} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+      )}
 
       {loading ? (
         <div className="text-text-muted">Loading…</div>

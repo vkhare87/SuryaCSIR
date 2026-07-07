@@ -5,9 +5,9 @@ blocked (dev laptop WDAC)."""
 import dataclasses
 
 from answer import Answer
-from llm import REFUSAL_TEXT
+from llm import NOT_FOUND, REFUSAL_TEXT
 from router import decide
-from retrieval import traverse, flatten, select_docs
+from retrieval import traverse, pick_context, flatten, select_docs
 from analytics import run_analytics, CATALOG
 
 
@@ -96,6 +96,46 @@ def handle_query(question, client, llm, history=None):
             return _merge_hybrid(
                 structured, traverse(read_docs(client), question, llm, fetch_texts))
     return traverse(read_docs(client), question, llm, fetch_texts)
+
+
+def stream_query(question, client, llm, history=None):
+    """Streaming variant of handle_query: yields ('token', str) chunks, then one
+    ('done', Answer). Only the document path truly streams; structured/hybrid
+    answers arrive as a single token. Grounding invariant matches traverse:
+    NOT_FOUND / blank answers become the refusal with zero citations."""
+    q = _with_history(question, history) if history else question
+    decision = decide(q, llm, CATALOG)
+    if decision["route"] in ("structured", "hybrid"):
+        answer = handle_query(question, client, llm, history=history)
+        yield ("token", answer.text)
+        yield ("done", answer)
+        return
+
+    pc = pick_context(read_docs(client), q, llm, make_fetch_texts(client))
+    if pc is None:
+        yield ("token", REFUSAL_TEXT)
+        yield ("done", Answer(REFUSAL_TEXT, "document", []))
+        return
+    context, citations = pc
+
+    # Hold tokens while the accumulated text could still be the NOT_FOUND sentinel;
+    # once it can't be, flush and stream the rest through.
+    buf, flushed = "", False
+    for chunk in llm.answer_stream(q, context):
+        buf += chunk
+        if flushed:
+            yield ("token", chunk)
+        elif not NOT_FOUND.startswith(buf.strip()[:len(NOT_FOUND)]):
+            flushed = True
+            yield ("token", buf)
+    text = buf.strip()
+    if not text or text == NOT_FOUND or not citations:
+        yield ("token", REFUSAL_TEXT)
+        yield ("done", Answer(REFUSAL_TEXT, "document", []))
+        return
+    if not flushed:  # short answer that never cleared the sentinel guard
+        yield ("token", buf)
+    yield ("done", Answer(text, "document", citations))
 
 
 def find_similar(text, client, llm):

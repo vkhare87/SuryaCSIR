@@ -69,29 +69,36 @@ def _context(picked, fetch_texts):
     return "\n".join(t[:per] for t in texts if t and t.strip())
 
 
+def pick_context(docs, question: str, llm, fetch_texts=None):
+    """Shared descent + evidence assembly: (context, citations) or None when
+    grounding fails (nothing picked / blank evidence). Callers turn None into
+    the refusal answer."""
+    picked = descend(flatten(select_docs(docs, question, llm)), question, llm)
+    if not picked:
+        return None
+    context = _context(picked, fetch_texts)
+    if not context.strip():
+        return None
+    citations = [Citation(
+        document_id=doc_id, title=doc_title, node_title=node["title"],
+        page_start=node["page_start"], page_end=node["page_end"],
+        storage_path=storage_path,
+    ) for doc_id, doc_title, storage_path, node in picked]
+    return context, citations
+
+
 def traverse(docs, question: str, llm, fetch_texts=None) -> Answer:
     """Grounding invariant: every non-refusal answer cites the nodes it was built from;
     no relevant nodes / empty context / model NOT_FOUND all yield the refusal answer.
     fetch_texts(spans)->list[str] injects source page text as evidence (P2)."""
-    picked = descend(flatten(select_docs(docs, question, llm)), question, llm)
-    if not picked:
+    pc = pick_context(docs, question, llm, fetch_texts)
+    if pc is None:
         return _refusal()
-
-    context = _context(picked, fetch_texts)
-    if not context.strip():
-        return _refusal()
+    context, citations = pc
 
     text = llm.answer(question, context)
     if not text or text.strip() == NOT_FOUND:
         return _refusal()
-
-    citations = []
-    for doc_id, doc_title, storage_path, node in picked:
-        citations.append(Citation(
-            document_id=doc_id, title=doc_title, node_title=node["title"],
-            page_start=node["page_start"], page_end=node["page_end"],
-            storage_path=storage_path,
-        ))
     if not citations:  # belt-and-braces: non-refusal text must carry citations
         return _refusal()
     return Answer(text, "document", citations)

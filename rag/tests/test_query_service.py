@@ -1,9 +1,9 @@
 import pytest
 from query_service import (
-    parse_bearer, read_docs, handle_query, log_query,
+    parse_bearer, read_docs, handle_query, stream_query, log_query,
     find_similar,
 )
-from llm import FakeLLM, REFUSAL_TEXT
+from llm import FakeLLM, NOT_FOUND, REFUSAL_TEXT
 from answer import Answer
 
 
@@ -196,6 +196,57 @@ def test_handle_query_no_history_unchanged():
     })
     ans = handle_query("what is in the intro", client, FakeLLM(), history=None)
     assert "A intro page body" in ans.text
+
+
+# ---------- stream_query (P9) ----------
+
+def _stream_client():
+    return _FakeClient({
+        "doc_indexes": [
+            {"document_id": "d1", "tree": _tree("A"), "documents": {"id": "d1", "title": "A"}},
+        ],
+        "doc_pages": [{"page": 1, "text": "A intro page body"}],
+    })
+
+
+def test_stream_query_document_tokens_then_done():
+    events = list(stream_query("what is in the intro", _stream_client(), FakeLLM()))
+    kinds = [k for k, _ in events]
+    assert kinds[-1] == "done" and "token" in kinds
+    tokens = "".join(v for k, v in events if k == "token")
+    answer = events[-1][1]
+    assert tokens == answer.text != REFUSAL_TEXT
+    assert "A intro page body" in answer.text
+    assert len(answer.citations) == 1
+
+
+def test_stream_query_refusal_no_citations():
+    client = _FakeClient({"doc_indexes": []})
+    events = list(stream_query("anything", client, FakeLLM()))
+    answer = events[-1][1]
+    assert answer.text == REFUSAL_TEXT
+    assert answer.citations == []
+
+
+def test_stream_query_not_found_stream_becomes_refusal():
+    class NotFoundStreamLLM(FakeLLM):
+        def answer_stream(self, question, context):
+            yield "NOT_"
+            yield "FOUND"
+
+    events = list(stream_query("q", _stream_client(), NotFoundStreamLLM()))
+    answer = events[-1][1]
+    assert answer.text == REFUSAL_TEXT
+    assert answer.citations == []
+    # sentinel never leaked as tokens
+    assert all(NOT_FOUND not in v for k, v in events if k == "token")
+
+
+def test_stream_query_structured_single_token():
+    client = _FakeClient({"documents": [{"ingest_status": "indexed"}]})
+    events = list(stream_query("COUNT documents by status", client, FakeLLM()))
+    assert [k for k, _ in events] == ["token", "done"]
+    assert events[-1][1].mode == "structured"
 
 
 # ---------- log_query ----------

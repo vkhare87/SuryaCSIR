@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Sparkles, Send, ThumbsUp, ThumbsDown, ExternalLink } from 'lucide-react';
 import { Card, Badge } from '../components/ui/Cards';
-import { askSurya, sendFeedback } from '../lib/ask/client';
+import { askSuryaStream, sendFeedback } from '../lib/ask/client';
 import type { AskAnswer } from '../lib/ask/client';
 import { citationHref } from '../lib/ask/citations';
 
@@ -17,6 +17,7 @@ export default function AskSurya() {
   const [question, setQuestion] = useState('');
   const [turns, setTurns] = useState<Turn[]>([]);
   const [loading, setLoading] = useState(false);
+  const [streamText, setStreamText] = useState('');
   const [error, setError] = useState('');
 
   async function submit(e: React.FormEvent) {
@@ -25,17 +26,20 @@ export default function AskSurya() {
     if (!q) return;
     setLoading(true);
     setError('');
+    setStreamText('');
     try {
       const history = turns
         .slice(-HISTORY_TURNS)
         .map((t) => ({ question: t.question, answer: t.answer.answer }));
-      const answer = await askSurya(q, history);
+      const answer = await askSuryaStream(q, history, (chunk) =>
+        setStreamText((prev) => prev + chunk));
       setTurns((prev) => [...prev, { question: q, answer, rated: false }]);
       setQuestion('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Query failed');
     } finally {
       setLoading(false);
+      setStreamText('');
     }
   }
 
@@ -121,6 +125,12 @@ export default function AskSurya() {
           )}
         </Card>
       ))}
+
+      {loading && streamText && (
+        <Card className="p-5">
+          <p className="text-sm leading-relaxed text-text whitespace-pre-wrap">{streamText}</p>
+        </Card>
+      )}
 
       <form onSubmit={submit} className="flex gap-2">
         <input

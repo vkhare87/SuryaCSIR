@@ -48,6 +48,32 @@ export async function fetchMonitorRows(): Promise<MonitorRow[]> {
   });
 }
 
+export interface LatencyPoint {
+  createdAt: string;
+  latencyMs: number;
+}
+
+/** Recent query latencies, oldest first (admins see all rows via query_log RLS). */
+export async function fetchLatencies(): Promise<LatencyPoint[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from('query_log')
+    .select('created_at, latency_ms')
+    .not('latency_ms', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(200);
+  if (error) throw error;
+  return (data ?? [])
+    .map((d) => ({ createdAt: d.created_at as string, latencyMs: d.latency_ms as number }))
+    .reverse();
+}
+
+export function percentile(values: number[], p: number): number | null {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted[Math.min(sorted.length - 1, Math.ceil((p / 100) * sorted.length) - 1)];
+}
+
 export async function requeueDocument(docId: string): Promise<void> {
   if (!supabase) return;
   const { error } = await supabase.rpc('rag_requeue_document', { p_doc_id: docId });

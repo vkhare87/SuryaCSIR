@@ -3,11 +3,11 @@ import { describe, it, expect, vi } from 'vitest';
 const rows = [
   {
     id: 'd1', title: 'Doc A', entity_type: 'proposal', ingest_status: 'indexed',
-    ingest_error: null, doc_indexes: [{ page_count: 4, built_at: '2026-07-01' }],
+    ingest_error: null, ingest_attempts: 0, doc_indexes: [{ page_count: 4, built_at: '2026-07-01' }],
   },
   {
     id: 'd2', title: 'Doc B', entity_type: 'meeting', ingest_status: 'failed',
-    ingest_error: 'boom', doc_indexes: null,
+    ingest_error: 'boom', ingest_attempts: 2, doc_indexes: null,
   },
   {
     id: 'd3', title: 'Doc C', entity_type: 'pms_report', ingest_status: 'indexed',
@@ -50,10 +50,11 @@ describe('fetchMonitorRows', () => {
     const out = await fetchMonitorRows();
     expect(out[0]).toEqual({
       id: 'd1', title: 'Doc A', entityType: 'proposal', status: 'indexed',
-      error: null, pageCount: 4, builtAt: '2026-07-01',
+      attempts: 0, error: null, pageCount: 4, builtAt: '2026-07-01',
     });
     expect(out[1].pageCount).toBeNull();
     expect(out[1].error).toBe('boom');
+    expect(out[1].attempts).toBe(2);
     expect(out[2].pageCount).toBe(2);
   });
 });
