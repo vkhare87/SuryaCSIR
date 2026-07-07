@@ -35,6 +35,23 @@ def read_docs(client):
     return docs
 
 
+def make_fetch_texts(client):
+    """fetch_texts(spans) over doc_pages, RLS-scoped — same read gate as the tree."""
+    def fetch_texts(spans):
+        out = []
+        for doc_id, page_start, page_end in spans:
+            try:
+                rows = (client.table("doc_pages").select("page, text")
+                        .eq("document_id", doc_id)
+                        .gte("page", page_start).lte("page", page_end)
+                        .order("page").execute().data) or []
+            except Exception:
+                rows = []
+            out.append("\n".join(r.get("text", "") for r in rows))
+        return out
+    return fetch_texts
+
+
 def _run_structured(function, params, client):
     """None on any failure (bad params, db error) so the caller can fall back to
     the document path instead of surfacing a 500."""
@@ -55,13 +72,15 @@ def _merge_hybrid(structured, doc) -> Answer:
 def handle_query(question, client, llm):
     """Route and answer. client must be the caller's RLS-scoped client."""
     decision = decide(question, llm, CATALOG)
+    fetch_texts = make_fetch_texts(client)
     if decision["route"] in ("structured", "hybrid"):
         structured = _run_structured(decision["function"], decision["params"], client)
         if structured is not None:
             if decision["route"] == "structured":
                 return structured
-            return _merge_hybrid(structured, traverse(read_docs(client), question, llm))
-    return traverse(read_docs(client), question, llm)
+            return _merge_hybrid(
+                structured, traverse(read_docs(client), question, llm, fetch_texts))
+    return traverse(read_docs(client), question, llm, fetch_texts)
 
 
 def find_similar(text, client, llm):

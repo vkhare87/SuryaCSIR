@@ -21,6 +21,9 @@ class _FakeQuery:
     def insert(self, row): self.inserted = row; return self
     def limit(self, *_): return self
     def eq(self, *_): return self
+    def gte(self, *_): return self
+    def lte(self, *_): return self
+    def order(self, *_): return self
 
     def execute(self):
         if self._raise:
@@ -82,12 +85,27 @@ def test_read_docs_list_join_and_missing():
 # ---------- handle_query ----------
 
 def test_handle_query_document_mode():
+    client = _FakeClient({
+        "doc_indexes": [
+            {"document_id": "d1", "tree": _tree("A"), "documents": {"id": "d1", "title": "A"}},
+        ],
+        "doc_pages": [{"page": 1, "text": "A intro page body"}],
+    })
+    ans = handle_query("what is in the intro", client, FakeLLM())
+    assert ans.mode == "document"
+    assert len(ans.citations) == 1
+    assert "A intro page body" in ans.text  # answer built from page text, not summary
+
+
+def test_handle_query_document_mode_no_pages_refuses():
+    # Doc indexed before P2 (no doc_pages rows): refuse rather than silently
+    # fall back to summaries — requeue-all backfill is the deploy step.
     client = _FakeClient({"doc_indexes": [
         {"document_id": "d1", "tree": _tree("A"), "documents": {"id": "d1", "title": "A"}},
     ]})
     ans = handle_query("what is in the intro", client, FakeLLM())
-    assert ans.mode == "document"
-    assert len(ans.citations) == 1
+    assert ans.text == REFUSAL_TEXT
+    assert ans.citations == []
 
 
 def test_handle_query_structured_mode():
@@ -103,6 +121,7 @@ def test_handle_query_hybrid_merges_numbers_and_citations():
         "doc_indexes": [
             {"document_id": "d1", "tree": _tree("A"), "documents": {"id": "d1", "title": "A"}},
         ],
+        "doc_pages": [{"page": 1, "text": "A intro page body"}],
     })
     ans = handle_query("HYBRID how are documents doing", client, FakeLLM())
     assert ans.mode == "hybrid"

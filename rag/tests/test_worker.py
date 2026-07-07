@@ -28,6 +28,7 @@ def test_run_once_indexes_pending_doc():
     tree = db.indexes["d1"]["tree"]
     assert tree["root"]["title"] == "Report"
     assert len(tree["root"]["nodes"]) == 1
+    assert "content here" in db.pages["d1"][1]   # P2: source page text stored
 
 
 def test_non_pdf_is_skipped():

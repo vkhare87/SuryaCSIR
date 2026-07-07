@@ -16,6 +16,7 @@ class FakeDB:
         self.status = {d.id: "pending" for d in docs}
         self.storage = storage
         self.indexes = {}
+        self.pages = {}
 
     def claim_pending(self):
         for did, st in self.status.items():
@@ -29,6 +30,9 @@ class FakeDB:
 
     def save_index(self, document_id, tree, model, page_count):
         self.indexes[document_id] = {"tree": tree, "model": model, "page_count": page_count}
+
+    def save_pages(self, document_id, pages):
+        self.pages[document_id] = {p.index + 1: p.text for p in pages}
 
     def mark(self, document_id, status, error=None):
         self.status[document_id] = status
@@ -64,6 +68,14 @@ class SupabaseDB:
             "document_id": document_id, "tree": tree,
             "model": model, "page_count": page_count,
         }).execute()
+
+    def save_pages(self, document_id, pages):
+        # Delete-then-insert so a shrunken reparse leaves no stale tail pages.
+        self.c.table("doc_pages").delete().eq("document_id", document_id).execute()
+        rows = [{"document_id": document_id, "page": p.index + 1, "text": p.text}
+                for p in pages]
+        if rows:
+            self.c.table("doc_pages").insert(rows).execute()
 
     def mark(self, document_id, status, error=None):
         self.c.table("documents").update(

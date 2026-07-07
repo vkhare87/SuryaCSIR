@@ -142,3 +142,36 @@ def test_descend_child_level_no_pick_refuses():
 def test_descend_v1_flat_tree_unchanged():
     ans = traverse([_doc("d1", "Report A")], "q", FakeLLM())  # no tree_version, empty children
     assert ans.citations[0].node_title == "Intro"
+
+
+# ---------- P2: answer from source page text ----------
+
+def test_fetch_texts_answer_uses_page_text_not_summary():
+    seen_spans = []
+
+    def fetch_texts(spans):
+        seen_spans.extend(spans)
+        return ["actual page one text"]
+
+    ans = traverse([_doc("d1", "Report A")], "q", FakeLLM(), fetch_texts=fetch_texts)
+    assert ans.text.startswith("actual page one text")   # FakeLLM echoes first context line
+    assert seen_spans == [("d1", 1, 1)]
+    assert ans.citations[0].node_title == "Intro"
+
+
+def test_fetch_texts_all_blank_refuses():
+    ans = traverse([_doc("d1", "Report A")], "q", FakeLLM(), fetch_texts=lambda spans: ["  "])
+    assert ans.text == REFUSAL_TEXT
+    assert ans.citations == []
+
+
+def test_context_budget_truncates_per_node():
+    from retrieval import _context, CONTEXT_BUDGET
+
+    node = {"title": "N", "summary": "s", "page_start": 1, "page_end": 2, "nodes": []}
+    picked = [("d1", "T", "", node), ("d2", "T", "", node)]
+    long = "x" * CONTEXT_BUDGET
+    ctx = _context(picked, lambda spans: [long, long])
+    # 2 picked nodes -> each capped at half the budget (+1 join newline)
+    assert len(ctx) == CONTEXT_BUDGET + 1
+    assert ctx.count("\n") == 1

@@ -21,6 +21,7 @@ def process_document(doc, db, ocr, llm) -> None:
         if tree_is_empty(tree):
             db.mark(doc.id, "failed", "no extractable text — scanned PDF with OCR disabled?")
             return
+        db.save_pages(doc.id, parsed.pages)  # pages before index: an indexed doc always has its pages
         db.save_index(doc.id, tree, getattr(llm, "model", "unknown"), len(parsed.pages))
         db.mark(doc.id, "indexed")
     except Exception as e:  # per-doc isolation: never halt the loop

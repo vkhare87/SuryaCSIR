@@ -54,14 +54,30 @@ def descend(candidates, question: str, llm):
     return leaves + descend(next_level, question, llm)
 
 
-def traverse(docs, question: str, llm) -> Answer:
+# Total character budget for the answer context, split evenly across picked nodes.
+CONTEXT_BUDGET = 8000
+
+
+def _context(picked, fetch_texts):
+    """fetch_texts=None -> summaries (navigation layer doubles as evidence, pre-P2
+    behavior). Otherwise fetch the picked nodes' source page text and budget it."""
+    if fetch_texts is None:
+        return "\n".join(node.get("summary", "") for _, _, _, node in picked)
+    spans = [(doc_id, node["page_start"], node["page_end"]) for doc_id, _, _, node in picked]
+    texts = fetch_texts(spans)
+    per = CONTEXT_BUDGET // max(1, len(picked))
+    return "\n".join(t[:per] for t in texts if t and t.strip())
+
+
+def traverse(docs, question: str, llm, fetch_texts=None) -> Answer:
     """Grounding invariant: every non-refusal answer cites the nodes it was built from;
-    no relevant nodes / empty context / model NOT_FOUND all yield the refusal answer."""
+    no relevant nodes / empty context / model NOT_FOUND all yield the refusal answer.
+    fetch_texts(spans)->list[str] injects source page text as evidence (P2)."""
     picked = descend(flatten(select_docs(docs, question, llm)), question, llm)
     if not picked:
         return _refusal()
 
-    context = "\n".join(node.get("summary", "") for _, _, _, node in picked)
+    context = _context(picked, fetch_texts)
     if not context.strip():
         return _refusal()
 
