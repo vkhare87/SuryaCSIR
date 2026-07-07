@@ -24,6 +24,8 @@ class _FakeQuery:
     def gte(self, *_): return self
     def lte(self, *_): return self
     def order(self, *_): return self
+    def range(self, *_): return self
+    def in_(self, *_): return self
 
     def execute(self):
         if self._raise:
@@ -196,6 +198,92 @@ def test_handle_query_no_history_unchanged():
     })
     ans = handle_query("what is in the intro", client, FakeLLM(), history=None)
     assert "A intro page body" in ans.text
+
+
+# ---------- select_corpus (P4) ----------
+
+def test_select_corpus_no_collections_falls_back_to_all_docs():
+    from query_service import select_corpus
+    client = _FakeClient({"doc_indexes": [
+        {"document_id": "d1", "tree": _tree("A"), "documents": {"id": "d1", "title": "A"}},
+    ]})
+    docs = select_corpus("q", client, FakeLLM())
+    assert [d["id"] for d in docs] == ["d1"]
+
+
+def test_select_corpus_collection_pick_sees_summaries():
+    from query_service import select_corpus
+    seen = {}
+
+    class SpyLLM(FakeLLM):
+        def pick(self, question, titles):
+            seen["labels"] = titles
+            return super().pick(question, titles)
+
+    client = _FakeClient({
+        "collection_indexes": [
+            {"collection_key": "proposal", "title": "Proposals", "summary": "Project proposals."},
+            {"collection_key": "meeting", "title": "Meetings", "summary": "Meeting minutes."},
+        ],
+        "doc_indexes": [
+            {"document_id": "d1", "tree": _tree("A"), "documents": {"id": "d1", "title": "A"}},
+        ],
+    })
+    docs = select_corpus("q", client, SpyLLM())
+    assert seen["labels"] == ["Proposals — Project proposals.", "Meetings — Meeting minutes."]
+    assert [d["id"] for d in docs] == ["d1"]
+
+
+def test_select_corpus_empty_collection_pick_refuses():
+    from query_service import select_corpus
+
+    class NoPickLLM(FakeLLM):
+        def pick(self, question, titles):
+            return []
+
+    client = _FakeClient({
+        "collection_indexes": [
+            {"collection_key": "proposal", "title": "Proposals", "summary": "Project proposals."},
+        ],
+        "doc_indexes": [
+            {"document_id": "d1", "tree": _tree("A"), "documents": {"id": "d1", "title": "A"}},
+        ],
+    })
+    assert select_corpus("q", client, NoPickLLM()) == []
+    ans = handle_query("q", client, NoPickLLM())
+    assert ans.text == REFUSAL_TEXT
+
+
+def test_read_docs_paginates():
+    from query_service import read_docs, _PAGE_SIZE
+
+    class _PagedQuery(_FakeQuery):
+        def __init__(self, pages):
+            super().__init__([])
+            self._pages = pages
+            self._page = 0
+
+        def range(self, start, _end):
+            self._page = start // _PAGE_SIZE
+            return self
+
+        def execute(self):
+            pages = self._pages
+            data = pages[self._page] if self._page < len(pages) else []
+            return _FakeExec(data)
+
+    full = [{"document_id": f"d{i}", "tree": _tree("A"),
+             "documents": {"id": f"d{i}", "title": "A"}} for i in range(_PAGE_SIZE)]
+    tail = [{"document_id": "dx", "tree": _tree("B"),
+             "documents": {"id": "dx", "title": "B"}}]
+
+    class _PagedClient(_FakeClient):
+        def table(self, name):
+            return _PagedQuery([full, tail])
+
+    docs = read_docs(_PagedClient())
+    assert len(docs) == _PAGE_SIZE + 1
+    assert docs[-1]["id"] == "dx"
 
 
 # ---------- stream_query (P9) ----------

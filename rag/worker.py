@@ -65,6 +65,9 @@ def main():
     while True:
         n = run_once(db, ocr, llm)
         print(f"[rag] processed {n} document(s)", flush=True)
+        if n:  # keep collection summaries fresh for the collection-stage pick
+            c = build_collections(db, llm)
+            print(f"[rag] built {c} collection index(es)", flush=True)
         if once:
             return
         time.sleep(cfg.poll_interval_s)

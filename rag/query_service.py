@@ -18,21 +18,59 @@ def parse_bearer(authorization) -> str:
     return authorization.split(" ", 1)[1].strip()
 
 
-def read_docs(client):
-    """RLS-scoped doc_indexes rows -> [{'id','title','storage_path','tree'}] for traversal."""
-    rows = (client.table("doc_indexes")
-            .select("document_id, tree, documents(id, title, storage_path)")
-            .limit(200).execute().data) or []  # ponytail: paginate past 200 docs
-    docs = []
-    for r in rows:
-        doc = r.get("documents") or {}
-        if isinstance(doc, list):  # PostgREST may return the join as a 1-element list
-            doc = doc[0] if doc else {}
-        docs.append({"id": doc.get("id", r["document_id"]),
-                     "title": doc.get("title", "Document"),
-                     "storage_path": doc.get("storage_path", ""),
-                     "tree": r["tree"]})
-    return docs
+_PAGE_SIZE = 200
+
+
+def read_docs(client, entity_types=None):
+    """RLS-scoped doc_indexes rows -> [{'id','title','storage_path','tree'}] for
+    traversal. Paginated, so no corpus-size cap. entity_types narrows to the
+    collections picked at the collection stage (inner join to filter on the
+    parent document's entity_type)."""
+    docs, page = [], 0
+    while True:
+        if entity_types is None:
+            q = (client.table("doc_indexes")
+                 .select("document_id, tree, documents(id, title, storage_path)"))
+        else:
+            q = (client.table("doc_indexes")
+                 .select("document_id, tree, documents!inner(id, title, storage_path, entity_type)")
+                 .in_("documents.entity_type", entity_types))
+        rows = (q.range(page * _PAGE_SIZE, (page + 1) * _PAGE_SIZE - 1)
+                .execute().data) or []
+        for r in rows:
+            doc = r.get("documents") or {}
+            if isinstance(doc, list):  # PostgREST may return the join as a 1-element list
+                doc = doc[0] if doc else {}
+            docs.append({"id": doc.get("id", r["document_id"]),
+                         "title": doc.get("title", "Document"),
+                         "storage_path": doc.get("storage_path", ""),
+                         "tree": r["tree"]})
+        if len(rows) < _PAGE_SIZE:
+            return docs
+        page += 1
+
+
+def read_collections(client):
+    """collection_indexes rows for the collection-stage pick. Empty when the
+    worker hasn't built collections yet — callers fall back to the flat corpus."""
+    rows = (client.table("collection_indexes")
+            .select("collection_key, title, summary").execute().data) or []
+    return [r for r in rows if (r.get("summary") or "").strip()]
+
+
+def select_corpus(question, client, llm):
+    """Collection-stage descent: pick collections, then load only their docs.
+    No collections built -> whole corpus (pre-P4 behavior). Empty picks -> []
+    so traversal refuses (grounding invariant, same as select_docs)."""
+    cols = read_collections(client)
+    if not cols:
+        return read_docs(client)
+    labels = [f"{c.get('title', c['collection_key'])} — {c['summary']}" for c in cols]
+    picks = llm.pick(question, labels)
+    if not picks:
+        return []
+    types = [cols[i]["collection_key"] for i in picks]
+    return read_docs(client, entity_types=types)
 
 
 def make_fetch_texts(client):
@@ -94,8 +132,8 @@ def handle_query(question, client, llm, history=None):
             if decision["route"] == "structured":
                 return structured
             return _merge_hybrid(
-                structured, traverse(read_docs(client), question, llm, fetch_texts))
-    return traverse(read_docs(client), question, llm, fetch_texts)
+                structured, traverse(select_corpus(question, client, llm), question, llm, fetch_texts))
+    return traverse(select_corpus(question, client, llm), question, llm, fetch_texts)
 
 
 def stream_query(question, client, llm, history=None):
@@ -111,7 +149,7 @@ def stream_query(question, client, llm, history=None):
         yield ("done", answer)
         return
 
-    pc = pick_context(read_docs(client), q, llm, make_fetch_texts(client))
+    pc = pick_context(select_corpus(q, client, llm), q, llm, make_fetch_texts(client))
     if pc is None:
         yield ("token", REFUSAL_TEXT)
         yield ("done", Answer(REFUSAL_TEXT, "document", []))
