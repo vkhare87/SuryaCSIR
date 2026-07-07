@@ -15,6 +15,18 @@ def test_decide_how_many_routes_structured():
     assert decide("How many documents are indexed?", FakeLLM(), CAT)["route"] == "structured"
 
 
+def test_decide_hybrid():
+    d = decide("HYBRID documents status plus report context", FakeLLM(), CAT)
+    assert d == {"route": "hybrid", "function": "count_documents_by_status", "params": {}}
+
+
+def test_decide_hybrid_requires_whitelisted_function():
+    class Liar:
+        def route(self, q, catalog):
+            return json.dumps({"route": "hybrid", "function": "nope", "params": {}})
+    assert decide("anything", Liar(), CAT)["route"] == "document"
+
+
 def test_decide_document_default():
     d = decide("what does the report say about outcomes", FakeLLM(), CAT)
     assert d == {"route": "document", "function": None, "params": {}}

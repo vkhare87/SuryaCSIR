@@ -10,12 +10,13 @@ REFUSAL_TEXT = "Not found in institute documents."
 _SUMMARY_PROMPT = "Summarize the following document section in one sentence:\n\n"
 _ROUTE_SYSTEM = (
     "You route questions for an institute data assistant. Reply with ONLY a JSON object, "
-    'no prose: {"route": "structured" | "document", "function": <name or null>, '
+    'no prose: {"route": "structured" | "document" | "hybrid", "function": <name or null>, '
     '"params": {...}}. '
     "'structured' = answerable by one of the listed analytics functions (counts, sums, "
     "aggregates over database tables). 'document' = answerable from report/document text. "
-    "For 'structured', 'function' must be one of the listed names and 'params' only its "
-    "listed parameters. When unsure, use route 'document' with function null."
+    "'hybrid' = needs an analytics function AND supporting document context. "
+    "For 'structured' or 'hybrid', 'function' must be one of the listed names and 'params' "
+    "only its listed parameters. When unsure, use route 'document' with function null."
 )
 _PICK_PROMPT = (
     "Given a question and a numbered list of section titles, reply with the comma-separated "
@@ -37,15 +38,17 @@ def _route_user_prompt(question: str, catalog: dict) -> str:
         'Q: How many documents are indexed?\n'
         'A: {"route": "structured", "function": "count_documents_by_status", "params": {}}\n'
         'Q: What did the 2025 annual report say about water research?\n'
-        'A: {"route": "document", "function": null, "params": {}}\n\n'
+        'A: {"route": "document", "function": null, "params": {}}\n'
+        'Q: How many documents are indexed, and what do the reports say about delays?\n'
+        'A: {"route": "hybrid", "function": "count_documents_by_status", "params": {}}\n\n'
         f"Question: {question}"
     )
 
 
 class FakeLLM:
     """Deterministic, offline. Test hooks: questions starting 'COUNT'/'HOW MANY' route
-    structured to the catalog's first function; pick always returns [0]; answer echoes
-    the context's first line or NOT_FOUND."""
+    structured, 'HYBRID' routes hybrid — both to the catalog's first function; pick
+    always returns [0]; answer echoes the context's first line or NOT_FOUND."""
     model = "fake"
 
     def summarize(self, text: str) -> str:
@@ -55,6 +58,8 @@ class FakeLLM:
     def route(self, question: str, catalog: dict) -> str:
         q = question.strip().upper()
         fn = next(iter(catalog), None)
+        if fn and q.startswith("HYBRID"):
+            return json.dumps({"route": "hybrid", "function": fn, "params": {}})
         if fn and (q.startswith("COUNT") or q.startswith("HOW MANY")):
             return json.dumps({"route": "structured", "function": fn, "params": {}})
         return json.dumps({"route": "document", "function": None, "params": {}})

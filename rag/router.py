@@ -1,6 +1,6 @@
 import json
 
-VALID_ROUTES = ("structured", "document")
+VALID_ROUTES = ("structured", "document", "hybrid")
 _FALLBACK = {"route": "document", "function": None, "params": {}}
 
 

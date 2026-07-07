@@ -4,6 +4,8 @@ blocked (dev laptop WDAC)."""
 
 import dataclasses
 
+from answer import Answer
+from llm import REFUSAL_TEXT
 from router import decide
 from retrieval import traverse, flatten
 from analytics import run_analytics, CATALOG
@@ -42,13 +44,23 @@ def _run_structured(function, params, client):
         return None
 
 
+def _merge_hybrid(structured, doc) -> Answer:
+    """Numbers first, document evidence after. A refusing document half is dropped —
+    the structured half is DB-grounded on its own, so no citations is acceptable there."""
+    if doc.text == REFUSAL_TEXT:
+        return Answer(structured.text, "hybrid", [])
+    return Answer(f"{structured.text}\n\n{doc.text}", "hybrid", doc.citations)
+
+
 def handle_query(question, client, llm):
     """Route and answer. client must be the caller's RLS-scoped client."""
     decision = decide(question, llm, CATALOG)
-    if decision["route"] == "structured":
+    if decision["route"] in ("structured", "hybrid"):
         structured = _run_structured(decision["function"], decision["params"], client)
         if structured is not None:
-            return structured
+            if decision["route"] == "structured":
+                return structured
+            return _merge_hybrid(structured, traverse(read_docs(client), question, llm))
     return traverse(read_docs(client), question, llm)
 
 

@@ -97,6 +97,29 @@ def test_handle_query_structured_mode():
     assert "indexed: 1" in ans.text
 
 
+def test_handle_query_hybrid_merges_numbers_and_citations():
+    client = _FakeClient({
+        "documents": [{"ingest_status": "indexed"}],
+        "doc_indexes": [
+            {"document_id": "d1", "tree": _tree("A"), "documents": {"id": "d1", "title": "A"}},
+        ],
+    })
+    ans = handle_query("HYBRID how are documents doing", client, FakeLLM())
+    assert ans.mode == "hybrid"
+    assert "indexed: 1" in ans.text
+    assert "A intro" in ans.text
+    assert len(ans.citations) == 1
+
+
+def test_handle_query_hybrid_document_refusal_keeps_structured_half():
+    client = _FakeClient({"documents": [{"ingest_status": "indexed"}], "doc_indexes": []})
+    ans = handle_query("HYBRID how are documents doing", client, FakeLLM())
+    assert ans.mode == "hybrid"
+    assert "indexed: 1" in ans.text
+    assert REFUSAL_TEXT not in ans.text
+    assert ans.citations == []
+
+
 def test_handle_query_structured_failure_falls_back_to_documents():
     class _Client(_FakeClient):
         def table(self, name):
