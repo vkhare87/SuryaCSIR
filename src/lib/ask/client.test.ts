@@ -2,11 +2,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const updateSpy = vi.fn(async () => ({ error: null }));
 const eqSpy = vi.fn(async () => ({ error: null }));
+let mockSession: { access_token: string } | null = { access_token: 'tok' };
 
 vi.mock('../../utils/supabaseClient', () => ({
   supabase: {
     auth: {
-      getSession: async () => ({ data: { session: { access_token: 'tok' } } }),
+      getSession: async () => ({ data: { session: mockSession } }),
     },
     from: () => ({ update: (v: unknown) => { updateSpy(v); return { eq: eqSpy }; } }),
   },
@@ -39,5 +40,19 @@ describe('askSurya', () => {
   it('throws on non-200', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 500, json: async () => ({}) })));
     await expect(askSurya('boom')).rejects.toThrow('500');
+  });
+
+  it('throws when VITE_RAG_URL is not configured', async () => {
+    vi.stubEnv('VITE_RAG_URL', '');
+    await expect(askSurya('q')).rejects.toThrow('VITE_RAG_URL');
+  });
+
+  it('throws when there is no session', async () => {
+    mockSession = null;
+    try {
+      await expect(askSurya('q')).rejects.toThrow('Not signed in');
+    } finally {
+      mockSession = { access_token: 'tok' };
+    }
   });
 });

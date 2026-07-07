@@ -6,6 +6,9 @@ import {
   EXAMPLE_SENTINEL,
   generateTemplate,
   formatData,
+  validateRows,
+  detectColumnMappings,
+  resolveImportDivisions,
   type FileType,
 } from './dataMigration';
 
@@ -65,5 +68,97 @@ describe('formatData sentinel handling', () => {
     const out = formatData(rows, 'divisions');
     expect(out).toHaveLength(1);
     expect(out[0].divCode).toBe('MSE');
+  });
+});
+
+describe('validateRows', () => {
+  it('passes a valid staff row', () => {
+    const res = validateRows(
+      [{ ID: 'E1', Name: 'A Sharma', Division: 'MSE' }],
+      'staff',
+    );
+    expect(res[0].isValid).toBe(true);
+    expect(res[0].errors).toEqual([]);
+  });
+
+  it('returns indexed field errors for an invalid phd row', () => {
+    const res = validateRows(
+      [
+        { EnrollmentNo: 'P1', StudentName: 'S One', SupervisorName: 'Dr X' },
+        { EnrollmentNo: '', StudentName: 'S Two', SupervisorName: 'Dr Y' },
+      ],
+      'phd',
+    );
+    expect(res[0].isValid).toBe(true);
+    expect(res[1].isValid).toBe(false);
+    expect(res[1].rowIndex).toBe(1);
+    expect(res[1].errors[0].field).toBe('EnrollmentNo');
+    expect(res[1].errors[0].message).toMatch(/required/i);
+  });
+});
+
+describe('detectColumnMappings', () => {
+  it('maps friendly labels, canonical names, and flags unknowns', () => {
+    const out = detectColumnMappings(['Employee ID', 'DOJ', 'Shoe Size'], 'staff');
+    expect(out[0]).toEqual({ raw: 'Employee ID', mapped: 'ID' });
+    expect(out[1]).toEqual({ raw: 'DOJ', mapped: 'DOJ' });
+    expect(out[2]).toEqual({ raw: 'Shoe Size', mapped: null });
+  });
+});
+
+describe('resolveImportDivisions', () => {
+  const staff = [{ ID: 'E1', Name: 'Dr X', Division: 'MSE' }];
+
+  it('projectStaff: fills DivisionCode from the project lookup', () => {
+    const out = resolveImportDivisions(
+      [{ ProjectNo: 'PR1', StaffName: 'S' }],
+      'projectStaff',
+      [{ ProjectNo: 'PR1', DivisionCode: 'CSE' }],
+      staff,
+    );
+    expect(out[0].DivisionCode).toBe('CSE');
+  });
+
+  it('phd: matches supervisor name case-insensitively', () => {
+    const out = resolveImportDivisions(
+      [{ EnrollmentNo: 'P1', SupervisorName: '  dr x ' }],
+      'phd',
+      [],
+      staff,
+    );
+    expect(out[0].DivisionCode).toBe('MSE');
+  });
+
+  it('contractStaff: name match first, staff ID fallback, no-match untouched', () => {
+    const rows = [
+      { Name: 'C1', AttachedToStaffID: 'Dr X' },
+      { Name: 'C2', AttachedToStaffID: 'E1' },
+      { Name: 'C3', AttachedToStaffID: 'nobody' },
+    ];
+    const out = resolveImportDivisions(rows, 'contractStaff', [], staff);
+    expect(out[0].Division).toBe('MSE');
+    expect(out[1].Division).toBe('MSE');
+    expect(out[2].Division).toBeUndefined();
+  });
+
+  it('leaves rows with an existing DivisionCode unchanged', () => {
+    const out = resolveImportDivisions(
+      [{ ProjectNo: 'PR1', DivisionCode: 'KEEP' }],
+      'projectStaff',
+      [{ ProjectNo: 'PR1', DivisionCode: 'CSE' }],
+      staff,
+    );
+    expect(out[0].DivisionCode).toBe('KEEP');
+  });
+});
+
+describe('formatData header remapping', () => {
+  it('renames a friendly staff header to its canonical column', () => {
+    const out = formatData(
+      [{ 'Employee ID': 'E9', 'Name': 'B Rao', 'Division': 'CSE' }],
+      'staff',
+    );
+    expect(out[0].ID).toBe('E9');
+    expect(out[0].Division).toBe('CSE');
   });
 });
