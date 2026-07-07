@@ -1,6 +1,6 @@
 import pytest
 from query_service import (
-    parse_bearer, read_docs, answer_for_structured, handle_query, log_query,
+    parse_bearer, read_docs, handle_query, log_query,
     find_similar,
 )
 from llm import FakeLLM, REFUSAL_TEXT
@@ -79,26 +79,6 @@ def test_read_docs_list_join_and_missing():
     assert docs[1] == {"id": "d2", "title": "Document", "storage_path": "", "tree": _tree("B")}
 
 
-# ---------- answer_for_structured ----------
-
-def test_structured_non_whitelisted_falls_back_to_documents():
-    # FakeLLM.summarize returns plain text (not JSON) -> no function -> document path.
-    client = _FakeClient({"doc_indexes": []})
-    ans = answer_for_structured("COUNT bogus things", client, FakeLLM())
-    assert ans.mode == "document"
-    assert ans.text == REFUSAL_TEXT  # empty corpus -> refusal
-
-
-def test_structured_whitelisted_runs():
-    class ProposingLLM(FakeLLM):
-        def summarize(self, text):
-            return '{"function": "count_documents_by_status", "params": {}}'
-    client = _FakeClient({"documents": [{"ingest_status": "indexed"}]})
-    ans = answer_for_structured("COUNT documents by status", client, ProposingLLM())
-    assert ans.mode == "structured"
-    assert "indexed: 1" in ans.text
-
-
 # ---------- handle_query ----------
 
 def test_handle_query_document_mode():
@@ -110,11 +90,46 @@ def test_handle_query_document_mode():
     assert len(ans.citations) == 1
 
 
-def test_handle_query_structured_mode_dispatches():
-    # 'COUNT...' -> structured; FakeLLM proposal isn't JSON -> falls back to documents.
-    client = _FakeClient({"doc_indexes": []})
-    ans = handle_query("COUNT anything", client, FakeLLM())
+def test_handle_query_structured_mode():
+    client = _FakeClient({"documents": [{"ingest_status": "indexed"}]})
+    ans = handle_query("COUNT documents by status", client, FakeLLM())
+    assert ans.mode == "structured"
+    assert "indexed: 1" in ans.text
+
+
+def test_handle_query_hybrid_merges_numbers_and_citations():
+    client = _FakeClient({
+        "documents": [{"ingest_status": "indexed"}],
+        "doc_indexes": [
+            {"document_id": "d1", "tree": _tree("A"), "documents": {"id": "d1", "title": "A"}},
+        ],
+    })
+    ans = handle_query("HYBRID how are documents doing", client, FakeLLM())
+    assert ans.mode == "hybrid"
+    assert "indexed: 1" in ans.text
+    assert "A intro" in ans.text
+    assert len(ans.citations) == 1
+
+
+def test_handle_query_hybrid_document_refusal_keeps_structured_half():
+    client = _FakeClient({"documents": [{"ingest_status": "indexed"}], "doc_indexes": []})
+    ans = handle_query("HYBRID how are documents doing", client, FakeLLM())
+    assert ans.mode == "hybrid"
+    assert "indexed: 1" in ans.text
+    assert REFUSAL_TEXT not in ans.text
+    assert ans.citations == []
+
+
+def test_handle_query_structured_failure_falls_back_to_documents():
+    class _Client(_FakeClient):
+        def table(self, name):
+            if name == "documents":  # analytics read blows up; doc path must still answer
+                return _FakeQuery([], raise_on_execute=True)
+            return super().table(name)
+    client = _Client({"doc_indexes": []})
+    ans = handle_query("COUNT documents by status", client, FakeLLM())
     assert ans.mode == "document"
+    assert ans.text == REFUSAL_TEXT
 
 
 # ---------- log_query ----------

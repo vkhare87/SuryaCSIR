@@ -1,8 +1,10 @@
-"""Offline eval harness for the Ask SURYA router. Scores router.route() against a gold set.
+"""Offline eval harness for the Ask SURYA router. Scores router.decide() route labels
+(structured | document | hybrid) against gold.jsonl.
 
-The seed gold.jsonl aligns with FakeLLM's 'COUNT'-prefix convention so `LLM_BACKEND=fake`
-gives a 1.0 smoke score. Replace with real institute Q&A and run against OPENLLM for a
-meaningful accuracy number.
+gold.jsonl holds realistic institute questions, so the accuracy number is meaningful
+only with `LLM_BACKEND=openllm` on the host. Under the default FakeLLM, only the
+prefix-convention cases ('COUNT…', 'How many…', 'HYBRID…') route structured/hybrid —
+the smoke score is a floor, not the metric.
 
 Citation eval (retrieval-accuracy metric): runs automatically when corpus.json +
 gold_citations.jsonl exist next to this file. Corpus dump (run on host, service role):
@@ -17,8 +19,9 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from router import route  # noqa: E402
+from router import decide  # noqa: E402
 from retrieval import traverse  # noqa: E402
+from analytics import CATALOG  # noqa: E402
 from llm import make_llm, REFUSAL_TEXT  # noqa: E402
 
 
@@ -26,7 +29,8 @@ def run_eval(cases, llm) -> dict:
     """Score router mode per case; cases flagged expect_refusal also assert that
     traversal over an empty corpus refuses (grounding invariant, zero citations)."""
     total = len(cases)
-    correct = sum(1 for c in cases if route(c["question"], llm) == c["expected_mode"])
+    correct = sum(1 for c in cases
+                  if decide(c["question"], llm, CATALOG)["route"] == c["expected_mode"])
     refusal_cases = [c for c in cases if c.get("expect_refusal")]
     refusal_ok = 0
     for c in refusal_cases:

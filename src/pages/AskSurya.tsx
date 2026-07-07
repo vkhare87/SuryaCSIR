@@ -76,7 +76,9 @@ export default function AskSurya() {
       {answer && (
         <Card className="p-5 space-y-4">
           <div className="flex items-center justify-between">
-            <Badge variant={answer.mode === 'structured' ? 'info' : 'success'}>{answer.mode}</Badge>
+            <Badge variant={answer.mode === 'structured' ? 'info' : answer.mode === 'hybrid' ? 'warning' : 'success'}>
+              {answer.mode}
+            </Badge>
             {answer.queryId && (
               <div className="flex items-center gap-2 text-text-muted">
                 {rated ? (

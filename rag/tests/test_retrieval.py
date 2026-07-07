@@ -72,3 +72,36 @@ def test_citation_storage_path_defaults_empty():
                                           "page_start": 3, "page_end": 5}]}}}]
     ans = traverse(docs, "What outcomes?", FakeLLM())
     assert ans.citations[0].storage_path == ""
+
+
+# ---------- select_docs (two-stage traversal) ----------
+
+def test_select_docs_passthrough_small_corpus():
+    from retrieval import select_docs
+    docs = [_doc(f"d{i}", f"Doc {i}") for i in range(3)]
+    assert select_docs(docs, "q", FakeLLM()) == docs
+
+
+def test_select_docs_narrows_large_corpus():
+    from retrieval import select_docs
+    docs = [_doc(f"d{i}", f"Doc {i}") for i in range(20)]
+    assert select_docs(docs, "q", FakeLLM()) == [docs[0]]  # FakeLLM.pick -> [0]
+
+
+def test_select_docs_empty_picks_refuse():
+    from retrieval import select_docs
+
+    class NonePicker(FakeLLM):
+        def pick(self, question, titles):
+            return []
+
+    docs = [_doc(f"d{i}", f"Doc {i}") for i in range(20)]
+    assert select_docs(docs, "q", NonePicker()) == []
+    assert traverse(docs, "q", NonePicker()).text == REFUSAL_TEXT
+
+
+def test_traverse_large_corpus_stays_grounded():
+    docs = [_doc(f"d{i}", f"Doc {i}") for i in range(20)]
+    ans = traverse(docs, "q", FakeLLM())
+    assert ans.citations
+    assert ans.citations[0].document_id == "d0"

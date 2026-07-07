@@ -14,5 +14,5 @@ class Citation:
 @dataclass
 class Answer:
     text: str
-    mode: str               # 'document' | 'structured'
+    mode: str               # 'document' | 'structured' | 'hybrid'
     citations: list = field(default_factory=list)

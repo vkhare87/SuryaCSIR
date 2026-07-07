@@ -3,11 +3,12 @@ module so the logic stays testable on hosts where fastapi/pydantic native wheels
 blocked (dev laptop WDAC)."""
 
 import dataclasses
-import json
 
-from router import route
-from retrieval import traverse, flatten
-from analytics import run_analytics, ANALYTICS
+from answer import Answer
+from llm import REFUSAL_TEXT
+from router import decide
+from retrieval import traverse, flatten, select_docs
+from analytics import run_analytics, CATALOG
 
 
 def parse_bearer(authorization) -> str:
@@ -21,7 +22,7 @@ def read_docs(client):
     """RLS-scoped doc_indexes rows -> [{'id','title','storage_path','tree'}] for traversal."""
     rows = (client.table("doc_indexes")
             .select("document_id, tree, documents(id, title, storage_path)")
-            .limit(50).execute().data) or []
+            .limit(200).execute().data) or []  # ponytail: paginate past 200 docs
     docs = []
     for r in rows:
         doc = r.get("documents") or {}
@@ -34,25 +35,32 @@ def read_docs(client):
     return docs
 
 
-def answer_for_structured(question, client, llm):
-    """Ask the llm for {function, params}; run only if whitelisted, else fall back to
-    document traversal. The whitelist check is the no-free-form-SQL guarantee."""
+def _run_structured(function, params, client):
+    """None on any failure (bad params, db error) so the caller can fall back to
+    the document path instead of surfacing a 500."""
     try:
-        proposal = json.loads(llm.summarize(question))
-        name = proposal.get("function")
-        params = proposal.get("params", {})
+        return run_analytics(function, params, client)
     except Exception:
-        name = None
-        params = {}
-    if name not in ANALYTICS:
-        return traverse(read_docs(client), question, llm)
-    return run_analytics(name, params, client)
+        return None
+
+
+def _merge_hybrid(structured, doc) -> Answer:
+    """Numbers first, document evidence after. A refusing document half is dropped —
+    the structured half is DB-grounded on its own, so no citations is acceptable there."""
+    if doc.text == REFUSAL_TEXT:
+        return Answer(structured.text, "hybrid", [])
+    return Answer(f"{structured.text}\n\n{doc.text}", "hybrid", doc.citations)
 
 
 def handle_query(question, client, llm):
     """Route and answer. client must be the caller's RLS-scoped client."""
-    if route(question, llm) == "structured":
-        return answer_for_structured(question, client, llm)
+    decision = decide(question, llm, CATALOG)
+    if decision["route"] in ("structured", "hybrid"):
+        structured = _run_structured(decision["function"], decision["params"], client)
+        if structured is not None:
+            if decision["route"] == "structured":
+                return structured
+            return _merge_hybrid(structured, traverse(read_docs(client), question, llm))
     return traverse(read_docs(client), question, llm)
 
 
@@ -60,11 +68,12 @@ def find_similar(text, client, llm):
     """Duplication check: rank corpus sections similar to a proposed topic.
     Returns citation-shaped dicts (no generated prose — matches only, so the
     result is inherently grounded)."""
-    candidates = flatten(read_docs(client))
+    prompt = f"Find prior or ongoing work similar to: {text}"
+    candidates = flatten(select_docs(read_docs(client), prompt, llm))
     if not candidates:
         return []
     titles = [f"{title} — {node['title']}" for _, title, _, node in candidates]
-    picks = llm.pick(f"Find prior or ongoing work similar to: {text}", titles)
+    picks = llm.pick(prompt, titles)
     matches = []
     for i in picks:
         doc_id, title, storage_path, node = candidates[i]
