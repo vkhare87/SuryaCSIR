@@ -34,3 +34,25 @@ def test_toc_tree_uses_page_ranges():
     assert [n["title"] for n in nodes] == ["Intro", "Methods"]
     assert nodes[0]["page_start"] == 1 and nodes[0]["page_end"] == 2
     assert nodes[1]["page_start"] == 3 and nodes[1]["page_end"] == 5
+
+
+def test_tree_is_empty_all_blank_summaries():
+    from pageindex import tree_is_empty
+    tree = {"root": {"title": "T", "summary": "", "nodes": [
+        {"title": "Page 1", "summary": "", "page_start": 1, "page_end": 1, "nodes": []},
+        {"title": "Page 2", "summary": "  ", "page_start": 2, "page_end": 2, "nodes": []},
+    ]}}
+    assert tree_is_empty(tree)
+
+
+def test_tree_is_empty_false_when_any_summary():
+    from pageindex import tree_is_empty
+    tree = {"root": {"title": "T", "summary": "s", "nodes": [
+        {"title": "Page 1", "summary": "real text", "page_start": 1, "page_end": 1, "nodes": []},
+    ]}}
+    assert not tree_is_empty(tree)
+
+
+def test_tree_is_empty_no_nodes():
+    from pageindex import tree_is_empty
+    assert tree_is_empty({"root": {"title": "T", "summary": "", "nodes": []}})

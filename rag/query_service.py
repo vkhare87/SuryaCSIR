@@ -7,7 +7,7 @@ import dataclasses
 from answer import Answer
 from llm import REFUSAL_TEXT
 from router import decide
-from retrieval import traverse, flatten
+from retrieval import traverse, flatten, select_docs
 from analytics import run_analytics, CATALOG
 
 
@@ -22,7 +22,7 @@ def read_docs(client):
     """RLS-scoped doc_indexes rows -> [{'id','title','storage_path','tree'}] for traversal."""
     rows = (client.table("doc_indexes")
             .select("document_id, tree, documents(id, title, storage_path)")
-            .limit(50).execute().data) or []
+            .limit(200).execute().data) or []  # ponytail: paginate past 200 docs
     docs = []
     for r in rows:
         doc = r.get("documents") or {}
@@ -68,11 +68,12 @@ def find_similar(text, client, llm):
     """Duplication check: rank corpus sections similar to a proposed topic.
     Returns citation-shaped dicts (no generated prose — matches only, so the
     result is inherently grounded)."""
-    candidates = flatten(read_docs(client))
+    prompt = f"Find prior or ongoing work similar to: {text}"
+    candidates = flatten(select_docs(read_docs(client), prompt, llm))
     if not candidates:
         return []
     titles = [f"{title} — {node['title']}" for _, title, _, node in candidates]
-    picks = llm.pick(f"Find prior or ongoing work similar to: {text}", titles)
+    picks = llm.pick(prompt, titles)
     matches = []
     for i in picks:
         doc_id, title, storage_path, node = candidates[i]

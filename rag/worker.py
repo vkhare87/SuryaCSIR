@@ -4,7 +4,7 @@ import time
 
 from config import load_config
 from parse import parse_pdf
-from pageindex import build_tree
+from pageindex import build_tree, tree_is_empty
 from ocr import make_ocr
 from llm import make_llm
 from corpus import build_collection_summaries
@@ -18,6 +18,9 @@ def process_document(doc, db, ocr, llm) -> None:
         data = db.download(doc.storage_bucket, doc.storage_path)
         parsed = parse_pdf(data, ocr)
         tree = build_tree(parsed, llm, doc.title)
+        if tree_is_empty(tree):
+            db.mark(doc.id, "failed", "no extractable text — scanned PDF with OCR disabled?")
+            return
         db.save_index(doc.id, tree, getattr(llm, "model", "unknown"), len(parsed.pages))
         db.mark(doc.id, "indexed")
     except Exception as e:  # per-doc isolation: never halt the loop
