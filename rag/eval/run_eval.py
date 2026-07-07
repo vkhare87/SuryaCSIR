@@ -1,8 +1,10 @@
-"""Offline eval harness for the Ask SURYA router. Scores router.route() against a gold set.
+"""Offline eval harness for the Ask SURYA router. Scores router.decide() route labels
+(structured | document | hybrid) against gold.jsonl.
 
-The seed gold.jsonl aligns with FakeLLM's 'COUNT'-prefix convention so `LLM_BACKEND=fake`
-gives a 1.0 smoke score. Replace with real institute Q&A and run against OPENLLM for a
-meaningful accuracy number.
+gold.jsonl holds realistic institute questions, so the accuracy number is meaningful
+only with `LLM_BACKEND=openllm` on the host. Under the default FakeLLM, only the
+prefix-convention cases ('COUNT…', 'How many…', 'HYBRID…') route structured/hybrid —
+the smoke score is a floor, not the metric.
 
 Citation eval (retrieval-accuracy metric): runs automatically when corpus.json +
 gold_citations.jsonl exist next to this file. Corpus dump (run on host, service role):

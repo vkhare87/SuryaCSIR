@@ -1,6 +1,50 @@
 {"question": "COUNT documents by ingestion status", "expected_mode": "structured"}
+{"question": "How many documents are indexed so far?", "expected_mode": "structured"}
+{"question": "How many projects does each division run?", "expected_mode": "structured"}
+{"question": "How many projects are currently ongoing?", "expected_mode": "structured"}
+{"question": "How many ongoing projects does CMD have?", "expected_mode": "structured"}
+{"question": "What is the total sanctioned cost versus utilized amount across all projects?", "expected_mode": "structured"}
+{"question": "What is the fund utilization percentage for the LWMD division?", "expected_mode": "structured"}
+{"question": "Which division has the highest project expenditure?", "expected_mode": "structured"}
+{"question": "How many patents are filed, published, and granted?", "expected_mode": "structured"}
+{"question": "What does our patent pipeline look like?", "expected_mode": "structured"}
+{"question": "How many publications did each division produce in 2025?", "expected_mode": "structured"}
+{"question": "Which division published the most papers?", "expected_mode": "structured"}
+{"question": "How many staff members work in each division?", "expected_mode": "structured"}
+{"question": "What is the headcount per division?", "expected_mode": "structured"}
+{"question": "How many PhD milestones are overdue?", "expected_mode": "structured"}
+{"question": "Which PhD milestone types are most commonly delayed?", "expected_mode": "structured"}
+{"question": "How many MOUs are active and how many expire soon?", "expected_mode": "structured"}
+{"question": "Which MOUs expire within the next quarter?", "expected_mode": "structured"}
+{"question": "What is the total value of our technology transfer agreements?", "expected_mode": "structured"}
+{"question": "How many tech transfers have been executed?", "expected_mode": "structured"}
 {"question": "What outcomes did the 2025 progress reports highlight?", "expected_mode": "document"}
-{"question": "Which division has the most external projects?", "expected_mode": "document"}
-{"question": "COUNT projects per division", "expected_mode": "structured"}
+{"question": "What did the annual report say about water purification research?", "expected_mode": "document"}
+{"question": "Summarize the findings of the bamboo composites project report.", "expected_mode": "document"}
+{"question": "What recommendations did the research council make in its last meeting?", "expected_mode": "document"}
+{"question": "What were the objectives stated in the nanomaterials project proposal?", "expected_mode": "document"}
+{"question": "What challenges did scientists report in the lightweight materials projects?", "expected_mode": "document"}
+{"question": "What methodology was used in the fly-ash utilization study?", "expected_mode": "document"}
+{"question": "What did the committee minutes record about equipment procurement?", "expected_mode": "document"}
+{"question": "Which industry partners were mentioned in the technology readiness reports?", "expected_mode": "document"}
+{"question": "What future work did the 2024 annual report propose for green construction materials?", "expected_mode": "document"}
+{"question": "What safety concerns were raised in the materials processing reports?", "expected_mode": "document"}
+{"question": "Describe the pilot plant results reported for the membrane project.", "expected_mode": "document"}
+{"question": "What expertise areas did Dr Sharma list in his CV?", "expected_mode": "document"}
+{"question": "What were the key deliverables promised in the sponsored project agreement with MoEF?", "expected_mode": "document"}
+{"question": "What did reviewers say about the radiation shielding proposal?", "expected_mode": "document"}
+{"question": "How many projects are ongoing, and what do their progress reports say about delays?", "expected_mode": "hybrid"}
+{"question": "How many patents were granted, and which technologies do they cover according to the filings?", "expected_mode": "hybrid"}
+{"question": "How many publications came from CMD in 2025, and what research themes do they describe?", "expected_mode": "hybrid"}
+{"question": "How many MOUs are active, and what commitments do the agreements describe?", "expected_mode": "hybrid"}
+{"question": "How many PhD milestones are overdue, and what reasons do the progress reports give?", "expected_mode": "hybrid"}
+{"question": "What is the fund utilization for LWMD, and what explanations appear in its project reports?", "expected_mode": "hybrid"}
+{"question": "How many tech transfers were signed, and what do the agreements say about royalty terms?", "expected_mode": "hybrid"}
 {"question": "What is the recipe for biryani?", "expected_mode": "document", "expect_refusal": true}
 {"question": "Who won the 2030 cricket world cup?", "expected_mode": "document", "expect_refusal": true}
+{"question": "What is the capital of France?", "expected_mode": "document", "expect_refusal": true}
+{"question": "Write me a poem about the monsoon.", "expected_mode": "document", "expect_refusal": true}
+{"question": "COUNT projects per division", "expected_mode": "structured"}
+{"question": "HYBRID document status with report context", "expected_mode": "hybrid"}
+{"question": "Tell me about the institute's history.", "expected_mode": "document"}
+{"question": "What awards did institute scientists win according to the newsletters?", "expected_mode": "document"}
