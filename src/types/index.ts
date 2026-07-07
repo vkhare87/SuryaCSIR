@@ -82,6 +82,19 @@ export interface PhDStudent {
   DivisionCode: string;
 }
 
+export type PhDMilestoneName =
+  | 'Joining' | 'Coursework' | 'Comprehensive Exam' | 'Registration'
+  | 'Synopsis Submission' | 'Thesis Submission' | 'Viva Voce' | 'Degree Awarded';
+
+export interface PhDMilestone {
+  id: string;
+  enrollmentNo: string;
+  milestone: PhDMilestoneName;
+  dueDate?: string;
+  completedDate?: string;
+  remarks?: string;
+}
+
 export interface Equipment {
   UInsID: string;
   instrument_code?: string;
