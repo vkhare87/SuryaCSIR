@@ -62,6 +62,16 @@ npm run dev
 See [CLAUDE.md](CLAUDE.md) for coding conventions, folder map, and do/don't rules.
 See [docs/DATA-MODEL.md](docs/DATA-MODEL.md) for the full database schema reference.
 
+## Documentation
+
+| Doc | What it covers |
+|---|---|
+| [docs/FEATURES.md](docs/FEATURES.md) | Every feature, who can use it, and how (routes + steps) |
+| [docs/RAG-SETUP-TUTORIAL.md](docs/RAG-SETUP-TUTORIAL.md) | Set up the PageIndex RAG stack from zero to a cited answer |
+| [docs/IMPROVEMENT-PROPOSALS.md](docs/IMPROVEMENT-PROPOSALS.md) | Prioritized upgrade briefs (P1–P10) for the intelligence stack |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System architecture |
+| [deploy/README.md](deploy/README.md) | Windows Server production deployment runbook |
+
 ## Roles
 
 `Director`, `DivisionHead`, `HOD`, `Scientist`, `Technician`, `HRAdmin`, `FinanceAdmin`, `SystemAdmin`, `MasterAdmin`, `EmpoweredCommittee`, `ProjectStaff`, `Student`, `Guest`, `DefaultUser`
