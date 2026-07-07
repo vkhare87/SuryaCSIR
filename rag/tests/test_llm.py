@@ -18,3 +18,13 @@ def test_fake_llm_first_line_only():
 def test_make_llm_unknown_raises():
     with pytest.raises(ValueError):
         make_llm("bogus", "http://x", "m")
+
+
+def test_fake_llm_answer_grounded_in_context():
+    out = FakeLLM().answer("what is X", "X is a project\nmore lines")
+    assert out == "X is a project"
+
+
+def test_fake_llm_answer_empty_context_not_found():
+    from llm import NOT_FOUND
+    assert FakeLLM().answer("what is X", "   ") == NOT_FOUND

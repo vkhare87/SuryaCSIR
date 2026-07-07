@@ -1,5 +1,5 @@
 from retrieval import traverse
-from llm import FakeLLM
+from llm import FakeLLM, NOT_FOUND, REFUSAL_TEXT
 
 
 def _doc(doc_id, title):
@@ -22,7 +22,37 @@ def test_traverse_returns_answer_and_one_citation():
     assert ans.text != ""
 
 
-def test_traverse_empty_docs():
+def test_traverse_empty_docs_refuses():
     ans = traverse([], "anything", FakeLLM())
     assert ans.citations == []
-    assert "No documents" in ans.text
+    assert ans.text == REFUSAL_TEXT
+
+
+def test_traverse_no_picks_refuses():
+    class NoPickLLM(FakeLLM):
+        def pick(self, question, titles):
+            return []
+    ans = traverse([_doc("d1", "Report A")], "irrelevant question", NoPickLLM())
+    assert ans.text == REFUSAL_TEXT
+    assert ans.citations == []
+
+
+def test_traverse_not_found_refuses():
+    class NotFoundLLM(FakeLLM):
+        def answer(self, question, context):
+            return NOT_FOUND
+    ans = traverse([_doc("d1", "Report A")], "question", NotFoundLLM())
+    assert ans.text == REFUSAL_TEXT
+    assert ans.citations == []
+
+
+def test_traverse_blank_context_refuses():
+    doc = {
+        "id": "d1", "title": "Report A",
+        "tree": {"root": {"title": "Report A", "summary": "", "nodes": [
+            {"title": "Intro", "summary": "", "page_start": 1, "page_end": 1, "nodes": []},
+        ]}},
+    }
+    ans = traverse([doc], "question", FakeLLM())
+    assert ans.text == REFUSAL_TEXT
+    assert ans.citations == []

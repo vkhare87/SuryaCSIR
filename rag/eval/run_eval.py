@@ -11,14 +11,24 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from router import route  # noqa: E402
-from llm import make_llm  # noqa: E402
+from retrieval import traverse  # noqa: E402
+from llm import make_llm, REFUSAL_TEXT  # noqa: E402
 
 
 def run_eval(cases, llm) -> dict:
+    """Score router mode per case; cases flagged expect_refusal also assert that
+    traversal over an empty corpus refuses (grounding invariant, zero citations)."""
     total = len(cases)
     correct = sum(1 for c in cases if route(c["question"], llm) == c["expected_mode"])
+    refusal_cases = [c for c in cases if c.get("expect_refusal")]
+    refusal_ok = 0
+    for c in refusal_cases:
+        ans = traverse([], c["question"], llm)
+        if ans.text == REFUSAL_TEXT and ans.citations == []:
+            refusal_ok += 1
     return {"total": total, "mode_correct": correct,
-            "accuracy": (correct / total) if total else 0.0}
+            "accuracy": (correct / total) if total else 0.0,
+            "refusal_total": len(refusal_cases), "refusal_correct": refusal_ok}
 
 
 def _load(path):
@@ -33,7 +43,8 @@ def main():
                    os.environ.get("OPENLLM_MODEL", ""))
     result = run_eval(_load(gold), llm)
     print(f"[eval] {result['mode_correct']}/{result['total']} "
-          f"router mode correct (accuracy {result['accuracy']:.2f})")
+          f"router mode correct (accuracy {result['accuracy']:.2f}); "
+          f"refusal {result['refusal_correct']}/{result['refusal_total']}")
 
 
 if __name__ == "__main__":

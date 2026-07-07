@@ -2,3 +2,5 @@
 {"question": "What outcomes did the 2025 progress reports highlight?", "expected_mode": "document"}
 {"question": "Which division has the most external projects?", "expected_mode": "document"}
 {"question": "COUNT projects per division", "expected_mode": "structured"}
+{"question": "What is the recipe for biryani?", "expected_mode": "document", "expect_refusal": true}
+{"question": "Who won the 2030 cricket world cup?", "expected_mode": "document", "expect_refusal": true}
