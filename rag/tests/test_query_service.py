@@ -23,7 +23,7 @@ class _FakeQuery:
     def eq(self, *_): return self
     def gte(self, *_): return self
     def lte(self, *_): return self
-    def order(self, *_): return self
+    def order(self, *_, **__): return self
     def range(self, *_): return self
     def in_(self, *_): return self
 
@@ -159,9 +159,9 @@ def test_handle_query_history_reaches_prompts():
     seen = {}
 
     class SpyLLM(FakeLLM):
-        def route(self, question, catalog):
+        def route(self, question, catalog, examples=None):
             seen["route_q"] = question
-            return super().route(question, catalog)
+            return super().route(question, catalog, examples)
 
         def answer(self, question, context):
             seen["answer_q"] = question
@@ -284,6 +284,53 @@ def test_read_docs_paginates():
     docs = read_docs(_PagedClient())
     assert len(docs) == _PAGE_SIZE + 1
     assert docs[-1]["id"] == "dx"
+
+
+# ---------- route few-shots (P6) ----------
+
+def test_route_labels_reach_route_prompt():
+    seen = {}
+
+    class SpyRouteLLM(FakeLLM):
+        def route(self, question, catalog, examples=None):
+            seen["examples"] = examples
+            return super().route(question, catalog, examples)
+
+    client = _FakeClient({
+        "route_labels": [{"question": "how many phd students", "correct_route": "structured"}],
+        "doc_indexes": [],
+    })
+    handle_query("q", client, SpyRouteLLM())
+    assert seen["examples"] == [
+        {"question": "how many phd students", "correct_route": "structured"}]
+
+
+def test_read_route_labels_missing_table_is_empty():
+    from query_service import read_route_labels
+    assert read_route_labels(_FakeClient(raise_on_execute=True)) == []
+
+
+def test_route_prompt_includes_labeled_examples():
+    from llm import _route_user_prompt
+    prompt = _route_user_prompt(
+        "q", {"fn": "desc"},
+        examples=[{"question": "how many phd students", "correct_route": "structured"}])
+    assert 'Q: how many phd students' in prompt
+    assert '"route": "structured"' in prompt
+
+
+def test_export_labels_idempotent(tmp_path):
+    import sys
+    sys.path.insert(0, str((__import__('pathlib').Path(__file__).parent.parent / 'eval')))
+    from export_labels import export
+    gold = tmp_path / "gold.jsonl"
+    gold.write_text('{"question": "existing", "expected_mode": "document"}\n', encoding="utf-8")
+    rows = [{"question": "existing", "correct_route": "structured"},
+            {"question": "new q", "correct_route": "hybrid"}]
+    assert export(rows, gold) == 1
+    assert export(rows, gold) == 0
+    lines = [l for l in gold.read_text(encoding="utf-8").splitlines() if l]
+    assert len(lines) == 2
 
 
 # ---------- stream_query (P9) ----------

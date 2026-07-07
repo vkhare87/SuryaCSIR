@@ -39,8 +39,13 @@ _ANSWER_SYSTEM = (
 )
 
 
-def _route_user_prompt(question: str, catalog: dict) -> str:
+def _route_user_prompt(question: str, catalog: dict, examples=None) -> str:
     listing = "\n".join(f"- {name}: {desc}" for name, desc in catalog.items())
+    extra = "".join(
+        f"Q: {e['question']}\n"
+        f'A: {{"route": "{e["correct_route"]}", "function": null, "params": {{}}}}\n'
+        for e in (examples or [])
+    )
     return (
         f"Analytics functions:\n{listing}\n\n"
         'Examples:\n'
@@ -49,7 +54,8 @@ def _route_user_prompt(question: str, catalog: dict) -> str:
         'Q: What did the 2025 annual report say about water research?\n'
         'A: {"route": "document", "function": null, "params": {}}\n'
         'Q: How many documents are indexed, and what do the reports say about delays?\n'
-        'A: {"route": "hybrid", "function": "count_documents_by_status", "params": {}}\n\n'
+        'A: {"route": "hybrid", "function": "count_documents_by_status", "params": {}}\n'
+        f"{extra}\n"
         f"Question: {question}"
     )
 
@@ -64,7 +70,7 @@ class FakeLLM:
         first = text.strip().splitlines()[0] if text.strip() else ""
         return first[:80]
 
-    def route(self, question: str, catalog: dict) -> str:
+    def route(self, question: str, catalog: dict, examples=None) -> str:
         q = question.strip().upper()
         fn = next(iter(catalog), None)
         if fn and q.startswith("HYBRID"):
@@ -117,9 +123,9 @@ class OpenLLMClient:
     def summarize(self, text: str) -> str:
         return self._chat(_SUMMARY_PROMPT + text[:4000], timeout=SUMMARIZE_TIMEOUT_S)
 
-    def route(self, question: str, catalog: dict) -> str:
-        return self._chat(_route_user_prompt(question, catalog), system=_ROUTE_SYSTEM,
-                          timeout=ROUTE_TIMEOUT_S)
+    def route(self, question: str, catalog: dict, examples=None) -> str:
+        return self._chat(_route_user_prompt(question, catalog, examples),
+                          system=_ROUTE_SYSTEM, timeout=ROUTE_TIMEOUT_S)
 
     def pick(self, question: str, titles: list) -> list:
         listing = "\n".join(f"{i}: {t}" for i, t in enumerate(titles))

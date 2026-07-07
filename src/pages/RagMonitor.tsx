@@ -4,9 +4,12 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'rec
 import { Card, Badge } from '../components/ui/Cards';
 import { EmptyState } from '../components/ui/EmptyState';
 import {
-  fetchMonitorRows, fetchLatencies, requeueDocument, requeueAll, countByStatus, percentile,
+  fetchMonitorRows, fetchLatencies, fetchDownvoted, labelRoute,
+  requeueDocument, requeueAll, countByStatus, percentile,
 } from '../lib/rag/monitor';
-import type { MonitorRow, IngestStatus, LatencyPoint } from '../lib/rag/monitor';
+import type { MonitorRow, IngestStatus, LatencyPoint, DownvotedQuery, RouteMode } from '../lib/rag/monitor';
+
+const ROUTES: RouteMode[] = ['structured', 'document', 'hybrid'];
 
 const STATUS_ORDER: IngestStatus[] = ['pending', 'processing', 'indexed', 'failed', 'skipped'];
 
@@ -21,6 +24,7 @@ const STATUS_VARIANT: Record<IngestStatus, 'success' | 'warning' | 'danger' | 'i
 export default function RagMonitor() {
   const [rows, setRows] = useState<MonitorRow[]>([]);
   const [latencies, setLatencies] = useState<LatencyPoint[]>([]);
+  const [downvoted, setDownvoted] = useState<DownvotedQuery[]>([]);
   const [loading, setLoading] = useState(true);
 
   async function load() {
@@ -28,6 +32,7 @@ export default function RagMonitor() {
     try {
       setRows(await fetchMonitorRows());
       setLatencies(await fetchLatencies());
+      setDownvoted(await fetchDownvoted());
     } catch (e) {
       console.error('Failed to load RAG monitor', e);
       setRows([]);
@@ -47,6 +52,15 @@ export default function RagMonitor() {
     const values = latencies.map((l) => l.latencyMs);
     return { p50: percentile(values, 50), p90: percentile(values, 90), p99: percentile(values, 99) };
   }, [latencies]);
+
+  async function label(q: DownvotedQuery, route: RouteMode) {
+    try {
+      await labelRoute(q.id, q.question, route);
+      setDownvoted((prev) => prev.map((d) => (d.id === q.id ? { ...d, labeled: true } : d)));
+    } catch (e) {
+      console.error('Route label failed', e);
+    }
+  }
 
   async function requeue(id: string) {
     try {
@@ -112,6 +126,42 @@ export default function RagMonitor() {
               </LineChart>
             </ResponsiveContainer>
           </div>
+        </Card>
+      )}
+
+      {downvoted.length > 0 && (
+        <Card className="p-4 space-y-3">
+          <div>
+            <div className="text-sm font-medium text-text">Downvoted queries</div>
+            <div className="text-xs text-text-muted">
+              Label the correct route — labels become router few-shots and eval cases.
+            </div>
+          </div>
+          <ul className="space-y-2">
+            {downvoted.map((q) => (
+              <li key={q.id} className="flex items-center justify-between gap-3 text-sm">
+                <span className="min-w-0 flex-1 truncate text-text" title={q.question}>
+                  {q.question}
+                  <span className="ml-2 text-xs text-text-muted">(routed {q.mode})</span>
+                </span>
+                {q.labeled ? (
+                  <span className="text-xs text-text-muted">Labeled</span>
+                ) : (
+                  <span className="flex gap-1">
+                    {ROUTES.map((r) => (
+                      <button
+                        key={r}
+                        onClick={() => void label(q, r)}
+                        className="rounded border border-border px-2 py-0.5 text-xs text-text-muted hover:bg-surface-hover hover:text-text"
+                      >
+                        {r}
+                      </button>
+                    ))}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
         </Card>
       )}
 

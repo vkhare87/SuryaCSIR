@@ -73,6 +73,21 @@ def select_corpus(question, client, llm):
     return read_docs(client, entity_types=types)
 
 
+ROUTE_FEWSHOT_K = 8
+
+
+def read_route_labels(client, k=ROUTE_FEWSHOT_K):
+    """Most recent admin-labeled routes -> few-shots for the route prompt.
+    Best-effort: an empty/missing table just means no extra examples."""
+    try:
+        rows = (client.table("route_labels")
+                .select("question, correct_route")
+                .order("created_at", desc=True).limit(k).execute().data) or []
+    except Exception:
+        return []
+    return rows
+
+
 def make_fetch_texts(client):
     """fetch_texts(spans) over doc_pages, RLS-scoped — same read gate as the tree."""
     def fetch_texts(spans):
@@ -124,7 +139,7 @@ def handle_query(question, client, llm, history=None):
     history: optional [{'question','answer'}] recent turns for follow-ups."""
     if history:
         question = _with_history(question, history)
-    decision = decide(question, llm, CATALOG)
+    decision = decide(question, llm, CATALOG, examples=read_route_labels(client))
     fetch_texts = make_fetch_texts(client)
     if decision["route"] in ("structured", "hybrid"):
         structured = _run_structured(decision["function"], decision["params"], client)
@@ -142,7 +157,7 @@ def stream_query(question, client, llm, history=None):
     answers arrive as a single token. Grounding invariant matches traverse:
     NOT_FOUND / blank answers become the refusal with zero citations."""
     q = _with_history(question, history) if history else question
-    decision = decide(q, llm, CATALOG)
+    decision = decide(q, llm, CATALOG, examples=read_route_labels(client))
     if decision["route"] in ("structured", "hybrid"):
         answer = handle_query(question, client, llm, history=history)
         yield ("token", answer.text)
