@@ -18,9 +18,9 @@ def parse_bearer(authorization) -> str:
 
 
 def read_docs(client):
-    """RLS-scoped doc_indexes rows -> [{'id','title','tree'}] for traversal."""
+    """RLS-scoped doc_indexes rows -> [{'id','title','storage_path','tree'}] for traversal."""
     rows = (client.table("doc_indexes")
-            .select("document_id, tree, documents(id, title)")
+            .select("document_id, tree, documents(id, title, storage_path)")
             .limit(50).execute().data) or []
     docs = []
     for r in rows:
@@ -28,7 +28,9 @@ def read_docs(client):
         if isinstance(doc, list):  # PostgREST may return the join as a 1-element list
             doc = doc[0] if doc else {}
         docs.append({"id": doc.get("id", r["document_id"]),
-                     "title": doc.get("title", "Document"), "tree": r["tree"]})
+                     "title": doc.get("title", "Document"),
+                     "storage_path": doc.get("storage_path", ""),
+                     "tree": r["tree"]})
     return docs
 
 

@@ -56,3 +56,19 @@ def test_traverse_blank_context_refuses():
     ans = traverse([doc], "question", FakeLLM())
     assert ans.text == REFUSAL_TEXT
     assert ans.citations == []
+
+
+def test_citation_carries_storage_path():
+    docs = [{"id": "d1", "title": "Annual Report", "storage_path": "reports/d1/annual.pdf",
+             "tree": {"root": {"nodes": [{"title": "Outcomes", "summary": "Great outcomes.",
+                                          "page_start": 3, "page_end": 5}]}}}]
+    ans = traverse(docs, "What outcomes?", FakeLLM())
+    assert ans.citations[0].storage_path == "reports/d1/annual.pdf"
+
+
+def test_citation_storage_path_defaults_empty():
+    docs = [{"id": "d1", "title": "Annual Report",
+             "tree": {"root": {"nodes": [{"title": "Outcomes", "summary": "Great outcomes.",
+                                          "page_start": 3, "page_end": 5}]}}}]
+    ans = traverse(docs, "What outcomes?", FakeLLM())
+    assert ans.citations[0].storage_path == ""

@@ -65,7 +65,7 @@ def test_read_docs_object_join():
         {"document_id": "d1", "tree": _tree("A"), "documents": {"id": "d1", "title": "A"}},
     ]})
     docs = read_docs(client)
-    assert docs == [{"id": "d1", "title": "A", "tree": _tree("A")}]
+    assert docs == [{"id": "d1", "title": "A", "storage_path": "", "tree": _tree("A")}]
 
 
 def test_read_docs_list_join_and_missing():
@@ -75,7 +75,7 @@ def test_read_docs_list_join_and_missing():
     ]})
     docs = read_docs(client)
     assert docs[0]["title"] == "A"
-    assert docs[1] == {"id": "d2", "title": "Document", "tree": _tree("B")}
+    assert docs[1] == {"id": "d2", "title": "Document", "storage_path": "", "tree": _tree("B")}
 
 
 # ---------- answer_for_structured ----------

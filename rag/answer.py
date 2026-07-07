@@ -8,6 +8,7 @@ class Citation:
     node_title: str
     page_start: int
     page_end: int
+    storage_path: str = ""
 
 
 @dataclass
