@@ -24,14 +24,14 @@ import {
 } from 'lucide-react';
 
 export default function Intelligence() {
-  const { scientificOutputs, ipIntelligence, projects, refreshData } = useData();
+  const { scientificOutputs, ipIntelligence, projects, techTransfers, refreshData } = useData();
   const toast = useToast();
   const [activeTab, setActiveTab] = useState<'publications' | 'ipr'>('publications');
   const [searchTerm, setSearchTerm] = useState('');
 
   const commercial = useMemo(
-    () => commercialisationSummary(ipIntelligence, projects),
-    [ipIntelligence, projects],
+    () => commercialisationSummary(ipIntelligence, projects, techTransfers),
+    [ipIntelligence, projects, techTransfers],
   );
   const themes = useMemo(() => emergingThemes(projects).slice(0, 8), [projects]);
 
@@ -303,11 +303,13 @@ export default function Intelligence() {
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
         <StatCard title="Granted Patents" value={commercial.grantedPatents} icon={<Award />} />
         <StatCard title="Filed Patents" value={commercial.filedPatents} icon={<FileText />} />
         <StatCard title="External Projects" value={commercial.externalProjects} icon={<BarChart3 />} />
         <StatCard title="External Value (₹)" value={commercial.externalValue.toLocaleString('en-IN')} icon={<Lightbulb />} />
+        <StatCard title="Tech Transfers" value={commercial.transferCount} icon={<BarChart3 />} />
+        <StatCard title="Transfer Value (₹L)" value={commercial.transferValueLakhs.toLocaleString('en-IN')} icon={<Lightbulb />} />
       </div>
 
       {themes.length > 0 && (
