@@ -230,9 +230,18 @@ Read the relevant `.claude/skills/*` before working on PMS, RLS, or new UI primi
 
 **Open:**
 - **HR column casing**: `"divCode"`, `"DOJ"`, `"CompletioDate"` (typo) etc. — quoted CamelCase, mirrors source Excel. Renaming to snake_case is a coordinated DB-migration + code-change task; out of scope for now.
-- **`dataMigration.ts` tests**: still no unit test coverage. Lowest-cost win is reviving the parser/transform spec sheet into vitest cases.
-- **DataContext error surfacing**: toast now fires on full failure + on partial table failure, but `error` state in context is still only consumed by `DataManagement.tsx`. Pages don't render an inline banner.
-- **PMS audit log table** (`pms_audit_logs`) and **module audit log** (`audit_log`) live in two tables with different shapes — unified in `AuditLog.tsx` via tabs, but no merged-timeline view.
+- **RAG not yet run E2E** — needs, on the target host: migrations applied, `SUPABASE_SERVICE_KEY`, native DLLs allowed (WDAC), Ollama. Runbook: `deploy/README.md`.
+- **Citation deep-links** — Ask SURYA citations are text-only; threading `storage_path` through retrieval → `getDocumentUrl` gives clickable sources.
+
+**Resolved (2026-07-03, second pass):**
+- ~~`dataMigration.ts` tests~~ — `validateRows`/`detectColumnMappings`/`resolveImportDivisions`/`formatData` remap covered in `dataMigration.test.ts`.
+- ~~DataContext error surfacing~~ — `EmptyState` gained an `error` variant (role=alert); Projects/HumanCapital/PhDTracker render it when load fails with no rows. Extend to more pages as touched.
+- ~~Audit merged-timeline~~ — AuditLog "All" tab merges both tables by time with a source badge; mappers lifted to `src/lib/audit/mappers.ts` (tested).
+- **Grounding hardened** — `llm.answer(question, context)` with context-only system prompt; refusal invariant in `traverse()` (empty picks / blank context / NOT_FOUND → "Not found in institute documents.", zero citations); pick no longer force-selects section 0.
+- **`rag/query_service.py`** — fastapi-free query composition split out of `api.py` (testable under WDAC).
+- **CI** — `.github/workflows/ci.yml`: SPA (lint/test/build) + rag (full pytest incl. native parse/worker tests on ubuntu).
+- **Missing color tokens** — `--color-danger`/`--color-brand-blue` defined; `text-danger`/`bg-brand-blue` were silently no-ops in 8 files.
+- **Deployment runbook** — `deploy/` (Windows Server: NSSM services, nginx same-origin `/rag/` proxy, split env files, Ollama).
 
 **Resolved (2026-07-03):**
 - ~~Bundle size ~3.3 MB / 993 KB gz, no code-splitting~~ — routes lazy-loaded via `React.lazy()`; prod index chunk now ~359 KB / ~95 KB gz.
@@ -248,7 +257,7 @@ Read the relevant `.claude/skills/*` before working on PMS, RLS, or new UI primi
 - ~~`dist/` artifacts tracked~~ — cleaned.
 
 **Deferred:**
-- Empty/error UI for individual pages on Supabase failure — currently a toast appears but blank lists render. Per-page `<EmptyState>` already covers empty-success path; needs an error-distinct variant.
+- Error-variant `<EmptyState>` rollout beyond Projects/HumanCapital/PhDTracker — apply per page as touched.
 - Code-split admin-only routes (`/data`, `/pms/audit`, `/audit`) so non-admin sessions don't ship those bundles.
 
 ---
