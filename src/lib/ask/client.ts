@@ -6,6 +6,7 @@ export interface AskCitation {
   node_title: string;
   page_start: number;
   page_end: number;
+  storage_path: string;
 }
 
 export interface AskAnswer {

@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Sparkles, Send, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { Sparkles, Send, ThumbsUp, ThumbsDown, ExternalLink } from 'lucide-react';
 import { Card, Badge } from '../components/ui/Cards';
 import { askSurya, sendFeedback } from '../lib/ask/client';
 import type { AskAnswer } from '../lib/ask/client';
+import { citationHref } from '../lib/ask/citations';
 
 export default function AskSurya() {
   const [question, setQuestion] = useState('');
@@ -26,6 +27,11 @@ export default function AskSurya() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function openSource(c: AskAnswer['citations'][number]) {
+    const href = await citationHref(c);
+    if (href) window.open(href, '_blank', 'noopener');
   }
 
   async function rate(value: 1 | -1) {
@@ -96,8 +102,21 @@ export default function AskSurya() {
               <ul className="space-y-1">
                 {answer.citations.map((c, i) => (
                   <li key={`${c.document_id}-${i}`} className="text-sm text-text-muted">
-                    {c.title} — {c.node_title} (p.{c.page_start}
-                    {c.page_end !== c.page_start ? `–${c.page_end}` : ''})
+                    {c.storage_path ? (
+                      <button
+                        onClick={() => void openSource(c)}
+                        className="inline-flex items-center gap-1 text-left hover:text-text underline decoration-dotted"
+                      >
+                        {c.title} — {c.node_title} (p.{c.page_start}
+                        {c.page_end !== c.page_start ? `–${c.page_end}` : ''})
+                        <ExternalLink className="h-3 w-3" />
+                      </button>
+                    ) : (
+                      <>
+                        {c.title} — {c.node_title} (p.{c.page_start}
+                        {c.page_end !== c.page_start ? `–${c.page_end}` : ''})
+                      </>
+                    )}
                   </li>
                 ))}
               </ul>
