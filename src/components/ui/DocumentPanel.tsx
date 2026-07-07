@@ -16,6 +16,13 @@ interface DocumentPanelProps {
 
 type DocRow = Awaited<ReturnType<typeof listDocuments>>[number];
 
+const TIER_LABELS: Record<string, string> = {
+  institute: 'Internal',
+  division: 'Division',
+  owner: 'Restricted',
+  confidential: 'Confidential',
+};
+
 /**
  * Reusable upload + list panel backed by the unified documents registry (T1).
  * Any module can mount this for an entity; uploads land in the shared bucket
@@ -74,6 +81,9 @@ export function DocumentPanel({ entityType, entityId, docType, accessTier, title
             <li key={d.id} className="flex items-center gap-2 py-2">
               <FileText size={14} className="text-text-muted" />
               <span className="flex-1 text-sm truncate" title={d.file_name}>{d.file_name}</span>
+              <Badge variant={d.access_tier === 'confidential' ? 'danger' : 'neutral'}>
+                {TIER_LABELS[d.access_tier] ?? d.access_tier}
+              </Badge>
               <Badge variant="neutral">{d.ingest_status}</Badge>
               <button onClick={() => onDownload(d.storage_path)} className="text-brand-blue hover:underline text-xs flex items-center gap-1">
                 <Download size={12} /> Open
