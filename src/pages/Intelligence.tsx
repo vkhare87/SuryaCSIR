@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useData } from '../contexts/DataContext';
 import { commercialisationSummary } from '../lib/intelligence/commercialisation';
 import { emergingThemes } from '../lib/intelligence/themes';
+import { PatentPipelineCard } from '../components/PatentPipelineCard';
 import { useToast } from '../contexts/ToastContext';
 import { Card, Badge, StatCard } from '../components/ui/Cards';
 import { DataTable } from '../components/ui/DataTable';
@@ -311,6 +312,8 @@ export default function Intelligence() {
         <StatCard title="Tech Transfers" value={commercial.transferCount} icon={<BarChart3 />} />
         <StatCard title="Transfer Value (₹L)" value={commercial.transferValueLakhs.toLocaleString('en-IN')} icon={<Lightbulb />} />
       </div>
+
+      <PatentPipelineCard />
 
       {themes.length > 0 && (
         <Card className="p-5 space-y-3">
