@@ -27,7 +27,7 @@ import { PhDStudentFormModal } from '../components/PhDStudentFormModal';
 import type { PhDStudent } from '../types';
 
 export default function PhDTracker() {
-  const { phDStudents, staff, isLoading } = useData();
+  const { phDStudents, staff, isLoading, error } = useData();
   const { hasPermission } = useAuth();
   const canUpload = hasPermission(['HRAdmin', 'SystemAdmin', 'MasterAdmin']);
   const canEdit = useCanEdit('hr');
@@ -270,7 +270,13 @@ export default function PhDTracker() {
 
         <TabsContent value="table" className="mt-4 space-y-3">
           <FilterChip filter={filter} onClear={clearFilter} labelMap={PHD_DIM_LABELS} />
-          {!isLoading && phDStudents.length === 0 ? (
+          {!isLoading && error && phDStudents.length === 0 ? (
+            <EmptyState
+              variant="error"
+              title="Couldn't load PhD students"
+              description={error}
+            />
+          ) : !isLoading && phDStudents.length === 0 ? (
             <EmptyState
               icon={GraduationCap}
               title="No PhD students"

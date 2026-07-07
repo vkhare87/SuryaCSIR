@@ -7,7 +7,7 @@ import { Skeleton } from '../../components/ui/Skeleton';
 import { mapPmsRow, mapModuleRow, summarizeDetails } from '../../lib/audit/mappers';
 import type { UnifiedLog } from '../../lib/audit/mappers';
 
-type Source = 'pms' | 'modules';
+type Source = 'all' | 'pms' | 'modules';
 
 const ACTION_COLORS: Record<string, string> = {
   // PMS actions
@@ -37,24 +37,37 @@ export default function AuditLog() {
 
   useEffect(() => {
     if (!isAdmin || !supabase) return;
+    const db = supabase;
     setIsLoading(true);
     setError(null);
-    const table = source === 'pms' ? 'pms_audit_logs' : 'audit_log';
-    const mapper = source === 'pms' ? mapPmsRow : mapModuleRow;
-    void supabase
-      .from(table)
-      .select('*')
-      .order('created_at', { ascending: false })
-      .range(page * PER_PAGE, (page + 1) * PER_PAGE - 1)
-      .then(({ data, error: err }) => {
-        if (err) {
-          setError(err.message);
-          setLogs([]);
-        } else {
-          setLogs(data ? data.map((r) => mapper(r as Record<string, unknown>)) : []);
-        }
-        setIsLoading(false);
-      });
+
+    const fetchOne = (table: string, mapper: (r: Record<string, unknown>) => UnifiedLog) =>
+      db.from(table)
+        .select('*')
+        .order('created_at', { ascending: false })
+        .range(page * PER_PAGE, (page + 1) * PER_PAGE - 1)
+        .then(({ data, error: err }) => {
+          if (err) throw new Error(err.message);
+          return (data ?? []).map((r) => mapper(r as Record<string, unknown>));
+        });
+
+    const wanted =
+      source === 'pms' ? [fetchOne('pms_audit_logs', mapPmsRow)]
+      : source === 'modules' ? [fetchOne('audit_log', mapModuleRow)]
+      : [fetchOne('pms_audit_logs', mapPmsRow), fetchOne('audit_log', mapModuleRow)];
+
+    void Promise.all(wanted)
+      .then((lists) => {
+        // 'all': merged client-side by time; each source pages independently so a
+        // page shows the newest PER_PAGE of the union of both pages.
+        const merged = lists.flat().sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+        setLogs(source === 'all' ? merged.slice(0, PER_PAGE) : merged);
+      })
+      .catch((e: Error) => {
+        setError(e.message);
+        setLogs([]);
+      })
+      .finally(() => setIsLoading(false));
   }, [isAdmin, page, source]);
 
   // Reset page when switching sources
@@ -71,8 +84,14 @@ export default function AuditLog() {
 
       <div className="inline-flex rounded-lg border border-border overflow-hidden text-sm">
         <button
+          onClick={() => setSource('all')}
+          className={`px-4 py-2 ${source === 'all' ? 'bg-surface-hover text-text font-medium' : 'bg-surface text-text-muted hover:text-text'}`}
+        >
+          All
+        </button>
+        <button
           onClick={() => setSource('pms')}
-          className={`px-4 py-2 ${source === 'pms' ? 'bg-surface-hover text-text font-medium' : 'bg-surface text-text-muted hover:text-text'}`}
+          className={`px-4 py-2 border-l border-border ${source === 'pms' ? 'bg-surface-hover text-text font-medium' : 'bg-surface text-text-muted hover:text-text'}`}
         >
           PMS
         </button>
@@ -108,6 +127,11 @@ export default function AuditLog() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-text-muted font-mono truncate">
+                      {source === 'all' && (
+                        <span className="mr-2 px-1.5 py-0.5 rounded bg-surface-hover text-text-muted not-italic">
+                          {log.source === 'pms' ? 'PMS' : 'Modules'}
+                        </span>
+                      )}
                       {log.entityType} · {log.entityId.slice(0, 8)}…
                     </p>
                     {summary && (

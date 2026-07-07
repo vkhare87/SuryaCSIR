@@ -27,7 +27,7 @@ import { ProjectFormModal } from '../components/ProjectFormModal';
 import type { ProjectInfo, ProjectStaff } from '../types';
 
 export default function Projects() {
-  const { projects, projectStaff, isLoading } = useData();
+  const { projects, projectStaff, isLoading, error } = useData();
   const { hasPermission } = useAuth();
   const canUpload = hasPermission(['HRAdmin', 'SystemAdmin', 'MasterAdmin']);
   const canEdit = useCanEdit('hr');
@@ -385,7 +385,13 @@ export default function Projects() {
             />
           </InsightsStrip>
 
-          {!isLoading && projects.length === 0 ? (
+          {!isLoading && error && projects.length === 0 ? (
+            <EmptyState
+              variant="error"
+              title="Couldn't load projects"
+              description={error}
+            />
+          ) : !isLoading && projects.length === 0 ? (
             <EmptyState
               icon={Briefcase}
               title="No projects"
