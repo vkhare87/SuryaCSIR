@@ -43,3 +43,16 @@ def test_failure_marks_failed():
     doc = db.claim_pending()
     process_document(doc, db, NullOCR(), FakeLLM())
     assert db.status["d1"] == "failed"
+
+
+def test_blank_pdf_with_null_ocr_marks_failed_not_indexed():
+    doc = fitz.open()
+    doc.new_page()                               # no text; NullOCR adds none
+    data = doc.tobytes()
+    doc.close()
+    db = FakeDB(docs=[DocRow(id="d1", storage_bucket="b", storage_path="p.pdf",
+                             mime_type="application/pdf", title="Scan")],
+                storage={("b", "p.pdf"): data})
+    process_document(db.claim_pending(), db, NullOCR(), FakeLLM())
+    assert db.status["d1"] == "failed"
+    assert "d1" not in db.indexes
