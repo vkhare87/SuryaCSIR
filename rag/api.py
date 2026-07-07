@@ -11,7 +11,7 @@ from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel
 
 from auth import verify_token, scoped_client
-from query_service import parse_bearer, handle_query, log_query
+from query_service import parse_bearer, handle_query, log_query, find_similar
 from llm import make_llm
 
 app = FastAPI(title="Ask SURYA")
@@ -48,3 +48,24 @@ def query(body: QueryIn, authorization: str | None = Header(default=None)):
     payload = dataclasses.asdict(answer)
     payload["query_id"] = log_query(client, question, answer)
     return payload
+
+
+class SimilarIn(BaseModel):
+    text: str
+
+
+@app.post("/similar")
+def similar(body: SimilarIn, authorization: str | None = Header(default=None)):
+    text = (body.text or "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="empty text")
+    try:
+        jwt = parse_bearer(authorization)
+    except ValueError:
+        raise HTTPException(status_code=401, detail="missing bearer token")
+    try:
+        verify_token(jwt, _ANON_URL, _ANON_KEY)
+    except PermissionError:
+        raise HTTPException(status_code=401, detail="invalid token")
+    client = scoped_client(_ANON_URL, _ANON_KEY, jwt)
+    return {"matches": find_similar(text, client, _LLM)}

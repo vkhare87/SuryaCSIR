@@ -6,7 +6,7 @@ import dataclasses
 import json
 
 from router import route
-from retrieval import traverse
+from retrieval import traverse, flatten
 from analytics import run_analytics, ANALYTICS
 
 
@@ -54,6 +54,25 @@ def handle_query(question, client, llm):
     if route(question, llm) == "structured":
         return answer_for_structured(question, client, llm)
     return traverse(read_docs(client), question, llm)
+
+
+def find_similar(text, client, llm):
+    """Duplication check: rank corpus sections similar to a proposed topic.
+    Returns citation-shaped dicts (no generated prose — matches only, so the
+    result is inherently grounded)."""
+    candidates = flatten(read_docs(client))
+    if not candidates:
+        return []
+    titles = [f"{title} — {node['title']}" for _, title, _, node in candidates]
+    picks = llm.pick(f"Find prior or ongoing work similar to: {text}", titles)
+    matches = []
+    for i in picks:
+        doc_id, title, storage_path, node = candidates[i]
+        matches.append({"document_id": doc_id, "title": title,
+                        "node_title": node["title"],
+                        "page_start": node["page_start"], "page_end": node["page_end"],
+                        "storage_path": storage_path})
+    return matches
 
 
 def log_query(client, question, answer):

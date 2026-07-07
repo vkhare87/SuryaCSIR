@@ -1,6 +1,7 @@
 import pytest
 from query_service import (
     parse_bearer, read_docs, answer_for_structured, handle_query, log_query,
+    find_similar,
 )
 from llm import FakeLLM, REFUSAL_TEXT
 from answer import Answer
@@ -127,3 +128,27 @@ def test_log_query_returns_id():
 def test_log_query_swallows_failure():
     client = _FakeClient(raise_on_execute=True)
     assert log_query(client, "q", Answer("a", "document", [])) is None
+
+
+# ---------- find_similar ----------
+
+def _similar_doc_rows():
+    return [{"document_id": "d1", "tree": {"root": {"nodes": [
+        {"title": "Nanomaterials synthesis", "summary": "Prior work on nano synthesis.",
+         "page_start": 1, "page_end": 4}]}},
+        "documents": {"id": "d1", "title": "2024 Project Report",
+                      "storage_path": "reports/d1/r.pdf"}}]
+
+
+def test_find_similar_returns_citation_dicts():
+    client = _FakeClient({"doc_indexes": _similar_doc_rows()})
+    matches = find_similar("nano synthesis proposal", client, FakeLLM())
+    assert matches == [{"document_id": "d1", "title": "2024 Project Report",
+                        "node_title": "Nanomaterials synthesis",
+                        "page_start": 1, "page_end": 4,
+                        "storage_path": "reports/d1/r.pdf"}]
+
+
+def test_find_similar_empty_corpus():
+    client = _FakeClient({"doc_indexes": []})
+    assert find_similar("anything", client, FakeLLM()) == []
