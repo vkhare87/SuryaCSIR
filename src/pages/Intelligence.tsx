@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useData } from '../contexts/DataContext';
+import { commercialisationSummary } from '../lib/intelligence/commercialisation';
 import { useToast } from '../contexts/ToastContext';
 import { Card, Badge, StatCard } from '../components/ui/Cards';
 import { DataTable } from '../components/ui/DataTable';
@@ -22,10 +23,15 @@ import {
 } from 'lucide-react';
 
 export default function Intelligence() {
-  const { scientificOutputs, ipIntelligence, refreshData } = useData();
+  const { scientificOutputs, ipIntelligence, projects, refreshData } = useData();
   const toast = useToast();
   const [activeTab, setActiveTab] = useState<'publications' | 'ipr'>('publications');
   const [searchTerm, setSearchTerm] = useState('');
+
+  const commercial = useMemo(
+    () => commercialisationSummary(ipIntelligence, projects),
+    [ipIntelligence, projects],
+  );
 
   // -------------------------------------------------------------------------
   // Modal state
@@ -293,6 +299,13 @@ export default function Intelligence() {
           valueColor="text-emerald-500"
           icon={<Award />}
         />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <StatCard title="Granted Patents" value={commercial.grantedPatents} icon={<Award />} />
+        <StatCard title="Filed Patents" value={commercial.filedPatents} icon={<FileText />} />
+        <StatCard title="External Projects" value={commercial.externalProjects} icon={<BarChart3 />} />
+        <StatCard title="External Value (₹)" value={commercial.externalValue.toLocaleString('en-IN')} icon={<Lightbulb />} />
       </div>
 
       <Card className="p-0 overflow-hidden">
