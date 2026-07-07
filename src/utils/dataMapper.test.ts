@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mapMoURow } from './dataMapper';
+import { mapMoURow, mapTechTransferRow } from './dataMapper';
 
 describe('mapMoURow', () => {
   it('maps snake_case row to MoU', () => {
@@ -21,5 +21,23 @@ describe('mapMoURow', () => {
     expect(m.partnerType).toBe('Other');
     expect(m.status).toBe('Active');
     expect(m.linkedProjectNo).toBeUndefined();
+  });
+});
+
+describe('mapTechTransferRow', () => {
+  it('maps row and parses value', () => {
+    const t = mapTechTransferRow({
+      id: 't1', technology_title: 'Red-mud bricks', licensee: 'ABC Pvt Ltd',
+      licensee_type: 'Industry', agreement_type: 'License', agreement_date: '2025-06-15',
+      value_lakhs: '25.5', status: 'Active', linked_project_no: 'GAP-101',
+      linked_ip_id: 'i9', division_code: 'SCMD', remarks: '',
+    });
+    expect(t.technologyTitle).toBe('Red-mud bricks');
+    expect(t.valueLakhs).toBe(25.5);
+    expect(t.linkedIpId).toBe('i9');
+  });
+
+  it('defaults missing value to undefined', () => {
+    expect(mapTechTransferRow({ id: 1 }).valueLakhs).toBeUndefined();
   });
 });

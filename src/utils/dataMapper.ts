@@ -1,4 +1,4 @@
-import type { DivisionInfo, StaffMember, ProjectInfo, ProjectStaff, PhDStudent, Equipment, ScientificOutput, IPIntelligence, MoU, ContractStaff, VacancyAdvertisement, VacancyPost, Notification, Committee, CommitteeMember, Meeting, AgendaItem, ActionItem, MeetingDocument, Ticket, TicketResponse, TicketEvent, HelpdeskRouting, CalendarEvent, Holiday } from '../types';
+import type { DivisionInfo, StaffMember, ProjectInfo, ProjectStaff, PhDStudent, Equipment, ScientificOutput, IPIntelligence, MoU, TechTransfer, ContractStaff, VacancyAdvertisement, VacancyPost, Notification, Committee, CommitteeMember, Meeting, AgendaItem, ActionItem, MeetingDocument, Ticket, TicketResponse, TicketEvent, HelpdeskRouting, CalendarEvent, Holiday } from '../types';
 
 /**
  * These mappers will eventually transform raw Supabase rows 
@@ -159,6 +159,21 @@ export const mapMoURow = (row: any): MoU => ({
   status: row.status || 'Active',
   divisionCode: row.division_code || '',
   linkedProjectNo: row.linked_project_no || undefined,
+  remarks: row.remarks || undefined,
+});
+
+export const mapTechTransferRow = (row: any): TechTransfer => ({
+  id: String(row.id || ''),
+  technologyTitle: row.technology_title || '',
+  licensee: row.licensee || '',
+  licenseeType: row.licensee_type || 'Other',
+  agreementType: row.agreement_type || 'License',
+  agreementDate: row.agreement_date || '',
+  valueLakhs: row.value_lakhs != null && row.value_lakhs !== '' ? parseFloat(row.value_lakhs) : undefined,
+  status: row.status || 'Signed',
+  linkedProjectNo: row.linked_project_no || undefined,
+  linkedIpId: row.linked_ip_id || undefined,
+  divisionCode: row.division_code || '',
   remarks: row.remarks || undefined,
 });
 

@@ -149,6 +149,21 @@ export interface MoU {
   remarks?: string;
 }
 
+export interface TechTransfer {
+  id: string;
+  technologyTitle: string;
+  licensee: string;
+  licenseeType: 'Industry' | 'Startup' | 'PSU' | 'Government' | 'Other';
+  agreementType: 'License' | 'Know-how Transfer' | 'Joint Development' | 'Consultancy' | 'Sponsored';
+  agreementDate: string;
+  valueLakhs?: number;
+  status: 'Under Negotiation' | 'Signed' | 'Active' | 'Completed' | 'Terminated';
+  linkedProjectNo?: string;
+  linkedIpId?: string;
+  divisionCode: string;
+  remarks?: string;
+}
+
 // UI State Types
 
 export type Role =
