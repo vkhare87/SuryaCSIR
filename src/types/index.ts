@@ -228,6 +228,9 @@ export interface VacancyAdvertisement {
   applicationDeadline: string;
   createdAt: string;
   status: 'Open' | 'Closed' | 'Archived';
+  staffCategory: 'Permanent' | 'Project';
+  driveStage: 'Advertised' | 'Applications Closed' | 'Screening' | 'Interviews'
+            | 'Selection' | 'Offers Issued' | 'Joined' | 'Closed';
 }
 
 export interface VacancyPost {
