@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback } from 'react';
 import { Upload, FileText, X } from 'lucide-react';
 import { supabase } from '../../utils/supabaseClient';
 import { useData } from '../../contexts/DataContext';
+import { registerDocument, unregisterDocument } from '../../lib/documents/registry';
 import type { MeetingDocument } from '../../types';
 
 interface DocumentUploaderProps {
@@ -37,6 +38,20 @@ export function DocumentUploader({ meetingId, committeeId, canUpload }: Document
         .insert({ meeting_id: meetingId, file_name: file.name, storage_path: path });
       if (insertErr) throw insertErr;
 
+      // Dual-write into the unified registry (T1). Non-fatal.
+      void registerDocument({
+        entityType: 'meeting',
+        entityId: meetingId,
+        docType: 'meeting_document',
+        title: file.name,
+        storageBucket: 'committee-docs',
+        storagePath: path,
+        fileName: file.name,
+        fileSize: file.size,
+        mimeType: file.type,
+        accessTier: 'institute',
+      });
+
       await refreshData?.();
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : 'Upload failed');
@@ -64,6 +79,7 @@ export function DocumentUploader({ meetingId, committeeId, canUpload }: Document
   const handleDelete = useCallback(async (doc: MeetingDocument) => {
     await supabase!.storage.from('committee-docs').remove([doc.storage_path]);
     await supabase!.from('meeting_documents').delete().eq('id', doc.id);
+    void unregisterDocument('committee-docs', doc.storage_path);
     await refreshData?.();
   }, [refreshData]);
 

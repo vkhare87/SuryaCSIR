@@ -7,6 +7,8 @@ import type {
 } from '../types/pms';
 import { supabase, isProvisioned } from '../utils/supabaseClient';
 import { useAuth } from './AuthContext';
+import { registerDocument, unregisterDocument } from '../lib/documents/registry';
+import { fileFinalizedReport } from '../lib/pms/fileFinalized';
 import { SCORE_RANGE } from '../lib/pms/constants';
 import {
   mapCycleRow, mapReportRow, mapSectionRow,
@@ -258,6 +260,19 @@ export function PMSProvider({ children }: { children: ReactNode }) {
       .select()
       .single();
     if (dbErr) throw dbErr;
+    // Dual-write into the unified registry (T1). Non-fatal.
+    void registerDocument({
+      entityType: 'pms_report',
+      entityId: reportId,
+      docType: 'annexure',
+      title: file.name,
+      storageBucket: 'annexures',
+      storagePath: path,
+      fileName: file.name,
+      fileSize: file.size,
+      mimeType: file.type,
+      accessTier: 'confidential',
+    });
     return mapAnnexureRow(row as Record<string, unknown>);
   }
 
@@ -267,6 +282,7 @@ export function PMSProvider({ children }: { children: ReactNode }) {
     if (storageErr) throw storageErr;
     const { error: dbErr } = await supabase.from('pms_annexures').delete().eq('id', annexureId);
     if (dbErr) throw dbErr;
+    void unregisterDocument('annexures', filePath);
   }
 
   async function submitReport(reportId: string): Promise<void> {
@@ -400,6 +416,23 @@ export function PMSProvider({ children }: { children: ReactNode }) {
     setReports(prev => prev.map(r =>
       r.id === reportId ? { ...r, status: 'FINALIZED' as const } : r
     ));
+
+    // File the finalized report PDF into the documents registry for RAG (T2). Non-fatal.
+    try {
+      const full = await getReport(reportId);
+      const chairman = await getChairmanReview(reportId);
+      void fileFinalizedReport({
+        report: full,
+        sections: full.sections,
+        annexures: full.annexures,
+        finalScore,
+        justification,
+        recommendedMin: chairman?.recommendedMin,
+        recommendedMax: chairman?.recommendedMax,
+      });
+    } catch (e) {
+      console.error('[pms] finalized filing skipped', e);
+    }
   }
 
   async function markNotificationRead(id: string): Promise<void> {

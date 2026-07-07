@@ -43,3 +43,26 @@ describe('EmptyState', () => {
     expect(document.querySelector('svg')).toBeInTheDocument();
   });
 });
+
+describe('EmptyState error variant', () => {
+  it('renders as an alert with a default warning icon', () => {
+    render(
+      <MemoryRouter>
+        <EmptyState variant="error" title="Load failed" description="Network down" />
+      </MemoryRouter>
+    );
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+    expect(screen.getByText('Load failed')).toBeInTheDocument();
+    expect(screen.getByText('Network down')).toBeInTheDocument();
+    expect(document.querySelector('svg')).toBeInTheDocument();
+  });
+
+  it('default variant has no alert role', () => {
+    render(
+      <MemoryRouter>
+        <EmptyState title="No data" />
+      </MemoryRouter>
+    );
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+});

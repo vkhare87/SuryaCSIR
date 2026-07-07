@@ -1,4 +1,4 @@
-import type { DivisionInfo, StaffMember, ProjectInfo, ProjectStaff, PhDStudent, Equipment, ScientificOutput, IPIntelligence, ContractStaff, VacancyAdvertisement, VacancyPost, Notification, Committee, CommitteeMember, Meeting, AgendaItem, ActionItem, MeetingDocument, Ticket, TicketResponse, TicketEvent, HelpdeskRouting, CalendarEvent, Holiday } from '../types';
+import type { DivisionInfo, StaffMember, ProjectInfo, ProjectStaff, PhDStudent, PhDMilestone, Equipment, ScientificOutput, IPIntelligence, MoU, TechTransfer, ContractStaff, VacancyAdvertisement, VacancyPost, Notification, Committee, CommitteeMember, Meeting, AgendaItem, ActionItem, MeetingDocument, Ticket, TicketResponse, TicketEvent, HelpdeskRouting, CalendarEvent, Holiday } from '../types';
 
 /**
  * These mappers will eventually transform raw Supabase rows 
@@ -149,6 +149,43 @@ export const mapIPIntelligenceRow = (row: any): IPIntelligence => ({
   divisionCode: row.division_code || '',
 });
 
+export const mapPhDMilestoneRow = (row: any): PhDMilestone => ({
+  id: String(row.id || ''),
+  enrollmentNo: row.enrollment_no || '',
+  milestone: row.milestone || 'Joining',
+  dueDate: row.due_date || undefined,
+  completedDate: row.completed_date || undefined,
+  remarks: row.remarks || undefined,
+});
+
+export const mapMoURow = (row: any): MoU => ({
+  id: String(row.id || ''),
+  partnerName: row.partner_name || '',
+  partnerType: row.partner_type || 'Other',
+  purpose: row.purpose || '',
+  signedDate: row.signed_date || '',
+  validUntil: row.valid_until || '',
+  status: row.status || 'Active',
+  divisionCode: row.division_code || '',
+  linkedProjectNo: row.linked_project_no || undefined,
+  remarks: row.remarks || undefined,
+});
+
+export const mapTechTransferRow = (row: any): TechTransfer => ({
+  id: String(row.id || ''),
+  technologyTitle: row.technology_title || '',
+  licensee: row.licensee || '',
+  licenseeType: row.licensee_type || 'Other',
+  agreementType: row.agreement_type || 'License',
+  agreementDate: row.agreement_date || '',
+  valueLakhs: row.value_lakhs != null && row.value_lakhs !== '' ? parseFloat(row.value_lakhs) : undefined,
+  status: row.status || 'Signed',
+  linkedProjectNo: row.linked_project_no || undefined,
+  linkedIpId: row.linked_ip_id || undefined,
+  divisionCode: row.division_code || '',
+  remarks: row.remarks || undefined,
+});
+
 export const mapContractStaffRow = (row: any): ContractStaff => ({
   id: String(row.id || row.ID || ''),
   Name: row.Name || row.name || '',
@@ -173,6 +210,8 @@ export const mapVacancyAdvertisementRow = (row: any): VacancyAdvertisement => ({
   applicationDeadline: row.applicationDeadline || row.application_deadline || '',
   createdAt: row.createdAt || row.created_at || '',
   status: row.status || 'Open',
+  staffCategory: row.staff_category || 'Permanent',
+  driveStage: row.drive_stage || 'Advertised',
 });
 
 export const mapVacancyPostRow = (row: any): VacancyPost => ({

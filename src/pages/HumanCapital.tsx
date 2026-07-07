@@ -13,7 +13,7 @@ import { StaffFormModal } from '../components/StaffFormModal';
 import type { StaffMember } from '../types';
 
 export default function HumanCapital() {
-  const { staff, divisions } = useData();
+  const { staff, divisions, error } = useData();
   const { hasPermission } = useAuth();
   const canUpload = hasPermission(['HRAdmin', 'SystemAdmin', 'MasterAdmin']);
   const canEdit = useCanEdit('hr');
@@ -183,6 +183,12 @@ export default function HumanCapital() {
           <div className="p-8">
             <TableSkeleton />
           </div>
+        ) : error && staff.length === 0 ? (
+          <EmptyState
+            variant="error"
+            title="Couldn't load staff records"
+            description={error}
+          />
         ) : staff.length === 0 ? (
           <EmptyState
             icon={Users}

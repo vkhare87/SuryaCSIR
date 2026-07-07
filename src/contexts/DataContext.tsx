@@ -6,10 +6,13 @@ import type {
   ProjectInfo,
   ProjectStaff,
   PhDStudent,
+  PhDMilestone,
   Equipment,
   Lab,
   ScientificOutput,
   IPIntelligence,
+  MoU,
+  TechTransfer,
   ContractStaff,
   VacancyAdvertisement,
   VacancyPost,
@@ -34,10 +37,13 @@ import {
   mapProjectRow,
   mapProjectStaffRow,
   mapPhDStudentRow,
+  mapPhDMilestoneRow,
   mapEquipmentRow,
   mapLabRow,
   mapScientificOutputRow,
   mapIPIntelligenceRow,
+  mapMoURow,
+  mapTechTransferRow,
   mapContractStaffRow,
   mapVacancyAdvertisementRow,
   mapVacancyPostRow,
@@ -94,9 +100,12 @@ interface DataContextType {
   projects: ProjectInfo[];
   projectStaff: ProjectStaff[];
   phDStudents: PhDStudent[];
+  phdMilestones: PhDMilestone[];
   contractStaff: ContractStaff[];
   scientificOutputs: ScientificOutput[];
   ipIntelligence: IPIntelligence[];
+  mous: MoU[];
+  techTransfers: TechTransfer[];
   equipment: Equipment[];
   labs: Lab[];
   vacancyAdvertisements: VacancyAdvertisement[];
@@ -138,9 +147,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [projects, setProjects] = useState<ProjectInfo[]>([]);
   const [projectStaff, setProjectStaff] = useState<ProjectStaff[]>([]);
   const [phDStudents, setPhDStudents] = useState<PhDStudent[]>([]);
+  const [phdMilestones, setPhdMilestones] = useState<PhDMilestone[]>([]);
   const [contractStaff, setContractStaff] = useState<ContractStaff[]>([]);
   const [scientificOutputs, setScientificOutputs] = useState<ScientificOutput[]>([]);
   const [ipIntelligence, setIPIntelligence] = useState<IPIntelligence[]>([]);
+  const [mous, setMous] = useState<MoU[]>([]);
+  const [techTransfers, setTechTransfers] = useState<TechTransfer[]>([]);
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [labs, setLabs] = useState<Lab[]>([]);
   const [vacancyAdvertisements, setVacancyAdvertisements] = useState<VacancyAdvertisement[]>([]);
@@ -166,11 +178,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setProjects([]);
     setProjectStaff([]);
     setPhDStudents([]);
+    setPhdMilestones([]);
     setContractStaff([]);
     setEquipment([]);
     setLabs([]);
     setScientificOutputs([]);
     setIPIntelligence([]);
+    setMous([]);
+    setTechTransfers([]);
     setVacancyAdvertisements([]);
     setVacancyPosts([]);
     setCommittees([]);
@@ -201,7 +216,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         divRes, staffRes, projRes, psRes, phdRes, equipRes, labsRes, soRes, ipRes, csRes,
         vaRes, vpRes,
         cmtRes, cmmRes, mtgRes, agiRes, actRes, mdcRes, tktRes, trsRes, tevRes, hrtRes,
-        ceRes, holRes,
+        ceRes, holRes, mouRes, ttRes, phmRes,
       ] = await Promise.all([
         supabase.from('divisions').select('*'),
         supabase.from('staff').select('*'),
@@ -227,6 +242,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
         supabase.from('helpdesk_routing').select('*'),
         supabase.from('calendar_events').select('*').order('event_date', { ascending: true }),
         supabase.from('holidays').select('*').order('holiday_date', { ascending: true }),
+        supabase.from('mous').select('*'),
+        supabase.from('tech_transfers').select('*'),
+        supabase.from('phd_milestones').select('*'),
       ]);
 
       // Surface per-table errors — Promise.all hides them as empty data
@@ -258,6 +276,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
       checkTable('helpdesk_routing', hrtRes);
       checkTable('calendar_events', ceRes);
       checkTable('holidays', holRes);
+      checkTable('mous', mouRes);
+      checkTable('tech_transfers', ttRes);
+      checkTable('phd_milestones', phmRes);
       if (tableErrors.length > 0) {
         const summary = `${tableErrors.length} table(s) failed to load: ${tableErrors.map(e => e.table).join(', ')}`;
         logger.error('partial_data_load_failed', new Error(summary), { tableErrors });
@@ -278,6 +299,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setLabs(labsRes.data ? labsRes.data.map(mapLabRow) : []);
       setScientificOutputs(soRes.data ? soRes.data.map(mapScientificOutputRow) : []);
       setIPIntelligence(ipRes.data ? ipRes.data.map(mapIPIntelligenceRow) : []);
+      setMous(mouRes.data ? mouRes.data.map(mapMoURow) : []);
+      setTechTransfers(ttRes.data ? ttRes.data.map(mapTechTransferRow) : []);
+      setPhdMilestones(phmRes.data ? phmRes.data.map(mapPhDMilestoneRow) : []);
       setVacancyAdvertisements(vaRes.data ? vaRes.data.map(mapVacancyAdvertisementRow) : []);
       setVacancyPosts(vpRes.data ? vpRes.data.map(mapVacancyPostRow) : []);
       setCommittees(cmtRes.data ? cmtRes.data.map(mapCommitteeRow) : []);
@@ -342,9 +366,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
       projects,
       projectStaff,
       phDStudents,
+      phdMilestones,
       contractStaff,
       scientificOutputs,
       ipIntelligence,
+      mous,
+      techTransfers,
       equipment,
       labs,
       vacancyAdvertisements,

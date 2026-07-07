@@ -1,5 +1,8 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useData } from '../contexts/DataContext';
+import { commercialisationSummary } from '../lib/intelligence/commercialisation';
+import { emergingThemes } from '../lib/intelligence/themes';
+import { PatentPipelineCard } from '../components/PatentPipelineCard';
 import { useToast } from '../contexts/ToastContext';
 import { Card, Badge, StatCard } from '../components/ui/Cards';
 import { DataTable } from '../components/ui/DataTable';
@@ -22,10 +25,16 @@ import {
 } from 'lucide-react';
 
 export default function Intelligence() {
-  const { scientificOutputs, ipIntelligence, refreshData } = useData();
+  const { scientificOutputs, ipIntelligence, projects, techTransfers, refreshData } = useData();
   const toast = useToast();
   const [activeTab, setActiveTab] = useState<'publications' | 'ipr'>('publications');
   const [searchTerm, setSearchTerm] = useState('');
+
+  const commercial = useMemo(
+    () => commercialisationSummary(ipIntelligence, projects, techTransfers),
+    [ipIntelligence, projects, techTransfers],
+  );
+  const themes = useMemo(() => emergingThemes(projects).slice(0, 8), [projects]);
 
   // -------------------------------------------------------------------------
   // Modal state
@@ -294,6 +303,33 @@ export default function Intelligence() {
           icon={<Award />}
         />
       </div>
+
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
+        <StatCard title="Granted Patents" value={commercial.grantedPatents} icon={<Award />} />
+        <StatCard title="Filed Patents" value={commercial.filedPatents} icon={<FileText />} />
+        <StatCard title="External Projects" value={commercial.externalProjects} icon={<BarChart3 />} />
+        <StatCard title="External Value (₹)" value={commercial.externalValue.toLocaleString('en-IN')} icon={<Lightbulb />} />
+        <StatCard title="Tech Transfers" value={commercial.transferCount} icon={<BarChart3 />} />
+        <StatCard title="Transfer Value (₹L)" value={commercial.transferValueLakhs.toLocaleString('en-IN')} icon={<Lightbulb />} />
+      </div>
+
+      <PatentPipelineCard />
+
+      {themes.length > 0 && (
+        <Card className="p-5 space-y-3">
+          <h3 className="text-sm font-semibold text-text">Emerging Cross-Division Themes</h3>
+          <div className="flex flex-wrap gap-2">
+            {themes.map(t => (
+              <div key={t.keyword} className="rounded-md border border-border px-3 py-1.5 text-sm">
+                <span className="font-medium text-text capitalize">{t.keyword}</span>
+                <span className="ml-2 text-xs text-text-muted">
+                  {t.recentCount} recent (prior {t.priorCount}) · {t.divisions.join(', ')}
+                </span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       <Card className="p-0 overflow-hidden">
         <div className="p-4 border-b border-border flex flex-col sm:flex-row justify-between items-center gap-4 bg-surface-hover">

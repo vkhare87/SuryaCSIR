@@ -24,16 +24,29 @@ const PHD_DIM_LABELS: Record<string, string> = {
 };
 import { useCanEdit } from '../lib/permissions/canEdit';
 import { PhDStudentFormModal } from '../components/PhDStudentFormModal';
-import type { PhDStudent } from '../types';
+import { PhDMilestonePanel } from '../components/PhDMilestonePanel';
+import { scholarProgress } from '../lib/phd/progress';
+import type { PhDStudent, PhDMilestone } from '../types';
 
 export default function PhDTracker() {
-  const { phDStudents, staff, isLoading } = useData();
+  const { phDStudents, phdMilestones, staff, isLoading, error } = useData();
   const { hasPermission } = useAuth();
   const canUpload = hasPermission(['HRAdmin', 'SystemAdmin', 'MasterAdmin']);
   const canEdit = useCanEdit('hr');
   const navigate = useNavigate();
   const [showCreate, setShowCreate] = useState(false);
   const [editTarget, setEditTarget] = useState<PhDStudent | null>(null);
+  const [milestoneTarget, setMilestoneTarget] = useState<PhDStudent | null>(null);
+
+  const milestonesByScholar = useMemo(() => {
+    const m = new Map<string, PhDMilestone[]>();
+    for (const row of phdMilestones) {
+      const list = m.get(row.enrollmentNo) ?? [];
+      list.push(row);
+      m.set(row.enrollmentNo, list);
+    }
+    return m;
+  }, [phdMilestones]);
 
   const findSupervisorId = (name: string) => {
     if (!name) return null;
@@ -137,6 +150,27 @@ export default function PhDTracker() {
 
         return <Badge variant={variant}>{s.CurrentStatus}</Badge>;
       }
+    },
+    {
+      header: 'Milestones',
+      cell: (s: PhDStudent) => {
+        const p = scholarProgress(milestonesByScholar.get(s.EnrollmentNo) ?? []);
+        return (
+          <button
+            onClick={(e) => { e.stopPropagation(); setMilestoneTarget(s); }}
+            className="w-32 text-left group"
+            title={p.next ? `Next: ${p.next}` : 'All milestones complete'}
+          >
+            <div className="h-1.5 rounded bg-surface-hover">
+              <div className="h-1.5 rounded bg-brand-blue" style={{ width: `${p.percent}%` }} />
+            </div>
+            <div className="mt-1 flex items-center gap-1 text-[10px] text-text-muted group-hover:text-text">
+              <span>{p.percent}%</span>
+              {p.overdue.length > 0 && <Badge variant="warning">{p.overdue.length} overdue</Badge>}
+            </div>
+          </button>
+        );
+      },
     },
     ...(canEdit ? [{
       header: '',
@@ -270,7 +304,13 @@ export default function PhDTracker() {
 
         <TabsContent value="table" className="mt-4 space-y-3">
           <FilterChip filter={filter} onClear={clearFilter} labelMap={PHD_DIM_LABELS} />
-          {!isLoading && phDStudents.length === 0 ? (
+          {!isLoading && error && phDStudents.length === 0 ? (
+            <EmptyState
+              variant="error"
+              title="Couldn't load PhD students"
+              description={error}
+            />
+          ) : !isLoading && phDStudents.length === 0 ? (
             <EmptyState
               icon={GraduationCap}
               title="No PhD students"
@@ -305,6 +345,10 @@ export default function PhDTracker() {
           <PhDStudentFormModal isOpen={showCreate} onClose={() => setShowCreate(false)} />
           <PhDStudentFormModal isOpen={!!editTarget} onClose={() => setEditTarget(null)} student={editTarget} />
         </>
+      )}
+
+      {milestoneTarget && (
+        <PhDMilestonePanel student={milestoneTarget} canEdit={canEdit} onClose={() => setMilestoneTarget(null)} />
       )}
     </div>
   );

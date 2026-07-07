@@ -10,3 +10,10 @@ dist/
 
 # Auto-generated SQL rollups (sources live in supabase/migrations + seed + mock)
 supabase/bundles/
+
+# RAG worker (Python) local env
+rag/.venv/
+rag/.env
+__pycache__/
+.pytest_cache/
+rag/eval/corpus.json

@@ -82,6 +82,19 @@ export interface PhDStudent {
   DivisionCode: string;
 }
 
+export type PhDMilestoneName =
+  | 'Joining' | 'Coursework' | 'Comprehensive Exam' | 'Registration'
+  | 'Synopsis Submission' | 'Thesis Submission' | 'Viva Voce' | 'Degree Awarded';
+
+export interface PhDMilestone {
+  id: string;
+  enrollmentNo: string;
+  milestone: PhDMilestoneName;
+  dueDate?: string;
+  completedDate?: string;
+  remarks?: string;
+}
+
 export interface Equipment {
   UInsID: string;
   instrument_code?: string;
@@ -136,6 +149,34 @@ export interface IPIntelligence {
   divisionCode: string;
 }
 
+export interface MoU {
+  id: string;
+  partnerName: string;
+  partnerType: 'Academic' | 'Industry' | 'Government' | 'International' | 'Other';
+  purpose: string;
+  signedDate: string;
+  validUntil: string;
+  status: 'Active' | 'Expired' | 'Under Renewal' | 'Terminated';
+  divisionCode: string;
+  linkedProjectNo?: string;
+  remarks?: string;
+}
+
+export interface TechTransfer {
+  id: string;
+  technologyTitle: string;
+  licensee: string;
+  licenseeType: 'Industry' | 'Startup' | 'PSU' | 'Government' | 'Other';
+  agreementType: 'License' | 'Know-how Transfer' | 'Joint Development' | 'Consultancy' | 'Sponsored';
+  agreementDate: string;
+  valueLakhs?: number;
+  status: 'Under Negotiation' | 'Signed' | 'Active' | 'Completed' | 'Terminated';
+  linkedProjectNo?: string;
+  linkedIpId?: string;
+  divisionCode: string;
+  remarks?: string;
+}
+
 // UI State Types
 
 export type Role =
@@ -187,6 +228,9 @@ export interface VacancyAdvertisement {
   applicationDeadline: string;
   createdAt: string;
   status: 'Open' | 'Closed' | 'Archived';
+  staffCategory: 'Permanent' | 'Project';
+  driveStage: 'Advertised' | 'Applications Closed' | 'Screening' | 'Interviews'
+            | 'Selection' | 'Offers Issued' | 'Joined' | 'Closed';
 }
 
 export interface VacancyPost {

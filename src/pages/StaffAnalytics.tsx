@@ -10,6 +10,7 @@ import { OrgTree, type OrgNode } from '../components/viz/OrgTree';
 import { NetworkGraph, type GraphLink, type GraphNode } from '../components/viz/NetworkGraph';
 import { useChartFilter } from '../utils/useChartFilter';
 import { personNamesMatch } from '../utils/analytics';
+import { coAuthorPairs } from '../lib/intelligence/collaboration';
 
 function yearsBetween(dateStr: string, ref = new Date()): number {
   const t = Date.parse(dateStr);
@@ -85,6 +86,11 @@ export default function StaffAnalytics() {
     });
     return { nodes, links };
   }, [staff, scientificOutputs]);
+
+  const collaborations = useMemo(
+    () => coAuthorPairs(scientificOutputs, staff).slice(0, 10),
+    [scientificOutputs, staff],
+  );
 
   const byDivision = useMemo(() => {
     const counts = new Map<string, number>();
@@ -228,6 +234,27 @@ export default function StaffAnalytics() {
             <div className="h-[400px] flex items-center justify-center text-sm text-text-muted">
               No co-authorship data available yet.
             </div>
+          )}
+        </ChartCard>
+
+        <ChartCard
+          title="Top collaborations"
+          subtitle="most frequent co-author pairs — cross-division flagged"
+          className="lg:col-span-2"
+        >
+          {collaborations.length === 0 ? (
+            <p className="text-sm text-text-muted">No co-authored publications recorded.</p>
+          ) : (
+            <ul className="space-y-1.5">
+              {collaborations.map(p => (
+                <li key={`${p.a}|${p.b}`} className="flex items-center justify-between text-sm">
+                  <span className="text-text">{p.a} × {p.b}</span>
+                  <span className="text-xs text-text-muted">
+                    {p.count} paper{p.count > 1 ? 's' : ''}{p.crossDivision ? ' · cross-division' : ''}
+                  </span>
+                </li>
+              ))}
+            </ul>
           )}
         </ChartCard>
       </div>

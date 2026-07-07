@@ -4,19 +4,10 @@ import { useAuth } from '../../contexts/AuthContext';
 import { canAdmin } from '../../lib/pms/permissions';
 import { supabase } from '../../utils/supabaseClient';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { mapPmsRow, mapModuleRow, summarizeDetails } from '../../lib/audit/mappers';
+import type { UnifiedLog } from '../../lib/audit/mappers';
 
-type Source = 'pms' | 'modules';
-
-interface UnifiedLog {
-  id: string;
-  source: Source;
-  actorId: string;
-  action: string;
-  entityType: string;
-  entityId: string;
-  details: Record<string, unknown>;
-  createdAt: string;
-}
+type Source = 'all' | 'pms' | 'modules';
 
 const ACTION_COLORS: Record<string, string> = {
   // PMS actions
@@ -34,58 +25,6 @@ const ACTION_COLORS: Record<string, string> = {
 
 const PER_PAGE = 25;
 
-function mapPmsRow(r: Record<string, unknown>): UnifiedLog {
-  return {
-    id:         r.id as string,
-    source:     'pms',
-    actorId:    r.user_id as string,
-    action:     r.action as string,
-    entityType: r.entity_type as string,
-    entityId:   r.entity_id as string,
-    details:    (r.details as Record<string, unknown>) ?? {},
-    createdAt:  r.created_at as string,
-  };
-}
-
-function mapModuleRow(r: Record<string, unknown>): UnifiedLog {
-  return {
-    id:         r.id as string,
-    source:     'modules',
-    actorId:    r.actor_id as string,
-    action:     r.action as string,
-    entityType: r.entity_type as string,
-    entityId:   r.entity_id as string,
-    details:    (r.changes as Record<string, unknown>) ?? {},
-    createdAt:  r.created_at as string,
-  };
-}
-
-function summarizeDetails(log: UnifiedLog): string {
-  const d = log.details;
-  if (!d || Object.keys(d).length === 0) return '';
-  if (log.source === 'pms') {
-    return Object.entries(d).map(([k, v]) => `${k}: ${String(v)}`).join(' · ');
-  }
-  // module audit_log packs changes as { old, new } for updates
-  if ('new' in d && 'old' in d) {
-    const newObj = d.new as Record<string, unknown>;
-    const oldObj = d.old as Record<string, unknown>;
-    const changed: string[] = [];
-    for (const key of Object.keys(newObj)) {
-      if (newObj[key] !== oldObj?.[key]) {
-        changed.push(`${key}: ${String(oldObj?.[key])} → ${String(newObj[key])}`);
-      }
-    }
-    return changed.slice(0, 3).join(' · ');
-  }
-  // For inserts/deletes show a few useful keys if present
-  const preferred = ['name', 'subject', 'token', 'status', 'urgency', 'category', 'title'];
-  const lines = preferred
-    .filter((k) => d[k] !== undefined)
-    .map((k) => `${k}: ${String(d[k])}`);
-  return lines.slice(0, 3).join(' · ');
-}
-
 export default function AuditLog() {
   const { user } = useAuth();
   const [source, setSource] = useState<Source>('pms');
@@ -98,24 +37,37 @@ export default function AuditLog() {
 
   useEffect(() => {
     if (!isAdmin || !supabase) return;
+    const db = supabase;
     setIsLoading(true);
     setError(null);
-    const table = source === 'pms' ? 'pms_audit_logs' : 'audit_log';
-    const mapper = source === 'pms' ? mapPmsRow : mapModuleRow;
-    void supabase
-      .from(table)
-      .select('*')
-      .order('created_at', { ascending: false })
-      .range(page * PER_PAGE, (page + 1) * PER_PAGE - 1)
-      .then(({ data, error: err }) => {
-        if (err) {
-          setError(err.message);
-          setLogs([]);
-        } else {
-          setLogs(data ? data.map((r) => mapper(r as Record<string, unknown>)) : []);
-        }
-        setIsLoading(false);
-      });
+
+    const fetchOne = (table: string, mapper: (r: Record<string, unknown>) => UnifiedLog) =>
+      db.from(table)
+        .select('*')
+        .order('created_at', { ascending: false })
+        .range(page * PER_PAGE, (page + 1) * PER_PAGE - 1)
+        .then(({ data, error: err }) => {
+          if (err) throw new Error(err.message);
+          return (data ?? []).map((r) => mapper(r as Record<string, unknown>));
+        });
+
+    const wanted =
+      source === 'pms' ? [fetchOne('pms_audit_logs', mapPmsRow)]
+      : source === 'modules' ? [fetchOne('audit_log', mapModuleRow)]
+      : [fetchOne('pms_audit_logs', mapPmsRow), fetchOne('audit_log', mapModuleRow)];
+
+    void Promise.all(wanted)
+      .then((lists) => {
+        // 'all': merged client-side by time; each source pages independently so a
+        // page shows the newest PER_PAGE of the union of both pages.
+        const merged = lists.flat().sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+        setLogs(source === 'all' ? merged.slice(0, PER_PAGE) : merged);
+      })
+      .catch((e: Error) => {
+        setError(e.message);
+        setLogs([]);
+      })
+      .finally(() => setIsLoading(false));
   }, [isAdmin, page, source]);
 
   // Reset page when switching sources
@@ -132,8 +84,14 @@ export default function AuditLog() {
 
       <div className="inline-flex rounded-lg border border-border overflow-hidden text-sm">
         <button
+          onClick={() => setSource('all')}
+          className={`px-4 py-2 ${source === 'all' ? 'bg-surface-hover text-text font-medium' : 'bg-surface text-text-muted hover:text-text'}`}
+        >
+          All
+        </button>
+        <button
           onClick={() => setSource('pms')}
-          className={`px-4 py-2 ${source === 'pms' ? 'bg-surface-hover text-text font-medium' : 'bg-surface text-text-muted hover:text-text'}`}
+          className={`px-4 py-2 border-l border-border ${source === 'pms' ? 'bg-surface-hover text-text font-medium' : 'bg-surface text-text-muted hover:text-text'}`}
         >
           PMS
         </button>
@@ -169,6 +127,11 @@ export default function AuditLog() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-text-muted font-mono truncate">
+                      {source === 'all' && (
+                        <span className="mr-2 px-1.5 py-0.5 rounded bg-surface-hover text-text-muted not-italic">
+                          {log.source === 'pms' ? 'PMS' : 'Modules'}
+                        </span>
+                      )}
                       {log.entityType} · {log.entityId.slice(0, 8)}…
                     </p>
                     {summary && (

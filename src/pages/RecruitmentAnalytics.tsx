@@ -1,5 +1,7 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useData } from '../contexts/DataContext';
+import { useAuth } from '../contexts/AuthContext';
+import { drivesByStage, setDriveStage, DRIVE_STAGES, type DriveStage } from '../lib/recruitment/drives';
 import { ChartCard } from '../components/viz/ChartCard';
 import { CategoryDonut } from '../components/viz/CategoryDonut';
 import { CategoryBar } from '../components/viz/CategoryBar';
@@ -10,7 +12,23 @@ import type { VacancyPost } from '../types';
 const FUNNEL_ORDER: VacancyPost['status'][] = ['Received', 'Shortlisted', 'Interviewed', 'Selected', 'Rejected'];
 
 export default function RecruitmentAnalytics() {
-  const { vacancyAdvertisements, vacancyPosts } = useData();
+  const { vacancyAdvertisements, vacancyPosts, refreshData } = useData();
+  const { hasPermission } = useAuth();
+  const canManageDrives = hasPermission(['HRAdmin', 'SystemAdmin', 'MasterAdmin']);
+  const [stageError, setStageError] = useState('');
+
+  const driveFunnel = useMemo(() => drivesByStage(vacancyAdvertisements), [vacancyAdvertisements]);
+  const openDrives = useMemo(
+    () => vacancyAdvertisements.filter(a => a.driveStage !== 'Closed'),
+    [vacancyAdvertisements],
+  );
+
+  async function onStageChange(id: string, stage: DriveStage) {
+    setStageError('');
+    const res = await setDriveStage(id, stage);
+    if (!res.ok) { setStageError(res.error); return; }
+    await refreshData();
+  }
   const { filter, toggleFilter } = useChartFilter();
 
   const hiringFunnel = useMemo(() => {
@@ -72,6 +90,52 @@ export default function RecruitmentAnalytics() {
       <ChartCard title="Applicant status mix">
         <CategoryDonut data={applicantStatusMix} />
       </ChartCard>
+
+      <ChartCard title="Drive progress" subtitle="drives per stage — permanent vs project staff" className="lg:col-span-2">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-xs uppercase tracking-wide text-text-muted">
+              <th className="py-1 pr-2">Stage</th>
+              <th className="py-1 pr-2">Permanent</th>
+              <th className="py-1">Project</th>
+            </tr>
+          </thead>
+          <tbody>
+            {driveFunnel.map(r => (
+              <tr key={r.stage} className="border-t border-border text-text">
+                <td className="py-1.5 pr-2">{r.stage}</td>
+                <td className="py-1.5 pr-2">{r.permanent}</td>
+                <td className="py-1.5">{r.project}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </ChartCard>
+
+      {canManageDrives && (
+        <ChartCard title="Manage drive stages" subtitle="admin — advance open drives" className="lg:col-span-2">
+          {stageError && <p className="text-sm text-danger mb-2">{stageError}</p>}
+          {openDrives.length === 0 ? (
+            <p className="text-sm text-text-muted">No open drives.</p>
+          ) : (
+            <ul className="divide-y divide-border">
+              {openDrives.map(a => (
+                <li key={a.id} className="flex flex-wrap items-center gap-2 py-2">
+                  <span className="flex-1 min-w-40 text-sm text-text">{a.title}</span>
+                  <span className="text-xs text-text-muted">{a.staffCategory}</span>
+                  <select
+                    value={a.driveStage}
+                    onChange={e => void onStageChange(a.id, e.target.value as DriveStage)}
+                    className="rounded-md border border-border bg-surface px-2 py-1 text-xs text-text"
+                  >
+                    {DRIVE_STAGES.map(s => <option key={s}>{s}</option>)}
+                  </select>
+                </li>
+              ))}
+            </ul>
+          )}
+        </ChartCard>
+      )}
     </div>
   );
 }

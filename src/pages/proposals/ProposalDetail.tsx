@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useData } from '../../contexts/DataContext';
 import { useProposals } from '../../contexts/ProposalsContext';
 import { Card, Badge } from '../../components/ui/Cards';
 import { Button } from '../../components/ui/Button';
@@ -10,6 +11,8 @@ import {
 } from '../../lib/proposals/constants';
 import { canEditProposal, canUpdateStatus, nextAllowedTransitions } from '../../lib/proposals/permissions';
 import StatusUpdateModal from '../../components/proposals/StatusUpdateModal';
+import { SimilarWorkPanel } from '../../components/SimilarWorkPanel';
+import { findComparables } from '../../lib/proposals/comparables';
 import type { Proposal } from '../../types/proposal';
 
 export default function ProposalDetail() {
@@ -17,9 +20,21 @@ export default function ProposalDetail() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { getProposal } = useProposals();
+  const { projects } = useData();
   const [proposal, setProposal] = useState<Proposal | null>(null);
   const [error, setError] = useState('');
   const [showStatusModal, setShowStatusModal] = useState(false);
+
+  const comparables = useMemo(
+    () => proposal
+      ? findComparables(projects, {
+          domainTheme: `${proposal.title} ${proposal.domainTheme}`,
+          divisionCode: proposal.divisionCode,
+          fundType: proposal.fundType,
+        })
+      : [],
+    [projects, proposal],
+  );
 
   const reload = useCallback(async () => {
     if (!id) return;
@@ -84,6 +99,40 @@ export default function ProposalDetail() {
         <Block label="Problem Statement" text={proposal.problemStatement} />
         <Block label="Objectives"        text={proposal.objectives} />
         <Block label="Expected Outcomes" text={proposal.expectedOutcomes} />
+      </Card>
+
+      <SimilarWorkPanel text={`${proposal.title}. ${proposal.abstract}`} />
+
+      <Card className="p-5 space-y-3">
+        <h3 className="text-sm font-semibold text-text">Comparable Past Projects</h3>
+        {comparables.length === 0 ? (
+          <p className="text-sm text-text-muted">No comparable past projects found.</p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs uppercase tracking-wide text-text-muted">
+                <th className="py-1 pr-2">Project</th>
+                <th className="py-1 pr-2">Sanctioned</th>
+                <th className="py-1 pr-2">Utilized</th>
+                <th className="py-1 pr-2">Start</th>
+                <th className="py-1 pr-2">Completion</th>
+                <th className="py-1">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {comparables.map(p => (
+                <tr key={p.ProjectNo} className="border-t border-border text-text">
+                  <td className="py-1.5 pr-2">{p.ProjectName}</td>
+                  <td className="py-1.5 pr-2">{p.SanctionedCost}</td>
+                  <td className="py-1.5 pr-2">{p.UtilizedAmount}</td>
+                  <td className="py-1.5 pr-2">{p.StartDate}</td>
+                  <td className="py-1.5 pr-2">{p.CompletioDate}</td>
+                  <td className="py-1.5">{p.ProjectStatus}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </Card>
 
       {proposal.coPIs && proposal.coPIs.length > 0 && (

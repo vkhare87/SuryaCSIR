@@ -20,6 +20,10 @@
   --color-warm-silver: #b0aea5;
   --color-error-crimson: #b53333;
   --color-focus-blue: #3898ec;
+  /* Semantic aliases — text-danger / bg-brand-blue etc. were used across pages
+     but never defined, so Tailwind 4 generated nothing for them. */
+  --color-danger: #b53333;
+  --color-brand-blue: #3898ec;
 
   /* CSS-var pass-throughs for Tailwind utility resolution */
   --color-surface: var(--color-surface);
