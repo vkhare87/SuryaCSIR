@@ -96,6 +96,7 @@ export default function RagMonitor() {
                 <th className="p-3 font-medium">Entity</th>
                 <th className="p-3 font-medium">Status</th>
                 <th className="p-3 font-medium">Pages</th>
+                <th className="p-3 font-medium">Attempts</th>
                 <th className="p-3 font-medium">Error</th>
                 <th className="p-3 font-medium">Action</th>
               </tr>
@@ -109,6 +110,7 @@ export default function RagMonitor() {
                     <Badge variant={STATUS_VARIANT[r.status]}>{r.status}</Badge>
                   </td>
                   <td className="p-3 text-text-muted">{r.pageCount ?? '—'}</td>
+                  <td className="p-3 text-text-muted">{r.attempts > 0 ? r.attempts : '—'}</td>
                   <td className="p-3 text-text-muted">{r.error ?? '—'}</td>
                   <td className="p-3">
                     {(r.status === 'failed' || r.status === 'indexed') && (

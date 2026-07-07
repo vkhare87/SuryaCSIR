@@ -9,6 +9,7 @@ export interface MonitorRow {
   title: string;
   entityType: string;
   status: IngestStatus;
+  attempts: number;
   error: string | null;
   pageCount: number | null;
   builtAt: string | null;
@@ -28,7 +29,7 @@ export async function fetchMonitorRows(): Promise<MonitorRow[]> {
   if (!supabase) return [];
   const { data, error } = await supabase
     .from('documents')
-    .select('id, title, entity_type, ingest_status, ingest_error, doc_indexes(page_count, built_at)')
+    .select('id, title, entity_type, ingest_status, ingest_error, ingest_attempts, doc_indexes(page_count, built_at)')
     .order('created_at', { ascending: false })
     .limit(200);
   if (error) throw error;
@@ -39,6 +40,7 @@ export async function fetchMonitorRows(): Promise<MonitorRow[]> {
       title: d.title,
       entityType: d.entity_type,
       status: d.ingest_status as IngestStatus,
+      attempts: d.ingest_attempts ?? 0,
       error: d.ingest_error ?? null,
       pageCount: idx?.page_count ?? null,
       builtAt: idx?.built_at ?? null,

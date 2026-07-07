@@ -56,6 +56,11 @@ def main():
         n = build_collections(db, llm)
         print(f"[rag] built {n} collection index(es)", flush=True)
         return
+    if "--reindex-model" in sys.argv:
+        model = sys.argv[sys.argv.index("--reindex-model") + 1]
+        n = db.requeue_stale_model(model)
+        print(f"[rag] requeued {n} document(s) not built by {model}", flush=True)
+        return
     once = "--once" in sys.argv
     while True:
         n = run_once(db, ocr, llm)
