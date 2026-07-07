@@ -34,19 +34,34 @@ def select_docs(docs, question: str, llm, max_docs: int = MAX_DOCS_FLAT):
     return [docs[i] for i in picks[:max_docs]]
 
 
+def descend(candidates, question: str, llm):
+    """Recursive per-level pick over (doc_id, doc_title, storage_path, node) tuples.
+    Picked nodes with children recurse; without children they are leaf results.
+    Empty pick at a level drops that subtree — grounding is enforced by the caller's
+    empty-final-set check, since a picked leaf is grounded regardless of siblings."""
+    if not candidates:
+        return []
+    titles = [f"{title} — {node['title']}" for _, title, _, node in candidates]
+    picks = llm.pick(question, titles)
+    leaves, next_level = [], []
+    for i in picks:
+        doc_id, title, path, node = candidates[i]
+        kids = node.get("nodes") or []
+        if kids:
+            next_level.extend((doc_id, title, path, k) for k in kids)
+        else:
+            leaves.append(candidates[i])
+    return leaves + descend(next_level, question, llm)
+
+
 def traverse(docs, question: str, llm) -> Answer:
     """Grounding invariant: every non-refusal answer cites the nodes it was built from;
     no relevant nodes / empty context / model NOT_FOUND all yield the refusal answer."""
-    candidates = flatten(select_docs(docs, question, llm))
-    if not candidates:
+    picked = descend(flatten(select_docs(docs, question, llm)), question, llm)
+    if not picked:
         return _refusal()
 
-    titles = [f"{title} — {node['title']}" for _, title, _, node in candidates]
-    picks = llm.pick(question, titles)
-    if not picks:
-        return _refusal()
-
-    context = "\n".join(candidates[i][3].get("summary", "") for i in picks)
+    context = "\n".join(node.get("summary", "") for _, _, _, node in picked)
     if not context.strip():
         return _refusal()
 
@@ -55,8 +70,7 @@ def traverse(docs, question: str, llm) -> Answer:
         return _refusal()
 
     citations = []
-    for i in picks:
-        doc_id, doc_title, storage_path, node = candidates[i]
+    for doc_id, doc_title, storage_path, node in picked:
         citations.append(Citation(
             document_id=doc_id, title=doc_title, node_title=node["title"],
             page_start=node["page_start"], page_end=node["page_end"],
