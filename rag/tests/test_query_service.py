@@ -1,9 +1,9 @@
 import pytest
 from query_service import (
-    parse_bearer, read_docs, handle_query, log_query,
+    parse_bearer, read_docs, handle_query, stream_query, log_query,
     find_similar,
 )
-from llm import FakeLLM, REFUSAL_TEXT
+from llm import FakeLLM, NOT_FOUND, REFUSAL_TEXT
 from answer import Answer
 
 
@@ -21,6 +21,11 @@ class _FakeQuery:
     def insert(self, row): self.inserted = row; return self
     def limit(self, *_): return self
     def eq(self, *_): return self
+    def gte(self, *_): return self
+    def lte(self, *_): return self
+    def order(self, *_, **__): return self
+    def range(self, *_): return self
+    def in_(self, *_): return self
 
     def execute(self):
         if self._raise:
@@ -82,12 +87,27 @@ def test_read_docs_list_join_and_missing():
 # ---------- handle_query ----------
 
 def test_handle_query_document_mode():
+    client = _FakeClient({
+        "doc_indexes": [
+            {"document_id": "d1", "tree": _tree("A"), "documents": {"id": "d1", "title": "A"}},
+        ],
+        "doc_pages": [{"page": 1, "text": "A intro page body"}],
+    })
+    ans = handle_query("what is in the intro", client, FakeLLM())
+    assert ans.mode == "document"
+    assert len(ans.citations) == 1
+    assert "A intro page body" in ans.text  # answer built from page text, not summary
+
+
+def test_handle_query_document_mode_no_pages_refuses():
+    # Doc indexed before P2 (no doc_pages rows): refuse rather than silently
+    # fall back to summaries — requeue-all backfill is the deploy step.
     client = _FakeClient({"doc_indexes": [
         {"document_id": "d1", "tree": _tree("A"), "documents": {"id": "d1", "title": "A"}},
     ]})
     ans = handle_query("what is in the intro", client, FakeLLM())
-    assert ans.mode == "document"
-    assert len(ans.citations) == 1
+    assert ans.text == REFUSAL_TEXT
+    assert ans.citations == []
 
 
 def test_handle_query_structured_mode():
@@ -103,6 +123,7 @@ def test_handle_query_hybrid_merges_numbers_and_citations():
         "doc_indexes": [
             {"document_id": "d1", "tree": _tree("A"), "documents": {"id": "d1", "title": "A"}},
         ],
+        "doc_pages": [{"page": 1, "text": "A intro page body"}],
     })
     ans = handle_query("HYBRID how are documents doing", client, FakeLLM())
     assert ans.mode == "hybrid"
@@ -130,6 +151,237 @@ def test_handle_query_structured_failure_falls_back_to_documents():
     ans = handle_query("COUNT documents by status", client, FakeLLM())
     assert ans.mode == "document"
     assert ans.text == REFUSAL_TEXT
+
+
+# ---------- history (P3) ----------
+
+def test_handle_query_history_reaches_prompts():
+    seen = {}
+
+    class SpyLLM(FakeLLM):
+        def route(self, question, catalog, examples=None):
+            seen["route_q"] = question
+            return super().route(question, catalog, examples)
+
+        def answer(self, question, context):
+            seen["answer_q"] = question
+            return super().answer(question, context)
+
+    client = _FakeClient({
+        "doc_indexes": [
+            {"document_id": "d1", "tree": _tree("A"), "documents": {"id": "d1", "title": "A"}},
+        ],
+        "doc_pages": [{"page": 1, "text": "A intro page body"}],
+    })
+    history = [{"question": "What is LWMD?", "answer": "A division working on waste."}]
+    handle_query("what about its projects?", client, SpyLLM(), history=history)
+    for key in ("route_q", "answer_q"):
+        assert "What is LWMD?" in seen[key]
+        assert "what about its projects?" in seen[key]
+
+
+def test_handle_query_history_caps_turns_and_answer_length():
+    from query_service import _with_history, HISTORY_MAX_TURNS
+    history = [{"question": f"q{i}", "answer": "a" * 1000} for i in range(5)]
+    combined = _with_history("now", history)
+    assert "q0" not in combined and "q1" not in combined      # only last 3 turns
+    assert sum(1 for _ in range(5) if f"q{_}" in combined) == HISTORY_MAX_TURNS
+    assert "a" * 301 not in combined                           # answers truncated
+
+
+def test_handle_query_no_history_unchanged():
+    client = _FakeClient({
+        "doc_indexes": [
+            {"document_id": "d1", "tree": _tree("A"), "documents": {"id": "d1", "title": "A"}},
+        ],
+        "doc_pages": [{"page": 1, "text": "A intro page body"}],
+    })
+    ans = handle_query("what is in the intro", client, FakeLLM(), history=None)
+    assert "A intro page body" in ans.text
+
+
+# ---------- select_corpus (P4) ----------
+
+def test_select_corpus_no_collections_falls_back_to_all_docs():
+    from query_service import select_corpus
+    client = _FakeClient({"doc_indexes": [
+        {"document_id": "d1", "tree": _tree("A"), "documents": {"id": "d1", "title": "A"}},
+    ]})
+    docs = select_corpus("q", client, FakeLLM())
+    assert [d["id"] for d in docs] == ["d1"]
+
+
+def test_select_corpus_collection_pick_sees_summaries():
+    from query_service import select_corpus
+    seen = {}
+
+    class SpyLLM(FakeLLM):
+        def pick(self, question, titles):
+            seen["labels"] = titles
+            return super().pick(question, titles)
+
+    client = _FakeClient({
+        "collection_indexes": [
+            {"collection_key": "proposal", "title": "Proposals", "summary": "Project proposals."},
+            {"collection_key": "meeting", "title": "Meetings", "summary": "Meeting minutes."},
+        ],
+        "doc_indexes": [
+            {"document_id": "d1", "tree": _tree("A"), "documents": {"id": "d1", "title": "A"}},
+        ],
+    })
+    docs = select_corpus("q", client, SpyLLM())
+    assert seen["labels"] == ["Proposals — Project proposals.", "Meetings — Meeting minutes."]
+    assert [d["id"] for d in docs] == ["d1"]
+
+
+def test_select_corpus_empty_collection_pick_refuses():
+    from query_service import select_corpus
+
+    class NoPickLLM(FakeLLM):
+        def pick(self, question, titles):
+            return []
+
+    client = _FakeClient({
+        "collection_indexes": [
+            {"collection_key": "proposal", "title": "Proposals", "summary": "Project proposals."},
+        ],
+        "doc_indexes": [
+            {"document_id": "d1", "tree": _tree("A"), "documents": {"id": "d1", "title": "A"}},
+        ],
+    })
+    assert select_corpus("q", client, NoPickLLM()) == []
+    ans = handle_query("q", client, NoPickLLM())
+    assert ans.text == REFUSAL_TEXT
+
+
+def test_read_docs_paginates():
+    from query_service import read_docs, _PAGE_SIZE
+
+    class _PagedQuery(_FakeQuery):
+        def __init__(self, pages):
+            super().__init__([])
+            self._pages = pages
+            self._page = 0
+
+        def range(self, start, _end):
+            self._page = start // _PAGE_SIZE
+            return self
+
+        def execute(self):
+            pages = self._pages
+            data = pages[self._page] if self._page < len(pages) else []
+            return _FakeExec(data)
+
+    full = [{"document_id": f"d{i}", "tree": _tree("A"),
+             "documents": {"id": f"d{i}", "title": "A"}} for i in range(_PAGE_SIZE)]
+    tail = [{"document_id": "dx", "tree": _tree("B"),
+             "documents": {"id": "dx", "title": "B"}}]
+
+    class _PagedClient(_FakeClient):
+        def table(self, name):
+            return _PagedQuery([full, tail])
+
+    docs = read_docs(_PagedClient())
+    assert len(docs) == _PAGE_SIZE + 1
+    assert docs[-1]["id"] == "dx"
+
+
+# ---------- route few-shots (P6) ----------
+
+def test_route_labels_reach_route_prompt():
+    seen = {}
+
+    class SpyRouteLLM(FakeLLM):
+        def route(self, question, catalog, examples=None):
+            seen["examples"] = examples
+            return super().route(question, catalog, examples)
+
+    client = _FakeClient({
+        "route_labels": [{"question": "how many phd students", "correct_route": "structured"}],
+        "doc_indexes": [],
+    })
+    handle_query("q", client, SpyRouteLLM())
+    assert seen["examples"] == [
+        {"question": "how many phd students", "correct_route": "structured"}]
+
+
+def test_read_route_labels_missing_table_is_empty():
+    from query_service import read_route_labels
+    assert read_route_labels(_FakeClient(raise_on_execute=True)) == []
+
+
+def test_route_prompt_includes_labeled_examples():
+    from llm import _route_user_prompt
+    prompt = _route_user_prompt(
+        "q", {"fn": "desc"},
+        examples=[{"question": "how many phd students", "correct_route": "structured"}])
+    assert 'Q: how many phd students' in prompt
+    assert '"route": "structured"' in prompt
+
+
+def test_export_labels_idempotent(tmp_path):
+    import sys
+    sys.path.insert(0, str((__import__('pathlib').Path(__file__).parent.parent / 'eval')))
+    from export_labels import export
+    gold = tmp_path / "gold.jsonl"
+    gold.write_text('{"question": "existing", "expected_mode": "document"}\n', encoding="utf-8")
+    rows = [{"question": "existing", "correct_route": "structured"},
+            {"question": "new q", "correct_route": "hybrid"}]
+    assert export(rows, gold) == 1
+    assert export(rows, gold) == 0
+    lines = [l for l in gold.read_text(encoding="utf-8").splitlines() if l]
+    assert len(lines) == 2
+
+
+# ---------- stream_query (P9) ----------
+
+def _stream_client():
+    return _FakeClient({
+        "doc_indexes": [
+            {"document_id": "d1", "tree": _tree("A"), "documents": {"id": "d1", "title": "A"}},
+        ],
+        "doc_pages": [{"page": 1, "text": "A intro page body"}],
+    })
+
+
+def test_stream_query_document_tokens_then_done():
+    events = list(stream_query("what is in the intro", _stream_client(), FakeLLM()))
+    kinds = [k for k, _ in events]
+    assert kinds[-1] == "done" and "token" in kinds
+    tokens = "".join(v for k, v in events if k == "token")
+    answer = events[-1][1]
+    assert tokens == answer.text != REFUSAL_TEXT
+    assert "A intro page body" in answer.text
+    assert len(answer.citations) == 1
+
+
+def test_stream_query_refusal_no_citations():
+    client = _FakeClient({"doc_indexes": []})
+    events = list(stream_query("anything", client, FakeLLM()))
+    answer = events[-1][1]
+    assert answer.text == REFUSAL_TEXT
+    assert answer.citations == []
+
+
+def test_stream_query_not_found_stream_becomes_refusal():
+    class NotFoundStreamLLM(FakeLLM):
+        def answer_stream(self, question, context):
+            yield "NOT_"
+            yield "FOUND"
+
+    events = list(stream_query("q", _stream_client(), NotFoundStreamLLM()))
+    answer = events[-1][1]
+    assert answer.text == REFUSAL_TEXT
+    assert answer.citations == []
+    # sentinel never leaked as tokens
+    assert all(NOT_FOUND not in v for k, v in events if k == "token")
+
+
+def test_stream_query_structured_single_token():
+    client = _FakeClient({"documents": [{"ingest_status": "indexed"}]})
+    events = list(stream_query("COUNT documents by status", client, FakeLLM()))
+    assert [k for k, _ in events] == ["token", "done"]
+    assert events[-1][1].mode == "structured"
 
 
 # ---------- log_query ----------

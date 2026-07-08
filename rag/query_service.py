@@ -5,9 +5,9 @@ blocked (dev laptop WDAC)."""
 import dataclasses
 
 from answer import Answer
-from llm import REFUSAL_TEXT
+from llm import NOT_FOUND, REFUSAL_TEXT
 from router import decide
-from retrieval import traverse, flatten, select_docs
+from retrieval import traverse, pick_context, flatten, select_docs
 from analytics import run_analytics, CATALOG
 
 
@@ -18,21 +18,91 @@ def parse_bearer(authorization) -> str:
     return authorization.split(" ", 1)[1].strip()
 
 
-def read_docs(client):
-    """RLS-scoped doc_indexes rows -> [{'id','title','storage_path','tree'}] for traversal."""
-    rows = (client.table("doc_indexes")
-            .select("document_id, tree, documents(id, title, storage_path)")
-            .limit(200).execute().data) or []  # ponytail: paginate past 200 docs
-    docs = []
-    for r in rows:
-        doc = r.get("documents") or {}
-        if isinstance(doc, list):  # PostgREST may return the join as a 1-element list
-            doc = doc[0] if doc else {}
-        docs.append({"id": doc.get("id", r["document_id"]),
-                     "title": doc.get("title", "Document"),
-                     "storage_path": doc.get("storage_path", ""),
-                     "tree": r["tree"]})
-    return docs
+_PAGE_SIZE = 200
+
+
+def read_docs(client, entity_types=None):
+    """RLS-scoped doc_indexes rows -> [{'id','title','storage_path','tree'}] for
+    traversal. Paginated, so no corpus-size cap. entity_types narrows to the
+    collections picked at the collection stage (inner join to filter on the
+    parent document's entity_type)."""
+    docs, page = [], 0
+    while True:
+        if entity_types is None:
+            q = (client.table("doc_indexes")
+                 .select("document_id, tree, documents(id, title, storage_path)"))
+        else:
+            q = (client.table("doc_indexes")
+                 .select("document_id, tree, documents!inner(id, title, storage_path, entity_type)")
+                 .in_("documents.entity_type", entity_types))
+        rows = (q.range(page * _PAGE_SIZE, (page + 1) * _PAGE_SIZE - 1)
+                .execute().data) or []
+        for r in rows:
+            doc = r.get("documents") or {}
+            if isinstance(doc, list):  # PostgREST may return the join as a 1-element list
+                doc = doc[0] if doc else {}
+            docs.append({"id": doc.get("id", r["document_id"]),
+                         "title": doc.get("title", "Document"),
+                         "storage_path": doc.get("storage_path", ""),
+                         "tree": r["tree"]})
+        if len(rows) < _PAGE_SIZE:
+            return docs
+        page += 1
+
+
+def read_collections(client):
+    """collection_indexes rows for the collection-stage pick. Empty when the
+    worker hasn't built collections yet — callers fall back to the flat corpus."""
+    rows = (client.table("collection_indexes")
+            .select("collection_key, title, summary").execute().data) or []
+    return [r for r in rows if (r.get("summary") or "").strip()]
+
+
+def select_corpus(question, client, llm):
+    """Collection-stage descent: pick collections, then load only their docs.
+    No collections built -> whole corpus (pre-P4 behavior). Empty picks -> []
+    so traversal refuses (grounding invariant, same as select_docs)."""
+    cols = read_collections(client)
+    if not cols:
+        return read_docs(client)
+    labels = [f"{c.get('title', c['collection_key'])} — {c['summary']}" for c in cols]
+    picks = llm.pick(question, labels)
+    if not picks:
+        return []
+    types = [cols[i]["collection_key"] for i in picks]
+    return read_docs(client, entity_types=types)
+
+
+ROUTE_FEWSHOT_K = 8
+
+
+def read_route_labels(client, k=ROUTE_FEWSHOT_K):
+    """Most recent admin-labeled routes -> few-shots for the route prompt.
+    Best-effort: an empty/missing table just means no extra examples."""
+    try:
+        rows = (client.table("route_labels")
+                .select("question, correct_route")
+                .order("created_at", desc=True).limit(k).execute().data) or []
+    except Exception:
+        return []
+    return rows
+
+
+def make_fetch_texts(client):
+    """fetch_texts(spans) over doc_pages, RLS-scoped — same read gate as the tree."""
+    def fetch_texts(spans):
+        out = []
+        for doc_id, page_start, page_end in spans:
+            try:
+                rows = (client.table("doc_pages").select("page, text")
+                        .eq("document_id", doc_id)
+                        .gte("page", page_start).lte("page", page_end)
+                        .order("page").execute().data) or []
+            except Exception:
+                rows = []
+            out.append("\n".join(r.get("text", "") for r in rows))
+        return out
+    return fetch_texts
 
 
 def _run_structured(function, params, client):
@@ -52,16 +122,73 @@ def _merge_hybrid(structured, doc) -> Answer:
     return Answer(f"{structured.text}\n\n{doc.text}", "hybrid", doc.citations)
 
 
-def handle_query(question, client, llm):
-    """Route and answer. client must be the caller's RLS-scoped client."""
-    decision = decide(question, llm, CATALOG)
+HISTORY_MAX_TURNS = 3
+HISTORY_ANSWER_CHARS = 300
+
+
+def _with_history(question, history):
+    """Prepend a condensed transcript so route, picks and answer all see the
+    conversation. The raw question is what gets logged (api.py logs its own copy)."""
+    turns = [f"Q: {h.get('question', '')}\nA: {(h.get('answer') or '')[:HISTORY_ANSWER_CHARS]}"
+             for h in history[-HISTORY_MAX_TURNS:]]
+    return "Earlier in this conversation:\n" + "\n".join(turns) + f"\n\nCurrent question: {question}"
+
+
+def handle_query(question, client, llm, history=None):
+    """Route and answer. client must be the caller's RLS-scoped client.
+    history: optional [{'question','answer'}] recent turns for follow-ups."""
+    if history:
+        question = _with_history(question, history)
+    decision = decide(question, llm, CATALOG, examples=read_route_labels(client))
+    fetch_texts = make_fetch_texts(client)
     if decision["route"] in ("structured", "hybrid"):
         structured = _run_structured(decision["function"], decision["params"], client)
         if structured is not None:
             if decision["route"] == "structured":
                 return structured
-            return _merge_hybrid(structured, traverse(read_docs(client), question, llm))
-    return traverse(read_docs(client), question, llm)
+            return _merge_hybrid(
+                structured, traverse(select_corpus(question, client, llm), question, llm, fetch_texts))
+    return traverse(select_corpus(question, client, llm), question, llm, fetch_texts)
+
+
+def stream_query(question, client, llm, history=None):
+    """Streaming variant of handle_query: yields ('token', str) chunks, then one
+    ('done', Answer). Only the document path truly streams; structured/hybrid
+    answers arrive as a single token. Grounding invariant matches traverse:
+    NOT_FOUND / blank answers become the refusal with zero citations."""
+    q = _with_history(question, history) if history else question
+    decision = decide(q, llm, CATALOG, examples=read_route_labels(client))
+    if decision["route"] in ("structured", "hybrid"):
+        answer = handle_query(question, client, llm, history=history)
+        yield ("token", answer.text)
+        yield ("done", answer)
+        return
+
+    pc = pick_context(select_corpus(q, client, llm), q, llm, make_fetch_texts(client))
+    if pc is None:
+        yield ("token", REFUSAL_TEXT)
+        yield ("done", Answer(REFUSAL_TEXT, "document", []))
+        return
+    context, citations = pc
+
+    # Hold tokens while the accumulated text could still be the NOT_FOUND sentinel;
+    # once it can't be, flush and stream the rest through.
+    buf, flushed = "", False
+    for chunk in llm.answer_stream(q, context):
+        buf += chunk
+        if flushed:
+            yield ("token", chunk)
+        elif not NOT_FOUND.startswith(buf.strip()[:len(NOT_FOUND)]):
+            flushed = True
+            yield ("token", buf)
+    text = buf.strip()
+    if not text or text == NOT_FOUND or not citations:
+        yield ("token", REFUSAL_TEXT)
+        yield ("done", Answer(REFUSAL_TEXT, "document", []))
+        return
+    if not flushed:  # short answer that never cleared the sentinel guard
+        yield ("token", buf)
+    yield ("done", Answer(text, "document", citations))
 
 
 def find_similar(text, client, llm):

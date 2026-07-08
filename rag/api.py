@@ -5,14 +5,17 @@ Security: every read uses the caller's JWT via a scoped client, so RLS is the on
 doc-scoping gate. Structured questions run only whitelisted analytics functions."""
 
 import dataclasses
+import json
 import os
 import time
+import urllib.error
 
 from fastapi import FastAPI, Header, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from auth import verify_token, scoped_client
-from query_service import parse_bearer, handle_query, log_query, find_similar
+from query_service import parse_bearer, handle_query, stream_query, log_query, find_similar
 from llm import make_llm
 
 app = FastAPI(title="Ask SURYA")
@@ -26,13 +29,18 @@ _LLM = make_llm(
 )
 
 
+class HistoryTurn(BaseModel):
+    question: str
+    answer: str
+
+
 class QueryIn(BaseModel):
     question: str
+    history: list[HistoryTurn] | None = None
 
 
-@app.post("/query")
-def query(body: QueryIn, authorization: str | None = Header(default=None)):
-    question = (body.question or "").strip()
+def _authed_client(body_question: str, authorization):
+    question = (body_question or "").strip()
     if not question:
         raise HTTPException(status_code=400, detail="empty question")
     try:
@@ -43,14 +51,46 @@ def query(body: QueryIn, authorization: str | None = Header(default=None)):
         verify_token(jwt, _ANON_URL, _ANON_KEY)
     except PermissionError:
         raise HTTPException(status_code=401, detail="invalid token")
-    client = scoped_client(_ANON_URL, _ANON_KEY, jwt)
+    return question, scoped_client(_ANON_URL, _ANON_KEY, jwt)
+
+
+@app.post("/query")
+def query(body: QueryIn, authorization: str | None = Header(default=None)):
+    question, client = _authed_client(body.question, authorization)
 
     started = time.perf_counter()
-    answer = handle_query(question, client, _LLM)
+    history = [t.model_dump() for t in body.history] if body.history else None
+    try:
+        answer = handle_query(question, client, _LLM, history=history)
+    except (TimeoutError, urllib.error.URLError):
+        raise HTTPException(status_code=504, detail="model timeout")
     latency_ms = int((time.perf_counter() - started) * 1000)
     payload = dataclasses.asdict(answer)
     payload["query_id"] = log_query(client, question, answer, latency_ms=latency_ms)
     return payload
+
+
+@app.post("/query/stream")
+def query_stream(body: QueryIn, authorization: str | None = Header(default=None)):
+    question, client = _authed_client(body.question, authorization)
+    history = [t.model_dump() for t in body.history] if body.history else None
+
+    def events():
+        started = time.perf_counter()
+        try:
+            for kind, value in stream_query(question, client, _LLM, history=history):
+                if kind == "token":
+                    yield f"data: {json.dumps({'token': value})}\n\n"
+                else:
+                    latency_ms = int((time.perf_counter() - started) * 1000)
+                    payload = dataclasses.asdict(value)
+                    payload["query_id"] = log_query(client, question, value,
+                                                    latency_ms=latency_ms)
+                    yield f"data: {json.dumps({'done': payload})}\n\n"
+        except (TimeoutError, urllib.error.URLError):
+            yield f"data: {json.dumps({'error': 'model timeout'})}\n\n"
+
+    return StreamingResponse(events(), media_type="text/event-stream")
 
 
 class SimilarIn(BaseModel):

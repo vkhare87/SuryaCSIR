@@ -1,9 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { RefreshCw, ScanText } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { Card, Badge } from '../components/ui/Cards';
 import { EmptyState } from '../components/ui/EmptyState';
-import { fetchMonitorRows, requeueDocument, requeueAll, countByStatus } from '../lib/rag/monitor';
-import type { MonitorRow, IngestStatus } from '../lib/rag/monitor';
+import {
+  fetchMonitorRows, fetchLatencies, fetchDownvoted, labelRoute,
+  requeueDocument, requeueAll, countByStatus, percentile,
+} from '../lib/rag/monitor';
+import type { MonitorRow, IngestStatus, LatencyPoint, DownvotedQuery, RouteMode } from '../lib/rag/monitor';
+
+const ROUTES: RouteMode[] = ['structured', 'document', 'hybrid'];
 
 const STATUS_ORDER: IngestStatus[] = ['pending', 'processing', 'indexed', 'failed', 'skipped'];
 
@@ -17,12 +23,16 @@ const STATUS_VARIANT: Record<IngestStatus, 'success' | 'warning' | 'danger' | 'i
 
 export default function RagMonitor() {
   const [rows, setRows] = useState<MonitorRow[]>([]);
+  const [latencies, setLatencies] = useState<LatencyPoint[]>([]);
+  const [downvoted, setDownvoted] = useState<DownvotedQuery[]>([]);
   const [loading, setLoading] = useState(true);
 
   async function load() {
     setLoading(true);
     try {
       setRows(await fetchMonitorRows());
+      setLatencies(await fetchLatencies());
+      setDownvoted(await fetchDownvoted());
     } catch (e) {
       console.error('Failed to load RAG monitor', e);
       setRows([]);
@@ -37,6 +47,20 @@ export default function RagMonitor() {
     () => countByStatus(rows.map((r) => ({ ingest_status: r.status }))),
     [rows],
   );
+
+  const latencyStats = useMemo(() => {
+    const values = latencies.map((l) => l.latencyMs);
+    return { p50: percentile(values, 50), p90: percentile(values, 90), p99: percentile(values, 99) };
+  }, [latencies]);
+
+  async function label(q: DownvotedQuery, route: RouteMode) {
+    try {
+      await labelRoute(q.id, q.question, route);
+      setDownvoted((prev) => prev.map((d) => (d.id === q.id ? { ...d, labeled: true } : d)));
+    } catch (e) {
+      console.error('Route label failed', e);
+    }
+  }
 
   async function requeue(id: string) {
     try {
@@ -79,6 +103,68 @@ export default function RagMonitor() {
         ))}
       </div>
 
+      {latencies.length > 0 && (
+        <Card className="p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-medium text-text">Query latency (last {latencies.length})</div>
+            <div className="flex gap-4 text-sm text-text-muted">
+              <span>p50 {latencyStats.p50 != null ? `${latencyStats.p50} ms` : '—'}</span>
+              <span>p90 {latencyStats.p90 != null ? `${latencyStats.p90} ms` : '—'}</span>
+              <span>p99 {latencyStats.p99 != null ? `${latencyStats.p99} ms` : '—'}</span>
+            </div>
+          </div>
+          <div className="h-40">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={latencies}>
+                <XAxis dataKey="createdAt" hide />
+                <YAxis width={48} tick={{ fontSize: 11 }} />
+                <Tooltip
+                  formatter={(v) => [`${v} ms`, 'latency']}
+                  labelFormatter={(l) => new Date(l as string).toLocaleString()}
+                />
+                <Line type="monotone" dataKey="latencyMs" dot={false} stroke="#3b82f6" strokeWidth={1.5} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+      )}
+
+      {downvoted.length > 0 && (
+        <Card className="p-4 space-y-3">
+          <div>
+            <div className="text-sm font-medium text-text">Downvoted queries</div>
+            <div className="text-xs text-text-muted">
+              Label the correct route — labels become router few-shots and eval cases.
+            </div>
+          </div>
+          <ul className="space-y-2">
+            {downvoted.map((q) => (
+              <li key={q.id} className="flex items-center justify-between gap-3 text-sm">
+                <span className="min-w-0 flex-1 truncate text-text" title={q.question}>
+                  {q.question}
+                  <span className="ml-2 text-xs text-text-muted">(routed {q.mode})</span>
+                </span>
+                {q.labeled ? (
+                  <span className="text-xs text-text-muted">Labeled</span>
+                ) : (
+                  <span className="flex gap-1">
+                    {ROUTES.map((r) => (
+                      <button
+                        key={r}
+                        onClick={() => void label(q, r)}
+                        className="rounded border border-border px-2 py-0.5 text-xs text-text-muted hover:bg-surface-hover hover:text-text"
+                      >
+                        {r}
+                      </button>
+                    ))}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
       {loading ? (
         <div className="text-text-muted">Loading…</div>
       ) : rows.length === 0 ? (
@@ -96,6 +182,7 @@ export default function RagMonitor() {
                 <th className="p-3 font-medium">Entity</th>
                 <th className="p-3 font-medium">Status</th>
                 <th className="p-3 font-medium">Pages</th>
+                <th className="p-3 font-medium">Attempts</th>
                 <th className="p-3 font-medium">Error</th>
                 <th className="p-3 font-medium">Action</th>
               </tr>
@@ -109,6 +196,7 @@ export default function RagMonitor() {
                     <Badge variant={STATUS_VARIANT[r.status]}>{r.status}</Badge>
                   </td>
                   <td className="p-3 text-text-muted">{r.pageCount ?? '—'}</td>
+                  <td className="p-3 text-text-muted">{r.attempts > 0 ? r.attempts : '—'}</td>
                   <td className="p-3 text-text-muted">{r.error ?? '—'}</td>
                   <td className="p-3">
                     {(r.status === 'failed' || r.status === 'indexed') && (

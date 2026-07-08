@@ -105,3 +105,73 @@ def test_traverse_large_corpus_stays_grounded():
     ans = traverse(docs, "q", FakeLLM())
     assert ans.citations
     assert ans.citations[0].document_id == "d0"
+
+
+# ---------- P1: recursive descent over nested trees ----------
+
+def _nested_doc(doc_id="d1", title="Report N"):
+    return {
+        "id": doc_id, "title": title,
+        "tree": {"tree_version": 2, "root": {"title": title, "summary": "s", "nodes": [
+            {"title": "Chapter 1", "summary": "ch1", "page_start": 1, "page_end": 10, "nodes": [
+                {"title": "Section 1.1", "summary": "s11 detail", "page_start": 1, "page_end": 4, "nodes": []},
+                {"title": "Section 1.2", "summary": "s12 detail", "page_start": 5, "page_end": 10, "nodes": []},
+            ]},
+            {"title": "Chapter 2", "summary": "ch2", "page_start": 11, "page_end": 20, "nodes": []},
+        ]}},
+    }
+
+
+def test_descend_cites_leaf_page_range():
+    ans = traverse([_nested_doc()], "q", FakeLLM())     # pick -> [0] at each level
+    assert len(ans.citations) == 1
+    c = ans.citations[0]
+    assert c.node_title == "Section 1.1"
+    assert (c.page_start, c.page_end) == (1, 4)          # leaf range, not chapter range
+
+
+def test_descend_child_level_no_pick_refuses():
+    class ChildNoPickLLM(FakeLLM):
+        def pick(self, question, titles):
+            return [0] if any("Chapter" in t for t in titles) else []
+    ans = traverse([_nested_doc()], "q", ChildNoPickLLM())
+    assert ans.text == REFUSAL_TEXT
+    assert ans.citations == []
+
+
+def test_descend_v1_flat_tree_unchanged():
+    ans = traverse([_doc("d1", "Report A")], "q", FakeLLM())  # no tree_version, empty children
+    assert ans.citations[0].node_title == "Intro"
+
+
+# ---------- P2: answer from source page text ----------
+
+def test_fetch_texts_answer_uses_page_text_not_summary():
+    seen_spans = []
+
+    def fetch_texts(spans):
+        seen_spans.extend(spans)
+        return ["actual page one text"]
+
+    ans = traverse([_doc("d1", "Report A")], "q", FakeLLM(), fetch_texts=fetch_texts)
+    assert ans.text.startswith("actual page one text")   # FakeLLM echoes first context line
+    assert seen_spans == [("d1", 1, 1)]
+    assert ans.citations[0].node_title == "Intro"
+
+
+def test_fetch_texts_all_blank_refuses():
+    ans = traverse([_doc("d1", "Report A")], "q", FakeLLM(), fetch_texts=lambda spans: ["  "])
+    assert ans.text == REFUSAL_TEXT
+    assert ans.citations == []
+
+
+def test_context_budget_truncates_per_node():
+    from retrieval import _context, CONTEXT_BUDGET
+
+    node = {"title": "N", "summary": "s", "page_start": 1, "page_end": 2, "nodes": []}
+    picked = [("d1", "T", "", node), ("d2", "T", "", node)]
+    long = "x" * CONTEXT_BUDGET
+    ctx = _context(picked, lambda spans: [long, long])
+    # 2 picked nodes -> each capped at half the budget (+1 join newline)
+    assert len(ctx) == CONTEXT_BUDGET + 1
+    assert ctx.count("\n") == 1

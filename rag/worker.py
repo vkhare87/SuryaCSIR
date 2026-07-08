@@ -21,6 +21,7 @@ def process_document(doc, db, ocr, llm) -> None:
         if tree_is_empty(tree):
             db.mark(doc.id, "failed", "no extractable text — scanned PDF with OCR disabled?")
             return
+        db.save_pages(doc.id, parsed.pages)  # pages before index: an indexed doc always has its pages
         db.save_index(doc.id, tree, getattr(llm, "model", "unknown"), len(parsed.pages))
         db.mark(doc.id, "indexed")
     except Exception as e:  # per-doc isolation: never halt the loop
@@ -55,10 +56,18 @@ def main():
         n = build_collections(db, llm)
         print(f"[rag] built {n} collection index(es)", flush=True)
         return
+    if "--reindex-model" in sys.argv:
+        model = sys.argv[sys.argv.index("--reindex-model") + 1]
+        n = db.requeue_stale_model(model)
+        print(f"[rag] requeued {n} document(s) not built by {model}", flush=True)
+        return
     once = "--once" in sys.argv
     while True:
         n = run_once(db, ocr, llm)
         print(f"[rag] processed {n} document(s)", flush=True)
+        if n:  # keep collection summaries fresh for the collection-stage pick
+            c = build_collections(db, llm)
+            print(f"[rag] built {c} collection index(es)", flush=True)
         if once:
             return
         time.sleep(cfg.poll_interval_s)

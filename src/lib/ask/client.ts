@@ -11,7 +11,7 @@ export interface AskCitation {
 
 export interface AskAnswer {
   answer: string;
-  mode: 'document' | 'structured';
+  mode: 'document' | 'structured' | 'hybrid';
   citations: AskCitation[];
   queryId: string | null;
 }
@@ -19,12 +19,17 @@ export interface AskAnswer {
 // The RAG /query response uses dataclass field names (text/mode/citations); normalize here.
 interface QueryResponse {
   text: string;
-  mode: 'document' | 'structured';
+  mode: 'document' | 'structured' | 'hybrid';
   citations: AskCitation[];
   query_id: string | null;
 }
 
-export async function askSurya(question: string): Promise<AskAnswer> {
+export interface AskHistoryTurn {
+  question: string;
+  answer: string;
+}
+
+export async function askSurya(question: string, history?: AskHistoryTurn[]): Promise<AskAnswer> {
   const base = import.meta.env.VITE_RAG_URL;
   if (!base) throw new Error('VITE_RAG_URL is not configured');
   if (!supabase) throw new Error('Not signed in');
@@ -36,7 +41,7 @@ export async function askSurya(question: string): Promise<AskAnswer> {
   const res = await fetch(`${base}/query`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ question }),
+    body: JSON.stringify(history?.length ? { question, history } : { question }),
   });
   if (!res.ok) throw new Error(`Ask SURYA failed (${res.status})`);
 
@@ -44,6 +49,59 @@ export async function askSurya(question: string): Promise<AskAnswer> {
   return {
     answer: data.text, mode: data.mode,
     citations: data.citations ?? [], queryId: data.query_id ?? null,
+  };
+}
+
+/**
+ * Streaming ask: onToken receives text chunks as the model produces them;
+ * resolves with the final answer (citations, queryId). Falls back to the
+ * non-streaming endpoint when /query/stream is unavailable.
+ */
+export async function askSuryaStream(
+  question: string,
+  history: AskHistoryTurn[],
+  onToken: (text: string) => void,
+): Promise<AskAnswer> {
+  const base = import.meta.env.VITE_RAG_URL;
+  if (!base) throw new Error('VITE_RAG_URL is not configured');
+  if (!supabase) throw new Error('Not signed in');
+
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+  if (!token) throw new Error('Not signed in');
+
+  const res = await fetch(`${base}/query/stream`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(history.length ? { question, history } : { question }),
+  });
+  if (res.status === 404 || res.status === 405) return askSurya(question, history);
+  if (!res.ok || !res.body) throw new Error(`Ask SURYA failed (${res.status})`);
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let done: QueryResponse | null = null;
+  for (;;) {
+    const { value, done: eof } = await reader.read();
+    if (eof) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n\n');
+    buffer = lines.pop() ?? '';
+    for (const line of lines) {
+      if (!line.startsWith('data:')) continue;
+      const event = JSON.parse(line.slice(5)) as {
+        token?: string; done?: QueryResponse; error?: string;
+      };
+      if (event.token) onToken(event.token);
+      if (event.done) done = event.done;
+      if (event.error) throw new Error(event.error);
+    }
+  }
+  if (!done) throw new Error('Stream ended without a final answer');
+  return {
+    answer: done.text, mode: done.mode,
+    citations: done.citations ?? [], queryId: done.query_id ?? null,
   };
 }
 

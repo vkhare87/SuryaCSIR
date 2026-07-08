@@ -12,13 +12,14 @@ def _extract_json(raw: str) -> dict:
     return json.loads(raw[start:end + 1])
 
 
-def decide(question: str, llm, catalog: dict) -> dict:
+def decide(question: str, llm, catalog: dict, examples=None) -> dict:
     """One LLM call -> {'route', 'function', 'params'}. Any parse or validation
     failure falls back to the document route — the safe branch (RLS-scoped
     traversal). Structured routes may only name a function present in `catalog`;
-    that membership check is the no-free-form-SQL guarantee."""
+    that membership check is the no-free-form-SQL guarantee.
+    examples: optional [{'question','correct_route'}] admin-labeled few-shots (P6)."""
     try:
-        data = _extract_json(llm.route(question, catalog))
+        data = _extract_json(llm.route(question, catalog, examples))
     except Exception:
         return dict(_FALLBACK)
 
