@@ -87,3 +87,42 @@ def test_duplication_eval_empty_corpus():
 
 def test_avoided_duplication_cost():
     assert avoided_duplication_cost(0.7, 5_000_000, 2) == 7_000_000
+
+
+from run_eval import render_report, reshape_corpus_rows  # noqa: E402
+
+
+def test_render_report_contains_measured_metrics():
+    results = {
+        "router": {"total": 50, "mode_correct": 45, "accuracy": 0.9,
+                   "refusal_total": 5, "refusal_correct": 5},
+        "citation": {"total": 25, "hits": 21, "hit_rate": 0.84},
+        "duplication": {"cases": 10, "recall": 0.75, "precision": 0.66,
+                        "expected": 20, "hits": 15, "returned": 30, "relevant": 20},
+        "cost_avoidance_inr": 4500000.0,
+    }
+    md = render_report(results, backend="openllm", model="llama3.1:8b", corpus_size=42)
+    assert "0.84" in md and ">= 0.80" in md          # M2 measured vs target
+    assert "0.75" in md and "0.66" in md              # M4a / M4b
+    assert "45,00,000" in md or "4,500,000" in md     # M6 formatted
+    assert "openllm" in md and "llama3.1:8b" in md    # backend stamped
+    assert "M1" in md and "EVALUATION-PROTOCOL" in md # manual rows point at protocol
+
+
+def test_render_report_flags_fake_backend_as_floor():
+    md = render_report({"router": {"total": 1, "mode_correct": 1, "accuracy": 1.0,
+                                   "refusal_total": 0, "refusal_correct": 0}},
+                       backend="fake", model="", corpus_size=0)
+    assert "NOT the dissertation metric" in md
+
+
+def test_reshape_corpus_rows_matches_read_docs_shape():
+    rows = [{"tree": {"root": {"title": "T", "nodes": []}},
+             "documents": {"id": "d1", "title": "Doc", "storage_path": "p.pdf"}}]
+    docs = reshape_corpus_rows(rows)
+    assert docs == [{"id": "d1", "title": "Doc", "storage_path": "p.pdf",
+                     "tree": {"root": {"title": "T", "nodes": []}}}]
+
+
+def test_reshape_corpus_rows_skips_rowless_join():
+    assert reshape_corpus_rows([{"tree": {}, "documents": None}]) == []
