@@ -231,7 +231,9 @@ Read the relevant `.claude/skills/*` before working on PMS, RLS, or new UI primi
 **Open:**
 - **HR column casing**: `"divCode"`, `"DOJ"`, `"CompletioDate"` (typo) etc. — quoted CamelCase, mirrors source Excel. Renaming to snake_case is a coordinated DB-migration + code-change task; out of scope for now.
 - **RAG not yet run E2E** — needs, on the target host: migrations applied, `SUPABASE_SERVICE_KEY`, native DLLs allowed (WDAC), Ollama. Runbook: `deploy/README.md`.
-- **Citation deep-links** — Ask SURYA citations are text-only; threading `storage_path` through retrieval → `getDocumentUrl` gives clickable sources.
+
+**Resolved (2026-07-10):**
+- ~~Citation deep-links~~ — `storage_path` threaded through `/query` citations; `src/lib/ask/citations.ts` (`citationHref`) opens signed URLs from AskSurya + SimilarWorkPanel.
 
 **Resolved (2026-07-03, second pass):**
 - ~~`dataMigration.ts` tests~~ — `validateRows`/`detectColumnMappings`/`resolveImportDivisions`/`formatData` remap covered in `dataMigration.test.ts`.
