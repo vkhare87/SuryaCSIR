@@ -5,6 +5,7 @@ import { Button } from '../components/ui/Button';
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
 import { expiringWithin } from '../lib/partnerships/expiry';
+import { mouEvidence } from '../lib/partnerships/evidence';
 import { addMoU, addTechTransfer } from '../lib/partnerships/write';
 import type { MoU, TechTransfer } from '../types';
 
@@ -20,7 +21,7 @@ const TT_STATUS_VARIANT: Record<TechTransfer['status'], 'success' | 'warning' | 
 };
 
 export default function Partnerships() {
-  const { mous, techTransfers, refreshData } = useData();
+  const { mous, techTransfers, projects, refreshData } = useData();
   const { role } = useAuth();
   const canWrite = role ? WRITE_ROLES.includes(role) : false;
   const [tab, setTab] = useState<'mous' | 'transfers'>('mous');
@@ -39,6 +40,10 @@ export default function Partnerships() {
   });
 
   const expiring = useMemo(() => expiringWithin(mous, 90), [mous]);
+  const evidenceById = useMemo(
+    () => new Map(mous.map(m => [m.id, mouEvidence(m, projects, techTransfers)])),
+    [mous, projects, techTransfers],
+  );
   const totalValue = useMemo(
     () => techTransfers.filter(t => t.status !== 'Terminated')
       .reduce((s, t) => s + (t.valueLakhs ?? 0), 0),
@@ -183,20 +188,36 @@ export default function Partnerships() {
                   <th className="py-1 pr-2">Purpose</th>
                   <th className="py-1 pr-2">Signed</th>
                   <th className="py-1 pr-2">Valid Until</th>
-                  <th className="py-1">Status</th>
+                  <th className="py-1 pr-2">Status</th>
+                  <th className="py-1" title="Linked/sponsored projects and tech transfers inside the validity window — inferred, verify before a renewal call">
+                    Realised outputs
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {mous.map(m => (
-                  <tr key={m.id} className="border-t border-border text-text">
-                    <td className="py-1.5 pr-2 font-medium">{m.partnerName}</td>
-                    <td className="py-1.5 pr-2">{m.partnerType}</td>
-                    <td className="py-1.5 pr-2 text-text-muted">{m.purpose}</td>
-                    <td className="py-1.5 pr-2">{m.signedDate}</td>
-                    <td className="py-1.5 pr-2">{m.validUntil}</td>
-                    <td className="py-1.5"><Badge variant={MOU_STATUS_VARIANT[m.status]}>{m.status}</Badge></td>
-                  </tr>
-                ))}
+                {mous.map(m => {
+                  const ev = evidenceById.get(m.id);
+                  return (
+                    <tr key={m.id} className="border-t border-border text-text">
+                      <td className="py-1.5 pr-2 font-medium">{m.partnerName}</td>
+                      <td className="py-1.5 pr-2">{m.partnerType}</td>
+                      <td className="py-1.5 pr-2 text-text-muted">{m.purpose}</td>
+                      <td className="py-1.5 pr-2">{m.signedDate}</td>
+                      <td className="py-1.5 pr-2">{m.validUntil}</td>
+                      <td className="py-1.5 pr-2"><Badge variant={MOU_STATUS_VARIANT[m.status]}>{m.status}</Badge></td>
+                      <td className="py-1.5 text-text-muted">
+                        {ev && ev.total > 0
+                          ? [
+                              ev.linkedProject || ev.sponsoredProjects.length
+                                ? `${(ev.linkedProject ? 1 : 0) + ev.sponsoredProjects.length} project(s)`
+                                : null,
+                              ev.techTransfers.length ? `${ev.techTransfers.length} transfer(s)` : null,
+                            ].filter(Boolean).join(', ')
+                          : 'none recorded'}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}
