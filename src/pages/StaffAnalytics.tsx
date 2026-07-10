@@ -11,6 +11,8 @@ import { NetworkGraph, type GraphLink, type GraphNode } from '../components/viz/
 import { useChartFilter } from '../utils/useChartFilter';
 import { personNamesMatch } from '../utils/analytics';
 import { coAuthorPairs } from '../lib/intelligence/collaboration';
+import { successionRisk } from '../lib/staff/successionRisk';
+import { formatDate } from '../utils/dateUtils';
 
 function yearsBetween(dateStr: string, ref = new Date()): number {
   const t = Date.parse(dateStr);
@@ -154,6 +156,8 @@ export default function StaffAnalytics() {
     return Array.from(counts, ([label, value]) => ({ label, value }));
   }, [staff]);
 
+  const atRisk = useMemo(() => successionRisk(staff), [staff]);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
@@ -207,6 +211,37 @@ export default function StaffAnalytics() {
         <ChartCard title="Retirement runway" subtitle="from DOB + 60y">
           <CategoryBar data={retirementRunway} />
         </ChartCard>
+
+        {atRisk.length > 0 && (
+          <ChartCard
+            title="Succession risk"
+            subtitle="retiring within 3 years — CoreArea no staying colleague covers (exact match; verify synonyms manually)"
+            className="lg:col-span-2"
+          >
+            <table className="w-full text-sm">
+              <thead className="text-left text-text-muted">
+                <tr>
+                  <th className="p-2 font-medium">Name</th>
+                  <th className="p-2 font-medium">Designation</th>
+                  <th className="p-2 font-medium">Division</th>
+                  <th className="p-2 font-medium">Core area</th>
+                  <th className="p-2 font-medium">Retires</th>
+                </tr>
+              </thead>
+              <tbody>
+                {atRisk.map((r) => (
+                  <tr key={r.staff.ID} className="border-t border-border">
+                    <td className="p-2 text-text">{r.staff.Name}</td>
+                    <td className="p-2 text-text-muted">{r.staff.Designation}</td>
+                    <td className="p-2 text-text-muted">{r.staff.Division}</td>
+                    <td className="p-2 text-text-muted">{r.staff.CoreArea}</td>
+                    <td className="p-2 text-text-muted">{formatDate(r.retiresOn)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </ChartCard>
+        )}
 
         <ChartCard
           title="Org hierarchy"
