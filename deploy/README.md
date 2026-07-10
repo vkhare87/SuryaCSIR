@@ -15,10 +15,14 @@ both ─────────────────────────
 
 ## 0. One-time: apply migrations
 
-In the Supabase SQL Editor (as `postgres`), run the migrations in
-`supabase/migrations/` that aren't applied yet — for the RAG stack:
-`20260702000000_documents_registry.sql`, `20260702010000_project_reports.sql`,
-`20260702020000_doc_indexes.sql`, `20260702030000_rag_scale_quality.sql`.
+In the Supabase SQL Editor (as `postgres`), run **every** file in
+`supabase/migrations/` not yet applied, **in filename (timestamp) order**. For the
+RAG stack the load-bearing ones are `20260702000000` … `20260702030000` plus
+`20260707000000_query_log_latency.sql`, `20260707010000_doc_pages.sql`,
+`20260707020000_ingest_attempts.sql`, `20260707030000_route_labels.sql`; structured
+analytics also need `20260707010000_mous.sql`, `20260707020000_tech_transfers.sql`,
+`20260707030000_phd_milestones.sql`. (The `preflight.py --worker` check in §3.5
+verifies the schema so a missing migration is caught before the services start.)
 
 ## 1. Prerequisite (hard): allow Python native DLLs
 
@@ -53,6 +57,18 @@ Copy the two examples and fill them in; ACL-restrict to the service account
 - `C:\surya\env\rag-worker.env` ← `deploy/rag-worker.env.example` — adds
   `SUPABASE_SERVICE_KEY`. **Split on purpose: the API process (which handles user
   input) never holds the service key.**
+
+## 3.5 Preflight (run before installing services)
+
+```powershell
+cd C:\surya\rag
+# worker env (has the service key — validates DB schema too):
+Get-Content C:\surya\env\rag-worker.env | ForEach-Object { $k,$v = $_ -split '=',2; if ($k) { Set-Item "env:$k" $v } }
+.venv\Scripts\python.exe preflight.py --worker
+# api env:
+.venv\Scripts\python.exe preflight.py --api
+```
+Fix every `[FAIL]` before continuing; each line names the migration/action needed.
 
 ## 4. Register the services (NSSM)
 
