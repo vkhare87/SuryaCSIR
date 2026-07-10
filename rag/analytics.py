@@ -38,6 +38,14 @@ def _parse_date(value):
         return None
 
 
+def _add_years(d, years):
+    """d shifted by whole years; Feb-29 in a non-leap target lands on Feb-28."""
+    try:
+        return d.replace(year=d.year + years)
+    except ValueError:
+        return d.replace(month=2, day=28, year=d.year + years)
+
+
 def _count_documents_by_status(params, client) -> Answer:
     counts = _counts(_rows(client, "documents", "ingest_status"), "ingest_status")
     return Answer(f"Documents by ingestion status — {_fmt_counts(counts)}. "
@@ -133,6 +141,117 @@ def _tech_transfer_summary(params, client) -> Answer:
                   "(source: tech_transfers table)", "structured", [])
 
 
+def _expertise_search(params, client) -> Answer:
+    """Expertise discovery: rank in-house staff whose Expertise/CoreArea matches a
+    topic. Human-capital routing — 'who here has worked on X'. Ranked: match in both
+    fields ahead of one field."""
+    topic = str(params.get("topic") or "").strip().lower()
+    if not topic:
+        return Answer("No topic supplied for expertise search. "
+                      "(source: staff table)", "structured", [])
+    terms = [t for t in topic.replace(",", " ").split() if len(t) > 2] or [topic]
+    rows = _rows(client, "staff", "Name, Designation, Division, CoreArea, Expertise")
+    scored = []
+    for r in rows:
+        core = str(r.get("CoreArea") or "").lower()
+        exp = str(r.get("Expertise") or "").lower()
+        score = sum(1 for t in terms if t in core) + sum(1 for t in terms if t in exp)
+        if score:
+            scored.append((score, r))
+    scored.sort(key=lambda x: x[0], reverse=True)
+    if not scored:
+        return Answer(f"No staff found with expertise matching '{params.get('topic')}'. "
+                      "(source: staff table)", "structured", [])
+    top = scored[:10]
+    listing = "; ".join(
+        f"{r.get('Name') or 'Unknown'} ({r.get('Designation') or '—'}, "
+        f"div {r.get('Division') or '—'})" for _, r in top)
+    more = f" (+{len(scored) - len(top)} more)" if len(scored) > len(top) else ""
+    return Answer(f"{len(scored)} staff match expertise '{params.get('topic')}' — "
+                  f"{listing}{more}. (source: staff table)", "structured", [])
+
+
+# Utilization variance beyond this many percentage points from expected linear burn
+# flags a project (covenant-style early warning).
+_BUDGET_VARIANCE_PP = 25.0
+
+
+def _project_budget_variance(params, client) -> Answer:
+    """Budget early-warning: for active projects, compare utilization % against the
+    expected linear burn implied by elapsed time, and flag exhaustion/overrun.
+    Financial analogue: loan-covenant breach monitoring."""
+    threshold = _num(params.get("threshold_pp")) or _BUDGET_VARIANCE_PP
+    rows = _rows(client, "projects",
+                 "ProjectNo, ProjectName, ProjectStatus, StartDate, CompletioDate, "
+                 "SanctionedCost, UtilizedAmount")
+    today = date.today()
+    flags = []
+    for r in rows:
+        if str(r.get("ProjectStatus", "")).lower() in ("completed", "closed"):
+            continue
+        sanctioned = _num(r.get("SanctionedCost"))
+        if sanctioned <= 0:
+            continue
+        util_pct = _num(r.get("UtilizedAmount")) / sanctioned * 100
+        name = r.get("ProjectNo") or r.get("ProjectName") or "unknown"
+        if util_pct > 100:
+            flags.append(f"{name}: OVERRUN ({util_pct:.0f}% of budget spent)")
+            continue
+        start, end = _parse_date(r.get("StartDate")), _parse_date(r.get("CompletioDate"))
+        if start and end and end > start:
+            elapsed_pct = max(0.0, min(100.0, (today - start).days / (end - start).days * 100))
+            variance = util_pct - elapsed_pct
+            if abs(variance) >= threshold:
+                direction = "ahead of" if variance > 0 else "behind"
+                flags.append(f"{name}: {util_pct:.0f}% spent vs {elapsed_pct:.0f}% time "
+                             f"elapsed ({direction} burn by {abs(variance):.0f}pp)")
+        elif util_pct >= 90:
+            flags.append(f"{name}: near exhaustion ({util_pct:.0f}% spent, no timeline)")
+    if not flags:
+        return Answer("No active projects breach the budget-variance threshold. "
+                      "(source: projects table)", "structured", [])
+    return Answer(f"{len(flags)} project(s) flagged for budget variance — "
+                  f"{'; '.join(flags[:15])}"
+                  f"{' …' if len(flags) > 15 else ''}. (source: projects table)",
+                  "structured", [])
+
+
+# CSIR superannuation age; horizon (years) for succession-risk lookahead.
+_RETIREMENT_AGE = 60
+_SUCCESSION_YEARS = 3
+
+
+def _expertise_succession_risk(params, client) -> Answer:
+    """Key-person risk: staff retiring within N years whose CoreArea is held by no
+    colleague remaining after them. Financial analogue: single-point-of-failure /
+    uninsured concentration."""
+    years = int(_num(params.get("years")) or _SUCCESSION_YEARS)
+    rows = _rows(client, "staff", "Name, Designation, Division, DOB, CoreArea")
+    today = date.today()
+    horizon = _add_years(today, years)
+    retiring, staying_areas = [], set()
+    for r in rows:
+        dob = _parse_date(r.get("DOB"))
+        core = str(r.get("CoreArea") or "").strip()
+        retire_on = _add_years(dob, _RETIREMENT_AGE) if dob else None
+        if retire_on and today <= retire_on <= horizon:
+            retiring.append((r, retire_on, core.lower()))
+        elif core:
+            staying_areas.add(core.lower())
+    at_risk = [(r, retire_on) for r, retire_on, core in retiring
+               if core and core not in staying_areas]
+    if not at_risk:
+        return Answer(f"No unique-expertise succession risk within {years} year(s). "
+                      "(source: staff table)", "structured", [])
+    listing = "; ".join(
+        f"{r.get('Name') or 'Unknown'} ({r.get('CoreArea') or '—'}, "
+        f"div {r.get('Division') or '—'}, retires {retire_on.isoformat()})"
+        for r, retire_on in sorted(at_risk, key=lambda x: x[1]))
+    return Answer(f"{len(at_risk)} staff retiring within {years} year(s) hold expertise "
+                  f"no colleague covers — {listing}. (source: staff table)",
+                  "structured", [])
+
+
 ANALYTICS = {
     "count_documents_by_status": _count_documents_by_status,
     "count_projects_by_division": _count_projects_by_division,
@@ -144,6 +263,9 @@ ANALYTICS = {
     "overdue_phd_milestones": _overdue_phd_milestones,
     "mou_status_summary": _mou_status_summary,
     "tech_transfer_summary": _tech_transfer_summary,
+    "expertise_search": _expertise_search,
+    "project_budget_variance": _project_budget_variance,
+    "expertise_succession_risk": _expertise_succession_risk,
 }
 
 # One-line descriptions shown to the router LLM. Keys must mirror ANALYTICS
@@ -159,6 +281,9 @@ CATALOG = {
     "overdue_phd_milestones": "Count PhD scholar milestones past their due date and not completed, by milestone type.",
     "mou_status_summary": "MOU counts by status plus active MOUs expiring within 90 days.",
     "tech_transfer_summary": "Technology-transfer counts by status and total agreement value in lakhs.",
+    "expertise_search": "Find in-house staff with expertise in a topic; required param 'topic' (free text). Answers 'who has worked on X'.",
+    "project_budget_variance": "Flag active projects whose spend deviates from expected burn or nears exhaustion/overrun; optional param 'threshold_pp'.",
+    "expertise_succession_risk": "List staff retiring within N years whose expertise no colleague covers; optional param 'years'.",
 }
 
 

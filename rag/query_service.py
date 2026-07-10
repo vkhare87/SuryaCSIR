@@ -195,8 +195,13 @@ def find_similar(text, client, llm):
     """Duplication check: rank corpus sections similar to a proposed topic.
     Returns citation-shaped dicts (no generated prose — matches only, so the
     result is inherently grounded)."""
+    return similar_matches(read_docs(client), text, llm)
+
+
+def similar_matches(docs, text, llm):
+    """Client-free core of find_similar, shared with the offline duplication eval."""
     prompt = f"Find prior or ongoing work similar to: {text}"
-    candidates = flatten(select_docs(read_docs(client), prompt, llm))
+    candidates = flatten(select_docs(docs, prompt, llm))
     if not candidates:
         return []
     titles = [f"{title} — {node['title']}" for _, title, _, node in candidates]

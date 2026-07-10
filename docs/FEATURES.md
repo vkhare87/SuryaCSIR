@@ -200,7 +200,10 @@ Related docs: [RAG-SETUP-TUTORIAL.md](RAG-SETUP-TUTORIAL.md) (set up the AI laye
   projects by status; sanctioned-vs-utilized expenditure + utilization % (optional
   division); patent pipeline counts; publications by division (optional year); staff
   by division; overdue PhD milestones; MOU status + 90-day expiry; tech-transfer
-  totals.
+  totals; **expertise search** (who has worked on a topic); **project budget variance**
+  (spend vs expected burn / exhaustion / overrun — covenant-style early warning);
+  **expertise succession risk** (staff retiring within N years whose expertise no
+  colleague covers).
 - **Citations are clickable** — they open the source PDF at the cited page via a
   signed URL.
 - **Grounding guarantee:** if the indexed documents don't contain the answer, SURYA
@@ -213,6 +216,9 @@ Example questions:
 - "What is the total sanctioned cost versus utilized amount across all projects?"
 - "What outcomes did the 2025 progress reports highlight?"
 - "How many patents were granted, and which technologies do they cover?"
+- "Who has worked on corrosion-resistant coatings?"
+- "Which projects are overspending relative to their timeline?"
+- "Which retiring scientists hold expertise no one else covers?"
 
 ---
 

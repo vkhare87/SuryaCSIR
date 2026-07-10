@@ -1,3 +1,5 @@
+from datetime import date
+
 import pytest
 from analytics import run_analytics, ANALYTICS, CATALOG
 
@@ -114,3 +116,71 @@ def test_all_functions_answer_on_empty_tables():
         ans = run_analytics(name, {}, _FakeClient([]))
         assert ans.mode == "structured"
         assert ans.citations == []
+
+
+def test_expertise_search_ranks_by_field_matches():
+    rows = [
+        {"Name": "Dr A", "Designation": "Sci C", "Division": "CMD",
+         "CoreArea": "Corrosion coatings", "Expertise": "corrosion, coatings"},
+        {"Name": "Dr B", "Designation": "Sci B", "Division": "NST",
+         "CoreArea": "Battery materials", "Expertise": "corrosion testing"},
+        {"Name": "Dr C", "Designation": "Sci D", "Division": "EEC",
+         "CoreArea": "Photonics", "Expertise": "optics"},
+    ]
+    ans = run_analytics("expertise_search", {"topic": "corrosion"}, _FakeClient(rows))
+    assert "2 staff match" in ans.text
+    # Dr A (both fields) ranks before Dr B (one field)
+    assert ans.text.index("Dr A") < ans.text.index("Dr B")
+    assert "Dr C" not in ans.text
+
+
+def test_expertise_search_no_topic():
+    ans = run_analytics("expertise_search", {}, _FakeClient([{"Name": "X"}]))
+    assert "No topic" in ans.text
+
+
+def test_budget_variance_flags_overrun_and_burn_drift():
+    rows = [
+        {"ProjectNo": "P-OVER", "ProjectStatus": "Active", "SanctionedCost": "100",
+         "UtilizedAmount": "120", "StartDate": "2024-01-01", "CompletioDate": "2027-01-01"},
+        {"ProjectNo": "P-FAST", "ProjectStatus": "Active", "SanctionedCost": "100",
+         "UtilizedAmount": "95", "StartDate": "2999-01-01", "CompletioDate": "3000-01-01"},
+        {"ProjectNo": "P-OK", "ProjectStatus": "Active", "SanctionedCost": "100",
+         "UtilizedAmount": "5", "StartDate": "2999-01-01", "CompletioDate": "3000-01-01"},
+        {"ProjectNo": "P-DONE", "ProjectStatus": "Completed", "SanctionedCost": "100",
+         "UtilizedAmount": "200"},
+    ]
+    ans = run_analytics("project_budget_variance", {}, _FakeClient(rows))
+    assert "P-OVER: OVERRUN" in ans.text
+    assert "P-FAST" in ans.text          # 95% spent, ~0% elapsed -> ahead of burn
+    assert "P-OK" not in ans.text        # 5% spent, ~0% elapsed -> within threshold
+    assert "P-DONE" not in ans.text      # completed, skipped
+
+
+def test_budget_variance_none_flagged():
+    rows = [{"ProjectNo": "P1", "ProjectStatus": "Active", "SanctionedCost": "0",
+             "UtilizedAmount": "0"}]
+    ans = run_analytics("project_budget_variance", {}, _FakeClient(rows))
+    assert "No active projects breach" in ans.text
+
+
+def test_succession_risk_flags_unique_expertise():
+    today = date.today()
+    retiring_dob = today.replace(year=today.year - 58).isoformat()   # retires in ~2y
+    young_dob = today.replace(year=today.year - 30).isoformat()
+    rows = [
+        {"Name": "Dr Sole", "Designation": "Sci G", "Division": "CMD",
+         "DOB": retiring_dob, "CoreArea": "Rare craft"},
+        {"Name": "Dr Shared", "Designation": "Sci F", "Division": "CMD",
+         "DOB": retiring_dob, "CoreArea": "Common area"},
+        {"Name": "Dr Young", "Designation": "Sci B", "Division": "CMD",
+         "DOB": young_dob, "CoreArea": "Common area"},
+    ]
+    ans = run_analytics("expertise_succession_risk", {"years": 3}, _FakeClient(rows))
+    assert "Dr Sole" in ans.text          # unique area, no cover
+    assert "Dr Shared" not in ans.text     # 'Common area' also held by Dr Young
+
+
+def test_succession_risk_none():
+    ans = run_analytics("expertise_succession_risk", {}, _FakeClient([]))
+    assert "No unique-expertise succession risk" in ans.text
