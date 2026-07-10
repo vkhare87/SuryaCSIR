@@ -11,7 +11,7 @@ import {
   Search, Crown, Target, Phone, Users, Lightbulb, Info,
   Briefcase, Settings2, BookOpen, ChevronRight, AlertTriangle,
   CheckCircle2, Clock, ExternalLink, Building2, Plus, Edit,
-  BarChart3, LayoutGrid,
+  BarChart3, LayoutGrid, FileDown,
 } from 'lucide-react';
 
 const DivisionsAnalytics = lazy(() => import('./DivisionsAnalytics'));
@@ -19,10 +19,14 @@ import clsx from 'clsx';
 import { EmptyState } from '../components/ui/EmptyState';
 import { useCanEdit } from '../lib/permissions/canEdit';
 import { DivisionFormModal } from '../components/DivisionFormModal';
+import { buildDossier } from '../lib/divisions/dossier';
 import type { DivisionInfo, StaffMember } from '../types';
 
 export default function Divisions() {
-  const { divisions, staff, projects, equipment, scientificOutputs, ipIntelligence, isLoading } = useData();
+  const {
+    divisions, staff, projects, equipment, scientificOutputs, ipIntelligence,
+    mous, techTransfers, phDStudents, isLoading,
+  } = useData();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDivCode, setSelectedDivCode] = useState<string | null>(
@@ -40,6 +44,19 @@ export default function Divisions() {
   });
 
   const selectedDiv = divisions.find(d => d.divCode === selectedDivCode) || divisions[0];
+
+  function exportDossier() {
+    if (!selectedDiv) return;
+    const md = buildDossier(selectedDiv, {
+      staff, projects, scientificOutputs, ipIntelligence, mous, techTransfers, phDStudents,
+    });
+    const url = URL.createObjectURL(new Blob([md], { type: 'text/markdown;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `dossier_${selectedDiv.divCode}_${new Date().toISOString().slice(0, 10)}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   const divStaff = useMemo(() => {
     if (!selectedDiv) return [];
@@ -370,14 +387,22 @@ export default function Divisions() {
             </div>
             <div className="flex items-start justify-between gap-4">
               <h1 className="text-5xl font-[500] tracking-tight text-text uppercase font-serif">{selectedDiv.divName}</h1>
-              {canEdit && (
+              <div className="flex shrink-0 gap-2">
                 <button
-                  onClick={() => setEditTarget(selectedDiv)}
-                  className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-border rounded-lg text-xs font-medium text-text hover:bg-surface-hover transition-colors"
+                  onClick={exportDossier}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-border rounded-lg text-xs font-medium text-text hover:bg-surface-hover transition-colors"
                 >
-                  <Edit size={12} /> Edit
+                  <FileDown size={12} /> Handover dossier
                 </button>
-              )}
+                {canEdit && (
+                  <button
+                    onClick={() => setEditTarget(selectedDiv)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-border rounded-lg text-xs font-medium text-text hover:bg-surface-hover transition-colors"
+                  >
+                    <Edit size={12} /> Edit
+                  </button>
+                )}
+              </div>
             </div>
             <p className="text-lg text-text-muted italic font-medium leading-relaxed max-w-3xl border-l-4 border-[#c96442] pl-6">
               "{selectedDiv.divDescription || 'No description available for this division.'}"
