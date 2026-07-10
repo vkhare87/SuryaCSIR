@@ -4,10 +4,10 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'rec
 import { Card, Badge } from '../components/ui/Cards';
 import { EmptyState } from '../components/ui/EmptyState';
 import {
-  fetchMonitorRows, fetchLatencies, fetchDownvoted, labelRoute,
-  requeueDocument, requeueAll, countByStatus, percentile,
+  fetchMonitorRows, fetchLatencies, fetchDownvoted, fetchQueryLogRows, labelRoute,
+  requeueDocument, requeueAll, countByStatus, percentile, computeTraceability, toCsv,
 } from '../lib/rag/monitor';
-import type { MonitorRow, IngestStatus, LatencyPoint, DownvotedQuery, RouteMode } from '../lib/rag/monitor';
+import type { MonitorRow, IngestStatus, LatencyPoint, DownvotedQuery, RouteMode, QueryLogRow } from '../lib/rag/monitor';
 
 const ROUTES: RouteMode[] = ['structured', 'document', 'hybrid'];
 
@@ -25,6 +25,7 @@ export default function RagMonitor() {
   const [rows, setRows] = useState<MonitorRow[]>([]);
   const [latencies, setLatencies] = useState<LatencyPoint[]>([]);
   const [downvoted, setDownvoted] = useState<DownvotedQuery[]>([]);
+  const [queryRows, setQueryRows] = useState<QueryLogRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   async function load() {
@@ -33,6 +34,7 @@ export default function RagMonitor() {
       setRows(await fetchMonitorRows());
       setLatencies(await fetchLatencies());
       setDownvoted(await fetchDownvoted());
+      setQueryRows(await fetchQueryLogRows());
     } catch (e) {
       console.error('Failed to load RAG monitor', e);
       setRows([]);
@@ -52,6 +54,24 @@ export default function RagMonitor() {
     const values = latencies.map((l) => l.latencyMs);
     return { p50: percentile(values, 50), p90: percentile(values, 90), p99: percentile(values, 99) };
   }, [latencies]);
+
+  const traceability = useMemo(() => computeTraceability(queryRows), [queryRows]);
+
+  function exportCsv() {
+    const csv = toCsv(
+      ['created_at', 'question', 'mode', 'answer', 'citations', 'feedback', 'latency_ms'],
+      queryRows.map((r) => [
+        r.createdAt, r.question, r.mode, r.answer,
+        r.citations?.length ?? 0, r.feedback, r.latencyMs,
+      ]),
+    );
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `query_log_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   async function label(q: DownvotedQuery, route: RouteMode) {
     try {
@@ -76,9 +96,22 @@ export default function RagMonitor() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-text">RAG Ingestion</h1>
-          <p className="text-sm text-text-muted">Document indexing queue and pipeline health.</p>
+          <p className="text-sm text-text-muted">
+            Document indexing queue and pipeline health.
+            <span className="ml-2">
+              M3 traceability {traceability
+                ? `${(traceability.share * 100).toFixed(1)}% (${traceability.cited}/${traceability.total})`
+                : '—'}
+            </span>
+          </p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={exportCsv}
+            className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-1.5 text-sm text-text-muted hover:bg-surface-hover"
+          >
+            Export CSV
+          </button>
           <button
             onClick={async () => { await requeueAll(); await load(); }}
             className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-1.5 text-sm text-text-muted hover:bg-surface-hover"

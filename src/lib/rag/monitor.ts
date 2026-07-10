@@ -68,6 +68,66 @@ export async function fetchLatencies(): Promise<LatencyPoint[]> {
     .reverse();
 }
 
+// Keep in sync with REFUSAL_TEXT in rag/llm.py — the grounding refusal sentinel.
+const REFUSAL_TEXT = 'Not found in institute documents.';
+
+export interface QueryLogRow {
+  id: string;
+  createdAt: string;
+  question: string;
+  mode: string;
+  answer: string;
+  citations: unknown[] | null;
+  feedback: number | null;
+  latencyMs: number | null;
+}
+
+/** Recent query_log rows, newest first (admins see all rows via query_log RLS). */
+export async function fetchQueryLogRows(): Promise<QueryLogRow[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from('query_log')
+    .select('id, created_at, question, mode, answer, citations, feedback, latency_ms')
+    .order('created_at', { ascending: false })
+    .limit(1000);
+  if (error) throw error;
+  return (data ?? []).map((d) => ({
+    id: d.id,
+    createdAt: d.created_at,
+    question: d.question,
+    mode: d.mode,
+    answer: d.answer ?? '',
+    citations: (d.citations as unknown[] | null) ?? null,
+    feedback: d.feedback ?? null,
+    latencyMs: d.latency_ms ?? null,
+  }));
+}
+
+/** M3 (docs/EVALUATION-PROTOCOL.md): share of non-refusal document answers with
+ * >=1 citation. Structured answers are excluded — they cite tables, not documents,
+ * so counting them would deflate the metric by design, not by defect. */
+export function computeTraceability(
+  rows: Pick<QueryLogRow, 'mode' | 'answer' | 'citations'>[],
+): { share: number; cited: number; total: number } | null {
+  const qualifying = rows.filter(
+    (r) => r.mode !== 'structured' && r.answer.trim() !== REFUSAL_TEXT,
+  );
+  if (qualifying.length === 0) return null;
+  const cited = qualifying.filter((r) => (r.citations?.length ?? 0) > 0).length;
+  return { share: cited / qualifying.length, cited, total: qualifying.length };
+}
+
+/** RFC-4180 CSV with a UTF-8 BOM so Excel (the audience: AMPRI staff) opens it
+ * with correct encoding. Fields with " , \n or \r are quoted; " doubles. */
+export function toCsv(headers: string[], rows: (string | number | null)[][]): string {
+  const field = (v: string | number | null): string => {
+    const s = v == null ? '' : String(v);
+    return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const lines = [headers, ...rows].map((r) => r.map(field).join(','));
+  return '﻿' + lines.join('\r\n');
+}
+
 export function percentile(values: number[], p: number): number | null {
   if (values.length === 0) return null;
   const sorted = [...values].sort((a, b) => a - b);

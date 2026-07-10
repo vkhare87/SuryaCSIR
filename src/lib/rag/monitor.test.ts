@@ -58,3 +58,43 @@ describe('fetchMonitorRows', () => {
     expect(out[2].pageCount).toBe(2);
   });
 });
+
+import { computeTraceability, toCsv } from './monitor';
+
+describe('computeTraceability', () => {
+  const row = (mode: string, answer: string, citations: unknown[] | null) =>
+    ({ mode, answer, citations }) as Parameters<typeof computeTraceability>[0][number];
+
+  it('counts only non-refusal document/hybrid answers', () => {
+    const testRows = [
+      row('document', 'Grounded answer', [{ title: 'x' }]),   // counts, cited
+      row('hybrid', 'Grounded answer', [{ title: 'x' }]),     // counts, cited
+      row('document', 'Not found in institute documents.', []), // refusal — excluded
+      row('structured', '42', []),                             // structured — excluded
+      row('document', 'Uncited answer', []),                   // counts, uncited
+    ];
+    expect(computeTraceability(testRows)).toEqual({ share: 2 / 3, cited: 2, total: 3 });
+  });
+
+  it('treats null citations as uncited', () => {
+    expect(computeTraceability([row('document', 'a', null)]))
+      .toEqual({ share: 0, cited: 0, total: 1 });
+  });
+
+  it('returns null when no qualifying rows', () => {
+    expect(computeTraceability([row('structured', '42', [])])).toBeNull();
+    expect(computeTraceability([])).toBeNull();
+  });
+});
+
+describe('toCsv', () => {
+  it('escapes quotes, commas and newlines; prefixes BOM for Excel', () => {
+    const csv = toCsv(
+      ['q', 'a'],
+      [['he said "hi"', 'line1\nline2'], ['plain, comma', 'ok']],
+    );
+    expect(csv.startsWith('﻿')).toBe(true);
+    expect(csv).toContain('"he said ""hi""","line1\nline2"');
+    expect(csv).toContain('"plain, comma",ok');
+  });
+});
