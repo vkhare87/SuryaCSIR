@@ -13,6 +13,7 @@ import { canEditProposal, canUpdateStatus, nextAllowedTransitions } from '../../
 import StatusUpdateModal from '../../components/proposals/StatusUpdateModal';
 import { SimilarWorkPanel } from '../../components/SimilarWorkPanel';
 import { findComparables } from '../../lib/proposals/comparables';
+import { piTrackRecord } from '../../lib/proposals/trackRecord';
 import type { Proposal } from '../../types/proposal';
 
 export default function ProposalDetail() {
@@ -33,6 +34,11 @@ export default function ProposalDetail() {
           fundType: proposal.fundType,
         })
       : [],
+    [projects, proposal],
+  );
+
+  const trackRecord = useMemo(
+    () => (proposal ? piTrackRecord(projects, proposal.piName) : null),
     [projects, proposal],
   );
 
@@ -134,6 +140,41 @@ export default function ProposalDetail() {
           </table>
         )}
       </Card>
+
+      {trackRecord && (
+        <Card className="p-5 space-y-3">
+          <div>
+            <h3 className="text-sm font-semibold text-text">PI Track Record</h3>
+            <p className="text-xs text-text-muted">
+              Past projects led by {proposal.piName} — facts for context, not a score.
+              {' '}{trackRecord.rows.length} project(s), {trackRecord.completedCount} completed,
+              {' '}{trackRecord.extendedCount} extended.
+            </p>
+          </div>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs uppercase tracking-wide text-text-muted">
+                <th className="py-1 pr-2">Project</th>
+                <th className="py-1 pr-2">Status</th>
+                <th className="py-1 pr-2">Budget used</th>
+                <th className="py-1">Extended</th>
+              </tr>
+            </thead>
+            <tbody>
+              {trackRecord.rows.map(r => (
+                <tr key={r.project.ProjectNo} className="border-t border-border text-text">
+                  <td className="py-1.5 pr-2">{r.project.ProjectName}</td>
+                  <td className="py-1.5 pr-2">{r.project.ProjectStatus}</td>
+                  <td className="py-1.5 pr-2">
+                    {r.utilizationPct != null ? `${r.utilizationPct.toFixed(0)}%` : 'no data'}
+                  </td>
+                  <td className="py-1.5">{r.extended ? r.project.Extension : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
+      )}
 
       {proposal.coPIs && proposal.coPIs.length > 0 && (
         <Card className="p-4">
