@@ -9,6 +9,16 @@ import { Histogram } from '../components/viz/Histogram';
 import { HeatmapCalendar } from '../components/viz/HeatmapCalendar';
 import { useChartFilter } from '../utils/useChartFilter';
 import { parseCost } from '../utils/parseCost';
+import { budgetWatch, type BudgetFlag } from '../lib/projects/budgetWatch';
+import { Badge } from '../components/ui/Cards';
+
+const FLAG_LABEL: Record<BudgetFlag, string> = {
+  overrun: 'Overrun', exhaustion: 'Near exhaustion', ahead: 'Ahead of burn', behind: 'Behind burn',
+};
+
+const FLAG_VARIANT: Record<BudgetFlag, 'danger' | 'warning' | 'info'> = {
+  overrun: 'danger', exhaustion: 'danger', ahead: 'warning', behind: 'info',
+};
 
 export default function ProjectsAnalytics() {
   const { projects } = useData();
@@ -91,8 +101,50 @@ export default function ProjectsAnalytics() {
     return { from: sorted[0].day.slice(0, 4) + '-01-01', to: sorted[sorted.length - 1].day.slice(0, 4) + '-12-31' };
   }, [calendarData]);
 
+  const watch = useMemo(() => budgetWatch(projects), [projects]);
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      {watch.length > 0 && (
+        <ChartCard
+          title="Budget watch"
+          subtitle="review triggers — spend vs linear burn; R&D spend is stepwise, verify before acting"
+          className="lg:col-span-2"
+        >
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-left text-text-muted">
+                <tr>
+                  <th className="p-2 font-medium">Project</th>
+                  <th className="p-2 font-medium">PI</th>
+                  <th className="p-2 font-medium">Flag</th>
+                  <th className="p-2 font-medium">Spent</th>
+                  <th className="p-2 font-medium">Time elapsed</th>
+                  <th className="p-2 font-medium">Variance</th>
+                </tr>
+              </thead>
+              <tbody>
+                {watch.slice(0, 15).map((w) => (
+                  <tr key={w.project.ProjectID} className="border-t border-border">
+                    <td className="p-2 text-text">{w.project.ProjectNo || w.project.ProjectName}</td>
+                    <td className="p-2 text-text-muted">{w.project.PrincipalInvestigator || '—'}</td>
+                    <td className="p-2"><Badge variant={FLAG_VARIANT[w.flag]}>{FLAG_LABEL[w.flag]}</Badge></td>
+                    <td className="p-2 text-text-muted">{w.utilizationPct.toFixed(0)}%</td>
+                    <td className="p-2 text-text-muted">{w.elapsedPct != null ? `${w.elapsedPct.toFixed(0)}%` : '—'}</td>
+                    <td className="p-2 text-text-muted">
+                      {w.variancePp != null ? `${w.variancePp > 0 ? '+' : ''}${w.variancePp.toFixed(0)}pp` : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {watch.length > 15 && (
+              <div className="p-2 text-xs text-text-muted">…and {watch.length - 15} more</div>
+            )}
+          </div>
+        </ChartCard>
+      )}
+
       <ChartCard title="Fund type">
         <CategoryDonut
           data={fundMix}
