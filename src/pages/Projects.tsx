@@ -111,6 +111,7 @@ export default function Projects() {
     },
     {
       header: 'Project Details',
+      value: (p: ProjectInfo) => p.ProjectName ?? '',
       cell: (p: ProjectInfo) => (
         <div className="max-w-md">
           <div className="font-semibold text-text truncate" title={p.ProjectName}>{p.ProjectName}</div>
@@ -123,6 +124,7 @@ export default function Projects() {
     },
     {
       header: 'Investigator',
+      value: (p: ProjectInfo) => p.PrincipalInvestigator ?? '',
       cell: (p: ProjectInfo) => (
         <div>
           <div className="text-sm text-text">{p.PrincipalInvestigator}</div>
@@ -132,6 +134,7 @@ export default function Projects() {
     },
     {
       header: 'Status',
+      value: (p: ProjectInfo) => p.ProjectStatus ?? '',
       cell: (p: ProjectInfo) => {
         let variant: 'success' | 'warning' | 'danger' | 'neutral' | 'info' = 'neutral';
         if (p.ProjectStatus === 'Active') variant = 'success';
@@ -407,6 +410,9 @@ export default function Projects() {
                 onRowClick={(item) => navigate(`/projects/${item.ProjectID}`)}
                 itemsPerPage={12}
                 renderGridItem={renderProjectCard}
+                enableColumnVisibility
+                tableId="projects"
+                exportFileName="projects"
                 className="border-0 shadow-none bg-transparent"
               />
             </Card>

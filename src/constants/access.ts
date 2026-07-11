@@ -19,6 +19,7 @@ export const ACCESS_MAP = {
   '/ask':                     ALL_ROLES,
   '/calendar':                ALL_ROLES,
   '/intelligence':            ['Director', 'DivisionHead', 'Scientist', ...ADMINS] as Role[],
+  '/explore':                 ['Director', 'DivisionHead', 'Scientist', 'HRAdmin', ...ADMINS] as Role[],
   '/staff':                   ['Director', 'DivisionHead', 'HRAdmin', ...ADMINS] as Role[],
   '/staff/analytics':         ['Director', 'DivisionHead', 'HRAdmin', ...ADMINS] as Role[],
   '/staff/project':           ['Director', 'DivisionHead', 'HRAdmin', ...ADMINS] as Role[],

@@ -17,13 +17,13 @@ export function Button({
   disabled,
   ...props 
 }: ButtonProps) {
-  const baseStyle = "inline-flex items-center justify-center rounded-[8px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3898ec] focus-visible:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed";
+  const baseStyle = "inline-flex items-center justify-center rounded-lg font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-terracotta/60 focus-visible:ring-offset-1 focus-visible:ring-offset-background disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]";
 
   const variants = {
-    primary: "bg-[#c96442] text-[#faf9f5] hover:bg-[#b5593b] shadow-[0px_0px_0px_1px_#c96442]",
-    secondary: "bg-[#e8e6dc] text-[#4d4c48] hover:bg-[#dddbd1] shadow-[0px_0px_0px_1px_#d1cfc5]",
-    ghost: "text-[#5e5d59] hover:text-[#141413] hover:bg-[#f0eee6]",
-    danger: "bg-[#b53333] text-[#faf9f5] hover:bg-[#9e2c2c] shadow-[0px_0px_0px_1px_#b53333]",
+    primary: "text-[#faf9f5] shadow-[var(--shadow-e1)] hover:shadow-[var(--shadow-e2)] [background:var(--gradient-brand)] hover:brightness-105",
+    secondary: "bg-warm-sand text-charcoal-warm hover:bg-warm-sand-hover shadow-[0px_0px_0px_1px_var(--color-ring-warm)]",
+    ghost: "text-olive-gray hover:text-text hover:bg-surface-hover",
+    danger: "bg-danger text-[#faf9f5] hover:brightness-95 shadow-[0px_0px_0px_1px_var(--color-danger)]",
   };
 
   const sizes = {

@@ -6,6 +6,8 @@ import {
   ShieldCheck, Users, Database, Sparkles,
 } from 'lucide-react';
 import { ROLE_ROUTES } from '../constants/roleRoutes';
+import { NetworkCanvas } from '../components/NetworkCanvas';
+import { useCountUp } from '../utils/useCountUp';
 
 const TAGLINE =
   'Institutional Memory–Driven Decision Intelligence Layer for Enhancing Decision-Making for scientific capability, collaboration, and national innovation.';
@@ -57,22 +59,6 @@ const FEATURES = [
   { icon: Database, title: 'Institutional Knowledge Protection', body: 'Staff, projects, IP, and scientific output preserved as durable institutional memory, not scattered files.' },
   { icon: Sparkles, title: 'AI-Assisted Strategic Intelligence', body: 'Surfaces capability, collaboration, and performance signals to sharpen leadership decisions.' },
 ];
-
-function useCountUp(target: number, duration = 1500, active: boolean) {
-  const [count, setCount] = useState(0);
-  useEffect(() => {
-    if (!active) return;
-    let start = 0;
-    const step = Math.ceil(target / (duration / 16));
-    const timer = setInterval(() => {
-      start += step;
-      if (start >= target) { setCount(target); clearInterval(timer); }
-      else setCount(start);
-    }, 16);
-    return () => clearInterval(timer);
-  }, [target, duration, active]);
-  return count;
-}
 
 function StatCounter({ target, suffix = '' }: { target: number; suffix?: string }) {
   const [active, setActive] = useState(false);
@@ -146,6 +132,8 @@ export default function Login() {
 
         {/* ---- Page 1: SURYA hero ---- */}
         <section className="relative lg:h-screen lg:snap-start flex flex-col justify-between overflow-hidden p-10 lg:p-12">
+          {/* Signature motif: living institute graph */}
+          <NetworkCanvas className="absolute inset-0 w-full h-full pointer-events-none opacity-70" />
           {/* Decor */}
           <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-[#faf9f5]/5 rounded-full -translate-x-1/2 -translate-y-1/2 pointer-events-none border border-[#faf9f5]/10" />
           <div className="absolute bottom-0 right-0 w-[300px] h-[300px] bg-[#c96442]/5 rounded-full translate-x-1/4 translate-y-1/4 pointer-events-none" />
@@ -354,9 +342,9 @@ export default function Login() {
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="3" /><ellipse cx="12" cy="12" rx="10" ry="4" /><ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(60 12 12)" /><ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(120 12 12)" /></svg>
               </div>
             </div>
-            <h2 className="text-2xl lg:text-[1.75rem] font-[500] text-[#141413] tracking-tight mb-2 font-serif leading-tight">Institutional Strategic Access Layer</h2>
+            <h2 className="text-2xl lg:text-[1.75rem] font-[500] text-[#141413] tracking-tight mb-2 font-serif leading-tight">Sign in to SURYA</h2>
             <div className="flex flex-col items-center">
-              <span className="text-[10px] font-semibold tracking-[0.2em] text-[#87867f] uppercase">Authorized Executive Entry</span>
+              <span className="text-[10px] font-semibold tracking-[0.2em] text-[#87867f] uppercase">Authorized Institutional Access</span>
               <div className="h-1 w-24 bg-[#c96442] mt-2 rounded-full" />
             </div>
 
@@ -406,14 +394,14 @@ export default function Login() {
               <div className="space-y-2">
                 <label className="text-[10px] font-semibold text-[#87867f] uppercase tracking-widest ml-1">Institutional Email</label>
                 <div className="relative group">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#b0aea5] group-focus-within:text-[#3898ec] transition-colors">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#b0aea5] group-focus-within:text-[#c96442] transition-colors">
                     <Mail size={18} />
                   </div>
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pl-12 pr-4 py-4 bg-[#f5f4ed] border border-[#f0eee6] rounded-[12px] focus:ring-2 focus:ring-[#3898ec] focus:border-[#3898ec] outline-none text-[#141413] font-medium transition-all placeholder:text-[#b0aea5]"
+                    className="w-full pl-12 pr-4 py-4 bg-[#f5f4ed] border border-[#f0eee6] rounded-[12px] focus:ring-2 focus:ring-[#c96442] focus:border-[#c96442] outline-none text-[#141413] font-medium transition-all placeholder:text-[#b0aea5]"
                     placeholder="Institutional Email"
                     required
                   />
@@ -423,14 +411,14 @@ export default function Login() {
               <div className="space-y-2">
                 <label className="text-[10px] font-semibold text-[#87867f] uppercase tracking-widest ml-1">Secure Passphrase</label>
                 <div className="relative group">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#b0aea5] group-focus-within:text-[#3898ec] transition-colors">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#b0aea5] group-focus-within:text-[#c96442] transition-colors">
                     <Lock size={18} />
                   </div>
                   <input
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-12 pr-4 py-4 bg-[#f5f4ed] border border-[#f0eee6] rounded-[12px] focus:ring-2 focus:ring-[#3898ec] focus:border-[#3898ec] outline-none text-[#141413] font-medium transition-all placeholder:text-[#b0aea5]"
+                    className="w-full pl-12 pr-4 py-4 bg-[#f5f4ed] border border-[#f0eee6] rounded-[12px] focus:ring-2 focus:ring-[#c96442] focus:border-[#c96442] outline-none text-[#141413] font-medium transition-all placeholder:text-[#b0aea5]"
                     placeholder="Secure Passphrase"
                     required
                   />
@@ -447,9 +435,9 @@ export default function Login() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-4 bg-[#c96442] hover:bg-[#b5593b] text-[#faf9f5] rounded-[8px] font-semibold text-sm uppercase tracking-widest flex items-center justify-center gap-3 shadow-[0px_0px_0px_1px_#c96442] transition-all active:scale-[0.98] disabled:opacity-70 group"
+              className="w-full py-4 [background:var(--gradient-brand)] hover:brightness-105 text-[#faf9f5] rounded-lg font-semibold text-sm uppercase tracking-widest flex items-center justify-center gap-3 shadow-[var(--shadow-e2)] transition-all active:scale-[0.98] disabled:opacity-70 group"
             >
-              {isLoading ? 'Processing...' : 'Authenticate State'}
+              {isLoading ? 'Signing in…' : 'Sign In'}
               <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
             </button>
           </form>

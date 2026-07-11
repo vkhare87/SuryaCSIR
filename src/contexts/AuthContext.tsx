@@ -166,24 +166,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const setActiveRole = async (role: Role) => {
     if (!user || !user.roles.includes(role)) return;
 
-    // Find division_code for the new active role
-    let newDivisionCode: string | null = null;
-    if (supabase) {
-      const { data } = await supabase
-        .from('user_roles')
-        .select('division_code')
-        .eq('user_id', user.id)
-        .eq('role', role)
-        .single();
-      newDivisionCode = data?.division_code ?? null;
+    // Optimistic: switch immediately so nav/route guards see the new role
+    // without waiting on the network. Division code refreshes once fetched.
+    setUser((prev) => prev ? { ...prev, activeRole: role } : prev);
 
-      await supabase
-        .from('user_profiles')
-        .update({ active_role: role })
-        .eq('user_id', user.id);
+    if (!supabase) return;
+
+    try {
+      const [{ data }] = await Promise.all([
+        supabase.from('user_roles').select('division_code').eq('user_id', user.id).eq('role', role).single(),
+        supabase.from('user_profiles').update({ active_role: role }).eq('user_id', user.id),
+      ]);
+      setUser((prev) => (prev && prev.activeRole === role ? { ...prev, divisionCode: data?.division_code ?? null } : prev));
+    } catch (err) {
+      console.error('Failed to persist active role:', err);
     }
-
-    setUser((prev) => prev ? { ...prev, activeRole: role, divisionCode: newDivisionCode } : prev);
   };
 
   const hasPermission = (allowedRoles: Role[]) => {

@@ -7,10 +7,27 @@ import { Treemap } from '../components/viz/Treemap';
 import { Heatmap } from '../components/viz/Heatmap';
 import { Histogram } from '../components/viz/Histogram';
 import { HeatmapCalendar } from '../components/viz/HeatmapCalendar';
-import { useChartFilter } from '../utils/useChartFilter';
+import { useChartFilter, type ChartFilter } from '../utils/useChartFilter';
 import { parseCost } from '../utils/parseCost';
 import { budgetWatch, type BudgetFlag } from '../lib/projects/budgetWatch';
 import { Badge } from '../components/ui/Cards';
+import { FilterChips } from '../components/viz/FilterChips';
+import type { ProjectInfo } from '../types';
+
+const DIM_LABEL: Record<string, string> = {
+  fundType: 'Fund type', status: 'Status', sponsorer: 'Sponsorer', pi: 'PI', division: 'Division',
+};
+
+function matchesProjectFilter(p: ProjectInfo, f: ChartFilter): boolean {
+  switch (f.dim) {
+    case 'fundType':  return (p.FundType || 'Unspecified') === f.value;
+    case 'status':    return p.ProjectStatus === f.value;
+    case 'sponsorer': return (p.SponsorerName || 'Unspecified') === f.value;
+    case 'pi':        return (p.PrincipalInvestigator || 'Unassigned') === f.value;
+    case 'division':  return p.DivisionCode === f.value;
+    default:          return true;
+  }
+}
 
 const FLAG_LABEL: Record<BudgetFlag, string> = {
   overrun: 'Overrun', exhaustion: 'Near exhaustion', ahead: 'Ahead of burn', behind: 'Behind burn',
@@ -22,28 +39,37 @@ const FLAG_VARIANT: Record<BudgetFlag, 'danger' | 'warning' | 'info'> = {
 
 export default function ProjectsAnalytics() {
   const { projects } = useData();
-  const { filter, toggleFilter } = useChartFilter();
+  const { filter, toggleFilter, clearFilter } = useChartFilter();
+
+  // Cross-filter: the active selection narrows every *other* widget; a widget
+  // on the filtered dimension keeps its full categories so it stays selectable.
+  const filteredProjects = useMemo(
+    () => (filter ? projects.filter((p) => matchesProjectFilter(p, filter)) : projects),
+    [projects, filter],
+  );
 
   const fundMix = useMemo(() => {
+    const src = filter && filter.dim === 'fundType' ? projects : filteredProjects;
     const counts = new Map<string, number>();
-    for (const p of projects) {
+    for (const p of src) {
       const k = p.FundType || 'Unspecified';
       counts.set(k, (counts.get(k) ?? 0) + 1);
     }
     return Array.from(counts, ([label, value]) => ({ label, value }));
-  }, [projects]);
+  }, [projects, filteredProjects, filter]);
 
   const statusMix = useMemo(() => {
+    const src = filter && filter.dim === 'status' ? projects : filteredProjects;
     const counts = new Map<string, number>();
-    for (const p of projects) {
+    for (const p of src) {
       counts.set(p.ProjectStatus, (counts.get(p.ProjectStatus) ?? 0) + 1);
     }
     return Array.from(counts, ([label, value]) => ({ label, value }));
-  }, [projects]);
+  }, [projects, filteredProjects, filter]);
 
   const sponsorerTreemap = useMemo(() => {
     const totals = new Map<string, number>();
-    for (const p of projects) {
+    for (const p of (filter && filter.dim === 'sponsorer' ? projects : filteredProjects)) {
       const k = p.SponsorerName || 'Unspecified';
       totals.set(k, (totals.get(k) ?? 0) + parseCost(p.SanctionedCost));
     }
@@ -51,46 +77,47 @@ export default function ProjectsAnalytics() {
       .filter((d) => d.size > 0)
       .sort((a, b) => b.size - a.size)
       .slice(0, 15);
-  }, [projects]);
+  }, [projects, filteredProjects, filter]);
 
   const piWorkload = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const p of projects) {
+    for (const p of (filter && filter.dim === 'pi' ? projects : filteredProjects)) {
       const k = p.PrincipalInvestigator || 'Unassigned';
       counts.set(k, (counts.get(k) ?? 0) + 1);
     }
     return Array.from(counts, ([label, value]) => ({ label, value }))
       .sort((a, b) => b.value - a.value)
       .slice(0, 10);
-  }, [projects]);
+  }, [projects, filteredProjects, filter]);
 
   const divFundHeatmap = useMemo(() => {
-    const divs = Array.from(new Set(projects.map((p) => p.DivisionCode).filter(Boolean))).sort();
-    const funds = Array.from(new Set(projects.map((p) => p.FundType || 'Unspecified'))).sort();
+    const src = filter && filter.dim === 'division' ? projects : filteredProjects;
+    const divs = Array.from(new Set(src.map((p) => p.DivisionCode).filter(Boolean))).sort();
+    const funds = Array.from(new Set(src.map((p) => p.FundType || 'Unspecified'))).sort();
     const cells = [];
     for (const d of divs) {
       for (const f of funds) {
         cells.push({
           row: d,
           col: f,
-          value: projects.filter((p) => p.DivisionCode === d && (p.FundType || 'Unspecified') === f).length,
+          value: src.filter((p) => p.DivisionCode === d && (p.FundType || 'Unspecified') === f).length,
         });
       }
     }
     return { cells, divs, funds };
-  }, [projects]);
+  }, [projects, filteredProjects, filter]);
 
-  const costs = useMemo(() => projects.map((p) => parseCost(p.SanctionedCost)).filter((v) => v > 0), [projects]);
+  const costs = useMemo(() => filteredProjects.map((p) => parseCost(p.SanctionedCost)).filter((v) => v > 0), [filteredProjects]);
 
   const calendarData = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const p of projects) {
+    for (const p of filteredProjects) {
       const day = (p.StartDate || '').slice(0, 10);
       if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) continue;
       counts.set(day, (counts.get(day) ?? 0) + 1);
     }
     return Array.from(counts, ([day, value]) => ({ day, value }));
-  }, [projects]);
+  }, [filteredProjects]);
 
   const calendarRange = useMemo(() => {
     if (calendarData.length === 0) {
@@ -101,10 +128,18 @@ export default function ProjectsAnalytics() {
     return { from: sorted[0].day.slice(0, 4) + '-01-01', to: sorted[sorted.length - 1].day.slice(0, 4) + '-12-31' };
   }, [calendarData]);
 
-  const watch = useMemo(() => budgetWatch(projects), [projects]);
+  const watch = useMemo(() => budgetWatch(filteredProjects), [filteredProjects]);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      {filter && (
+        <div className="lg:col-span-2">
+          <FilterChips
+            chips={[{ label: DIM_LABEL[filter.dim] ?? filter.dim, value: filter.value }]}
+            onClear={clearFilter}
+          />
+        </div>
+      )}
       {watch.length > 0 && (
         <ChartCard
           title="Budget watch"

@@ -1,18 +1,26 @@
 import React from 'react';
 import clsx from 'clsx';
+import { cn } from '../../utils/cn';
 
 
 interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   children?: React.ReactNode;
   isGlass?: boolean;
+  variant?: 'flat' | 'raised' | 'interactive';
 }
 
-export function Card({ children, className, isGlass = false, ...props }: CardProps) {
+const cardVariants = {
+  flat: "bg-surface border border-border shadow-[0px_0px_0px_1px_var(--color-border)] hover:shadow-[0px_0px_0px_1px_var(--color-ring-warm)] transition-shadow",
+  raised: "bg-surface-raised border border-border shadow-[var(--shadow-e2)] transition-shadow",
+  interactive: "bg-surface-raised border border-border shadow-[var(--shadow-e2)] hover:shadow-[var(--shadow-e3)] hover:border-terracotta/40 hover:-translate-y-0.5 transition-all cursor-pointer",
+};
+
+export function Card({ children, className, isGlass = false, variant = 'flat', ...props }: CardProps) {
   return (
-    <div 
-      className={clsx(
-        "rounded-[12px] p-6 shadow-[0px_0px_0px_1px_#f0eee6] hover:shadow-[0px_0px_0px_1px_#d1cfc5] transition-shadow",
-        isGlass ? "glass dark:glass-dark" : "bg-surface border border-border",
+    <div
+      className={cn(
+        "rounded-xl p-6",
+        isGlass ? "glass dark:glass-dark rounded-xl p-6" : cardVariants[variant],
         className
       )}
       {...props}

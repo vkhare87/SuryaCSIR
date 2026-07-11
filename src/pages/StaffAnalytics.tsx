@@ -8,11 +8,26 @@ import { CategoryDonut } from '../components/viz/CategoryDonut';
 import { Histogram } from '../components/viz/Histogram';
 import { OrgTree, type OrgNode } from '../components/viz/OrgTree';
 import { NetworkGraph, type GraphLink, type GraphNode } from '../components/viz/NetworkGraph';
-import { useChartFilter } from '../utils/useChartFilter';
+import { useChartFilter, type ChartFilter } from '../utils/useChartFilter';
 import { personNamesMatch } from '../utils/analytics';
 import { coAuthorPairs } from '../lib/intelligence/collaboration';
 import { successionRisk } from '../lib/staff/successionRisk';
 import { formatDate } from '../utils/dateUtils';
+import { FilterChips } from '../components/viz/FilterChips';
+import type { StaffMember } from '../types';
+
+const STAFF_DIM_LABEL: Record<string, string> = {
+  division: 'Division', designation: 'Designation', group: 'Group',
+};
+
+function matchesStaffFilter(s: StaffMember, f: ChartFilter): boolean {
+  switch (f.dim) {
+    case 'division':    return (s.Division || 'Unspecified') === f.value;
+    case 'designation': return (s.Designation || 'Unspecified') === f.value;
+    case 'group':       return (s.Group || 'Unspecified') === f.value;
+    default:            return true;
+  }
+}
 
 function yearsBetween(dateStr: string, ref = new Date()): number {
   const t = Date.parse(dateStr);
@@ -22,8 +37,16 @@ function yearsBetween(dateStr: string, ref = new Date()): number {
 
 export default function StaffAnalytics() {
   const { staff, scientificOutputs } = useData();
-  const { filter, toggleFilter } = useChartFilter();
+  const { filter, toggleFilter, clearFilter } = useChartFilter();
   const navigate = useNavigate();
+
+  // Cross-filter narrows the categorical charts; the clicked dimension keeps
+  // its full categories so it stays selectable. Structural views (org tree,
+  // collaboration graph) always read the full roster.
+  const filteredStaff = useMemo(
+    () => (filter ? staff.filter((s) => matchesStaffFilter(s, filter)) : staff),
+    [staff, filter],
+  );
 
   const orgTreeData = useMemo<OrgNode>(() => {
     if (staff.length === 0) return { name: 'CSIR-AMPRI', children: [] };
@@ -96,41 +119,41 @@ export default function StaffAnalytics() {
 
   const byDivision = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const s of staff) {
+    for (const s of (filter && filter.dim === 'division' ? staff : filteredStaff)) {
       const k = s.Division || 'Unspecified';
       counts.set(k, (counts.get(k) ?? 0) + 1);
     }
     return Array.from(counts, ([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);
-  }, [staff]);
+  }, [staff, filteredStaff, filter]);
 
   const designationMix = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const s of staff) {
+    for (const s of (filter && filter.dim === 'designation' ? staff : filteredStaff)) {
       const k = s.Designation || 'Unspecified';
       counts.set(k, (counts.get(k) ?? 0) + 1);
     }
     return Array.from(counts, ([label, value]) => ({ label, value }))
       .sort((a, b) => b.value - a.value)
       .slice(0, 12);
-  }, [staff]);
+  }, [staff, filteredStaff, filter]);
 
   const groupMix = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const s of staff) {
+    for (const s of (filter && filter.dim === 'group' ? staff : filteredStaff)) {
       counts.set(s.Group || 'Unspecified', (counts.get(s.Group || 'Unspecified') ?? 0) + 1);
     }
     return Array.from(counts, ([label, value]) => ({ label, value }));
-  }, [staff]);
+  }, [staff, filteredStaff, filter]);
 
   const tenureYears = useMemo(
-    () => staff.map((s) => yearsBetween(s.DOJ)).filter((v) => Number.isFinite(v) && v >= 0),
-    [staff],
+    () => filteredStaff.map((s) => yearsBetween(s.DOJ)).filter((v) => Number.isFinite(v) && v >= 0),
+    [filteredStaff],
   );
 
   const retirementRunway = useMemo(() => {
     const now = new Date();
     const buckets: Record<string, number> = { '0–1y': 0, '1–3y': 0, '3–5y': 0, '5–10y': 0, '>10y': 0 };
-    for (const s of staff) {
+    for (const s of filteredStaff) {
       if (!s.DOB) continue;
       const t = Date.parse(s.DOB);
       if (!Number.isFinite(t)) continue;
@@ -145,16 +168,16 @@ export default function StaffAnalytics() {
       else buckets['>10y']++;
     }
     return Object.entries(buckets).map(([label, value]) => ({ label, value }));
-  }, [staff]);
+  }, [filteredStaff]);
 
   const genderMix = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const s of staff) {
+    for (const s of filteredStaff) {
       const k = s.Gender || 'Unspecified';
       counts.set(k, (counts.get(k) ?? 0) + 1);
     }
     return Array.from(counts, ([label, value]) => ({ label, value }));
-  }, [staff]);
+  }, [filteredStaff]);
 
   const atRisk = useMemo(() => successionRisk(staff), [staff]);
 
@@ -175,6 +198,14 @@ export default function StaffAnalytics() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {filter && (
+          <div className="lg:col-span-2">
+            <FilterChips
+              chips={[{ label: STAFF_DIM_LABEL[filter.dim] ?? filter.dim, value: filter.value }]}
+              onClear={clearFilter}
+            />
+          </div>
+        )}
         <ChartCard title="Headcount by division" subtitle="click to filter the staff list">
           <CategoryBar
             data={byDivision}

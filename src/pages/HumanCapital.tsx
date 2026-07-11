@@ -6,6 +6,7 @@ import { DataTable } from '../components/ui/DataTable';
 import { Card } from '../components/ui/Cards';
 import { Badge } from '../components/ui/Cards';
 import { EmptyState } from '../components/ui/EmptyState';
+import { EntityLink } from '../components/EntityLink';
 import { Search, Filter, Users, Plus } from 'lucide-react';
 import { TableSkeleton } from '../components/ui/Skeleton';
 import { useCanEdit } from '../lib/permissions/canEdit';
@@ -51,9 +52,11 @@ export default function HumanCapital() {
     },
     {
       header: 'Name & Designation',
+      value: (member: StaffMember) => member.Name ?? '',
       cell: (member: StaffMember) => (
         <div>
-          <div className="font-semibold text-text">{member.Name}</div>
+          <EntityLink kind="staff" id={member.ID} label={member.Name}
+            className="font-semibold text-text hover:text-terracotta transition-colors text-left" />
           <div className="text-xs text-text-muted mt-0.5">{member.Designation}</div>
         </div>
       ),
@@ -81,6 +84,7 @@ export default function HumanCapital() {
     },
     {
       header: 'Contact',
+      value: (member: StaffMember) => member.Email ?? '',
       cell: (member: StaffMember) => (
         <div className="text-sm">
           <div className="text-[#c96442] truncate max-w-[200px]" title={member.Email}>{member.Email}</div>
@@ -205,6 +209,9 @@ export default function HumanCapital() {
               onRowClick={(item) => navigate(`/staff/${item.ID}`)}
               itemsPerPage={12}
               renderGridItem={renderStaffCard}
+              enableColumnVisibility
+              tableId="human-capital"
+              exportFileName="staff"
               className="border-0 shadow-none bg-transparent"
             />
           </>

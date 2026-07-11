@@ -1,135 +1,26 @@
-import { useState, useEffect } from 'react';
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import {
-  Users,
-  Briefcase,
-  BookOpen,
-  Microscope,
-  LogOut,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Settings as SettingsIcon,
-  LayoutDashboard,
-  Calendar as CalendarIcon,
-  Building2,
-  Handshake,
-  Activity,
-  FileText,
-  Search,
-  Database,
-  Network,
-  Cloud,
-  Menu,
-  X,
-  AlertCircle,
-  ChevronDown,
-  ClipboardCheck,
-  Ticket as TicketIcon,
-  CalendarDays,
-  UserCog,
-  UserCheck,
-  ScanText,
-  Sparkles,
-} from 'lucide-react';
-import clsx from 'clsx';
+import { useEffect, useState } from 'react';
+import { Outlet, useNavigate } from 'react-router-dom';
+import { Search, Menu, AlertCircle, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import CommandPalette from '../CommandPalette';
 import SettingsModal from '../SettingsModal';
-
+import { Sidebar } from './Sidebar';
 import { useAuth } from '../../contexts/AuthContext';
 import { NotificationBell } from '../layout/NotificationBell';
 import { useUI } from '../../contexts/UIContext';
 import { useData } from '../../contexts/DataContext';
-import type { Role } from '../../types';
 import { ROLE_ROUTES } from '../../constants/roleRoutes';
-import { ACCESS_MAP } from '../../constants/access';
-
-import type { LucideIcon } from 'lucide-react';
-
-interface NavItem {
-  path: string;
-  label: string;
-  icon: LucideIcon;
-  allowedRoles: Role[];
-}
-
-interface NavSection {
-  label: string;
-  items: NavItem[];
-}
-
-const NAV_SECTIONS: NavSection[] = [
-  {
-    label: 'Overview',
-    items: [
-      { path: '/',             label: 'Dashboard',       icon: LayoutDashboard, allowedRoles: ACCESS_MAP['/'] },
-      { path: '/ask',          label: 'Ask SURYA',       icon: Sparkles,        allowedRoles: ACCESS_MAP['/ask'] },
-      { path: '/intelligence', label: 'Intelligence',    icon: Microscope,      allowedRoles: ACCESS_MAP['/intelligence'] },
-      { path: '/calendar',     label: 'Calendar',        icon: CalendarIcon,    allowedRoles: ACCESS_MAP['/calendar'] },
-    ],
-  },
-  {
-    label: 'Unified Human Resource',
-    items: [
-      { path: '/staff',        label: 'Human Capital',   icon: Users,           allowedRoles: ACCESS_MAP['/staff'] },
-      { path: '/staff/project', label: 'Project Staff',   icon: UserCog,         allowedRoles: ACCESS_MAP['/staff/project'] },
-      { path: '/phd',          label: 'PhD Tracker',     icon: BookOpen,        allowedRoles: ACCESS_MAP['/phd'] },
-      { path: '/divisions',    label: 'Divisions',       icon: Network,         allowedRoles: ACCESS_MAP['/divisions'] },
-      { path: '/recruitment',  label: 'Recruitment',     icon: FileText,        allowedRoles: ACCESS_MAP['/recruitment'] },
-    ],
-  },
-  {
-    label: 'Research Ops',
-    items: [
-      { path: '/projects',     label: 'Projects',        icon: Briefcase,       allowedRoles: ACCESS_MAP['/projects'] },
-      { path: '/proposals',    label: 'Proposals',       icon: FileText,        allowedRoles: ACCESS_MAP['/proposals'] },
-      { path: '/reports',      label: 'Progress Reports',icon: ClipboardCheck,  allowedRoles: ACCESS_MAP['/reports'] },
-      { path: '/facilities',   label: 'Instruments',     icon: Building2,       allowedRoles: ACCESS_MAP['/facilities'] },
-      { path: '/partnerships', label: 'Partnerships',    icon: Handshake,       allowedRoles: ACCESS_MAP['/partnerships'] },
-      { path: '/rnd-monitor',  label: 'R&D Monitor',     icon: Activity,        allowedRoles: ACCESS_MAP['/rnd-monitor'] },
-    ],
-  },
-  {
-    label: 'Governance',
-    items: [
-      { path: '/committees',   label: 'Committees',      icon: Building2,       allowedRoles: ACCESS_MAP['/committees'] },
-      { path: '/helpdesk',     label: 'Helpdesk',        icon: TicketIcon,      allowedRoles: ACCESS_MAP['/helpdesk'] },
-      { path: '/pms',          label: 'Performance Mgmt',icon: ClipboardCheck,  allowedRoles: ACCESS_MAP['/pms'] },
-    ],
-  },
-  {
-    label: 'Admin',
-    items: [
-      { path: '/admin/access-requests', label: 'Access Requests', icon: UserCheck, allowedRoles: ACCESS_MAP['/admin/access-requests'] },
-      { path: '/data',         label: 'Data Management', icon: Database,        allowedRoles: ACCESS_MAP['/data'] },
-      { path: '/irins-sync',   label: 'IRINS Sync',      icon: Cloud,           allowedRoles: ACCESS_MAP['/irins-sync'] },
-      { path: '/admin/rag',    label: 'RAG Ingestion',   icon: ScanText,        allowedRoles: ACCESS_MAP['/admin/rag'] },
-      { path: '/admin/holidays', label: 'Holidays',        icon: CalendarDays,    allowedRoles: ACCESS_MAP['/admin/holidays'] },
-    ],
-  },
-];
 
 export function Layout() {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [roleSwitcherOpen, setRoleSwitcherOpen] = useState(false);
 
-  const { user, logout, role, roles, setActiveRole } = useAuth();
+  const { user, role, roles, setActiveRole } = useAuth();
   const navigate = useNavigate();
   const { isMobile, deviceType } = useUI();
   const { error } = useData();
-
-  const dashboardPath = role ? ROLE_ROUTES[role] : '/';
-  const filteredSections = NAV_SECTIONS
-    .map(section => ({
-      ...section,
-      items: section.items
-        .filter(item => role && item.allowedRoles.includes(role))
-        .map(item => item.path === '/' ? { ...item, path: dashboardPath } : item),
-    }))
-    .filter(section => section.items.length > 0);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -142,131 +33,16 @@ export function Layout() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Auto-close sidebar on smaller screens if not forced
-  useEffect(() => {
-    if (deviceType === 'tablet') setSidebarOpen(false);
-    if (deviceType === 'desktop') setSidebarOpen(true);
-  }, [deviceType]);
-
-  const SidebarContent = ({ isMobileView = false }: { isMobileView?: boolean }) => (
-    <div className="flex flex-col h-full">
-      {/* Logo Area */}
-      <div className="h-16 flex items-center justify-between px-4 border-b border-[#30302e]">
-        {(sidebarOpen || isMobileView) && (
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-lg tracking-wider text-[#faf9f5] font-serif">SURYA</span>
-            <span className="text-xs text-[#b0aea5]/70 ml-1">v1.0</span>
-          </div>
-        )}
-        {!isMobileView && (
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-1 hover:bg-[#30302e] rounded transition-colors"
-          >
-            {sidebarOpen ? <PanelLeftClose size={20} /> : <PanelLeftOpen size={20} className="mx-auto" />}
-          </button>
-        )}
-        {isMobileView && (
-          <button onClick={() => setMobileMenuOpen(false)} className="p-1 hover:bg-[#30302e] rounded transition-colors">
-            <X size={24} />
-          </button>
-        )}
-      </div>
-
-      {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto py-4 px-2">
-        {filteredSections.map((section, sectionIdx) => (
-          <div
-            key={section.label}
-            className={clsx(
-              'space-y-1',
-              sectionIdx > 0 && ((sidebarOpen || isMobileView) ? 'mt-5' : 'mt-3 border-t border-[#30302e]/60 pt-3')
-            )}
-          >
-            {(sidebarOpen || isMobileView) && (
-              <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#b0aea5]/55">
-                {section.label}
-              </div>
-            )}
-            {section.items.map((item) => (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                end={item.path === dashboardPath}
-                onClick={() => { if (isMobileView) setMobileMenuOpen(false); }}
-                className={({ isActive }) => clsx(
-                  'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors group',
-                  isActive
-                    ? 'bg-[#30302e] text-[#faf9f5] font-medium'
-                    : 'text-[#b0aea5] hover:text-[#faf9f5] hover:bg-[#30302e]/60'
-                )}
-              >
-                <item.icon size={20} className={(sidebarOpen || isMobileView) ? 'shrink-0' : 'mx-auto shrink-0'} />
-                {(sidebarOpen || isMobileView) && <span className="truncate">{item.label}</span>}
-              </NavLink>
-            ))}
-          </div>
-        ))}
-      </nav>
-
-      {/* Bottom Actions */}
-      <div className="p-4 border-t border-[#30302e] space-y-2">
-         <button
-           onClick={() => { setSettingsOpen(true); if (isMobileView) setMobileMenuOpen(false); }}
-           className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#b0aea5] hover:bg-[#30302e]/60 hover:text-[#faf9f5] w-full transition-colors"
-         >
-            <SettingsIcon size={20} className={(sidebarOpen || isMobileView) ? "shrink-0" : "mx-auto shrink-0"} />
-            {(sidebarOpen || isMobileView) && <span>Settings</span>}
-          </button>
-          <button
-            onClick={() => { void logout(); if (isMobileView) setMobileMenuOpen(false); }}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#d97757] hover:bg-[#30302e]/60 w-full transition-colors"
-          >
-            <LogOut size={20} className={(sidebarOpen || isMobileView) ? "shrink-0" : "mx-auto shrink-0"} />
-            {(sidebarOpen || isMobileView) && <span>Logout</span>}
-          </button>
-      </div>
-    </div>
-  );
-
   return (
     <div className="flex h-screen w-full bg-background overflow-hidden font-sans">
 
-      {/* Desktop Sidebar */}
-      {!isMobile && (
-        <aside
-          className={clsx(
-            "h-full bg-[#141413] text-[#faf9f5] transition-all duration-300 flex flex-col z-20",
-            sidebarOpen ? "w-64" : "w-16"
-          )}
-        >
-          <SidebarContent />
-        </aside>
-      )}
-
-      {/* Mobile Drawer */}
-      <AnimatePresence>
-        {isMobile && mobileMenuOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setMobileMenuOpen(false)}
-              className="fixed inset-0 bg-black/50 z-40 backdrop-blur-sm"
-            />
-            <motion.aside
-              initial={{ x: '-100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '-100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed inset-y-0 left-0 w-72 bg-[#141413] text-[#faf9f5] z-50 shadow-[0px_0px_0px_1px_#30302e]"
-            >
-              <SidebarContent isMobileView />
-            </motion.aside>
-          </>
-        )}
-      </AnimatePresence>
+      <Sidebar
+        isMobile={isMobile}
+        deviceType={deviceType}
+        mobileOpen={mobileMenuOpen}
+        onCloseMobile={() => setMobileMenuOpen(false)}
+        onOpenSettings={() => setSettingsOpen(true)}
+      />
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
@@ -291,10 +67,10 @@ export function Layout() {
               {/* Command Palette Trigger */}
               <button
                 onClick={() => setCommandPaletteOpen(true)}
-                className="flex items-center gap-2 px-2 md:px-3 py-1.5 bg-surface-hover text-text-muted rounded-[8px] border border-border text-sm hover:border-[#c96442] transition-colors group"
+                className="flex items-center gap-2 px-2 md:px-3 py-2 bg-surface-hover text-text-muted rounded-lg border border-border text-sm hover:border-[#c96442] hover:shadow-[var(--shadow-e1)] transition-all group md:min-w-[240px]"
               >
-                <Search size={16} className="group-hover:text-[#c96442] transition-colors" />
-                <span className="hidden md:inline">Search</span>
+                <Search size={16} className="group-hover:text-[#c96442] transition-colors shrink-0" />
+                <span className="hidden md:inline flex-1 text-left">Search or jump to…</span>
                 <kbd className="hidden lg:inline-block bg-background border border-border rounded px-1.5 text-xs font-mono">⌘K</kbd>
               </button>
 
@@ -315,8 +91,8 @@ export function Layout() {
                       {roles.map(r => (
                         <button
                           key={r}
-                          onClick={async () => {
-                            await setActiveRole(r);
+                          onClick={() => {
+                            void setActiveRole(r);
                             navigate(ROLE_ROUTES[r]);
                             setRoleSwitcherOpen(false);
                           }}

@@ -4,6 +4,7 @@ import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
 import { Card, Badge } from '../components/ui/Cards';
 import { InstrumentForm } from '../components/InstrumentForm';
+import { RelatedRail, type RailSection } from '../components/RelatedRail';
 import { amcStatus, AMC_CARD_COLORS, AMC_TEXT_COLORS, findStaffByName } from '../utils/dateUtils';
 import {
   ArrowLeft, MapPin, Wrench, CalendarClock, AlertTriangle,
@@ -25,7 +26,7 @@ function InfoRow({ label, value }: { label: string; value?: string | number | nu
 export default function InstrumentDetail() {
   const { uInsID } = useParams<{ uInsID: string }>();
   const navigate = useNavigate();
-  const { equipment, labs, staff } = useData();
+  const { equipment, labs, staff, projects } = useData();
   const { user } = useAuth();
 
   const [editOpen, setEditOpen] = useState(false);
@@ -39,6 +40,15 @@ export default function InstrumentDetail() {
     () => instrument?.lab_id ? labs.find(l => l.id === instrument.lab_id) : undefined,
     [instrument, labs]
   );
+
+  const relatedSections: RailSection[] = useMemo(() => {
+    const div = instrument?.Division;
+    if (!div) return [];
+    return [
+      { title: 'Staff in division', kind: 'staff', ids: staff.filter(s => s.Division === div).map(s => s.ID).slice(0, 25) },
+      { title: 'Projects in division', kind: 'project', ids: projects.filter(p => p.DivisionCode === div).map(p => p.ProjectID).slice(0, 25) },
+    ];
+  }, [instrument, staff, projects]);
 
   const isAdmin = user && (ADMIN_ROLES as readonly string[]).includes(user.activeRole);
 
@@ -84,15 +94,18 @@ export default function InstrumentDetail() {
             <p className="text-text-muted text-sm">Scientific Instrument Record</p>
           </div>
         </div>
-        {isAdmin && (
-          <button
-            onClick={() => setEditOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 text-sm border border-border rounded-lg hover:bg-surface-hover transition-colors text-text"
-          >
-            <Edit size={14} />
-            Edit
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          <RelatedRail sections={relatedSections} />
+          {isAdmin && (
+            <button
+              onClick={() => setEditOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 text-sm border border-border rounded-lg hover:bg-surface-hover transition-colors text-text"
+            >
+              <Edit size={14} />
+              Edit
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

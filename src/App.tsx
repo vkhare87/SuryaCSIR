@@ -10,6 +10,7 @@ import { useAuth } from './contexts/AuthContext';
 import { isProvisioned } from './utils/supabaseClient';
 import type { Role } from './types';
 import { ROLE_ROUTES } from './constants/roleRoutes';
+import { KpiSkeleton, TableSkeleton } from './components/ui/Skeleton';
 import { ACCESS_MAP } from './constants/access';
 
 // Lazy-loaded routes — split into per-chunk bundles to keep the initial
@@ -24,6 +25,7 @@ const ProjectDetail     = lazy(() => import('./pages/ProjectDetail'));
 const PhDTracker        = lazy(() => import('./pages/PhDTracker'));
 const Divisions         = lazy(() => import('./pages/Divisions'));
 const Intelligence      = lazy(() => import('./pages/Intelligence'));
+const ExploreGraph      = lazy(() => import('./pages/ExploreGraph'));
 const Partnerships      = lazy(() => import('./pages/Partnerships'));
 const RnDMonitor        = lazy(() => import('./pages/RnDMonitor'));
 const Facilities        = lazy(() => import('./pages/Facilities'));
@@ -64,8 +66,11 @@ const ProjectReportDetail = lazy(() => import('./pages/reports/ProjectReportDeta
 
 function RouteFallback() {
   return (
-    <div className="min-h-[40vh] w-full flex items-center justify-center text-text-muted text-sm">
-      Loading…
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[0, 1, 2, 3].map(i => <KpiSkeleton key={i} />)}
+      </div>
+      <TableSkeleton />
     </div>
   );
 }
@@ -141,6 +146,7 @@ function App() {
             <Route path="/phd" element={<ProtectedRoute allowedRoles={ACCESS_MAP['/phd']}><PhDTracker /></ProtectedRoute>} />
             <Route path="/divisions" element={<ProtectedRoute allowedRoles={ACCESS_MAP['/divisions']}><Divisions /></ProtectedRoute>} />
             <Route path="/intelligence" element={<ProtectedRoute allowedRoles={ACCESS_MAP['/intelligence']}><Intelligence /></ProtectedRoute>} />
+            <Route path="/explore" element={<ProtectedRoute allowedRoles={ACCESS_MAP['/explore']}><ExploreGraph /></ProtectedRoute>} />
             <Route path="/facilities" element={<ProtectedRoute allowedRoles={ACCESS_MAP['/facilities']}><Facilities /></ProtectedRoute>} />
             <Route path="/partnerships" element={<ProtectedRoute allowedRoles={ACCESS_MAP['/partnerships']}><Partnerships /></ProtectedRoute>} />
             <Route path="/rnd-monitor" element={<ProtectedRoute allowedRoles={ACCESS_MAP['/rnd-monitor']}><RnDMonitor /></ProtectedRoute>} />

@@ -27,6 +27,7 @@
 
   /* CSS-var pass-throughs for Tailwind utility resolution */
   --color-surface: var(--color-surface);
+  --color-surface-raised: var(--color-surface-raised);
   --color-surface-hover: var(--color-surface-hover);
   --color-background: var(--color-background);
   --color-border: var(--color-border);
@@ -42,6 +43,23 @@
   --shadow-ring: 0px 0px 0px 1px #e8e6dc;
   --shadow-ring-hover: 0px 0px 0px 1px #d1cfc5;
   --shadow-ring-dark: 0px 0px 0px 1px #30302e;
+
+  /* Elevation — warm-tinted layered shadows (primary depth cue over flat rings) */
+  --shadow-e1: 0 1px 2px rgba(65, 45, 30, 0.06), 0 1px 1px rgba(65, 45, 30, 0.04);
+  --shadow-e2: 0 2px 6px rgba(65, 45, 30, 0.08), 0 1px 2px rgba(65, 45, 30, 0.05);
+  --shadow-e3: 0 8px 20px rgba(65, 45, 30, 0.10), 0 2px 6px rgba(65, 45, 30, 0.06);
+  --shadow-e4: 0 16px 40px rgba(65, 45, 30, 0.14), 0 4px 12px rgba(65, 45, 30, 0.08);
+
+  /* Motion */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-fast: 150ms;
+  --duration-base: 250ms;
+  --duration-slow: 400ms;
+
+  /* Radius scale — xl cards, lg controls */
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+  --radius-2xl: 20px;
 }
 
 /* Light Theme Variables */
@@ -55,6 +73,12 @@
 
   --density-padding-base: 1rem;
   --density-gap-base: 1rem;
+
+  /* Layered surfaces + gradients (light) */
+  --color-surface-raised: #ffffff;
+  --gradient-hero: radial-gradient(1200px 600px at 20% -10%, #faf3ea 0%, transparent 60%), radial-gradient(900px 500px at 90% 0%, #f3ede2 0%, transparent 55%), #f5f4ed;
+  --gradient-brand: linear-gradient(135deg, #d97757 0%, #c96442 100%);
+  --gradient-glow: radial-gradient(circle at 50% 0%, rgba(217, 119, 87, 0.18), transparent 70%);
 }
 
 /* Dark Theme Variables */
@@ -65,6 +89,11 @@
   --color-border: #30302e;          /* Border Dark */
   --color-text: #faf9f5;            /* Ivory */
   --color-text-muted: #b0aea5;      /* Warm Silver */
+
+  /* Dark needs 2 surface levels to show elevation; glows run hotter */
+  --color-surface-raised: #3a3a37;
+  --gradient-hero: radial-gradient(1200px 600px at 20% -10%, #211f1b 0%, transparent 60%), radial-gradient(900px 500px at 90% 0%, #2a221d 0%, transparent 55%), #141413;
+  --gradient-glow: radial-gradient(circle at 50% 0%, rgba(217, 119, 87, 0.30), transparent 70%);
 }
 
 /* Density Variants */
@@ -107,6 +136,10 @@
   50% { opacity: 0.55; transform: scale(1.08); }
 }
 
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
+}
+
 @layer utilities {
   .animate-sun {
     animation: sun-rotate 60s linear infinite, sun-pulse 5s ease-in-out infinite;
@@ -116,6 +149,30 @@
   }
   .glass {
     @apply bg-surface/80 backdrop-blur-md border border-border;
+  }
+  .bg-hero {
+    background: var(--gradient-hero);
+  }
+  .bg-grain {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+  }
+  .shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  .shimmer::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
+    animation: shimmer 1.5s infinite;
+  }
+  .dark .shimmer::after {
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .shimmer::after, .animate-sun, .animate-amber-glow { animation: none; }
   }
   .glass-dark {
     @apply bg-[#141413]/80 backdrop-blur-md border border-[#30302e];
