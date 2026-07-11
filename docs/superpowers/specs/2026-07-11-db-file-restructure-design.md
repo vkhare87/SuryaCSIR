@@ -84,7 +84,7 @@ Fresh environments: `supabase db push` (or `db reset` locally) applies 01→08, 
 
 ## Verification
 
-1. **Inventory diff (required):** one catalog SQL query captures the live inventory — tables + columns + types, function names + identity arguments, RLS policies per table, triggers, storage buckets. The same inventory is extracted from the baseline files (applied to a scratch schema, or statically parsed). Every discrepancy in either direction is a finding; done = zero diff.
+1. **Inventory diff (required):** one catalog SQL query captures the live inventory — tables + columns + types, function names + identity arguments, RLS policies per table, triggers, storage buckets. The same inventory is extracted from the baseline files by static parsing (CREATE TABLE bodies for columns, CREATE FUNCTION/POLICY/TRIGGER/bucket-insert statements for the rest) — no local Postgres needed, which matters on this WDAC-restricted host. Every discrepancy in either direction is a finding; done = zero diff.
 2. **Old-vs-new content audit:** each of the 31 archived files is checked off against the baseline file that absorbed it (absorption manifest in migrations_archive/README).
 3. **App checks stay green:** `npx tsc --noEmit`, `npx vitest run`, `npm run build` (no app code changes expected).
 
