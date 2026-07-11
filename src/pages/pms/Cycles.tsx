@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePMS } from '../../contexts/PMSContext';
 import { canAdmin } from '../../lib/pms/permissions';
+import { cycleDeadlines, isSystemLocked } from '../../lib/pms/deadlines';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Skeleton } from '../../components/ui/Skeleton';
@@ -138,23 +139,37 @@ export default function Cycles() {
         <p className="text-text-muted text-sm py-8 text-center">No cycles yet.</p>
       ) : (
         <div className="divide-y divide-border border border-border rounded-2xl overflow-hidden">
-          {cycles.map(c => (
-            <div
-              key={c.id}
-              className="flex items-center justify-between px-5 py-4 bg-surface hover:bg-surface-hover transition-colors"
-            >
-              <div>
-                <p className="font-medium text-text text-sm">{c.name}</p>
-                <p className="text-xs text-text-muted">{c.startDate} – {c.endDate}</p>
+          {cycles.map(c => {
+            const d = cycleDeadlines(c);
+            const fmt = (x: Date) => x.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+            const locked = isSystemLocked(c);
+            return (
+              <div
+                key={c.id}
+                className="flex items-center justify-between px-5 py-4 bg-surface hover:bg-surface-hover transition-colors"
+              >
+                <div>
+                  <p className="font-medium text-text text-sm">{c.name}</p>
+                  <p className="text-xs text-text-muted">{c.startDate} – {c.endDate}</p>
+                  <p className="text-xs text-text-muted mt-0.5">
+                    Self-appraisal: {fmt(d.selfAppraisal)} · Eval. Committee: {fmt(d.ecCompletion)} ·
+                    Empowered: {fmt(d.empoweredCompletion)} · System lock: {fmt(d.systemLock)}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  {locked && (
+                    <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-rose-100 text-rose-700">
+                      LOCKED
+                    </span>
+                  )}
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusStyle(c.status)}`}>
+                    {c.status}
+                  </span>
+                  <Button variant="ghost" size="sm" onClick={() => openEdit(c.id)}>Edit</Button>
+                </div>
               </div>
-              <div className="flex items-center gap-3">
-                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusStyle(c.status)}`}>
-                  {c.status}
-                </span>
-                <Button variant="ghost" size="sm" onClick={() => openEdit(c.id)}>Edit</Button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

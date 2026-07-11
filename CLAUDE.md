@@ -40,7 +40,8 @@ Every staff member logs in and sees their role-scoped slice of the institute.
 ├── package.json, vite.config.ts, tsconfig*.json, eslint.config.js, index.html
 ├── src/                  Application source (see "Where things live")
 ├── supabase/
-│   ├── migrations/       Schema only — append new timestamped files; never edit shipped ones
+│   ├── migrations/       Schema — 8-file domain baseline; append new timestamped files, never edit shipped ones
+│   ├── migrations_archive/  Pre-2026-07-12 history — reference only, not applied anywhere
 │   ├── seed/             Bootstrap data the app needs to function (runs on every env)
 │   ├── mock/             CSIR-AMPRI demo fixture (dev only — NEVER in prod)
 │   ├── ops/              wipe_data.sql + README on apply order
@@ -71,7 +72,7 @@ Every staff member logs in and sees their role-scoped slice of the institute.
 | Mock data | `src/utils/mockData.ts` |
 | Supabase client | `src/utils/supabaseClient.ts` (module-level singleton) |
 | New Supabase entity | type → `src/types/index.ts`; mock → `mockData.ts`; mapper → `dataMapper.ts`; load → `DataContext.tsx`; upload → `dataMigration.ts` |
-| New migration | `supabase/migrations/<TS>_<name>.sql` (timestamp `YYYYMMDDHHMMSS`) — never edit `00000000000000_init.sql` |
+| New migration | `supabase/migrations/<TS>_<name>.sql` (timestamp `YYYYMMDDHHMMSS`, after the 8-file baseline) — never edit a shipped baseline file |
 | Bootstrap data (app needs it to run) | `supabase/seed/<NN>_<name>.sql` |
 | Demo / sample data (dev only) | `supabase/mock/<NN>_<name>.sql` |
 
@@ -150,16 +151,16 @@ No path aliases. Always relative imports.
 
 ## Database
 
-- **One source of truth**: `supabase/migrations/00000000000000_init.sql` (HR + PMS + Auth/RBAC + RLS in one file).
-- **Apply**: Supabase CLI `supabase db reset` against a clean project, or paste into Supabase SQL Editor as `postgres` role (bypasses RLS).
-- **Bootstrap user**: run `supabase/seed.sql` after — creates first SystemAdmin (replace placeholders).
-- **Add new migration**: new timestamped file alongside init. Never edit init.
+- **Source of truth**: `supabase/migrations/` — an 8-file domain baseline (`20260712000001`…`20260712000008`: extensions/helpers, auth_rbac, hr_core, pms, committees_helpdesk, proposals_reports, calendar_recruitment, rag_documents). Pre-2026-07-12 history lives in `supabase/migrations_archive/` (reference only, not applied anywhere — see its README).
+- **Apply**: `supabase db push` (CLI, tracks what's applied — the only sanctioned path). `supabase db reset` for a full local rebuild. Never paste SQL into the Dashboard SQL Editor — that's exactly how the live project silently drifted from the repo before the 2026-07-12 restructure.
+- **Bootstrap data**: run `supabase/seed/*.sql` after the schema — creates helpdesk routing defaults + an OPEN appraisal cycle. First SystemAdmin is created via Dashboard → Authentication → Users, then promoted (see `supabase/ops/README.md`).
+- **Add new migration**: new timestamped file after stage 08. Never edit a shipped baseline file.
 - **RLS is mandatory** on every table. New tables ship with RLS enabled and an explicit policy block.
 - **Auth source of truth**: Supabase Auth. App roles live in `user_roles` (composite PK `(user_id, role)`). Active role + flags live in `user_profiles`.
 - **Auto-register**: on every `auth.users` INSERT, trigger creates `DefaultUser` row in `user_roles` and `user_profiles` row.
 - **HR tables**: quoted CamelCase columns (`"divCode"`, `"StaffName"`) — mirrors Excel.
 - **PMS tables**: snake_case (`scientist_id`, `cycle_id`).
-- **PMS state machine** (in `pms_reports.status`): `DRAFT → SUBMITTED → UNDER_COLLEGIUM_REVIEW → CHAIRMAN_REVIEW → EMPOWERED_COMMITTEE_REVIEW → FINALIZED`. Transitions are atomic via SECURITY DEFINER RPCs (`pms_submit_report`, `pms_assign_evaluators`, `pms_save_chairman_review`, `pms_finalize_report`). Never patch `status` directly from the client.
+- **PMS state machine** (in `pms_reports.status`, 2026 guidelines): `DRAFT → SUBMITTED → UNDER_EVALUATION_COMMITTEE_REVIEW → EMPOWERED_COMMITTEE_REVIEW → FINALIZED`, plus terminal `NOT_ASSESSED` (duty days < 90) and `FINALIZED ⇄ UNDER_GRIEVANCE_REVIEW` (representation within 15 days). Transitions are atomic via SECURITY DEFINER RPCs (`pms_submit_report`, `pms_assign_evaluators`, `pms_finalize_report`, `pms_mark_not_assessed`, `pms_record_non_submission`, `pms_submit_representation`, `pms_resolve_representation`). Scores are integers 0–100; absolute cycle lock after Nov 30. Never patch `status` directly from the client. See `.claude/skills/pms-data-model.md`.
 
 ---
 
@@ -175,7 +176,7 @@ No path aliases. Always relative imports.
 
 **Don't**
 - Don't store role decisions in `localStorage` (spoofable).
-- Don't edit `00000000000000_init.sql` once shipped — add a new timestamped migration.
+- Don't edit a shipped `supabase/migrations/` baseline file — add a new timestamped migration.
 - Don't drive PMS status transitions from the client — call the RPC.
 - Don't introduce `BrowserRouter` — `HashRouter` is intentional for static hosting.
 - Don't add `tailwind.config.js` — Tailwind 4 config lives in `vite.config.ts` + CSS variables in `src/index.css`.

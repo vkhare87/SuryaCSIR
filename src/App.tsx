@@ -39,7 +39,7 @@ const AccessRequests    = lazy(() => import('./pages/AccessRequests'));
 const Calendar          = lazy(() => import('./pages/Calendar'));
 const PMSIndex          = lazy(() => import('./pages/pms/Index'));
 const PMSCycles         = lazy(() => import('./pages/pms/Cycles'));
-const PMSCollegiums     = lazy(() => import('./pages/pms/Collegiums'));
+const EvaluationCommittees = lazy(() => import('./pages/pms/EvaluationCommittees'));
 const PMSReports        = lazy(() => import('./pages/pms/Reports'));
 const ReportNew         = lazy(() => import('./pages/pms/ReportNew'));
 const ReportView        = lazy(() => import('./pages/pms/ReportView'));
@@ -47,7 +47,7 @@ const ReportEdit        = lazy(() => import('./pages/pms/ReportEdit'));
 const AssignEvaluators  = lazy(() => import('./pages/pms/AssignEvaluators'));
 const EvaluatorQueue    = lazy(() => import('./pages/pms/EvaluatorQueue'));
 const EvaluateReport    = lazy(() => import('./pages/pms/EvaluateReport'));
-const ChairmanQueue     = lazy(() => import('./pages/pms/ChairmanQueue'));
+const PMSGrievance      = lazy(() => import('./pages/pms/Grievance'));
 const CommitteeQueue    = lazy(() => import('./pages/pms/CommitteeQueue'));
 const PmsAuditLog       = lazy(() => import('./pages/pms/AuditLog'));
 const TicketList        = lazy(() => import('./pages/helpdesk/TicketList'));
@@ -167,7 +167,8 @@ function App() {
             <Route path="/data" element={<ProtectedRoute allowedRoles={ACCESS_MAP['/data']}><DataManagement /></ProtectedRoute>} />
             <Route path="/pms" element={<ProtectedRoute allowedRoles={ACCESS_MAP['/pms']}><PMSIndex /></ProtectedRoute>} />
             <Route path="/pms/cycles" element={<ProtectedRoute allowedRoles={ACCESS_MAP['/pms/cycles']}><PMSCycles /></ProtectedRoute>} />
-            <Route path="/pms/collegiums" element={<ProtectedRoute allowedRoles={ACCESS_MAP['/pms/collegiums']}><PMSCollegiums /></ProtectedRoute>} />
+            <Route path="/pms/evaluation-committees" element={<ProtectedRoute allowedRoles={ACCESS_MAP['/pms/evaluation-committees']}><EvaluationCommittees /></ProtectedRoute>} />
+            <Route path="/pms/collegiums" element={<Navigate to="/pms/evaluation-committees" replace />} />
             <Route path="/pms/reports" element={<ProtectedRoute><PMSReports /></ProtectedRoute>} />
             <Route path="/pms/reports/new" element={<ProtectedRoute allowedRoles={ACCESS_MAP['/pms/reports/new']}><ReportNew /></ProtectedRoute>} />
             <Route path="/pms/reports/:id" element={<ProtectedRoute><ReportView /></ProtectedRoute>} />
@@ -175,7 +176,7 @@ function App() {
             <Route path="/pms/assign" element={<ProtectedRoute allowedRoles={ACCESS_MAP['/pms/assign']}><AssignEvaluators /></ProtectedRoute>} />
             <Route path="/pms/evaluate" element={<ProtectedRoute><EvaluatorQueue /></ProtectedRoute>} />
             <Route path="/pms/evaluate/:evaluationId" element={<ProtectedRoute><EvaluateReport /></ProtectedRoute>} />
-            <Route path="/pms/chairman" element={<ProtectedRoute><ChairmanQueue /></ProtectedRoute>} />
+            <Route path="/pms/grievance" element={<ProtectedRoute><PMSGrievance /></ProtectedRoute>} />
             <Route path="/pms/committee" element={<ProtectedRoute allowedRoles={ACCESS_MAP['/pms/committee']}><CommitteeQueue /></ProtectedRoute>} />
             <Route path="/pms/audit" element={<ProtectedRoute allowedRoles={ACCESS_MAP['/pms/audit']}><PmsAuditLog /></ProtectedRoute>} />
             <Route path="/db-wizard" element={<Navigate to="/data" replace />} />

@@ -22,12 +22,15 @@ BEGIN;
 TRUNCATE TABLE pms_notifications        CASCADE;
 TRUNCATE TABLE pms_audit_logs           CASCADE;
 TRUNCATE TABLE pms_committee_decisions  CASCADE;
-TRUNCATE TABLE pms_chairman_reviews     CASCADE;
+TRUNCATE TABLE pms_representations      CASCADE;
 TRUNCATE TABLE pms_evaluations          CASCADE;
 TRUNCATE TABLE pms_annexures            CASCADE;
+TRUNCATE TABLE pms_awp_activities       CASCADE;
 TRUNCATE TABLE pms_report_sections      CASCADE;
-TRUNCATE TABLE pms_collegium_members    CASCADE;
-TRUNCATE TABLE pms_collegiums           CASCADE;
+TRUNCATE TABLE pms_evaluation_committee_members CASCADE;
+TRUNCATE TABLE pms_evaluation_committees CASCADE;
+TRUNCATE TABLE pms_grievance_members    CASCADE;
+TRUNCATE TABLE pms_empowered_committee_members CASCADE;
 TRUNCATE TABLE pms_reports              CASCADE;
 TRUNCATE TABLE appraisal_cycles         CASCADE;
 

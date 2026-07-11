@@ -1,5 +1,6 @@
 import { DynamicTable } from './DynamicTable';
 import { WordCountTextarea } from './WordCountTextarea';
+import { getGrade } from '../../lib/pms/scoring';
 
 type SectionProps = { data: Record<string, unknown>; onChange: (d: Record<string, unknown>) => void };
 
@@ -261,19 +262,45 @@ export function SummaryForm({ data, onChange }: SectionProps) {
       </div>
       <div>
         <label className="block text-sm font-medium text-text-muted mb-1">
-          Self Assessment Score (0.5 – 1.1)
+          Self Assessment Score (0 – 100, whole numbers)
         </label>
-        <input
-          type="number"
-          step="0.1"
-          min="0.5"
-          max="1.1"
-          className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-text"
-          value={selfScore}
-          onChange={e => onChange({ ...data, selfScore: parseFloat(e.target.value) })}
-          placeholder="e.g. 0.9"
-        />
+        <div className="flex items-center gap-2">
+          <input
+            type="number"
+            step="1"
+            min="0"
+            max="100"
+            className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-text"
+            value={selfScore}
+            onChange={e => onChange({ ...data, selfScore: parseInt(e.target.value, 10) })}
+            placeholder="e.g. 82"
+          />
+          {selfScore !== '' && !isNaN(Number(selfScore)) && (
+            <span className="text-xs text-text-muted whitespace-nowrap">{getGrade(Number(selfScore))}</span>
+          )}
+        </div>
       </div>
+    </div>
+  );
+}
+
+export function SectionVShortfallForm({ data, onChange }: SectionProps) {
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-text-muted">
+        Section V — Shortfall Tracking: compare committed performance from your Annual Work Plan
+        against outcomes achieved, with reasons for any shortfall.
+      </p>
+      <DynamicTable
+        columns={[
+          { key: 'performance_indicator', label: 'Performance Indicator' },
+          { key: 'committed_performance_awp', label: 'Committed Performance (AWP)' },
+          { key: 'outcome_achieved', label: 'Outcome Achieved' },
+          { key: 'reasons_for_shortfall', label: 'Reasons for Shortfall' },
+        ]}
+        rows={getItems(data)}
+        onChange={rows => onChange({ ...data, items: rows })}
+      />
     </div>
   );
 }

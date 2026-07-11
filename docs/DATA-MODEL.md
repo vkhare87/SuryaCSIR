@@ -1,7 +1,7 @@
 # Data Model
 _Last updated: 2026-04-30_
 
-All tables live in the `public` schema unless noted. Apply via `supabase/migrations/00000000000000_init.sql`.
+All tables live in the `public` schema unless noted. Apply via the 8-file baseline in `supabase/migrations/` (see `supabase/ops/README.md` for the stage table and apply order).
 
 ---
 
@@ -158,36 +158,51 @@ Per-user settings and active role selection.
 | `scientist_id` | `uuid → auth.users` |
 | `status` | `text` — state machine (see flow below) |
 | `period_from`, `period_to` | `date` |
-| `self_score` | `numeric(3,2)` [0.5–1.1] |
+| `self_score` | `integer` [0–100] (2026 scale) |
 | `submitted_at` | `timestamptz` |
 | `signature_url` | `text` |
+| `previous_pms_submitted_on_time` | `boolean` (Part I) |
+| `previous_pms_submission_date` | `date` (Part I) |
+| `duty_days` | `integer` — admin-entered; < 90 blocks appraisal |
+| `system_remark` | `text` — auto-populated on NOT_ASSESSED / non-submission |
+| `score_communicated_at` | `timestamptz` — anchors 15-day representation window |
+| `non_submission_certificate_path` | `text` |
 
-**Status machine**: `DRAFT → SUBMITTED → UNDER_COLLEGIUM_REVIEW → CHAIRMAN_REVIEW → EMPOWERED_COMMITTEE_REVIEW → FINALIZED`
+**Status machine (2026)**: `DRAFT → SUBMITTED → UNDER_EVALUATION_COMMITTEE_REVIEW → EMPOWERED_COMMITTEE_REVIEW → FINALIZED`, plus `NOT_ASSESSED` (terminal) and `FINALIZED ⇄ UNDER_GRIEVANCE_REVIEW`.
 
-Transitions via SECURITY DEFINER RPCs: `pms_submit_report`, `pms_assign_evaluators`, `pms_save_chairman_review`, `pms_finalize_report`.
+Transitions via SECURITY DEFINER RPCs: `pms_submit_report`, `pms_assign_evaluators`, `pms_finalize_report`, `pms_set_duty_days`, `pms_mark_not_assessed`, `pms_record_non_submission`, `pms_submit_representation`, `pms_resolve_representation`. Deadlines derived by `pms_deadline(cycle_id, kind)` (May 15 / Jun 30 / Jul 31 / Nov 30 of the cycle end year); after Nov 30 all report-scoped writes are blocked by trigger.
 
 ### `pms_report_sections`
-JSONB-per-section store. One row per `(report_id, section_key)`.
+JSONB-per-section store. One row per `(report_id, section_key)`. Includes `section_v_shortfall` (Appendix-A Shortfall Tracking).
 
 ### `pms_annexures`
 File attachments (file_path = Supabase Storage path).
 
-### `pms_collegiums`
-Named group per cycle. Can have multiple CHAIRMAN + MEMBER entries.
+### `pms_evaluation_committees`
+Named committee per cycle with `tier IN ('I','II','III')` — I evaluates Sci B/C/D, II → E, III → F.
 
-### `pms_collegium_members`
-`(collegium_id, user_id, role)` where `role IN ('CHAIRMAN', 'MEMBER')`.
+### `pms_evaluation_committee_members`
+`(committee_id, user_id, role)` where `role IN ('REPORTING_OFFICER','REVIEWING_OFFICER','EC_MEMBER')`. Valid panel = odd count with all three roles (`pms_committee_panel_valid`).
+
+### `pms_empowered_committee_members`
+`(cycle_id, user_id, is_chairman)`. Valid = 3/5/7 ordinary members + exactly one Chairman (Director/DG).
+
+### `pms_grievance_members`
+`(cycle_id, user_id)` — 5-member independent Grievance Redressal Committee per cycle.
 
 ### `pms_evaluations`
-One row per `(report_id, evaluator_id)`. `scores` is JSONB. `status`: `PENDING → IN_PROGRESS → COMPLETED`.
+One row per `(report_id, evaluator_id)`. `scores` JSONB worksheet + `total_score integer [0–100]` + conditional reason columns (`reasons_for_outstanding`, `reasons_below_threshold`, `suggestions_for_improvement`). `status`: `PENDING → IN_PROGRESS → COMPLETED`.
 
-Auto-advance trigger: when all evaluations for a report hit `COMPLETED`, report moves to `CHAIRMAN_REVIEW`.
-
-### `pms_chairman_reviews`
-One per report. `recommended_min` / `recommended_max` range.
+Auto-advance trigger: when all evaluations for a report hit `COMPLETED`, report moves to `EMPOWERED_COMMITTEE_REVIEW`.
 
 ### `pms_committee_decisions`
-One per report. `final_score` + `justification` (min 50 chars).
+One per report. `final_score integer [0–100]` + `justification` (min 50 chars) + same three conditional reason columns. Score ≥ 90 requires `reasons_for_outstanding`; ≤ 75 requires `reasons_below_threshold` + `suggestions_for_improvement`.
+
+### `pms_awp_activities`
+Part V Annual Work Plan. `(report_id, nature_of_activity, role, time_committed_percentage numeric, milestones jsonb)`.
+
+### `pms_representations`
+One per report. `(report_id, scientist_id, grounds, status PENDING/RESOLVED, resolution, resolved_by, resolved_at)` — written only via RPCs.
 
 ### `pms_audit_logs`
 Append-only log. `(user_id, action, entity_type, entity_id, details jsonb)`.
@@ -204,7 +219,10 @@ Append-only log. `(user_id, action, entity_type, entity_id, details jsonb)`.
 | HR tables (divisions/staff/projects/…) | All authenticated | HRAdmin + SystemAdmin |
 | `user_roles` | Own rows + admins | MasterAdmin + SystemAdmin |
 | `user_profiles` | Own row + admins | Own row + admins |
-| `pms_reports` | Owner + admins + evaluators + collegium | Owner (DRAFT only) via RPC |
+| `pms_reports` | Owner + admins + evaluators + committee | Owner (DRAFT only) via RPC |
+| `pms_awp_activities` | Same as parent report | Owner (DRAFT only) |
+| `pms_representations` | Owner + admins + grievance members | RPCs only |
+| `pms_empowered_committee_members` / `pms_grievance_members` | All authenticated | Admins |
 | `pms_evaluations` | Evaluator (own) + admins | Evaluator (own) via RPC |
 | `pms_audit_logs` | Admins only | RPCs only |
 | `pms_notifications` | Owner + admins | RPCs only |
@@ -217,6 +235,11 @@ Append-only log. `(user_id, action, entity_type, entity_id, details jsonb)`.
 |----------|-------|
 | `user_has_role(role text)` | SECURITY DEFINER — used in RLS policies to avoid recursion |
 | `pms_is_admin()` | True if user has HRAdmin/SystemAdmin/MasterAdmin role |
-| `pms_is_collegium_member(cycle_id)` | True if user is in any collegium for that cycle |
+| `pms_is_evaluation_committee_member(cycle_id)` | True if user is in any Evaluation Committee for that cycle |
+| `pms_is_grievance_member(cycle_id)` | True if user is in the cycle's Grievance Committee |
+| `pms_committee_panel_valid(committee_id)` | Odd member count + all three panel roles present |
+| `pms_empowered_committee_valid(cycle_id)` | 3/5/7 members + exactly one Chairman |
+| `pms_deadline(cycle_id, kind)` | May 15 / Jun 30 / Jul 31 / Nov 30 of cycle end year |
+| `pms_cycle_locked(cycle_id)` | True after Nov 30 — write triggers reject all changes |
 | `pms_set_updated_at()` | Trigger function — maintains `updated_at` on update |
 | `handle_new_auth_user()` | Trigger — auto-creates `DefaultUser` + profile on signup |

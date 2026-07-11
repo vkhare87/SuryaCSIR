@@ -1,72 +1,90 @@
 ---
 name: pms-data-model
-description: PMS domain knowledge — state machine, tables, RPC contracts, role access rules. Read before building any PMS feature.
+description: PMS domain knowledge — 2026-guidelines state machine, tables, RPC contracts, role access rules. Read before building any PMS feature.
 ---
 
-## PMS State Machine
+## PMS State Machine (2026 guidelines)
 
 ```
 DRAFT
-  │  pms_submit_report(report_id)
+  │  pms_submit_report(report_id)          [blocked after May 15; blocked if duty_days < 90]
   ▼
-SUBMITTED
-  │  pms_assign_evaluators(report_id, user_ids[])
+SUBMITTED                                   [also reached via pms_record_non_submission]
+  │  pms_assign_evaluators(report_id, committee_id)   [panel must be valid]
   ▼
-UNDER_COLLEGIUM_REVIEW
+UNDER_EVALUATION_COMMITTEE_REVIEW
   │  (auto-trigger: all evaluations COMPLETED)
   ▼
-CHAIRMAN_REVIEW
-  │  pms_save_chairman_review(report_id, min, max, comments?)
-  ▼
 EMPOWERED_COMMITTEE_REVIEW
-  │  pms_finalize_report(report_id, final_score, justification)
+  │  pms_finalize_report(report_id, final_score int, justification, reasons…)
   ▼
-FINALIZED
+FINALIZED ──── pms_submit_representation (≤15 days after score_communicated_at)
+  ▲                    │
+  │                    ▼
+  └──────── UNDER_GRIEVANCE_REVIEW ── pms_resolve_representation
+
+NOT_ASSESSED  — terminal; pms_mark_not_assessed when duty_days < 90
 ```
 
 All transitions are server-side SECURITY DEFINER RPCs. Never `UPDATE pms_reports SET status = ...` from the client.
+
+## 5-Part Proforma
+
+- **Part I** Basic Information — report row: `previous_pms_submitted_on_time`, `previous_pms_submission_date`, `duty_days` (admin-entered)
+- **Part II** Self-Appraisal (Appendix-A) — jsonb sections incl. `section_v_shortfall` (Shortfall Tracking: performance_indicator, committed_performance_awp, outcome_achieved, reasons_for_shortfall)
+- **Part III** Appraisal by Evaluation Committee — `pms_evaluations`
+- **Part IV** Appraisal by Empowered Committee — `pms_committee_decisions`
+- **Part V** Annual Work Plan — `pms_awp_activities` (nature_of_activity, role, time_committed_percentage, milestones jsonb)
 
 ## Table Quick Reference
 
 | Table | Key columns | Who can read | Who can write |
 |-------|-------------|-------------|---------------|
 | `appraisal_cycles` | id, name, start/end_date, status (OPEN/CLOSED/ARCHIVED) | All authenticated | pms_is_admin() |
-| `pms_reports` | id, cycle_id, scientist_id, status, period_from/to, self_score, submitted_at | Owner, admins, evaluators, collegium members | Owner (DRAFT) via RPC |
+| `pms_reports` | + previous_pms_*, duty_days, system_remark, score_communicated_at, non_submission_certificate_path; self_score int 0–100 | Owner, admins, evaluators, committee members | Owner (DRAFT) via RPC |
 | `pms_report_sections` | id, report_id, section_key, data(jsonb) | Same as parent report | Owner (DRAFT only) |
-| `pms_annexures` | id, report_id, file_name, file_path, file_size, mime_type | Owner, admins | Owner (DRAFT only) |
-| `pms_collegiums` | id, name, description, cycle_id | All authenticated | Admins |
-| `pms_collegium_members` | id, collegium_id, user_id, role (CHAIRMAN/MEMBER) | All authenticated | Admins |
-| `pms_evaluations` | id, report_id, evaluator_id, status (PENDING/IN_PROGRESS/COMPLETED), scores(jsonb) | Evaluator + admins | Evaluator (own) |
-| `pms_chairman_reviews` | id, report_id, chairman_id, recommended_min/max, comments | Chairman + admins | Via RPC |
-| `pms_committee_decisions` | id, report_id, decided_by, final_score, justification (≥50 chars) | Decider + admins | Via RPC |
-| `pms_audit_logs` | id, user_id, action, entity_type, entity_id, details(jsonb) | Admins only | RPCs only (auto) |
-| `pms_notifications` | id, user_id, type, title, body, report_id, read | Owner + admins | RPCs only (auto) |
+| `pms_annexures` | file metadata | Owner, admins | Owner (DRAFT only) |
+| `pms_evaluation_committees` | id, name, cycle_id, tier (I/II/III) | All authenticated | Admins |
+| `pms_evaluation_committee_members` | committee_id, user_id, role (REPORTING_OFFICER/REVIEWING_OFFICER/EC_MEMBER) | All authenticated | Admins |
+| `pms_empowered_committee_members` | cycle_id, user_id, is_chairman — valid = 3/5/7 members + 1 chairman | All authenticated | Admins |
+| `pms_grievance_members` | cycle_id, user_id — exactly 5 per cycle | All authenticated | Admins |
+| `pms_evaluations` | + total_score int 0–100, reasons_for_outstanding, reasons_below_threshold, suggestions_for_improvement | Evaluator + admins | Evaluator (own) |
+| `pms_committee_decisions` | final_score int 0–100, justification (≥50 chars), + same three reason columns | Decider + admins | Via RPC |
+| `pms_awp_activities` | report_id, nature_of_activity, role, time_committed_percentage, milestones | Same as report | Owner (DRAFT only) |
+| `pms_representations` | report_id, grounds, status (PENDING/RESOLVED), resolution | Owner, admins, grievance members | Via RPC only |
+| `pms_audit_logs` / `pms_notifications` | unchanged | Admins / owner | RPCs only |
 
-## Role Access
+## Committee Tiers
 
-| Role | Access |
-|------|--------|
-| Scientist | Own reports (DRAFT→SUBMITTED) |
-| DivisionHead / HOD | Read own division reports |
-| HRAdmin / SystemAdmin / MasterAdmin | Full admin: all reports, cycles, audit |
-| EmpoweredCommittee | Committee queue (EMPOWERED_COMMITTEE_REVIEW) |
-| CHAIRMAN (collegium role) | Chairman queue (CHAIRMAN_REVIEW) |
-| MEMBER (collegium role) | Evaluator queue (UNDER_COLLEGIUM_REVIEW) |
+Committee I → Scientists B, C, D · Committee II → Scientist E · Committee III → Scientist F.
+Panel valid = odd member count with ≥1 Reporting Officer, ≥1 Reviewing Officer, ≥1 EC member
+(`pms_committee_panel_valid`). Appraisees: Scientists B–F only (client gate via
+`isEligibleAppraisee` on staff `Designation`).
 
-## Section Keys (from src/lib/pms/constants.ts)
+## Scoring (2026)
 
-Read `src/lib/pms/constants.ts` for the canonical list. Each section maps to a JSONB payload in `pms_report_sections.data`.
+Integer 0–100 (whole numbers enforced — `isValidScore` in `src/lib/pms/scoring.ts`). Grades:
+≥90 Outstanding · 85–89 Excellent · 75–84 Very Good · 60–74 Good · 50–59 Satisfactory · ≤49 Need Improvement.
+- score ≥ 90 → `reasons_for_outstanding` mandatory
+- score ≤ 75 → `reasons_below_threshold` + `suggestions_for_improvement` mandatory
+Enforced in RPCs and in client (`assertScoreReasons` in PMSContext).
 
-## Self-Score Range
+## Deadlines (financial-year cycle; year = cycle end_date year)
 
-`self_score` and `final_score`: numeric `[0.5, 1.1]` (APAR scoring scale). Validate before submission.
+May 15 self-appraisal + AWP · Jun 30 Evaluation Committee · Jul 31 Empowered Committee ·
+**Nov 30 absolute system lock** (BEFORE-trigger `pms_block_locked_cycle_*` on all report-scoped
+tables — admins not exempt). SQL: `pms_deadline(cycle_id, kind)`. Client: `src/lib/pms/deadlines.ts`.
+
+## Business-Rule RPCs
+
+- `pms_set_duty_days(report_id, days)` — admin records duty days (manual; no attendance module)
+- `pms_mark_not_assessed(report_id, remark?)` — admin; requires duty_days < 90; terminal NOT_ASSESSED + system_remark
+- `pms_record_non_submission(report_id, cert_path)` — admin, post-May-15 DRAFT → SUBMITTED with certificate + EC flag
+- `pms_submit_representation(report_id, grounds)` — scientist, ≤15 days after score communication; needs 5 grievance members configured
+- `pms_resolve_representation(report_id, resolution, revised_score?, reasons…)` — grievance member/admin → back to FINALIZED
 
 ## Notifications
 
-Auto-sent by RPCs:
-- `assigned_evaluator` → evaluator on `pms_assign_evaluators`
-- `chairman_review_needed` → CHAIRMANs on all-evaluations-complete
-- `committee_review_needed` → EmpoweredCommittee on `pms_save_chairman_review`
-- `report_finalized` → scientist on `pms_finalize_report`
-
-Read via `pms_notifications` table (user_id = auth.uid()). Mark read with UPDATE.
+`assigned_evaluator`, `committee_review_needed`, `report_finalized`, `report_not_assessed`,
+`non_submission_flagged`, `representation_submitted`, `representation_resolved`.
+Read via `pms_notifications` (user_id = auth.uid()); mark read with UPDATE.

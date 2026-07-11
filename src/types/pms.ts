@@ -12,10 +12,11 @@ export interface AppraisalCycle {
 export type ReportStatus =
   | 'DRAFT'
   | 'SUBMITTED'
-  | 'UNDER_COLLEGIUM_REVIEW'
-  | 'CHAIRMAN_REVIEW'
+  | 'UNDER_EVALUATION_COMMITTEE_REVIEW'
   | 'EMPOWERED_COMMITTEE_REVIEW'
-  | 'FINALIZED';
+  | 'FINALIZED'
+  | 'NOT_ASSESSED'
+  | 'UNDER_GRIEVANCE_REVIEW';
 
 export interface PMSReport {
   id: string;
@@ -27,6 +28,12 @@ export interface PMSReport {
   selfScore: number | null;
   submittedAt: string | null;
   signatureUrl: string | null;
+  previousPmsSubmittedOnTime: boolean | null;
+  previousPmsSubmissionDate: string | null;
+  dutyDays: number | null;
+  systemRemark: string | null;
+  scoreCommunicatedAt: string | null;
+  nonSubmissionCertificatePath: string | null;
   createdAt: string;
   updatedAt: string;
   cycle?: AppraisalCycle;
@@ -50,24 +57,43 @@ export interface PMSAnnexure {
   uploadedAt: string;
 }
 
-export type CollegiumMemberRole = 'CHAIRMAN' | 'MEMBER';
+export type CommitteeTier = 'I' | 'II' | 'III';
 
-export interface PMSCollegium {
+export type CommitteeMemberRole =
+  | 'REPORTING_OFFICER'
+  | 'REVIEWING_OFFICER'
+  | 'EC_MEMBER';
+
+export interface PMSEvaluationCommittee {
   id: string;
   name: string;
   description: string | null;
   cycleId: string;
+  tier: CommitteeTier | null;
   createdAt: string;
-  members?: PMSCollegiumMember[];
+  members?: PMSEvaluationCommitteeMember[];
 }
 
-export interface PMSCollegiumMember {
+export interface PMSEvaluationCommitteeMember {
   id: string;
-  collegiumId: string;
+  committeeId: string;
   userId: string;
-  role: CollegiumMemberRole;
+  role: CommitteeMemberRole;
   userName?: string;
   userEmail?: string;
+}
+
+export interface PMSEmpoweredCommitteeMember {
+  id: string;
+  cycleId: string;
+  userId: string;
+  isChairman: boolean;
+}
+
+export interface PMSGrievanceMember {
+  id: string;
+  cycleId: string;
+  userId: string;
 }
 
 export interface PMSAuditLog {
@@ -88,19 +114,13 @@ export interface PMSEvaluation {
   evaluatorId: string;
   status: EvaluationStatus;
   scores: Record<string, number>;
+  totalScore: number | null;
+  reasonsForOutstanding: string | null;
+  reasonsBelowThreshold: string | null;
+  suggestionsForImprovement: string | null;
   comments: string | null;
   createdAt: string;
   updatedAt: string;
-}
-
-export interface PMSChairmanReview {
-  id: string;
-  reportId: string;
-  chairmanId: string;
-  recommendedMin: number | null;
-  recommendedMax: number | null;
-  comments: string | null;
-  createdAt: string;
 }
 
 export interface PMSCommitteeDecision {
@@ -109,14 +129,45 @@ export interface PMSCommitteeDecision {
   decidedBy: string;
   finalScore: number | null;
   justification: string;
+  reasonsForOutstanding: string | null;
+  reasonsBelowThreshold: string | null;
+  suggestionsForImprovement: string | null;
   createdAt: string;
+}
+
+export interface PMSAWPActivity {
+  id: string;
+  reportId: string;
+  natureOfActivity: string;
+  role: string;
+  timeCommittedPercentage: number;
+  milestones: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type RepresentationStatus = 'PENDING' | 'RESOLVED';
+
+export interface PMSRepresentation {
+  id: string;
+  reportId: string;
+  scientistId: string;
+  grounds: string;
+  submittedAt: string;
+  status: RepresentationStatus;
+  resolution: string | null;
+  resolvedBy: string | null;
+  resolvedAt: string | null;
 }
 
 export type NotificationType =
   | 'assigned_evaluator'
-  | 'chairman_review_needed'
   | 'committee_review_needed'
-  | 'report_finalized';
+  | 'report_finalized'
+  | 'report_not_assessed'
+  | 'non_submission_flagged'
+  | 'representation_submitted'
+  | 'representation_resolved';
 
 export interface PMSNotification {
   id: string;
@@ -142,5 +193,6 @@ export type SectionKey =
   | 'section_v_curriculum'
   | 'section_v_extension'
   | 'section_v_other'
+  | 'section_v_shortfall'
   | 'section_vi_national'
   | 'section_vi_international';

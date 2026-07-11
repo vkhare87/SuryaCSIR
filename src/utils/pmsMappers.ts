@@ -3,11 +3,14 @@ import type {
   PMSReport,
   PMSReportSection,
   PMSAnnexure,
-  PMSCollegium,
-  PMSCollegiumMember,
+  PMSEvaluationCommittee,
+  PMSEvaluationCommitteeMember,
+  PMSEmpoweredCommitteeMember,
+  PMSGrievanceMember,
   PMSEvaluation,
-  PMSChairmanReview,
   PMSCommitteeDecision,
+  PMSAWPActivity,
+  PMSRepresentation,
   PMSNotification,
 } from '../types/pms';
 
@@ -33,6 +36,12 @@ export function mapReportRow(row: Record<string, unknown>): PMSReport {
     selfScore:    row.self_score != null ? Number(row.self_score) : null,
     submittedAt:  (row.submitted_at as string) ?? null,
     signatureUrl: (row.signature_url as string) ?? null,
+    previousPmsSubmittedOnTime: (row.previous_pms_submitted_on_time as boolean) ?? null,
+    previousPmsSubmissionDate:  (row.previous_pms_submission_date as string) ?? null,
+    dutyDays:     row.duty_days != null ? Number(row.duty_days) : null,
+    systemRemark: (row.system_remark as string) ?? null,
+    scoreCommunicatedAt: (row.score_communicated_at as string) ?? null,
+    nonSubmissionCertificatePath: (row.non_submission_certificate_path as string) ?? null,
     createdAt:    row.created_at as string,
     updatedAt:    row.updated_at as string,
   };
@@ -60,24 +69,42 @@ export function mapAnnexureRow(row: Record<string, unknown>): PMSAnnexure {
   };
 }
 
-export function mapCollegiumRow(row: Record<string, unknown>): PMSCollegium {
+export function mapCommitteeRow(row: Record<string, unknown>): PMSEvaluationCommittee {
   return {
     id:          row.id as string,
     name:        row.name as string,
     description: (row.description as string) ?? null,
     cycleId:     row.cycle_id as string,
+    tier:        (row.tier as PMSEvaluationCommittee['tier']) ?? null,
     createdAt:   row.created_at as string,
   };
 }
 
-export function mapCollegiumMemberRow(row: Record<string, unknown>): PMSCollegiumMember {
+export function mapCommitteeMemberRow(row: Record<string, unknown>): PMSEvaluationCommitteeMember {
   return {
     id:          row.id as string,
-    collegiumId: row.collegium_id as string,
+    committeeId: row.committee_id as string,
     userId:      row.user_id as string,
-    role:        row.role as PMSCollegiumMember['role'],
+    role:        row.role as PMSEvaluationCommitteeMember['role'],
     userName:    (row.user_name as string) ?? undefined,
     userEmail:   (row.user_email as string) ?? undefined,
+  };
+}
+
+export function mapEmpoweredMemberRow(row: Record<string, unknown>): PMSEmpoweredCommitteeMember {
+  return {
+    id:         row.id as string,
+    cycleId:    row.cycle_id as string,
+    userId:     row.user_id as string,
+    isChairman: Boolean(row.is_chairman),
+  };
+}
+
+export function mapGrievanceMemberRow(row: Record<string, unknown>): PMSGrievanceMember {
+  return {
+    id:      row.id as string,
+    cycleId: row.cycle_id as string,
+    userId:  row.user_id as string,
   };
 }
 
@@ -88,21 +115,13 @@ export function mapEvaluationRow(row: Record<string, unknown>): PMSEvaluation {
     evaluatorId: row.evaluator_id as string,
     status:      row.status as PMSEvaluation['status'],
     scores:      (row.scores as Record<string, number>) ?? {},
+    totalScore:  row.total_score != null ? Number(row.total_score) : null,
+    reasonsForOutstanding:     (row.reasons_for_outstanding as string) ?? null,
+    reasonsBelowThreshold:     (row.reasons_below_threshold as string) ?? null,
+    suggestionsForImprovement: (row.suggestions_for_improvement as string) ?? null,
     comments:    (row.comments as string) ?? null,
     createdAt:   row.created_at as string,
     updatedAt:   row.updated_at as string,
-  };
-}
-
-export function mapChairmanReviewRow(row: Record<string, unknown>): PMSChairmanReview {
-  return {
-    id:             row.id as string,
-    reportId:       row.report_id as string,
-    chairmanId:     row.chairman_id as string,
-    recommendedMin: row.recommended_min != null ? Number(row.recommended_min) : null,
-    recommendedMax: row.recommended_max != null ? Number(row.recommended_max) : null,
-    comments:       (row.comments as string) ?? null,
-    createdAt:      row.created_at as string,
   };
 }
 
@@ -113,7 +132,37 @@ export function mapCommitteeDecisionRow(row: Record<string, unknown>): PMSCommit
     decidedBy:     row.decided_by as string,
     finalScore:    row.final_score != null ? Number(row.final_score) : null,
     justification: row.justification as string,
+    reasonsForOutstanding:     (row.reasons_for_outstanding as string) ?? null,
+    reasonsBelowThreshold:     (row.reasons_below_threshold as string) ?? null,
+    suggestionsForImprovement: (row.suggestions_for_improvement as string) ?? null,
     createdAt:     row.created_at as string,
+  };
+}
+
+export function mapAWPActivityRow(row: Record<string, unknown>): PMSAWPActivity {
+  return {
+    id:                      row.id as string,
+    reportId:                row.report_id as string,
+    natureOfActivity:        row.nature_of_activity as string,
+    role:                    row.role as string,
+    timeCommittedPercentage: Number(row.time_committed_percentage),
+    milestones:              Array.isArray(row.milestones) ? (row.milestones as string[]) : [],
+    createdAt:               row.created_at as string,
+    updatedAt:               row.updated_at as string,
+  };
+}
+
+export function mapRepresentationRow(row: Record<string, unknown>): PMSRepresentation {
+  return {
+    id:          row.id as string,
+    reportId:    row.report_id as string,
+    scientistId: row.scientist_id as string,
+    grounds:     row.grounds as string,
+    submittedAt: row.submitted_at as string,
+    status:      row.status as PMSRepresentation['status'],
+    resolution:  (row.resolution as string) ?? null,
+    resolvedBy:  (row.resolved_by as string) ?? null,
+    resolvedAt:  (row.resolved_at as string) ?? null,
   };
 }
 

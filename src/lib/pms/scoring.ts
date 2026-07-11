@@ -1,21 +1,36 @@
-import { SCORE_CATEGORIES, SCORE_RANGE } from './constants';
+import {
+  BELOW_THRESHOLD,
+  GRADE_BANDS,
+  OUTSTANDING_THRESHOLD,
+  SCORE_RANGE,
+} from './constants';
 
 export function clampScore(score: number): number {
-  return Math.min(SCORE_RANGE.max, Math.max(SCORE_RANGE.min, score));
+  return Math.round(Math.min(SCORE_RANGE.max, Math.max(SCORE_RANGE.min, score)));
 }
 
-export function getScoreCategory(score: number): string {
-  const cat = SCORE_CATEGORIES.find(c => score >= c.min && score <= c.max);
-  return cat?.label ?? 'Unknown';
-}
-
+/** 2026 scale: whole numbers 0–100 only. */
 export function isValidScore(score: number): boolean {
-  return score >= SCORE_RANGE.min && score <= SCORE_RANGE.max;
+  return Number.isInteger(score) && score >= SCORE_RANGE.min && score <= SCORE_RANGE.max;
+}
+
+export function getGrade(score: number): string {
+  const band = GRADE_BANDS.find(b => score >= b.min && score <= b.max);
+  return band?.label ?? 'Unknown';
+}
+
+/** Score >= 90 ("Outstanding") mandates reasons_for_outstanding. */
+export function requiresOutstandingReasons(score: number): boolean {
+  return score >= OUTSTANDING_THRESHOLD;
+}
+
+/** Score <= 75 mandates reasons_below_threshold + suggestions_for_improvement. */
+export function requiresBelowThresholdReasons(score: number): boolean {
+  return score <= BELOW_THRESHOLD;
 }
 
 export function averageScores(scores: number[]): number | null {
-  if (scores.length === 0) return null;
   const valid = scores.filter(isValidScore);
   if (valid.length === 0) return null;
-  return valid.reduce((a, b) => a + b, 0) / valid.length;
+  return Math.round(valid.reduce((a, b) => a + b, 0) / valid.length);
 }

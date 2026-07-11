@@ -10,8 +10,6 @@ interface FileFinalizedInput {
   annexures: PMSAnnexure[];
   finalScore: number | null;
   justification: string | null;
-  recommendedMin?: number | null;
-  recommendedMax?: number | null;
 }
 
 /**
@@ -36,8 +34,6 @@ export async function fileFinalizedReport(input: FileFinalizedInput): Promise<vo
       annexures: input.annexures,
       finalScore: input.finalScore,
       justification: input.justification,
-      recommendedMin: input.recommendedMin,
-      recommendedMax: input.recommendedMax,
     }) as unknown as Parameters<typeof pdf>[0];
 
     const blob = await pdf(doc).toBlob();

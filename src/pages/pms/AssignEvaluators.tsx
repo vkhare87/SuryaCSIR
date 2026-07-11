@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { usePMS } from '../../contexts/PMSContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { canAdmin } from '../../lib/pms/permissions';
+import { canAdmin, isPanelValid } from '../../lib/pms/permissions';
 import { StatusBadge } from '../../components/pms/StatusBadge';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
@@ -10,9 +10,9 @@ import { Skeleton } from '../../components/ui/Skeleton';
 
 export default function AssignEvaluators() {
   const { user } = useAuth();
-  const { reports, collegiums, isLoading, assignEvaluators } = usePMS();
+  const { reports, committees, isLoading, assignEvaluators } = usePMS();
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
-  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [selectedCommitteeId, setSelectedCommitteeId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,31 +30,24 @@ export default function AssignEvaluators() {
 
   const submittedReports = reports.filter(r => r.status === 'SUBMITTED');
   const selectedReport = reports.find(r => r.id === selectedReportId);
-  const collegiumForCycle = selectedReport
-    ? collegiums.find(c => c.cycleId === selectedReport.cycleId)
-    : null;
-  const members = collegiumForCycle?.members ?? [];
-
-  const toggleUser = (uid: string) => {
-    setSelectedUserIds(prev =>
-      prev.includes(uid) ? prev.filter(id => id !== uid) : [...prev, uid]
-    );
-  };
+  const cycleCommittees = selectedReport
+    ? committees.filter(c => c.cycleId === selectedReport.cycleId)
+    : [];
 
   const openModal = (reportId: string) => {
     setSelectedReportId(reportId);
-    setSelectedUserIds([]);
+    setSelectedCommitteeId(null);
     setError(null);
   };
 
   const handleAssign = async () => {
-    if (!selectedReportId || selectedUserIds.length === 0) return;
+    if (!selectedReportId || !selectedCommitteeId) return;
     setSaving(true);
     setError(null);
     try {
-      await assignEvaluators(selectedReportId, selectedUserIds);
+      await assignEvaluators(selectedReportId, selectedCommitteeId);
       setSelectedReportId(null);
-      setSelectedUserIds([]);
+      setSelectedCommitteeId(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Assignment failed');
     } finally {
@@ -64,7 +57,7 @@ export default function AssignEvaluators() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-serif font-medium text-text">Assign Evaluators</h1>
+      <h1 className="text-2xl font-serif font-medium text-text">Assign Evaluation Committee</h1>
       <p className="text-sm text-text-muted">
         {submittedReports.length} report{submittedReports.length !== 1 ? 's' : ''} awaiting assignment
       </p>
@@ -88,6 +81,9 @@ export default function AssignEvaluators() {
                 {r.periodFrom && r.periodTo && (
                   <p className="text-xs text-text-muted mt-0.5">{r.periodFrom} – {r.periodTo}</p>
                 )}
+                {r.nonSubmissionCertificatePath && (
+                  <p className="text-xs text-amber-600 mt-0.5">Non-submission — certificate on file</p>
+                )}
               </div>
               <div className="flex items-center gap-3">
                 <StatusBadge status={r.status} />
@@ -102,48 +98,53 @@ export default function AssignEvaluators() {
 
       <Modal
         isOpen={!!selectedReportId}
-        onClose={() => { setSelectedReportId(null); setSelectedUserIds([]); }}
-        title="Assign Evaluators"
+        onClose={() => { setSelectedReportId(null); setSelectedCommitteeId(null); }}
+        title="Assign Evaluation Committee"
       >
         <div className="space-y-4 p-4">
           <p className="text-sm font-medium text-text-muted">{selectedReport?.cycle?.name}</p>
 
-          {members.length === 0 ? (
+          {cycleCommittees.length === 0 ? (
             <p className="text-sm text-text-muted">
-              No collegium found for this cycle. Create a collegium first in the Collegiums section.
+              No Evaluation Committee found for this cycle. Create one first in the Evaluation Committees section.
             </p>
           ) : (
             <>
-              <p className="text-sm text-text-muted">Select evaluators from the collegium:</p>
+              <p className="text-sm text-text-muted">
+                Select the committee tier matching the appraisee's grade (I: Sci B/C/D, II: Sci E, III: Sci F).
+                The full panel becomes the evaluators.
+              </p>
               <div className="divide-y divide-border border border-border rounded-xl overflow-hidden">
-                {members.map(m => (
-                  <label
-                    key={m.id}
-                    className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-surface-hover transition-colors"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedUserIds.includes(m.userId)}
-                      onChange={() => toggleUser(m.userId)}
-                      className="accent-[#c96442]"
-                    />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-text">
-                        {m.userName ?? m.userId.slice(0, 8) + '…'}
-                      </p>
-                      {m.userEmail && (
-                        <p className="text-xs text-text-muted">{m.userEmail}</p>
+                {cycleCommittees.map(c => {
+                  const panelOk = isPanelValid(c.members ?? []);
+                  return (
+                    <label
+                      key={c.id}
+                      className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-surface-hover transition-colors"
+                    >
+                      <input
+                        type="radio"
+                        name="committee"
+                        checked={selectedCommitteeId === c.id}
+                        onChange={() => setSelectedCommitteeId(c.id)}
+                        disabled={!panelOk}
+                        className="accent-[#c96442]"
+                      />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-text">{c.name}</p>
+                        <p className="text-xs text-text-muted">
+                          {c.members?.length ?? 0} member{(c.members?.length ?? 0) !== 1 ? 's' : ''}
+                          {!panelOk && ' — panel invalid (odd count with Reporting Officer, Reviewing Officer, EC member required)'}
+                        </p>
+                      </div>
+                      {c.tier && (
+                        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                          Tier {c.tier}
+                        </span>
                       )}
-                    </div>
-                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                      m.role === 'CHAIRMAN'
-                        ? 'bg-orange-100 text-orange-700'
-                        : 'bg-blue-100 text-blue-700'
-                    }`}>
-                      {m.role}
-                    </span>
-                  </label>
-                ))}
+                    </label>
+                  );
+                })}
               </div>
 
               {error && (
@@ -157,9 +158,9 @@ export default function AssignEvaluators() {
                 <Button
                   onClick={handleAssign}
                   isLoading={saving}
-                  disabled={selectedUserIds.length === 0}
+                  disabled={!selectedCommitteeId}
                 >
-                  Assign {selectedUserIds.length > 0 ? `(${selectedUserIds.length})` : ''}
+                  Assign Committee
                 </Button>
               </div>
             </>

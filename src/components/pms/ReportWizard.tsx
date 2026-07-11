@@ -12,13 +12,15 @@ import {
   SectionI4Form, SectionI5Form, SectionIIForm,
   SectionIIIForm, SectionIVForm,
   SectionVCurriculumForm, SectionVExtensionForm, SectionVOtherForm,
+  SectionVShortfallForm,
   SectionVINationalForm, SectionVIInternationalForm,
 } from './SectionForms';
+import { AWPForm, type AWPDraft } from './AWPForm';
 import { SignatureUpload } from './SignatureUpload';
 import { AnnexureUpload } from './AnnexureUpload';
-import type { PMSReport, PMSReportSection, PMSAnnexure, SectionKey } from '../../types/pms';
+import type { PMSReport, PMSReportSection, PMSAnnexure, PMSAWPActivity, SectionKey } from '../../types/pms';
 
-type FullReport = PMSReport & { sections: PMSReportSection[]; annexures: PMSAnnexure[] };
+type FullReport = PMSReport & { sections: PMSReportSection[]; annexures: PMSAnnexure[]; awpActivities: PMSAWPActivity[] };
 type FormComponent = ComponentType<{ data: Record<string, unknown>; onChange: (d: Record<string, unknown>) => void }>;
 
 interface Props {
@@ -39,13 +41,14 @@ const FORM_MAP: Record<SectionKey, FormComponent> = {
   section_v_curriculum:     SectionVCurriculumForm,
   section_v_extension:      SectionVExtensionForm,
   section_v_other:          SectionVOtherForm,
+  section_v_shortfall:      SectionVShortfallForm,
   section_vi_national:      SectionVINationalForm,
   section_vi_international: SectionVIInternationalForm,
 };
 
 export function ReportWizard({ report: initialReport, cycleOpen }: Props) {
   const { user } = useAuth();
-  const { saveSection, uploadSignature, uploadAnnexure, deleteAnnexure, submitReport } = usePMS();
+  const { saveSection, saveBasicInfo, saveAWPActivities, uploadSignature, uploadAnnexure, deleteAnnexure, submitReport } = usePMS();
   const navigate = useNavigate();
 
   const [step, setStep] = useState(0);
@@ -53,6 +56,18 @@ export function ReportWizard({ report: initialReport, cycleOpen }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [report, setReport] = useState(initialReport);
+  const [basicInfo, setBasicInfo] = useState({
+    previousPmsSubmittedOnTime: initialReport.previousPmsSubmittedOnTime,
+    previousPmsSubmissionDate: initialReport.previousPmsSubmissionDate,
+  });
+  const [awpActivities, setAwpActivities] = useState<AWPDraft[]>(() =>
+    initialReport.awpActivities.map(a => ({
+      natureOfActivity: a.natureOfActivity,
+      role: a.role,
+      timeCommittedPercentage: a.timeCommittedPercentage,
+      milestones: a.milestones,
+    }))
+  );
 
   const [sectionData, setSectionData] = useState<Record<string, Record<string, unknown>>>(() =>
     Object.fromEntries(report.sections.map(s => [s.sectionKey, s.data]))
@@ -65,21 +80,30 @@ export function ReportWizard({ report: initialReport, cycleOpen }: Props) {
     setSectionData(prev => ({ ...prev, [key]: data }));
   };
 
+  const currentStepIsAWP = WIZARD_STEPS[step]?.label.startsWith('Part V');
+
   const saveCurrent = useCallback(async (currentSectionData: Record<string, Record<string, unknown>>) => {
     const currentStep = WIZARD_STEPS[step];
-    if (!currentStep || currentStep.keys.length === 0) return;
+    if (!currentStep) return;
+    if (currentStep.keys.length === 0 && !currentStep.label.startsWith('Part V')) return;
     setSaving(true);
     setError(null);
     try {
-      await Promise.all(
-        currentStep.keys.map(key =>
-          saveSection(report.id, key, currentSectionData[key] ?? {})
-        )
-      );
+      if (currentStep.label.startsWith('Part V')) {
+        await saveAWPActivities(report.id, awpActivities.filter(a => a.natureOfActivity.trim()));
+      } else {
+        await Promise.all(
+          currentStep.keys.map(key =>
+            saveSection(report.id, key, currentSectionData[key] ?? {})
+          )
+        );
+      }
       if (currentStep.keys.includes('summary')) {
+        await saveBasicInfo(report.id, basicInfo);
         const s = currentSectionData['summary'] ?? {};
         setReport(r => ({
           ...r,
+          ...basicInfo,
           periodFrom: (s.periodFrom as string) || r.periodFrom,
           periodTo:   (s.periodTo as string) || r.periodTo,
           selfScore:  typeof s.selfScore === 'number' ? s.selfScore : r.selfScore,
@@ -91,7 +115,7 @@ export function ReportWizard({ report: initialReport, cycleOpen }: Props) {
     } finally {
       setSaving(false);
     }
-  }, [step, report.id, saveSection]);
+  }, [step, report.id, saveSection, saveBasicInfo, saveAWPActivities, basicInfo, awpActivities]);
 
   const goNext = async () => {
     try {
@@ -177,7 +201,9 @@ export function ReportWizard({ report: initialReport, cycleOpen }: Props) {
       <div className="bg-surface border border-border rounded-2xl p-6 min-h-[300px]">
         <h2 className="text-lg font-serif font-medium text-text mb-4">{currentStepDef.label}</h2>
 
-        {isLastStep ? (
+        {currentStepIsAWP ? (
+          <AWPForm activities={awpActivities} onChange={setAwpActivities} />
+        ) : isLastStep ? (
           <div className="space-y-6">
             <div className="bg-background border border-border rounded-xl p-4 space-y-2 text-sm">
               <div className="grid grid-cols-2 gap-3">
@@ -215,6 +241,49 @@ export function ReportWizard({ report: initialReport, cycleOpen }: Props) {
           </div>
         ) : (
           <div className="space-y-8">
+            {currentStepDef.keys.includes('summary') && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-text-muted mb-1">
+                      Previous PMS submitted on time?
+                    </label>
+                    <select
+                      className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-text"
+                      value={basicInfo.previousPmsSubmittedOnTime == null ? '' : String(basicInfo.previousPmsSubmittedOnTime)}
+                      onChange={e => setBasicInfo(b => ({
+                        ...b,
+                        previousPmsSubmittedOnTime: e.target.value === '' ? null : e.target.value === 'true',
+                      }))}
+                    >
+                      <option value="">Not applicable</option>
+                      <option value="true">Yes</option>
+                      <option value="false">No</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-text-muted mb-1">
+                      Previous PMS submission date
+                    </label>
+                    <input
+                      type="date"
+                      className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-text"
+                      value={basicInfo.previousPmsSubmissionDate ?? ''}
+                      onChange={e => setBasicInfo(b => ({
+                        ...b,
+                        previousPmsSubmissionDate: e.target.value || null,
+                      }))}
+                    />
+                  </div>
+                </div>
+                {report.dutyDays != null && report.dutyDays < 90 && (
+                  <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                    Recorded physical duty days ({report.dutyDays}) are below the 90-day minimum —
+                    this report cannot be submitted for appraisal.
+                  </p>
+                )}
+              </div>
+            )}
             {currentStepDef.keys.map(key => {
               const FormComponent = FORM_MAP[key];
               return (

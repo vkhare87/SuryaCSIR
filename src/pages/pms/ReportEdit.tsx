@@ -4,9 +4,9 @@ import { usePMS } from '../../contexts/PMSContext';
 import { ReportWizard } from '../../components/pms/ReportWizard';
 import { Button } from '../../components/ui/Button';
 import { Skeleton } from '../../components/ui/Skeleton';
-import type { PMSReport, PMSReportSection, PMSAnnexure } from '../../types/pms';
+import type { PMSReport, PMSReportSection, PMSAnnexure, PMSAWPActivity } from '../../types/pms';
 
-type FullReport = PMSReport & { sections: PMSReportSection[]; annexures: PMSAnnexure[] };
+type FullReport = PMSReport & { sections: PMSReportSection[]; annexures: PMSAnnexure[]; awpActivities: PMSAWPActivity[] };
 
 export default function ReportEdit() {
   const { id } = useParams<{ id: string }>();

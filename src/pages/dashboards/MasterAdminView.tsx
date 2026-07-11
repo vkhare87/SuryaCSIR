@@ -51,14 +51,16 @@ const ROLE_COLORS: Record<string, string> = {
 const STATUS_LABELS: Record<ReportStatus, string> = {
   DRAFT: 'Draft',
   SUBMITTED: 'Submitted',
-  UNDER_COLLEGIUM_REVIEW: 'Collegium',
-  CHAIRMAN_REVIEW: 'Chairman',
-  EMPOWERED_COMMITTEE_REVIEW: 'Committee',
+  UNDER_EVALUATION_COMMITTEE_REVIEW: 'Evaluation Committee',
+  EMPOWERED_COMMITTEE_REVIEW: 'Empowered Committee',
   FINALIZED: 'Finalized',
+  NOT_ASSESSED: 'Not Assessed',
+  UNDER_GRIEVANCE_REVIEW: 'Grievance',
 };
 const STATUS_COLOR_HEX: Record<ReportStatus, string> = {
-  DRAFT: '#b0aea5', SUBMITTED: '#3898ec', UNDER_COLLEGIUM_REVIEW: '#eab308',
-  CHAIRMAN_REVIEW: '#f97316', EMPOWERED_COMMITTEE_REVIEW: '#8b5cf6', FINALIZED: '#16a34a',
+  DRAFT: '#b0aea5', SUBMITTED: '#3898ec', UNDER_EVALUATION_COMMITTEE_REVIEW: '#eab308',
+  EMPOWERED_COMMITTEE_REVIEW: '#8b5cf6', FINALIZED: '#16a34a',
+  NOT_ASSESSED: '#5e5d59', UNDER_GRIEVANCE_REVIEW: '#f97316',
 };
 const ROLE_PALETTE = ['#c96442', '#5e5d59', '#3898ec', '#16a34a', '#eab308', '#8b5cf6', '#1a6b9a', '#a07020', '#7a1a9a'];
 
@@ -130,8 +132,9 @@ export function MasterAdminView() {
 
   const pmsByStatus = useMemo(() => {
     const counts: Record<ReportStatus, number> = {
-      DRAFT: 0, SUBMITTED: 0, UNDER_COLLEGIUM_REVIEW: 0,
-      CHAIRMAN_REVIEW: 0, EMPOWERED_COMMITTEE_REVIEW: 0, FINALIZED: 0,
+      DRAFT: 0, SUBMITTED: 0, UNDER_EVALUATION_COMMITTEE_REVIEW: 0,
+      EMPOWERED_COMMITTEE_REVIEW: 0, FINALIZED: 0,
+      NOT_ASSESSED: 0, UNDER_GRIEVANCE_REVIEW: 0,
     };
     for (const r of reports) counts[r.status]++;
     return (Object.keys(counts) as ReportStatus[]).map(k => ({

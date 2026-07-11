@@ -11,11 +11,15 @@ type Source = 'all' | 'pms' | 'modules';
 
 const ACTION_COLORS: Record<string, string> = {
   // PMS actions
-  SUBMIT:                         'bg-blue-100 text-blue-700',
-  ASSIGN_EVALUATORS:              'bg-purple-100 text-purple-700',
-  AUTO_ADVANCE_CHAIRMAN_REVIEW:   'bg-orange-100 text-orange-700',
-  CHAIRMAN_REVIEW_SUBMITTED:      'bg-amber-100 text-amber-700',
-  REPORT_FINALIZED:               'bg-green-100 text-green-700',
+  SUBMIT:                           'bg-blue-100 text-blue-700',
+  ASSIGN_EVALUATORS:                'bg-purple-100 text-purple-700',
+  AUTO_ADVANCE_EMPOWERED_COMMITTEE: 'bg-orange-100 text-orange-700',
+  REPORT_FINALIZED:                 'bg-green-100 text-green-700',
+  DUTY_DAYS_RECORDED:               'bg-amber-100 text-amber-700',
+  MARKED_NOT_ASSESSED:              'bg-gray-100 text-gray-700',
+  NON_SUBMISSION_RECORDED:          'bg-amber-100 text-amber-700',
+  REPRESENTATION_SUBMITTED:         'bg-orange-100 text-orange-700',
+  REPRESENTATION_RESOLVED:          'bg-green-100 text-green-700',
   // Committees / helpdesk actions
   created:        'bg-blue-100 text-blue-700',
   updated:        'bg-amber-100 text-amber-700',

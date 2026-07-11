@@ -1,6 +1,6 @@
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 import type { PMSReport, PMSReportSection, PMSAnnexure } from '../../types/pms';
-import { SCORE_CATEGORIES } from '../../lib/pms/constants';
+import { getGrade } from '../../lib/pms/scoring';
 
 const styles = StyleSheet.create({
   page: { fontFamily: 'Helvetica', fontSize: 10, padding: 40, color: '#141413', backgroundColor: '#ffffff' },
@@ -20,10 +20,6 @@ const styles = StyleSheet.create({
   footer: { position: 'absolute', bottom: 30, left: 40, right: 40, borderTop: '0.5pt solid #e8e6dc', paddingTop: 8, flexDirection: 'row', justifyContent: 'space-between' },
   footerText: { fontSize: 8, color: '#9b9b9a' },
 });
-
-function getCategory(score: number): string {
-  return SCORE_CATEGORIES.find(c => score >= c.min && score <= c.max)?.label ?? '—';
-}
 
 function SectionBlock({ section }: { section: PMSReportSection }) {
   const data = section.data;
@@ -56,13 +52,11 @@ interface ReportPDFProps {
   annexures: PMSAnnexure[];
   finalScore?: number | null;
   justification?: string | null;
-  recommendedMin?: number | null;
-  recommendedMax?: number | null;
 }
 
 export function ReportPDF({
   report, sections, annexures,
-  finalScore, justification, recommendedMin, recommendedMax,
+  finalScore, justification,
 }: ReportPDFProps) {
   return (
     <Document title={`PMS Report — ${report.id}`} author="CSIR-AMPRI SURYA Platform">
@@ -79,25 +73,23 @@ export function ReportPDF({
           <View style={styles.row}><Text style={styles.label}>Period:</Text><Text style={styles.value}>{report.periodFrom ?? '—'} to {report.periodTo ?? '—'}</Text></View>
           <View style={styles.row}><Text style={styles.label}>Submitted:</Text><Text style={styles.value}>{report.submittedAt ? new Date(report.submittedAt).toLocaleDateString('en-IN') : '—'}</Text></View>
           <View style={styles.row}><Text style={styles.label}>Status:</Text><Text style={styles.value}>{report.status}</Text></View>
-          <View style={styles.row}><Text style={styles.label}>Self Score:</Text><Text style={styles.value}>{report.selfScore != null ? `${report.selfScore} (${getCategory(report.selfScore)})` : '—'}</Text></View>
+          <View style={styles.row}><Text style={styles.label}>Self Score:</Text><Text style={styles.value}>{report.selfScore != null ? `${report.selfScore} (${getGrade(report.selfScore)})` : '—'}</Text></View>
+          {report.dutyDays != null && (
+            <View style={styles.row}><Text style={styles.label}>Duty Days:</Text><Text style={styles.value}>{report.dutyDays}</Text></View>
+          )}
+          {report.systemRemark && (
+            <View style={styles.row}><Text style={styles.label}>System Remark:</Text><Text style={styles.value}>{report.systemRemark}</Text></View>
+          )}
         </View>
 
-        {(finalScore != null || recommendedMin != null) && (
+        {finalScore != null && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Score Summary</Text>
-            {recommendedMin != null && (
-              <View style={styles.row}>
-                <Text style={styles.label}>Chairman Range:</Text>
-                <Text style={styles.value}>{recommendedMin} – {recommendedMax}</Text>
-              </View>
-            )}
-            {finalScore != null && (
-              <View style={styles.scoreBox}>
-                <Text style={styles.scoreText}>Final Score: {finalScore}</Text>
-                <Text style={styles.scoreLabel}>{getCategory(finalScore)}</Text>
-                {justification && <Text style={{ fontSize: 8, color: '#6b6b6a', marginTop: 4 }}>{justification}</Text>}
-              </View>
-            )}
+            <View style={styles.scoreBox}>
+              <Text style={styles.scoreText}>Final Score: {finalScore} / 100</Text>
+              <Text style={styles.scoreLabel}>Grade: {getGrade(finalScore)}</Text>
+              {justification && <Text style={{ fontSize: 8, color: '#6b6b6a', marginTop: 4 }}>{justification}</Text>}
+            </View>
           </View>
         )}
 

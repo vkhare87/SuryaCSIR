@@ -3,26 +3,26 @@ import { Navigate } from 'react-router-dom';
 import { usePMS } from '../../contexts/PMSContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { canCommitteeDecide } from '../../lib/pms/permissions';
-import { SCORE_RANGE, SCORE_CATEGORIES } from '../../lib/pms/constants';
+import { SCORE_RANGE } from '../../lib/pms/constants';
+import { getGrade, isValidScore, requiresBelowThresholdReasons, requiresOutstandingReasons } from '../../lib/pms/scoring';
 import { StatusBadge } from '../../components/pms/StatusBadge';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Skeleton } from '../../components/ui/Skeleton';
-import type { PMSChairmanReview } from '../../types/pms';
-
-function getCategory(score: number): string {
-  return SCORE_CATEGORIES.find(c => score >= c.min && score <= c.max)?.label ?? '—';
-}
+import type { PMSEvaluation } from '../../types/pms';
 
 export default function CommitteeQueue() {
   const { user } = useAuth();
-  const { reports, isLoading, getChairmanReview, finalizeReport } = usePMS();
+  const { reports, isLoading, getReportEvaluations, finalizeReport } = usePMS();
 
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
-  const [chairmanReview, setChairmanReview] = useState<PMSChairmanReview | null>(null);
+  const [reportEvaluations, setReportEvaluations] = useState<PMSEvaluation[]>([]);
   const [loadingReview, setLoadingReview] = useState(false);
   const [finalScore, setFinalScore] = useState('');
   const [justification, setJustification] = useState('');
+  const [reasonsOutstanding, setReasonsOutstanding] = useState('');
+  const [reasonsBelow, setReasonsBelow] = useState('');
+  const [suggestions, setSuggestions] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,33 +43,54 @@ export default function CommitteeQueue() {
     setSelectedReportId(reportId);
     setFinalScore('');
     setJustification('');
+    setReasonsOutstanding('');
+    setReasonsBelow('');
+    setSuggestions('');
     setError(null);
     setLoadingReview(true);
     try {
-      const review = await getChairmanReview(reportId);
-      setChairmanReview(review);
+      const evals = await getReportEvaluations(reportId);
+      setReportEvaluations(evals.filter(e => e.status === 'COMPLETED'));
     } catch {
-      setChairmanReview(null);
+      setReportEvaluations([]);
     } finally {
       setLoadingReview(false);
     }
   };
 
+  const parsedScore = finalScore === '' ? null : parseInt(finalScore, 10);
+  const needsOutstanding = parsedScore != null && !isNaN(parsedScore) && requiresOutstandingReasons(parsedScore);
+  const needsBelow = parsedScore != null && !isNaN(parsedScore) && requiresBelowThresholdReasons(parsedScore);
+  const justLen = justification.trim().length;
+
   const handleFinalize = async () => {
     if (!selectedReportId) return;
-    const score = parseFloat(finalScore);
-    if (isNaN(score) || score < SCORE_RANGE.min || score > SCORE_RANGE.max) {
-      setError(`Score must be between ${SCORE_RANGE.min} and ${SCORE_RANGE.max}.`);
+    if (parsedScore == null || !isValidScore(parsedScore)) {
+      setError(`Score must be a whole number between ${SCORE_RANGE.min} and ${SCORE_RANGE.max}.`);
       return;
     }
-    if (justification.trim().length < 50) {
+    if (justLen < 50) {
       setError('Justification must be at least 50 characters.');
+      return;
+    }
+    if (needsOutstanding && !reasonsOutstanding.trim()) {
+      setError('Scores of 90 or above require reasons for the Outstanding grade.');
+      return;
+    }
+    if (needsBelow && (!reasonsBelow.trim() || !suggestions.trim())) {
+      setError('Scores of 75 or below require reasons and suggestions for improvement.');
       return;
     }
     setSaving(true);
     setError(null);
     try {
-      await finalizeReport(selectedReportId, score, justification);
+      await finalizeReport(selectedReportId, {
+        finalScore: parsedScore,
+        justification,
+        reasonsForOutstanding: reasonsOutstanding || undefined,
+        reasonsBelowThreshold: reasonsBelow || undefined,
+        suggestionsForImprovement: suggestions || undefined,
+      });
       setSelectedReportId(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Finalization failed');
@@ -79,11 +100,10 @@ export default function CommitteeQueue() {
   };
 
   const selectedReport = reports.find(r => r.id === selectedReportId);
-  const justLen = justification.trim().length;
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-serif font-medium text-text">Committee Decision Queue</h1>
+      <h1 className="text-2xl font-serif font-medium text-text">Empowered Committee Queue</h1>
       <p className="text-sm text-text-muted">
         {committeeReports.length} report{committeeReports.length !== 1 ? 's' : ''} awaiting final decision
       </p>
@@ -117,7 +137,7 @@ export default function CommitteeQueue() {
       <Modal
         isOpen={!!selectedReportId}
         onClose={() => setSelectedReportId(null)}
-        title="Final Committee Decision"
+        title="Empowered Committee Decision"
       >
         <div className="space-y-4 p-4">
           <p className="text-sm font-medium text-text-muted">{selectedReport?.cycle?.name}</p>
@@ -126,45 +146,89 @@ export default function CommitteeQueue() {
             <Skeleton className="h-24 w-full" />
           ) : (
             <>
-              {/* Chairman recommendation */}
+              {/* Evaluation Committee appraisals */}
               <div className="p-4 bg-surface border border-border rounded-xl">
-                <h3 className="text-sm font-semibold text-text mb-2">Chairman's Recommendation</h3>
-                {chairmanReview ? (
-                  <>
-                    <p className="text-sm text-text">
-                      Recommended range:{' '}
-                      <strong>{chairmanReview.recommendedMin}</strong> – <strong>{chairmanReview.recommendedMax}</strong>
-                    </p>
-                    {chairmanReview.comments && (
-                      <p className="text-xs text-text-muted mt-1 italic">"{chairmanReview.comments}"</p>
-                    )}
-                  </>
+                <h3 className="text-sm font-semibold text-text mb-2">Evaluation Committee Appraisal</h3>
+                {reportEvaluations.length > 0 ? (
+                  <div className="space-y-1.5">
+                    {reportEvaluations.map(ev => (
+                      <p key={ev.id} className="text-sm text-text">
+                        <span className="font-mono text-xs text-text-muted">{ev.evaluatorId.slice(0, 8)}…</span>{' '}
+                        {ev.totalScore != null
+                          ? <>scored <strong>{ev.totalScore}</strong> ({getGrade(ev.totalScore)})</>
+                          : 'no total score recorded'}
+                      </p>
+                    ))}
+                  </div>
                 ) : (
-                  <p className="text-xs text-text-muted">No chairman review on record yet.</p>
+                  <p className="text-xs text-text-muted">No completed evaluations on record.</p>
                 )}
               </div>
 
               {/* Final score */}
               <div>
                 <label className="block text-sm font-medium text-text mb-1">
-                  Final Score ({SCORE_RANGE.min} – {SCORE_RANGE.max})
+                  Final Score ({SCORE_RANGE.min} – {SCORE_RANGE.max}, whole numbers)
                 </label>
                 <div className="flex items-center gap-2">
                   <input
                     type="number"
                     min={SCORE_RANGE.min}
                     max={SCORE_RANGE.max}
-                    step={0.01}
+                    step={1}
                     value={finalScore}
                     onChange={e => setFinalScore(e.target.value)}
-                    placeholder="0.50 – 1.10"
+                    placeholder="0 – 100"
                     className="w-32 px-3 py-2 border border-border rounded-xl text-sm bg-background text-text focus:outline-none focus:border-[#c96442]"
                   />
-                  {finalScore && !isNaN(parseFloat(finalScore)) && (
-                    <span className="text-sm text-text-muted">{getCategory(parseFloat(finalScore))}</span>
+                  {parsedScore != null && !isNaN(parsedScore) && (
+                    <span className="text-sm text-text-muted">{getGrade(parsedScore)}</span>
                   )}
                 </div>
               </div>
+
+              {needsOutstanding && (
+                <div>
+                  <label className="block text-sm font-medium text-text mb-1">
+                    Reasons for Outstanding grade <span className="text-rose-600">*</span>
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={reasonsOutstanding}
+                    onChange={e => setReasonsOutstanding(e.target.value)}
+                    placeholder="Mandatory for scores of 90 or above…"
+                    className="w-full px-3 py-2 border border-border rounded-xl text-sm bg-background text-text focus:outline-none focus:border-[#c96442] resize-none"
+                  />
+                </div>
+              )}
+              {needsBelow && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-text mb-1">
+                      Reasons for score below threshold <span className="text-rose-600">*</span>
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={reasonsBelow}
+                      onChange={e => setReasonsBelow(e.target.value)}
+                      placeholder="Mandatory for scores of 75 or below…"
+                      className="w-full px-3 py-2 border border-border rounded-xl text-sm bg-background text-text focus:outline-none focus:border-[#c96442] resize-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-text mb-1">
+                      Suggestions for improvement <span className="text-rose-600">*</span>
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={suggestions}
+                      onChange={e => setSuggestions(e.target.value)}
+                      placeholder="Mandatory for scores of 75 or below…"
+                      className="w-full px-3 py-2 border border-border rounded-xl text-sm bg-background text-text focus:outline-none focus:border-[#c96442] resize-none"
+                    />
+                  </div>
+                </>
+              )}
 
               {/* Justification */}
               <div>
