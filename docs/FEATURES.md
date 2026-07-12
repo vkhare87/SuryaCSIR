@@ -240,6 +240,11 @@ Example questions:
   (who asked what, which mode answered, latency, feedback).
 - A document that parses to no text (scanned PDF with OCR disabled) is marked
   `failed` with an explanatory error rather than silently indexed empty.
+- **M3 traceability stat** next to the latency percentiles: share of non-refusal
+  document/hybrid answers carrying ≥1 citation (target ≥95%, structured answers
+  excluded — they cite tables, not documents).
+- **Export CSV** button downloads recent `query_log` rows (question, mode, answer,
+  citation count, feedback, latency) as an Excel-openable CSV.
 
 Setting up the backend service: see [RAG-SETUP-TUTORIAL.md](RAG-SETUP-TUTORIAL.md).
 Production deployment: see [`deploy/README.md`](../deploy/README.md).
@@ -256,4 +261,6 @@ Production deployment: see [`deploy/README.md`](../deploy/README.md).
 | `npm run lint` | ESLint |
 | `npm run sync:irins` | IRINS metadata sync |
 | `python -m pytest` (in `rag/`) | RAG service tests (offline by default) |
-| `python eval/run_eval.py` (in `rag/`) | Router accuracy + citation hit-rate eval |
+| `python preflight.py --worker\|--api` (in `rag/`) | Host readiness check before installing services — env vars, native DLLs, Ollama model, DB schema |
+| `python eval/run_eval.py --corpus-from-db --report` (in `rag/`) | Dumps the corpus from Supabase, runs every eval with a gold file present, writes the §4.3 M1–M6 indicator table to `eval/eval_report.md` |
+| `python eval/validate_gold.py` (in `rag/`) | Lints gold eval files against the corpus before scoring — flags unresolvable citations/overlaps with nearest-match suggestions |
