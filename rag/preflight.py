@@ -11,25 +11,36 @@ import urllib.request
 
 from config import REQUIRED
 
-# Table/column -> migration that ships it. Extend when new RAG migrations land.
+# Table/column -> baseline migration that ships it (2026-07-12 restructure).
+# Extend when new post-baseline migrations land.
+_RAG_BASELINE = "20260712000008_rag_documents.sql"
+_HR_BASELINE = "20260712000003_hr_core.sql"
+
 SCHEMA_PROBES = [
-    ("documents", "id, ingest_attempts", "20260702000000_documents_registry.sql / 20260707020000_ingest_attempts.sql"),
-    ("doc_indexes", "document_id", "20260702020000_doc_indexes.sql"),
-    ("doc_pages", "document_id", "20260707010000_doc_pages.sql"),
-    ("query_log", "id, latency_ms", "20260702030000_rag_scale_quality.sql / 20260707000000_query_log_latency.sql"),
-    ("route_labels", "query_id", "20260707030000_route_labels.sql"),
-    ("collection_indexes", "collection_key", "20260702030000_rag_scale_quality.sql"),
+    ("documents", "id, ingest_attempts", _RAG_BASELINE),
+    ("doc_indexes", "document_id", _RAG_BASELINE),
+    ("doc_pages", "document_id", _RAG_BASELINE),
+    ("query_log", "id, latency_ms", _RAG_BASELINE),
+    ("route_labels", "query_id", _RAG_BASELINE),
+    ("collection_indexes", "collection_key", _RAG_BASELINE),
+    # structured-analytics sources (analytics.py reads these HR tables)
+    ("mous", "status, valid_until", _HR_BASELINE),
+    ("tech_transfers", "status, value_lakhs", _HR_BASELINE),
+    ("phd_milestones", "milestone, due_date, completed_date", _HR_BASELINE),
 ]
 
-_MIGRATION_HINTS = {  # substring of the error -> migration to apply
-    "route_labels": "20260707030000_route_labels.sql",
-    "doc_pages": "20260707010000_doc_pages.sql",
-    "latency_ms": "20260707000000_query_log_latency.sql",
-    "ingest_attempts": "20260707020000_ingest_attempts.sql",
-    "collection_indexes": "20260702030000_rag_scale_quality.sql",
-    "query_log": "20260702030000_rag_scale_quality.sql",
-    "doc_indexes": "20260702020000_doc_indexes.sql",
-    "documents": "20260702000000_documents_registry.sql",
+_MIGRATION_HINTS = {  # substring of the error -> migration that ships it
+    "route_labels": _RAG_BASELINE,
+    "doc_pages": _RAG_BASELINE,
+    "latency_ms": _RAG_BASELINE,
+    "ingest_attempts": _RAG_BASELINE,
+    "collection_indexes": _RAG_BASELINE,
+    "query_log": _RAG_BASELINE,
+    "doc_indexes": _RAG_BASELINE,
+    "documents": _RAG_BASELINE,
+    "mous": _HR_BASELINE,
+    "tech_transfers": _HR_BASELINE,
+    "phd_milestones": _HR_BASELINE,
 }
 
 
@@ -85,7 +96,8 @@ def check_ollama(base_url, model):
 def classify_probe_error(message):
     for key, migration in _MIGRATION_HINTS.items():
         if key in message:
-            return False, f"'{key}' missing — apply supabase/migrations/{migration}"
+            return False, (f"'{key}' missing — run supabase db push "
+                           f"(ships in supabase/migrations/{migration})")
     return False, message[:200]
 
 

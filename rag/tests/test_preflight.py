@@ -31,10 +31,16 @@ def test_ollama_model_present_and_absent():
 def test_schema_probe_classifies_missing_table():
     ok, detail = preflight.classify_probe_error(
         'relation "public.route_labels" does not exist')
-    assert ok is False and "20260707030000_route_labels.sql" in detail
+    assert ok is False and "20260712000008_rag_documents.sql" in detail
 
 
 def test_schema_probe_missing_column():
     ok, detail = preflight.classify_probe_error(
         "column query_log.latency_ms does not exist")
-    assert ok is False and "20260707000000_query_log_latency.sql" in detail
+    assert ok is False and "20260712000008_rag_documents.sql" in detail
+
+
+def test_schema_probe_classifies_missing_hr_table():
+    ok, detail = preflight.classify_probe_error(
+        "Could not find the table 'public.mous' in the schema cache")
+    assert ok is False and "20260712000003_hr_core.sql" in detail

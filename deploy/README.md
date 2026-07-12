@@ -15,14 +15,14 @@ both ─────────────────────────
 
 ## 0. One-time: apply migrations
 
-In the Supabase SQL Editor (as `postgres`), run **every** file in
-`supabase/migrations/` not yet applied, **in filename (timestamp) order**. For the
-RAG stack the load-bearing ones are `20260702000000` … `20260702030000` plus
-`20260707000000_query_log_latency.sql`, `20260707010000_doc_pages.sql`,
-`20260707020000_ingest_attempts.sql`, `20260707030000_route_labels.sql`; structured
-analytics also need `20260707010000_mous.sql`, `20260707020000_tech_transfers.sql`,
-`20260707030000_phd_milestones.sql`. (The `preflight.py --worker` check in §3.5
-verifies the schema so a missing migration is caught before the services start.)
+From a machine with the Supabase CLI linked to the project, run `supabase db push` —
+it applies every unapplied file in `supabase/migrations/` (the 8-file domain
+baseline, 2026-07-12 restructure) in timestamp order and tracks what ran. Do **not**
+paste SQL into the Dashboard SQL Editor — that is how the live project drifted from
+the repo before the restructure. The RAG stack's schema ships in
+`20260712000008_rag_documents.sql`; structured analytics also read HR tables from
+`20260712000003_hr_core.sql`. (The `preflight.py --worker` check in §3.5 verifies
+the schema so a missing migration is caught before the services start.)
 
 ## 1. Prerequisite (hard): allow Python native DLLs
 
