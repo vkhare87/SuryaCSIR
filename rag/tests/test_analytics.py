@@ -305,3 +305,45 @@ def test_project_team_not_found():
     client = _FakeMultiClient({"projects": _PROJECTS})
     assert "No project matching" in run_analytics(
         "project_team", {"project_no": "GAP-999"}, client).text
+
+
+# ---------- typed payloads (RP1) — new entity functions ship structured data ----------
+
+def test_staff_profile_typed_data():
+    ans = run_analytics("staff_profile", {"name": "anil"},
+                        _FakeMultiClient({"staff": _STAFF}))
+    assert ans.data["staff"]["Name"] == "Anil Sharma"
+    assert ans.data["staff"]["Division"] == "CMD"
+
+
+def test_staff_profile_ambiguous_typed_candidates():
+    ans = run_analytics("staff_profile", {"name": "sharma"},
+                        _FakeMultiClient({"staff": _STAFF}))
+    assert [c["Name"] for c in ans.data["candidates"]] == ["Anil Sharma", "Rekha Sharma"]
+
+
+def test_projects_for_staff_typed_data():
+    client = _FakeMultiClient({"staff": _STAFF, "projects": _PROJECTS,
+                               "project_staff": _PROJECT_STAFF})
+    ans = run_analytics("projects_for_staff", {"name": "anil sharma"}, client)
+    assert ans.data["staff_name"] == "Anil Sharma"
+    assert [p["ProjectNo"] for p in ans.data["leads"]] == ["GAP-001"]
+    assert [p["ProjectNo"] for p in ans.data["member_of"]] == ["GAP-002"]
+
+
+def test_division_summary_typed_data():
+    client = _FakeMultiClient({"divisions": _DIVISIONS, "staff": _STAFF,
+                               "projects": _PROJECTS})
+    ans = run_analytics("division_summary", {"division_code": "cmd"}, client)
+    assert ans.data["division"]["divCode"] == "CMD"
+    assert ans.data["staff_count"] == 1
+    assert ans.data["projects_by_status"] == {"Ongoing": 1}
+
+
+def test_project_team_typed_data():
+    client = _FakeMultiClient({"projects": _PROJECTS, "staff": _STAFF,
+                               "project_staff": _PROJECT_STAFF})
+    ans = run_analytics("project_team", {"project_no": "GAP-002"}, client)
+    assert ans.data["project"]["ProjectNo"] == "GAP-002"
+    assert ans.data["pi"] == "Rekha Sharma"
+    assert ans.data["team"] == ["Anil Sharma"]

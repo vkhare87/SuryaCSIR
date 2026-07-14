@@ -139,8 +139,9 @@ def _merge_hybrid(structured, doc) -> Answer:
     """Numbers first, document evidence after. A refusing document half is dropped —
     the structured half is DB-grounded on its own, so no citations is acceptable there."""
     if doc.text == REFUSAL_TEXT:
-        return Answer(structured.text, "hybrid", [])
-    return Answer(f"{structured.text}\n\n{doc.text}", "hybrid", doc.citations)
+        return Answer(structured.text, "hybrid", [], data=structured.data)
+    return Answer(f"{structured.text}\n\n{doc.text}", "hybrid", doc.citations,
+                  data=structured.data)
 
 
 HISTORY_MAX_TURNS = 3

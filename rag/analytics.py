@@ -276,14 +276,14 @@ def _staff_profile(params, client) -> Answer:
             for r in matches[:10])
         return Answer(f"{len(matches)} staff match '{name}' — {listing}. "
                       "Ask again with a fuller name. (source: staff table)",
-                      "structured", [])
+                      "structured", [], data={"candidates": matches[:10]})
     r = matches[0]
     return Answer(f"{r.get('Name')} — {r.get('Designation') or '—'}, "
                   f"division {r.get('Division') or '—'}, "
                   f"core area {r.get('CoreArea') or '—'}, "
                   f"expertise {r.get('Expertise') or '—'}, "
                   f"email {r.get('Email') or '—'}. (source: staff table)",
-                  "structured", [])
+                  "structured", [], data={"staff": r})
 
 
 def _projects_for_staff(params, client) -> Answer:
@@ -310,9 +310,11 @@ def _projects_for_staff(params, client) -> Answer:
             led.append(p)
         elif str(p.get("ProjectNo")) in team_nos:
             member.append(p)
+    data = {"staff_name": person.get("Name"), "leads": led[:10], "member_of": member[:10]}
     if not led and not member:
         return Answer(f"{person.get('Name')} has no recorded projects. "
-                      "(source: projects, project_staff tables)", "structured", [])
+                      "(source: projects, project_staff tables)", "structured", [],
+                      data=data)
     fmt = lambda p: (f"{p.get('ProjectNo')} {p.get('ProjectName') or ''} "
                      f"[{p.get('ProjectStatus') or '—'}]").strip()
     parts = []
@@ -321,7 +323,8 @@ def _projects_for_staff(params, client) -> Answer:
     if member:
         parts.append(f"team member on {len(member)}: " + "; ".join(fmt(p) for p in member[:10]))
     return Answer(f"{person.get('Name')} — " + ". ".join(parts) +
-                  ". (source: projects, project_staff tables)", "structured", [])
+                  ". (source: projects, project_staff tables)", "structured", [],
+                  data=data)
 
 
 def _division_summary(params, client) -> Answer:
@@ -341,11 +344,14 @@ def _division_summary(params, client) -> Answer:
                       if str(r.get("Division") or "") == dc)
     proj_rows = [r for r in _rows(client, "projects", "DivisionCode, ProjectStatus")
                  if str(r.get("DivisionCode") or "") == dc]
+    status_counts = _counts(proj_rows, "ProjectStatus")
     return Answer(f"{div.get('divName')} ({dc}) — HoD {div.get('divHoD') or '—'}, "
                   f"strength {div.get('divCurrentStrength')}/{div.get('divSanctionedstrength')} "
                   f"(current/sanctioned), staff on record: {staff_count}, "
-                  f"projects by status: {_fmt_counts(_counts(proj_rows, 'ProjectStatus'))}. "
-                  "(source: divisions, staff, projects tables)", "structured", [])
+                  f"projects by status: {_fmt_counts(status_counts)}. "
+                  "(source: divisions, staff, projects tables)", "structured", [],
+                  data={"division": div, "staff_count": staff_count,
+                        "projects_by_status": status_counts})
 
 
 def _project_team(params, client) -> Answer:
@@ -375,7 +381,8 @@ def _project_team(params, client) -> Answer:
     return Answer(f"{proj.get('ProjectNo')} {proj.get('ProjectName') or ''} "
                   f"[{proj.get('ProjectStatus') or '—'}] — PI: {pi_name}; "
                   f"team: {team_str}. (source: projects, project_staff tables)",
-                  "structured", [])
+                  "structured", [],
+                  data={"project": proj, "pi": pi_name, "team": team})
 
 
 ANALYTICS = {
