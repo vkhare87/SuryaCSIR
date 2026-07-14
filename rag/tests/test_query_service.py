@@ -440,3 +440,65 @@ def test_log_query_records_latency():
     row_id = log_query(client, "q?", Answer("ans", "document", []), latency_ms=123)
     assert row_id == "q1"
     assert client.tbl.payload["latency_ms"] == 123
+
+
+# ---------- decision trace (RP3/RP4) ----------
+
+class _CaptureQuery(_FakeQuery):
+    def __init__(self, data, sink):
+        super().__init__(data)
+        self._sink = sink
+
+    def insert(self, row):
+        self._sink.append(row)
+        return self
+
+
+class _CaptureClient(_FakeClient):
+    """Records every insert so tests can assert on logged columns."""
+    def __init__(self, tables=None):
+        super().__init__(tables)
+        self.inserts = []
+
+    def table(self, name):
+        return _CaptureQuery(self._tables.get(name, []), self.inserts)
+
+
+def test_handle_query_structured_carries_trace():
+    client = _FakeClient({"documents": [{"ingest_status": "indexed"}]})
+    ans = handle_query("COUNT documents by status", client, FakeLLM())
+    assert ans.trace["route"] == "structured"
+    assert ans.trace["function"] == "count_documents_by_status"
+    assert "fallback" not in ans.trace
+
+
+def test_handle_query_fallback_marks_trace():
+    class _Client(_FakeClient):
+        def table(self, name):
+            if name == "documents":  # analytics read blows up -> document fallback
+                return _FakeQuery([], raise_on_execute=True)
+            return super().table(name)
+    ans = handle_query("COUNT documents by status", _Client({"doc_indexes": []}), FakeLLM())
+    assert ans.trace["route"] == "structured"
+    assert ans.trace["fallback"] is True
+
+
+def test_log_query_writes_trace_and_version():
+    from query_service import CATALOG_VERSION
+    client = _CaptureClient({"query_log": [{"id": "q1"}]})
+    ans = Answer("42 projects.", "structured", [])
+    ans.trace = {"route": "structured", "function": "count_projects_by_status",
+                 "params": {"status": "Ongoing"}}
+    log_query(client, "q", ans, latency_ms=5)
+    row = client.inserts[0]
+    assert row["route"] == "structured"
+    assert row["function_name"] == "count_projects_by_status"
+    assert row["function_params"] == {"status": "Ongoing"}
+    assert row["refusal_reason"] is None
+    assert row["catalog_version"] == CATALOG_VERSION
+
+
+def test_log_query_records_refusal_reason():
+    client = _CaptureClient({"query_log": [{"id": "q1"}]})
+    log_query(client, "q", Answer(REFUSAL_TEXT, "document", []))
+    assert client.inserts[0]["refusal_reason"] == "no_grounded_answer"

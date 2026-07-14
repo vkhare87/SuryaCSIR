@@ -252,6 +252,139 @@ def _expertise_succession_risk(params, client) -> Answer:
                   "structured", [])
 
 
+def _match_staff(rows, needle):
+    """Substring match on Name, exact on ID — mirrors relations.ts norm() logic."""
+    n = needle.strip().lower()
+    return [r for r in rows
+            if n in str(r.get("Name") or "").lower()
+            or n == str(r.get("ID") or "").lower()]
+
+
+def _staff_profile(params, client) -> Answer:
+    name = str(params.get("name") or "").strip()
+    if not name:
+        return Answer("No staff name supplied. (source: staff table)", "structured", [])
+    rows = _rows(client, "staff",
+                 "ID, Name, Designation, Division, CoreArea, Expertise, Email")
+    matches = _match_staff(rows, name)
+    if not matches:
+        return Answer(f"No staff member matching '{name}'. (source: staff table)",
+                      "structured", [])
+    if len(matches) > 1:
+        listing = "; ".join(
+            f"{r.get('Name')} ({r.get('Designation') or '—'}, div {r.get('Division') or '—'})"
+            for r in matches[:10])
+        return Answer(f"{len(matches)} staff match '{name}' — {listing}. "
+                      "Ask again with a fuller name. (source: staff table)",
+                      "structured", [], data={"candidates": matches[:10]})
+    r = matches[0]
+    return Answer(f"{r.get('Name')} — {r.get('Designation') or '—'}, "
+                  f"division {r.get('Division') or '—'}, "
+                  f"core area {r.get('CoreArea') or '—'}, "
+                  f"expertise {r.get('Expertise') or '—'}, "
+                  f"email {r.get('Email') or '—'}. (source: staff table)",
+                  "structured", [], data={"staff": r})
+
+
+def _projects_for_staff(params, client) -> Answer:
+    name = str(params.get("name") or "").strip()
+    if not name:
+        return Answer("No staff name supplied. (source: staff, projects tables)",
+                      "structured", [])
+    people = _match_staff(_rows(client, "staff", "ID, Name"), name)
+    if not people:
+        return Answer(f"No staff member matching '{name}'. (source: staff table)",
+                      "structured", [])
+    person = people[0]
+    full = str(person.get("Name") or "").strip().lower()
+    sid = str(person.get("ID") or "").strip().lower()
+    projects = _rows(client, "projects",
+                     "ProjectNo, ProjectName, ProjectStatus, PrincipalInvestigator")
+    team_nos = {str(r.get("ProjectNo"))
+                for r in _rows(client, "project_staff", "ProjectNo, StaffName")
+                if str(r.get("StaffName") or "").strip().lower() == full}
+    led, member = [], []
+    for p in projects:
+        pi = str(p.get("PrincipalInvestigator") or "").strip().lower()
+        if pi and pi in (full, sid):
+            led.append(p)
+        elif str(p.get("ProjectNo")) in team_nos:
+            member.append(p)
+    data = {"staff_name": person.get("Name"), "leads": led[:10], "member_of": member[:10]}
+    if not led and not member:
+        return Answer(f"{person.get('Name')} has no recorded projects. "
+                      "(source: projects, project_staff tables)", "structured", [],
+                      data=data)
+    fmt = lambda p: (f"{p.get('ProjectNo')} {p.get('ProjectName') or ''} "
+                     f"[{p.get('ProjectStatus') or '—'}]").strip()
+    parts = []
+    if led:
+        parts.append(f"leads {len(led)}: " + "; ".join(fmt(p) for p in led[:10]))
+    if member:
+        parts.append(f"team member on {len(member)}: " + "; ".join(fmt(p) for p in member[:10]))
+    return Answer(f"{person.get('Name')} — " + ". ".join(parts) +
+                  ". (source: projects, project_staff tables)", "structured", [],
+                  data=data)
+
+
+def _division_summary(params, client) -> Answer:
+    code = str(params.get("division_code") or "").strip()
+    if not code:
+        return Answer("No division code supplied. (source: divisions table)",
+                      "structured", [])
+    divisions = _rows(client, "divisions",
+                      "divCode, divName, divHoD, divCurrentStrength, divSanctionedstrength")
+    div = next((d for d in divisions
+                if str(d.get("divCode") or "").lower() == code.lower()), None)
+    if div is None:
+        return Answer(f"No division with code '{code}'. (source: divisions table)",
+                      "structured", [])
+    dc = str(div.get("divCode"))
+    staff_count = sum(1 for r in _rows(client, "staff", "Division")
+                      if str(r.get("Division") or "") == dc)
+    proj_rows = [r for r in _rows(client, "projects", "DivisionCode, ProjectStatus")
+                 if str(r.get("DivisionCode") or "") == dc]
+    status_counts = _counts(proj_rows, "ProjectStatus")
+    return Answer(f"{div.get('divName')} ({dc}) — HoD {div.get('divHoD') or '—'}, "
+                  f"strength {div.get('divCurrentStrength')}/{div.get('divSanctionedstrength')} "
+                  f"(current/sanctioned), staff on record: {staff_count}, "
+                  f"projects by status: {_fmt_counts(status_counts)}. "
+                  "(source: divisions, staff, projects tables)", "structured", [],
+                  data={"division": div, "staff_count": staff_count,
+                        "projects_by_status": status_counts})
+
+
+def _project_team(params, client) -> Answer:
+    no = str(params.get("project_no") or "").strip()
+    name = str(params.get("project_name") or "").strip().lower()
+    if not no and not name:
+        return Answer("No project number or name supplied. (source: projects table)",
+                      "structured", [])
+    projects = _rows(client, "projects",
+                     "ProjectNo, ProjectName, ProjectStatus, PrincipalInvestigator")
+    if no:
+        proj = next((p for p in projects
+                     if str(p.get("ProjectNo") or "").lower() == no.lower()), None)
+    else:
+        proj = next((p for p in projects
+                     if name in str(p.get("ProjectName") or "").lower()), None)
+    if proj is None:
+        return Answer(f"No project matching '{no or params.get('project_name')}'. "
+                      "(source: projects table)", "structured", [])
+    pi_raw = str(proj.get("PrincipalInvestigator") or "").strip()
+    pi_matches = _match_staff(_rows(client, "staff", "ID, Name"), pi_raw) if pi_raw else []
+    pi_name = pi_matches[0].get("Name") if pi_matches else (pi_raw or "—")
+    team = [str(r.get("StaffName"))
+            for r in _rows(client, "project_staff", "ProjectNo, StaffName")
+            if str(r.get("ProjectNo")) == str(proj.get("ProjectNo"))]
+    team_str = "; ".join(team) if team else "none recorded"
+    return Answer(f"{proj.get('ProjectNo')} {proj.get('ProjectName') or ''} "
+                  f"[{proj.get('ProjectStatus') or '—'}] — PI: {pi_name}; "
+                  f"team: {team_str}. (source: projects, project_staff tables)",
+                  "structured", [],
+                  data={"project": proj, "pi": pi_name, "team": team})
+
+
 ANALYTICS = {
     "count_documents_by_status": _count_documents_by_status,
     "count_projects_by_division": _count_projects_by_division,
@@ -266,6 +399,10 @@ ANALYTICS = {
     "expertise_search": _expertise_search,
     "project_budget_variance": _project_budget_variance,
     "expertise_succession_risk": _expertise_succession_risk,
+    "staff_profile": _staff_profile,
+    "projects_for_staff": _projects_for_staff,
+    "division_summary": _division_summary,
+    "project_team": _project_team,
 }
 
 # One-line descriptions shown to the router LLM. Keys must mirror ANALYTICS
@@ -284,6 +421,10 @@ CATALOG = {
     "expertise_search": "Find in-house staff with expertise in a topic; required param 'topic' (free text). Answers 'who has worked on X'.",
     "project_budget_variance": "Flag active projects whose spend deviates from expected burn or nears exhaustion/overrun; optional param 'threshold_pp'.",
     "expertise_succession_risk": "List staff retiring within N years whose expertise no colleague covers; optional param 'years'.",
+    "staff_profile": "Profile of one named staff member — designation, division, core area, expertise, email; required param 'name'. Answers 'who is X'.",
+    "projects_for_staff": "Projects a named staff member leads (as PI) or works on as team member; required param 'name'. Answers 'what is X working on'.",
+    "division_summary": "One division's summary — head of division, current/sanctioned strength, staff count, project counts by status; required param 'division_code'.",
+    "project_team": "PI and team members of one project; param 'project_no' (exact) or 'project_name' (fragment). Answers 'who works on project X'.",
 }
 
 

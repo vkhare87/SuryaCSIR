@@ -131,17 +131,21 @@ Related docs: [RAG-SETUP-TUTORIAL.md](RAG-SETUP-TUTORIAL.md) (set up the AI laye
 
 ## 5. Governance
 
-### PMS — Performance Management System
-- **Who:** Scientists (self-report), collegium evaluators, chairman, Empowered
+### PMS — Performance Management System (2026 CSIR guidelines)
+- **Who:** Scientists (self-report), evaluation-committee members, Empowered
   Committee, admins. **Routes:** under `/pms`.
-- State machine: `DRAFT → SUBMITTED → UNDER_COLLEGIUM_REVIEW → CHAIRMAN_REVIEW →
-  EMPOWERED_COMMITTEE_REVIEW → FINALIZED`. All transitions via SECURITY DEFINER RPCs.
+- State machine: `DRAFT → SUBMITTED → UNDER_EVALUATION_COMMITTEE_REVIEW →
+  EMPOWERED_COMMITTEE_REVIEW → FINALIZED`, plus terminal `NOT_ASSESSED` (duty days
+  < 90) and `FINALIZED ⇄ UNDER_GRIEVANCE_REVIEW` (representation within 15 days).
+  Scores are integers 0–100; absolute cycle lock after Nov 30. All transitions via
+  SECURITY DEFINER RPCs — status is never patched from the client.
 - **How (scientist):** `/pms/reports/new` → 13-section wizard → annexure uploads →
-  signature → submit. Track status at `/pms/reports/:id`; export PDF when finalized.
-- **How (evaluator/chairman/EC):** role-specific queues at `/pms/evaluate`,
-  `/pms/chairman`, `/pms/committee`. Admins manage cycles (`/pms/cycles`), collegiums
-  (`/pms/collegiums`), evaluator assignment (`/pms/assign`), and the audit log
-  (`/pms/audit`).
+  signature → submit. Track status at `/pms/reports/:id`; export PDF when finalized;
+  file a representation from the finalized report (15-day window).
+- **How (evaluator/EC):** role-specific queues at `/pms/evaluate` and
+  `/pms/committee`; grievances at `/pms/grievance`. Admins manage cycles
+  (`/pms/cycles`), evaluation committees (`/pms/evaluation-committees`), evaluator
+  assignment (`/pms/assign`), and the audit log (`/pms/audit`).
 
 ### Committees
 - **Route:** `/committees`. Meetings, agendas, minutes (lockable), document uploads,

@@ -48,3 +48,11 @@
 {"question": "HYBRID document status with report context", "expected_mode": "hybrid"}
 {"question": "Tell me about the institute's history.", "expected_mode": "document"}
 {"question": "What awards did institute scientists win according to the newsletters?", "expected_mode": "document"}
+{"question": "Who is Dr. Anil Sharma?", "expected_mode": "structured"}
+{"question": "Give me the profile of a scientist named Rekha Sharma", "expected_mode": "structured"}
+{"question": "What projects is Anil Sharma working on?", "expected_mode": "structured"}
+{"question": "Which projects does Rekha Sharma lead?", "expected_mode": "structured"}
+{"question": "Give me a summary of the CMD division", "expected_mode": "structured"}
+{"question": "Who heads the LWMD division and how many staff does it have?", "expected_mode": "structured"}
+{"question": "Who is on the team of project GAP-001?", "expected_mode": "structured"}
+{"question": "Who is the PI of the composite panels project?", "expected_mode": "structured"}

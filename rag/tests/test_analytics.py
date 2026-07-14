@@ -184,3 +184,166 @@ def test_succession_risk_flags_unique_expertise():
 def test_succession_risk_none():
     ans = run_analytics("expertise_succession_risk", {}, _FakeClient([]))
     assert "No unique-expertise succession risk" in ans.text
+
+
+class _FakeMultiClient:
+    """Per-table rows: _FakeMultiClient({'staff': [...], 'projects': [...]})."""
+    def __init__(self, tables):
+        self._tables = tables
+
+    def table(self, name):
+        return _FakeTable(self._tables.get(name, []))
+
+
+_STAFF = [
+    {"ID": "S001", "Name": "Anil Sharma", "Designation": "Sr. Scientist",
+     "Division": "CMD", "CoreArea": "Composites", "Expertise": "polymer composites",
+     "Email": "anil@ampri.res.in"},
+    {"ID": "S002", "Name": "Rekha Sharma", "Designation": "Scientist",
+     "Division": "LWMD", "CoreArea": "Metallurgy", "Expertise": "alloys",
+     "Email": "rekha@ampri.res.in"},
+]
+
+_PROJECTS = [
+    {"ProjectNo": "GAP-001", "ProjectName": "Composite Panels", "DivisionCode": "CMD",
+     "ProjectStatus": "Ongoing", "PrincipalInvestigator": "Anil Sharma"},
+    {"ProjectNo": "GAP-002", "ProjectName": "Alloy Study", "DivisionCode": "LWMD",
+     "ProjectStatus": "Ongoing", "PrincipalInvestigator": "Rekha Sharma"},
+    {"ProjectNo": "GAP-003", "ProjectName": "Waste Valorisation", "DivisionCode": "LWMD",
+     "ProjectStatus": "Completed", "PrincipalInvestigator": "S002"},
+]
+
+_PROJECT_STAFF = [
+    {"ProjectNo": "GAP-002", "StaffName": "Anil Sharma"},
+]
+
+
+def test_staff_profile_unique_match():
+    ans = run_analytics("staff_profile", {"name": "anil"},
+                        _FakeMultiClient({"staff": _STAFF}))
+    assert "Anil Sharma" in ans.text
+    assert "Sr. Scientist" in ans.text
+    assert "CMD" in ans.text
+    assert "Rekha" not in ans.text
+
+
+def test_staff_profile_ambiguous_lists_candidates():
+    ans = run_analytics("staff_profile", {"name": "sharma"},
+                        _FakeMultiClient({"staff": _STAFF}))
+    assert "Anil Sharma" in ans.text
+    assert "Rekha Sharma" in ans.text
+
+
+def test_staff_profile_no_match_and_missing_param():
+    client = _FakeMultiClient({"staff": _STAFF})
+    assert "No staff member matching" in run_analytics("staff_profile", {"name": "zzz"}, client).text
+    assert "No staff name supplied" in run_analytics("staff_profile", {}, client).text
+
+
+def test_projects_for_staff_pi_by_name_and_id_plus_team_membership():
+    client = _FakeMultiClient({"staff": _STAFF, "projects": _PROJECTS,
+                               "project_staff": _PROJECT_STAFF})
+    # Anil: PI of GAP-001, team member of GAP-002.
+    ans = run_analytics("projects_for_staff", {"name": "anil sharma"}, client)
+    assert "GAP-001" in ans.text and "GAP-002" in ans.text
+    assert "GAP-003" not in ans.text
+    # Rekha: PI of GAP-002 by name and GAP-003 by staff ID.
+    ans2 = run_analytics("projects_for_staff", {"name": "rekha"}, client)
+    assert "GAP-002" in ans2.text and "GAP-003" in ans2.text
+
+
+def test_projects_for_staff_unknown_person():
+    client = _FakeMultiClient({"staff": _STAFF, "projects": _PROJECTS,
+                               "project_staff": _PROJECT_STAFF})
+    assert "No staff member matching" in run_analytics(
+        "projects_for_staff", {"name": "zzz"}, client).text
+
+
+_DIVISIONS = [
+    {"divCode": "CMD", "divName": "Composites & Materials", "divHoD": "Anil Sharma",
+     "divCurrentStrength": 12, "divSanctionedstrength": 15},
+]
+
+
+def test_division_summary():
+    client = _FakeMultiClient({"divisions": _DIVISIONS, "staff": _STAFF,
+                               "projects": _PROJECTS})
+    ans = run_analytics("division_summary", {"division_code": "cmd"}, client)
+    assert "Composites & Materials" in ans.text
+    assert "Anil Sharma" in ans.text          # HoD
+    assert "strength 12/15" in ans.text
+    assert "staff on record: 1" in ans.text   # only Anil is in CMD
+    assert "Ongoing: 1" in ans.text           # GAP-001
+
+
+def test_division_summary_unknown_code_and_missing_param():
+    client = _FakeMultiClient({"divisions": _DIVISIONS})
+    assert "No division with code" in run_analytics(
+        "division_summary", {"division_code": "XXX"}, client).text
+    assert "No division code supplied" in run_analytics(
+        "division_summary", {}, client).text
+
+
+def test_project_team_by_number():
+    client = _FakeMultiClient({"projects": _PROJECTS, "staff": _STAFF,
+                               "project_staff": _PROJECT_STAFF})
+    ans = run_analytics("project_team", {"project_no": "GAP-002"}, client)
+    assert "Alloy Study" in ans.text
+    assert "PI: Rekha Sharma" in ans.text
+    assert "Anil Sharma" in ans.text          # team member
+
+
+def test_project_team_by_name_fragment():
+    client = _FakeMultiClient({"projects": _PROJECTS, "staff": _STAFF,
+                               "project_staff": _PROJECT_STAFF})
+    ans = run_analytics("project_team", {"project_name": "composite"}, client)
+    assert "GAP-001" in ans.text
+    assert "PI: Anil Sharma" in ans.text
+
+
+def test_project_team_not_found():
+    client = _FakeMultiClient({"projects": _PROJECTS})
+    assert "No project matching" in run_analytics(
+        "project_team", {"project_no": "GAP-999"}, client).text
+
+
+# ---------- typed payloads (RP1) — new entity functions ship structured data ----------
+
+def test_staff_profile_typed_data():
+    ans = run_analytics("staff_profile", {"name": "anil"},
+                        _FakeMultiClient({"staff": _STAFF}))
+    assert ans.data["staff"]["Name"] == "Anil Sharma"
+    assert ans.data["staff"]["Division"] == "CMD"
+
+
+def test_staff_profile_ambiguous_typed_candidates():
+    ans = run_analytics("staff_profile", {"name": "sharma"},
+                        _FakeMultiClient({"staff": _STAFF}))
+    assert [c["Name"] for c in ans.data["candidates"]] == ["Anil Sharma", "Rekha Sharma"]
+
+
+def test_projects_for_staff_typed_data():
+    client = _FakeMultiClient({"staff": _STAFF, "projects": _PROJECTS,
+                               "project_staff": _PROJECT_STAFF})
+    ans = run_analytics("projects_for_staff", {"name": "anil sharma"}, client)
+    assert ans.data["staff_name"] == "Anil Sharma"
+    assert [p["ProjectNo"] for p in ans.data["leads"]] == ["GAP-001"]
+    assert [p["ProjectNo"] for p in ans.data["member_of"]] == ["GAP-002"]
+
+
+def test_division_summary_typed_data():
+    client = _FakeMultiClient({"divisions": _DIVISIONS, "staff": _STAFF,
+                               "projects": _PROJECTS})
+    ans = run_analytics("division_summary", {"division_code": "cmd"}, client)
+    assert ans.data["division"]["divCode"] == "CMD"
+    assert ans.data["staff_count"] == 1
+    assert ans.data["projects_by_status"] == {"Ongoing": 1}
+
+
+def test_project_team_typed_data():
+    client = _FakeMultiClient({"projects": _PROJECTS, "staff": _STAFF,
+                               "project_staff": _PROJECT_STAFF})
+    ans = run_analytics("project_team", {"project_no": "GAP-002"}, client)
+    assert ans.data["project"]["ProjectNo"] == "GAP-002"
+    assert ans.data["pi"] == "Rekha Sharma"
+    assert ans.data["team"] == ["Anil Sharma"]

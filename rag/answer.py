@@ -16,3 +16,9 @@ class Answer:
     text: str
     mode: str               # 'document' | 'structured' | 'hybrid'
     citations: list = field(default_factory=list)
+    # Decision trace (RP3): {route, function, params, fallback?} — how this answer
+    # was produced. Logged to query_log; rides in the API payload for auditability.
+    trace: dict | None = None
+    # Typed payload (RP1): structured result data separated from the prose text,
+    # so tools/UI can consume results without parsing English.
+    data: dict | None = None
