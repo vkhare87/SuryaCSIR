@@ -257,3 +257,51 @@ def test_projects_for_staff_unknown_person():
                                "project_staff": _PROJECT_STAFF})
     assert "No staff member matching" in run_analytics(
         "projects_for_staff", {"name": "zzz"}, client).text
+
+
+_DIVISIONS = [
+    {"divCode": "CMD", "divName": "Composites & Materials", "divHoD": "Anil Sharma",
+     "divCurrentStrength": 12, "divSanctionedstrength": 15},
+]
+
+
+def test_division_summary():
+    client = _FakeMultiClient({"divisions": _DIVISIONS, "staff": _STAFF,
+                               "projects": _PROJECTS})
+    ans = run_analytics("division_summary", {"division_code": "cmd"}, client)
+    assert "Composites & Materials" in ans.text
+    assert "Anil Sharma" in ans.text          # HoD
+    assert "strength 12/15" in ans.text
+    assert "staff on record: 1" in ans.text   # only Anil is in CMD
+    assert "Ongoing: 1" in ans.text           # GAP-001
+
+
+def test_division_summary_unknown_code_and_missing_param():
+    client = _FakeMultiClient({"divisions": _DIVISIONS})
+    assert "No division with code" in run_analytics(
+        "division_summary", {"division_code": "XXX"}, client).text
+    assert "No division code supplied" in run_analytics(
+        "division_summary", {}, client).text
+
+
+def test_project_team_by_number():
+    client = _FakeMultiClient({"projects": _PROJECTS, "staff": _STAFF,
+                               "project_staff": _PROJECT_STAFF})
+    ans = run_analytics("project_team", {"project_no": "GAP-002"}, client)
+    assert "Alloy Study" in ans.text
+    assert "PI: Rekha Sharma" in ans.text
+    assert "Anil Sharma" in ans.text          # team member
+
+
+def test_project_team_by_name_fragment():
+    client = _FakeMultiClient({"projects": _PROJECTS, "staff": _STAFF,
+                               "project_staff": _PROJECT_STAFF})
+    ans = run_analytics("project_team", {"project_name": "composite"}, client)
+    assert "GAP-001" in ans.text
+    assert "PI: Anil Sharma" in ans.text
+
+
+def test_project_team_not_found():
+    client = _FakeMultiClient({"projects": _PROJECTS})
+    assert "No project matching" in run_analytics(
+        "project_team", {"project_no": "GAP-999"}, client).text
