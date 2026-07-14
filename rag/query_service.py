@@ -3,12 +3,33 @@ module so the logic stays testable on hosts where fastapi/pydantic native wheels
 blocked (dev laptop WDAC)."""
 
 import dataclasses
+import os
+import subprocess
 
 from answer import Answer
 from llm import NOT_FOUND, REFUSAL_TEXT
 from router import decide
 from retrieval import traverse, pick_context, flatten, select_docs
 from analytics import run_analytics, CATALOG
+
+
+def _catalog_version() -> str:
+    """Definition provenance (RP4): stamp every logged answer with the code
+    version that produced it. RAG_BUILD_SHA (set by deploy) wins; git fallback
+    for dev; 'dev' when neither is available."""
+    v = os.environ.get("RAG_BUILD_SHA", "").strip()
+    if v:
+        return v
+    try:
+        out = subprocess.run(["git", "rev-parse", "--short", "HEAD"],
+                             capture_output=True, text=True, timeout=5,
+                             cwd=os.path.dirname(os.path.abspath(__file__)))
+        return out.stdout.strip() or "dev"
+    except Exception:
+        return "dev"
+
+
+CATALOG_VERSION = _catalog_version()
 
 
 def parse_bearer(authorization) -> str:
@@ -140,15 +161,23 @@ def handle_query(question, client, llm, history=None):
     if history:
         question = _with_history(question, history)
     decision = decide(question, llm, CATALOG, examples=read_route_labels(client))
+    trace = {"route": decision["route"], "function": decision.get("function"),
+             "params": decision.get("params")}
     fetch_texts = make_fetch_texts(client)
     if decision["route"] in ("structured", "hybrid"):
         structured = _run_structured(decision["function"], decision["params"], client)
         if structured is not None:
             if decision["route"] == "structured":
+                structured.trace = trace
                 return structured
-            return _merge_hybrid(
+            merged = _merge_hybrid(
                 structured, traverse(select_corpus(question, client, llm), question, llm, fetch_texts))
-    return traverse(select_corpus(question, client, llm), question, llm, fetch_texts)
+            merged.trace = trace
+            return merged
+        trace["fallback"] = True
+    answer = traverse(select_corpus(question, client, llm), question, llm, fetch_texts)
+    answer.trace = trace
+    return answer
 
 
 def stream_query(question, client, llm, history=None):
@@ -164,10 +193,11 @@ def stream_query(question, client, llm, history=None):
         yield ("done", answer)
         return
 
+    trace = {"route": "document", "function": None, "params": None}
     pc = pick_context(select_corpus(q, client, llm), q, llm, make_fetch_texts(client))
     if pc is None:
         yield ("token", REFUSAL_TEXT)
-        yield ("done", Answer(REFUSAL_TEXT, "document", []))
+        yield ("done", Answer(REFUSAL_TEXT, "document", [], trace=trace))
         return
     context, citations = pc
 
@@ -184,11 +214,11 @@ def stream_query(question, client, llm, history=None):
     text = buf.strip()
     if not text or text == NOT_FOUND or not citations:
         yield ("token", REFUSAL_TEXT)
-        yield ("done", Answer(REFUSAL_TEXT, "document", []))
+        yield ("done", Answer(REFUSAL_TEXT, "document", [], trace=trace))
         return
     if not flushed:  # short answer that never cleared the sentinel guard
         yield ("token", buf)
-    yield ("done", Answer(text, "document", citations))
+    yield ("done", Answer(text, "document", citations, trace=trace))
 
 
 def find_similar(text, client, llm):
@@ -220,10 +250,16 @@ def log_query(client, question, answer, latency_ms=None):
     """Persist the query as a row owned by the caller (RLS: user_id = auth.uid()).
     Best-effort — a logging failure must not break the answer. Returns row id or None."""
     try:
+        trace = answer.trace or {}
         row = (client.table("query_log").insert({
             "question": question, "mode": answer.mode, "answer": answer.text,
             "citations": [dataclasses.asdict(c) for c in answer.citations],
             "latency_ms": latency_ms,
+            "route": trace.get("route"),
+            "function_name": trace.get("function"),
+            "function_params": trace.get("params"),
+            "refusal_reason": "no_grounded_answer" if answer.text == REFUSAL_TEXT else None,
+            "catalog_version": CATALOG_VERSION,
         }).execute().data)
         return row[0]["id"] if row else None
     except Exception:
