@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Users, Briefcase, BookOpen, Wrench, Microscope } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useData } from '../../contexts/DataContext';
@@ -11,11 +11,8 @@ import { AttentionStrip } from '../../components/dashboard/AttentionStrip';
 import { ProjectFinanceSection } from '../../components/dashboard/ProjectFinanceSection';
 import { ResearchSection } from '../../components/dashboard/ResearchSection';
 import { EquipmentOpsSection } from '../../components/dashboard/EquipmentOpsSection';
-import {
-  DEFAULT_THRESHOLDS,
-  THRESHOLD_KEYS,
-  type DirectorThresholds,
-} from '../../utils/directorMetrics';
+import { DEFAULT_THRESHOLDS } from '../../utils/directorMetrics';
+import { useDirectorThresholds } from '../../hooks/useDirectorThresholds';
 import { instituteFreshness, type DivisionFreshness } from '../../lib/divisions/freshness';
 
 const FRESHNESS_BADGE: Record<DivisionFreshness['staleness'], string> = {
@@ -25,21 +22,9 @@ const FRESHNESS_BADGE: Record<DivisionFreshness['staleness'], string> = {
   empty: 'bg-surface-hover text-text-muted',
 };
 
-function loadThresholds(): DirectorThresholds {
-  const read = (key: string, fallback: number) => {
-    const v = Number(localStorage.getItem(key));
-    return Number.isFinite(v) && v > 0 ? v : fallback;
-  };
-  return {
-    lowBurnPct: read(THRESHOLD_KEYS.lowBurnPct, DEFAULT_THRESHOLDS.lowBurnPct),
-    endingDays: read(THRESHOLD_KEYS.endingDays, DEFAULT_THRESHOLDS.endingDays),
-    amcDays: read(THRESHOLD_KEYS.amcDays, DEFAULT_THRESHOLDS.amcDays),
-  };
-}
-
 export function DirectorView() {
   const { staff, projects, phDStudents, equipment, scientificOutputs, divisions, ipIntelligence, mous, techTransfers } = useData();
-  const [thresholds, setThresholds] = useState<DirectorThresholds>(loadThresholds);
+  const { thresholds, setThresholds } = useDirectorThresholds();
 
   const freshnessByDiv = useMemo(() => {
     const all = instituteFreshness(divisions, {
@@ -47,12 +32,6 @@ export function DirectorView() {
     });
     return new Map(all.map((f) => [f.divCode, f]));
   }, [divisions, staff, projects, scientificOutputs, ipIntelligence, mous, techTransfers, phDStudents]);
-
-  useEffect(() => {
-    localStorage.setItem(THRESHOLD_KEYS.lowBurnPct, String(thresholds.lowBurnPct));
-    localStorage.setItem(THRESHOLD_KEYS.endingDays, String(thresholds.endingDays));
-    localStorage.setItem(THRESHOLD_KEYS.amcDays, String(thresholds.amcDays));
-  }, [thresholds]);
 
   const activeProjects = projects.filter((p) => p.ProjectStatus === 'Active').length;
 
