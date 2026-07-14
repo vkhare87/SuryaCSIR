@@ -5,7 +5,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
 import { Card, Badge } from './ui/Cards';
 import { instituteFreshness } from '../lib/divisions/freshness';
-import { buildDataHealthDigest, type DigestSeverity } from '../lib/digest/dataHealth';
+import { buildDataHealthDigest, sortAndCap, type DigestSeverity } from '../lib/digest/dataHealth';
+import { buildExecutiveDigest } from '../lib/digest/executive';
 
 const SEVERITY_BADGE: Record<DigestSeverity, { label: string; variant: 'danger' | 'warning' | 'info' }> = {
   urgent: { label: 'Urgent', variant: 'danger' },
@@ -17,15 +18,18 @@ const SEVERITY_BADGE: Record<DigestSeverity, { label: string; variant: 'danger' 
  * nothing to flag, so it stays out of the way on healthy dashboards. */
 export function DataHealthDigest() {
   const { user, divisionCode } = useAuth();
-  const { divisions, staff, projects, scientificOutputs, ipIntelligence, mous, techTransfers, phDStudents } = useData();
+  const { divisions, staff, projects, scientificOutputs, ipIntelligence, mous, techTransfers, phDStudents, phdMilestones, vacancyAdvertisements } = useData();
 
   const items = useMemo(() => {
     if (!user) return [];
     const freshness = instituteFreshness(divisions, {
       staff, projects, scientificOutputs, ipIntelligence, mous, techTransfers, phDStudents,
     });
-    return buildDataHealthDigest(user.activeRole, divisionCode, freshness);
-  }, [user, divisionCode, divisions, staff, projects, scientificOutputs, ipIntelligence, mous, techTransfers, phDStudents]);
+    return sortAndCap([
+      ...buildExecutiveDigest(user.activeRole, divisionCode, { projects, phdMilestones, vacancyAdvertisements }),
+      ...buildDataHealthDigest(user.activeRole, divisionCode, freshness),
+    ]);
+  }, [user, divisionCode, divisions, staff, projects, scientificOutputs, ipIntelligence, mous, techTransfers, phDStudents, phdMilestones, vacancyAdvertisements]);
 
   if (items.length === 0) return null;
 
@@ -33,7 +37,7 @@ export function DataHealthDigest() {
     <Card className="p-5">
       <div className="flex items-center gap-2 mb-3">
         <Activity size={16} className="text-brand-blue" />
-        <h2 className="text-sm font-semibold">Data Health</h2>
+        <h2 className="text-sm font-semibold">Needs Attention</h2>
         <Badge variant="warning">{items.length}</Badge>
       </div>
       <ul className="divide-y divide-border">

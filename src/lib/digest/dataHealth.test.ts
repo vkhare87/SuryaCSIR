@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildDataHealthDigest } from './dataHealth';
+import { buildDataHealthDigest, sortAndCap, type DigestItem, type DigestSeverity } from './dataHealth';
 import type { DivisionFreshness } from '../divisions/freshness';
 
 function fresh(over: Partial<DivisionFreshness>): DivisionFreshness {
@@ -72,5 +72,22 @@ describe('buildDataHealthDigest — division stewards', () => {
 
   it('returns nothing without a division code', () => {
     expect(buildDataHealthDigest('DivisionHead', null, rows)).toEqual([]);
+  });
+});
+
+describe('sortAndCap', () => {
+  const item = (id: string, severity: DigestSeverity): DigestItem =>
+    ({ id, severity, title: id, detail: '', href: '/x' });
+
+  it('orders urgent > warning > info and caps at 7 by default', () => {
+    const items = [
+      item('i1', 'info'), item('w1', 'warning'), item('u1', 'urgent'),
+      item('i2', 'info'), item('u2', 'urgent'), item('w2', 'warning'),
+      item('i3', 'info'), item('i4', 'info'),
+    ];
+    const out = sortAndCap(items);
+    expect(out).toHaveLength(7);
+    expect(out.map(i => i.severity)).toEqual(
+      ['urgent', 'urgent', 'warning', 'warning', 'info', 'info', 'info']);
   });
 });

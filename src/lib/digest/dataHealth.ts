@@ -77,3 +77,12 @@ export function buildDataHealthDigest(
   });
   return items;
 }
+
+const SEVERITY_RANK: Record<DigestSeverity, number> = { urgent: 0, warning: 1, info: 2 };
+
+/** Severity-ordered, capped list for the dashboard card — worst first, max 7. */
+export function sortAndCap(items: DigestItem[], cap = 7): DigestItem[] {
+  return [...items]
+    .sort((a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity])
+    .slice(0, cap);
+}
