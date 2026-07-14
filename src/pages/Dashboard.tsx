@@ -14,6 +14,7 @@ import { GuestView }          from './dashboards/GuestView';
 import { PendingAccessView }  from './dashboards/PendingAccessView';
 import { EmpoweredCommitteeView } from './dashboards/EmpoweredCommitteeView';
 import { MyActions } from '../components/MyActions';
+import { DataHealthDigest } from '../components/DataHealthDigest';
 
 export default function Dashboard() {
   const { activeRole } = useAuth();
@@ -22,6 +23,7 @@ export default function Dashboard() {
   const withActions = (view: React.ReactNode) => (
     <div className="space-y-6">
       <MyActions />
+      <DataHealthDigest />
       {view}
     </div>
   );

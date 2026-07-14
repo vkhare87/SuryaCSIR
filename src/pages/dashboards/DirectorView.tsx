@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Users, Briefcase, BookOpen, Wrench, Microscope } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useData } from '../../contexts/DataContext';
@@ -16,6 +16,14 @@ import {
   THRESHOLD_KEYS,
   type DirectorThresholds,
 } from '../../utils/directorMetrics';
+import { instituteFreshness, type DivisionFreshness } from '../../lib/divisions/freshness';
+
+const FRESHNESS_BADGE: Record<DivisionFreshness['staleness'], string> = {
+  fresh: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+  aging: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+  stale: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+  empty: 'bg-surface-hover text-text-muted',
+};
 
 function loadThresholds(): DirectorThresholds {
   const read = (key: string, fallback: number) => {
@@ -30,8 +38,15 @@ function loadThresholds(): DirectorThresholds {
 }
 
 export function DirectorView() {
-  const { staff, projects, phDStudents, equipment, scientificOutputs, divisions } = useData();
+  const { staff, projects, phDStudents, equipment, scientificOutputs, divisions, ipIntelligence, mous, techTransfers } = useData();
   const [thresholds, setThresholds] = useState<DirectorThresholds>(loadThresholds);
+
+  const freshnessByDiv = useMemo(() => {
+    const all = instituteFreshness(divisions, {
+      staff, projects, scientificOutputs, ipIntelligence, mous, techTransfers, phDStudents,
+    });
+    return new Map(all.map((f) => [f.divCode, f]));
+  }, [divisions, staff, projects, scientificOutputs, ipIntelligence, mous, techTransfers, phDStudents]);
 
   useEffect(() => {
     localStorage.setItem(THRESHOLD_KEYS.lowBurnPct, String(thresholds.lowBurnPct));
@@ -106,6 +121,7 @@ export function DirectorView() {
                 <th className="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-widest text-[#87867f]">Current Strength</th>
                 <th className="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-widest text-[#87867f]">Sanctioned</th>
                 <th className="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-widest text-[#87867f]">Head of Division</th>
+                <th className="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-widest text-[#87867f]">Data Freshness</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#f0eee6]">
@@ -116,11 +132,25 @@ export function DirectorView() {
                   <td className="px-6 py-4 text-right text-[#141413] font-semibold">{div.divCurrentStrength}</td>
                   <td className="px-6 py-4 text-right text-[#87867f]">{div.divSanctionedstrength}</td>
                   <td className="px-6 py-4 text-right text-[#4d4c48]">{div.divHoD}</td>
+                  <td className="px-6 py-4 text-right">
+                    {(() => {
+                      const f = freshnessByDiv.get(div.divCode);
+                      if (!f) return <span className="text-[#87867f]">—</span>;
+                      return (
+                        <span
+                          className={`inline-flex text-xs font-semibold px-2 py-0.5 rounded-full ${FRESHNESS_BADGE[f.staleness]}`}
+                          title={f.gaps.join('; ') || 'No gaps'}
+                        >
+                          {f.completeness}% · {f.staleness}
+                        </span>
+                      );
+                    })()}
+                  </td>
                 </tr>
               ))}
               {divisions.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-[#87867f] text-xs italic">
+                  <td colSpan={6} className="px-6 py-8 text-center text-[#87867f] text-xs italic">
                     No division data available.
                   </td>
                 </tr>
