@@ -3,10 +3,12 @@ import { Link } from 'react-router-dom';
 import { Activity, ChevronRight } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
+import { usePMS } from '../contexts/PMSContext';
 import { Card, Badge } from './ui/Cards';
 import { instituteFreshness } from '../lib/divisions/freshness';
 import { buildDataHealthDigest, sortAndCap, type DigestSeverity } from '../lib/digest/dataHealth';
 import { buildExecutiveDigest } from '../lib/digest/executive';
+import { buildPmsDigest } from '../lib/digest/pms';
 
 const SEVERITY_BADGE: Record<DigestSeverity, { label: string; variant: 'danger' | 'warning' | 'info' }> = {
   urgent: { label: 'Urgent', variant: 'danger' },
@@ -19,6 +21,7 @@ const SEVERITY_BADGE: Record<DigestSeverity, { label: string; variant: 'danger' 
 export function DataHealthDigest() {
   const { user, divisionCode } = useAuth();
   const { divisions, staff, projects, scientificOutputs, ipIntelligence, mous, techTransfers, phDStudents, phdMilestones, vacancyAdvertisements } = useData();
+  const { evaluations, reports } = usePMS();
 
   const items = useMemo(() => {
     if (!user) return [];
@@ -28,8 +31,9 @@ export function DataHealthDigest() {
     return sortAndCap([
       ...buildExecutiveDigest(user.activeRole, divisionCode, { projects, phdMilestones, vacancyAdvertisements }),
       ...buildDataHealthDigest(user.activeRole, divisionCode, freshness),
+      ...buildPmsDigest(user.activeRole, user.id, evaluations, reports),
     ]);
-  }, [user, divisionCode, divisions, staff, projects, scientificOutputs, ipIntelligence, mous, techTransfers, phDStudents, phdMilestones, vacancyAdvertisements]);
+  }, [user, divisionCode, divisions, staff, projects, scientificOutputs, ipIntelligence, mous, techTransfers, phDStudents, phdMilestones, vacancyAdvertisements, evaluations, reports]);
 
   if (items.length === 0) return null;
 

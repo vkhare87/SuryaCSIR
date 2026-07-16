@@ -8,7 +8,7 @@ import { DocumentPanel } from '../components/ui/DocumentPanel';
 import {
   ArrowLeft, Mail, Phone, MapPin, Award, BookOpen, Briefcase,
   ChevronRight, GitBranch, GraduationCap,
-  FileText, Lightbulb, CalendarDays, TrendingUp, Wrench, Edit,
+  FileText, Lightbulb, CalendarDays, TrendingUp, Wrench, Edit, FileDown,
 } from 'lucide-react';
 import { useCanEdit } from '../lib/permissions/canEdit';
 import { StaffFormModal } from '../components/StaffFormModal';
@@ -19,6 +19,18 @@ import {
 } from '../utils/dateUtils';
 import { getStaffPortfolio } from '../utils/analytics';
 import ScientistProfile from '../components/ScientistProfile';
+import { buildScientistDossier } from '../lib/scientist/dossier';
+import { buildScientistBrief } from '../lib/scientist/brief';
+
+const TRAJECTORY_FLAG_LABEL: Record<string, string> = {
+  'output-rising': 'Output rising',
+  'output-flat': 'Output flat',
+  'output-declining': 'Output declining',
+  'new-collaboration-cluster': 'New collaboration cluster',
+  'supervision-load-up': 'High supervision load',
+  'budget-overrun-history': 'Budget overrun history',
+  'duty-days-below-90-candidate': 'Duty days below 90 — check rule',
+};
 
 export default function StaffDetail() {
   const { id } = useParams<{ id: string }>();
@@ -35,6 +47,8 @@ export default function StaffDetail() {
     scientificOutputs,
     ipIntelligence,
     equipment,
+    techTransfers,
+    mous,
   } = useData();
 
   const portfolio = getStaffPortfolio({
@@ -47,6 +61,30 @@ export default function StaffDetail() {
     ipIntelligence,
     equipment,
   });
+
+  const dossier = id ? buildScientistDossier({
+    staffId: id,
+    staff,
+    projects,
+    projectStaff,
+    phDStudents,
+    scientificOutputs,
+    ipIntelligence,
+    equipment,
+    techTransfers,
+    mous,
+  }) : null;
+
+  function downloadBrief() {
+    if (!dossier) return;
+    const md = buildScientistBrief(dossier);
+    const url = URL.createObjectURL(new Blob([md], { type: 'text/markdown;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `brief_${dossier.member.ID}_${dossier.dataFreshness}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   if (!portfolio) {
     return (
@@ -106,6 +144,14 @@ export default function StaffDetail() {
           <h1 className="text-2xl font-[500] text-text font-serif">Staff Profile</h1>
           <p className="text-text-muted text-sm">Detailed Human Capital Record</p>
         </div>
+        {dossier && (
+          <button
+            onClick={downloadBrief}
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-surface border border-border rounded-lg text-sm font-medium text-text hover:bg-surface-hover transition-colors"
+          >
+            <FileDown size={14} /> Download Brief
+          </button>
+        )}
         {canEdit && (
           <button
             onClick={() => setEditOpen(true)}
@@ -235,6 +281,26 @@ export default function StaffDetail() {
             <StatCard title="IP Assets" value={ipAssets.length} className="bg-surface-hover border-transparent shadow-none" />
             <StatCard title="Equipment" value={assignedEquipment.length} className="bg-surface-hover border-transparent shadow-none" />
           </div>
+
+          {/* Trajectory — descriptive pattern flags, no scores */}
+          {dossier && dossier.trajectory.flags.length > 0 && (
+            <Card>
+              <h3 className="text-lg font-[500] mb-3 text-text flex items-center gap-2 font-serif">
+                <TrendingUp size={18} className="text-[#c96442]" />
+                Trajectory
+              </h3>
+              <div className="flex flex-wrap gap-1.5">
+                {dossier.trajectory.flags.map(f => (
+                  <span key={f} className="text-xs font-medium px-2 py-1 rounded-full bg-surface-hover text-text-muted border border-border">
+                    {TRAJECTORY_FLAG_LABEL[f] ?? f}
+                  </span>
+                ))}
+              </div>
+              <p className="text-[10px] text-text-muted mt-2">
+                Descriptive patterns from institutional records — not a score. Assembled {dossier.dataFreshness}.
+              </p>
+            </Card>
+          )}
 
           {/* Research & Expertise */}
           <Card>

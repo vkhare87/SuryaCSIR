@@ -6,6 +6,7 @@ import { EVALUATION_DIMENSIONS, SCORE_RANGE } from '../../lib/pms/constants';
 import { getGrade, requiresBelowThresholdReasons, requiresOutstandingReasons } from '../../lib/pms/scoring';
 import { Button } from '../../components/ui/Button';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { EvidencePanel } from '../../components/pms/EvidencePanel';
 import type { PMSReportSection, PMSAnnexure, PMSReport } from '../../types/pms';
 
 type ReportDetail = PMSReport & { sections: PMSReportSection[]; annexures: PMSAnnexure[] };
@@ -169,6 +170,11 @@ export default function EvaluateReport() {
             <p className="text-xs text-amber-700 mt-1">{summaryReport.systemRemark}</p>
           )}
         </div>
+      )}
+
+      {/* Institutional evidence — claim corroboration + trajectory */}
+      {reportDetail && (
+        <EvidencePanel report={reportDetail} sections={reportDetail.sections} />
       )}
 
       {/* 12-dimension score grid (worksheet) */}

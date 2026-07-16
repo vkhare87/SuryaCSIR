@@ -9,14 +9,18 @@ import { StatusBadge } from '../../components/pms/StatusBadge';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Skeleton } from '../../components/ui/Skeleton';
-import type { PMSEvaluation } from '../../types/pms';
+import { EvidencePanel } from '../../components/pms/EvidencePanel';
+import type { PMSEvaluation, PMSReportSection, PMSAnnexure, PMSReport } from '../../types/pms';
+
+type ReportDetail = PMSReport & { sections: PMSReportSection[]; annexures: PMSAnnexure[] };
 
 export default function CommitteeQueue() {
   const { user } = useAuth();
-  const { reports, isLoading, getReportEvaluations, finalizeReport } = usePMS();
+  const { reports, isLoading, getReportEvaluations, getReport, finalizeReport } = usePMS();
 
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
   const [reportEvaluations, setReportEvaluations] = useState<PMSEvaluation[]>([]);
+  const [reportDetail, setReportDetail] = useState<ReportDetail | null>(null);
   const [loadingReview, setLoadingReview] = useState(false);
   const [finalScore, setFinalScore] = useState('');
   const [justification, setJustification] = useState('');
@@ -47,10 +51,15 @@ export default function CommitteeQueue() {
     setReasonsBelow('');
     setSuggestions('');
     setError(null);
+    setReportDetail(null);
     setLoadingReview(true);
     try {
-      const evals = await getReportEvaluations(reportId);
+      const [evals, detail] = await Promise.all([
+        getReportEvaluations(reportId),
+        getReport(reportId).catch(() => null),
+      ]);
       setReportEvaluations(evals.filter(e => e.status === 'COMPLETED'));
+      setReportDetail(detail);
     } catch {
       setReportEvaluations([]);
     } finally {
@@ -164,6 +173,11 @@ export default function CommitteeQueue() {
                   <p className="text-xs text-text-muted">No completed evaluations on record.</p>
                 )}
               </div>
+
+              {/* Institutional evidence — claim corroboration + trajectory */}
+              {reportDetail && (
+                <EvidencePanel report={reportDetail} sections={reportDetail.sections} />
+              )}
 
               {/* Final score */}
               <div>
