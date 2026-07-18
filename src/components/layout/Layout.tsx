@@ -54,6 +54,7 @@ export function Layout() {
               <button
                 onClick={() => setMobileMenuOpen(true)}
                 className="p-2 -ml-2 hover:bg-surface-hover rounded-xl text-text transition-colors"
+                aria-label="Open menu"
               >
                 <Menu size={24} />
               </button>
@@ -82,6 +83,7 @@ export function Layout() {
                   <button
                     onClick={() => setRoleSwitcherOpen(v => !v)}
                     className="flex items-center gap-1.5 px-2.5 py-1.5 bg-surface-hover border border-border rounded-[8px] text-xs font-semibold text-text-muted hover:border-[#c96442] hover:text-text transition-colors"
+                    aria-label="Switch role"
                   >
                     <span className="hidden sm:inline">{role}</span>
                     <ChevronDown size={13} className={`transition-transform ${roleSwitcherOpen ? 'rotate-180' : ''}`} />

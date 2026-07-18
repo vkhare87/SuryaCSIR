@@ -110,12 +110,12 @@ function SidebarBody({
           </div>
         )}
         {!isMobileView && (
-          <button onClick={onToggleCollapse} className="p-1 hover:bg-[#30302e] rounded transition-colors">
+          <button onClick={onToggleCollapse} className="p-1 hover:bg-[#30302e] rounded transition-colors" aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}>
             {sidebarOpen ? <PanelLeftClose size={20} /> : <PanelLeftOpen size={20} className="mx-auto" />}
           </button>
         )}
         {isMobileView && (
-          <button onClick={onCloseMobile} className="p-1 hover:bg-[#30302e] rounded transition-colors">
+          <button onClick={onCloseMobile} className="p-1 hover:bg-[#30302e] rounded transition-colors" aria-label="Close menu">
             <X size={24} />
           </button>
         )}
