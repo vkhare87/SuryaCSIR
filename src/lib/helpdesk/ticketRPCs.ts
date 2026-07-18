@@ -48,7 +48,17 @@ export async function createTicket(params: CreateTicketParams): Promise<RpcResul
   });
 
   if (error) return { success: false, error: error.message };
-  return { success: true, data: { ticketId: data } };
+
+  // RPC returns only the uuid; the human token (AMPRI-YYMMDD-XXX) lives on
+  // the row. tickets_select is USING(true) for authenticated, so this read
+  // always succeeds for a caller who could create.
+  const { data: row } = await supabase
+    .from('tickets')
+    .select('token')
+    .eq('id', data as string)
+    .single();
+
+  return { success: true, data: { ticketId: data as string, token: row?.token ?? null } };
 }
 
 /**

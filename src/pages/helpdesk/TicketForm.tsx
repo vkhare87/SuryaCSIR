@@ -12,6 +12,7 @@ import { Card } from '../../components/ui/Cards';
 import { createTicket } from '../../lib/helpdesk/ticketRPCs';
 import { CATEGORY_CONFIG, URGENCY_COLORS } from '../../lib/helpdesk/constants';
 import { resolveRoutingPreview } from '../../lib/helpdesk/routing';
+import { missingTicketFields, type TicketField } from '../../lib/helpdesk/ticketValidation';
 import type { TicketCategory, TicketUrgency } from '../../types';
 
 const CATEGORY_ICONS: Record<string, React.ElementType> = {
@@ -25,6 +26,7 @@ const ERROR_FALLBACK = 'Failed to create ticket. Please try again. If the proble
 
 interface SuccessState {
   ticketId: string;
+  token: string | null;
   handlerName: string | null;
 }
 
@@ -39,6 +41,7 @@ export default function TicketForm() {
   const [description, setDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<TicketField[]>([]);
   const [success, setSuccess] = useState<SuccessState | null>(null);
 
   const routingPreview = useMemo(() => {
@@ -61,8 +64,10 @@ export default function TicketForm() {
   };
 
   async function handleSubmit() {
-    if (!category || !subject.trim() || !description.trim()) {
-      setError('Please select a category and fill in all required fields.');
+    const missing = missingTicketFields({ category, subject, description });
+    setFieldErrors(missing);
+    if (missing.length > 0) {
+      setError('Please complete the highlighted fields.');
       return;
     }
     if (!user) {
@@ -72,6 +77,7 @@ export default function TicketForm() {
 
     setSubmitting(true);
     setError(null);
+    setFieldErrors([]);
 
     const result = await createTicket({
       subject: subject.trim(),
@@ -84,8 +90,8 @@ export default function TicketForm() {
     setSubmitting(false);
 
     if (result.success) {
-      const ticketId = (result.data as { ticketId: string }).ticketId;
-      setSuccess({ ticketId, handlerName: routingPreview?.handlerName ?? null });
+      const { ticketId, token } = result.data as { ticketId: string; token: string | null };
+      setSuccess({ ticketId, token, handlerName: routingPreview?.handlerName ?? null });
       await refreshData();
     } else {
       setError(result.error ?? ERROR_FALLBACK);
@@ -106,7 +112,8 @@ export default function TicketForm() {
         <Card className="flex flex-col items-center text-center gap-4 py-10 shadow-[0px_0px_0px_1px_#16a34a]">
           <CheckCircle2 size={48} className="text-emerald-600 dark:text-emerald-400" />
           <h2 className="text-2xl font-[500] text-text font-serif">Ticket created</h2>
-          <span className="font-mono text-lg text-text-muted">{success.ticketId}</span>
+          <span className="font-mono text-lg text-text">{success.token ?? success.ticketId}</span>
+          <p className="text-xs text-text-muted">Quote this ticket number in any follow-up.</p>
           {success.handlerName && (
             <p className="text-sm text-text-muted">Routing to {success.handlerName}</p>
           )}
@@ -181,6 +188,9 @@ export default function TicketForm() {
             );
           })}
         </div>
+        {fieldErrors.includes('category') && (
+          <p className="text-xs text-danger mt-1">Pick a category.</p>
+        )}
       </section>
 
       {category && routingPreview && (
@@ -205,8 +215,11 @@ export default function TicketForm() {
             maxLength={200}
             disabled={submitting}
             placeholder="Brief summary of your issue..."
-            className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-[#3898ec] outline-none disabled:opacity-60"
+            className={`w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-[#3898ec] outline-none disabled:opacity-60${fieldErrors.includes('subject') ? ' border-danger' : ''}`}
           />
+          {fieldErrors.includes('subject') && (
+            <p className="text-xs text-danger mt-1">Subject is required.</p>
+          )}
         </div>
 
         <div>
@@ -243,8 +256,11 @@ export default function TicketForm() {
             onChange={(e) => setDescription(e.target.value)}
             disabled={submitting}
             placeholder="Describe your issue in detail..."
-            className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-[#3898ec] outline-none resize-y disabled:opacity-60"
+            className={`w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-[#3898ec] outline-none resize-y disabled:opacity-60${fieldErrors.includes('description') ? ' border-danger' : ''}`}
           />
+          {fieldErrors.includes('description') && (
+            <p className="text-xs text-danger mt-1">Description is required.</p>
+          )}
         </div>
       </section>
 
