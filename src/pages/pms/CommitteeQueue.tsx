@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { usePMS } from '../../contexts/PMSContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -10,9 +10,22 @@ import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { EvidencePanel } from '../../components/pms/EvidencePanel';
-import type { PMSEvaluation, PMSReportSection, PMSAnnexure, PMSReport } from '../../types/pms';
+import type { PMSEvaluation, PMSReportSection, PMSAnnexure, PMSReport, ReportStatus } from '../../types/pms';
 
 type ReportDetail = PMSReport & { sections: PMSReportSection[]; annexures: PMSAnnexure[] };
+
+// Display order for the cycle-progress strip — earliest stage first.
+const STATUS_ORDER: ReportStatus[] = [
+  'DRAFT', 'SUBMITTED', 'UNDER_EVALUATION_COMMITTEE_REVIEW',
+  'EMPOWERED_COMMITTEE_REVIEW', 'FINALIZED', 'UNDER_GRIEVANCE_REVIEW', 'NOT_ASSESSED',
+];
+const STATUS_LABEL: Record<ReportStatus, string> = {
+  DRAFT: 'Draft', SUBMITTED: 'Submitted',
+  UNDER_EVALUATION_COMMITTEE_REVIEW: 'With Evaluators',
+  EMPOWERED_COMMITTEE_REVIEW: 'With Committee',
+  FINALIZED: 'Finalized', NOT_ASSESSED: 'Not Assessed',
+  UNDER_GRIEVANCE_REVIEW: 'Grievance',
+};
 
 export default function CommitteeQueue() {
   const { user } = useAuth();
@@ -29,6 +42,13 @@ export default function CommitteeQueue() {
   const [suggestions, setSuggestions] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const statusCounts = useMemo(
+    () => STATUS_ORDER
+      .map(s => ({ status: s, count: reports.filter(r => r.status === s).length }))
+      .filter(s => s.count > 0),
+    [reports],
+  );
 
   if (!user || !canCommitteeDecide(user)) return <Navigate to="/pms" replace />;
 
@@ -116,6 +136,17 @@ export default function CommitteeQueue() {
       <p className="text-sm text-text-muted">
         {committeeReports.length} report{committeeReports.length !== 1 ? 's' : ''} awaiting final decision
       </p>
+
+      {statusCounts.length > 0 && (
+        <div className="flex flex-wrap gap-3">
+          {statusCounts.map(s => (
+            <div key={s.status} className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-border bg-surface text-xs">
+              <span className="text-text-muted">{STATUS_LABEL[s.status]}</span>
+              <span className="font-semibold text-text tabular-nums">{s.count}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {committeeReports.length === 0 ? (
         <div className="py-16 text-center text-text-muted border border-border rounded-2xl">

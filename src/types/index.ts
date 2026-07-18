@@ -413,6 +413,15 @@ export interface Holiday {
   year: number;
 }
 
+export interface FeatureControl {
+  feature_key: string;      // ACCESS_MAP path
+  enabled: boolean;         // false = off for everyone (MasterAdmin exempt)
+  disabled_roles: Role[];   // off for these roles only
+  note: string | null;
+  updated_by: string | null;
+  updated_at: string;
+}
+
 export interface AccessRequest {
   id: string;
   user_id: string;

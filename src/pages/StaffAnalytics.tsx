@@ -12,6 +12,7 @@ import { useChartFilter, type ChartFilter } from '../utils/useChartFilter';
 import { personNamesMatch } from '../utils/analytics';
 import { coAuthorPairs } from '../lib/intelligence/collaboration';
 import { successionRisk } from '../lib/staff/successionRisk';
+import { yearsUntilRetirement } from '../lib/staff/retirement';
 import { formatDate } from '../utils/dateUtils';
 import { FilterChips } from '../components/viz/FilterChips';
 import type { StaffMember } from '../types';
@@ -154,13 +155,8 @@ export default function StaffAnalytics() {
     const now = new Date();
     const buckets: Record<string, number> = { '0–1y': 0, '1–3y': 0, '3–5y': 0, '5–10y': 0, '>10y': 0 };
     for (const s of filteredStaff) {
-      if (!s.DOB) continue;
-      const t = Date.parse(s.DOB);
-      if (!Number.isFinite(t)) continue;
-      const retireAt = new Date(t);
-      retireAt.setFullYear(retireAt.getFullYear() + 60);
-      const yrs = (retireAt.getTime() - now.getTime()) / (365.25 * 86400000);
-      if (yrs < 0) continue;
+      const yrs = yearsUntilRetirement(s.DOB, now);
+      if (yrs === null || yrs < 0) continue;
       if (yrs <= 1) buckets['0–1y']++;
       else if (yrs <= 3) buckets['1–3y']++;
       else if (yrs <= 5) buckets['3–5y']++;

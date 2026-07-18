@@ -1,12 +1,21 @@
-import { BookOpen, Briefcase, GraduationCap } from 'lucide-react';
+import { useMemo } from 'react';
+import { BookOpen, Briefcase, GraduationCap, CheckCircle2, Circle, Clock, Mail, Phone, UserRound } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Card } from '../../components/ui/Cards';
 import { KpiCard } from '../../components/ui/KpiCard';
+import type { PhDMilestoneName } from '../../types';
+
+// Canonical PhD milestone order (matches the phd_milestones CHECK constraint).
+const MILESTONE_ORDER: PhDMilestoneName[] = [
+  'Joining', 'Coursework', 'Comprehensive Exam', 'Registration',
+  'Synopsis Submission', 'Thesis Submission', 'Viva Voce', 'Degree Awarded',
+];
 
 export function StudentView() {
-  const { phDStudents, projects, staff } = useData();
+  const { phDStudents, projects, staff, phdMilestones } = useData();
   const { user } = useAuth();
+  const nowMs = useMemo(() => new Date().getTime(), []);
 
   // Match PhD record by email — students are linked by email in phDStudents or staff table
   // Fallback: show all PhD records if no match (guest-like view)
@@ -22,6 +31,13 @@ export function StudentView() {
   const linkedProject = ownPhD?.ProjectNo
     ? projects.find(p => p.ProjectNo === ownPhD.ProjectNo)
     : null;
+
+  // Own milestones, ordered by the canonical PhD sequence.
+  const ownMilestones = ownPhD
+    ? phdMilestones
+        .filter(m => m.enrollmentNo === ownPhD.EnrollmentNo)
+        .sort((a, b) => MILESTONE_ORDER.indexOf(a.milestone) - MILESTONE_ORDER.indexOf(b.milestone))
+    : [];
 
   if (!ownPhD) {
     return (
@@ -94,6 +110,32 @@ export function StudentView() {
           </dl>
         </Card>
 
+        {supervisorRecord && (
+          <Card className="p-6 space-y-4">
+            <h2 className="text-base font-semibold text-[#4d4c48] uppercase tracking-wide flex items-center gap-2">
+              <UserRound size={16} className="text-[#c96442]" /> Supervisor Contact
+            </h2>
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-[#141413]">{supervisorRecord.Name}</p>
+              <p className="text-xs text-[#87867f]">{supervisorRecord.Designation} · Division {supervisorRecord.Division}</p>
+            </div>
+            <dl className="space-y-2 text-sm">
+              {supervisorRecord.Email && (
+                <div className="flex items-center gap-2">
+                  <Mail size={13} className="text-[#87867f] shrink-0" />
+                  <dd className="text-[#4d4c48]">{supervisorRecord.Email}</dd>
+                </div>
+              )}
+              {supervisorRecord.Ext && (
+                <div className="flex items-center gap-2">
+                  <Phone size={13} className="text-[#87867f] shrink-0" />
+                  <dd className="text-[#4d4c48]">Ext. {supervisorRecord.Ext}</dd>
+                </div>
+              )}
+            </dl>
+          </Card>
+        )}
+
         {linkedProject && (
           <Card className="p-6 space-y-4">
             <h2 className="text-base font-semibold text-[#4d4c48] uppercase tracking-wide">Linked Project</h2>
@@ -114,6 +156,43 @@ export function StudentView() {
           </Card>
         )}
       </div>
+
+      {/* Milestone timeline */}
+      <Card className="p-6 space-y-4">
+        <h2 className="text-base font-semibold text-[#4d4c48] uppercase tracking-wide">Milestone Progress</h2>
+        {ownMilestones.length === 0 ? (
+          <p className="text-xs text-[#87867f] italic">No milestones recorded yet. Your supervisor updates these as you progress.</p>
+        ) : (
+          <ol className="relative border-l border-[#f0eee6] ml-3 space-y-6">
+            {ownMilestones.map(m => {
+              const done = Boolean(m.completedDate);
+              const overdue = !done && m.dueDate ? Date.parse(m.dueDate) < nowMs : false;
+              const Icon = done ? CheckCircle2 : overdue ? Clock : Circle;
+              const tone = done ? 'text-[#16a34a]' : overdue ? 'text-[#c96442]' : 'text-[#b0aea5]';
+              return (
+                <li key={m.id} className="ml-6">
+                  <span className={`absolute -left-3 flex items-center justify-center w-6 h-6 rounded-full bg-[#faf9f5] ${tone}`}>
+                    <Icon size={16} />
+                  </span>
+                  <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+                    <span className="text-sm font-semibold text-[#141413]">{m.milestone}</span>
+                    {done ? (
+                      <span className="text-[11px] text-[#16a34a] font-medium">Completed {m.completedDate}</span>
+                    ) : m.dueDate ? (
+                      <span className={`text-[11px] font-medium ${overdue ? 'text-[#c96442]' : 'text-[#87867f]'}`}>
+                        {overdue ? 'Overdue' : 'Due'} {m.dueDate}
+                      </span>
+                    ) : (
+                      <span className="text-[11px] text-[#87867f]">Pending</span>
+                    )}
+                  </div>
+                  {m.remarks && <p className="text-[11px] text-[#87867f] mt-0.5">{m.remarks}</p>}
+                </li>
+              );
+            })}
+          </ol>
+        )}
+      </Card>
     </div>
   );
 }

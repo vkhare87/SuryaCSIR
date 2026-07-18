@@ -1,12 +1,14 @@
-import type { ActionItem, Ticket, Role } from '../../types';
+import type { ActionItem, Ticket, Role, StaffMember, ContractStaff } from '../../types';
 import type { PMSReport, PMSEvaluation } from '../../types/pms';
 import type { Proposal } from '../../types/proposal';
 import type { ProjectReport } from '../../types/projectReport';
 import { staffNameMatchesAuthor } from '../../utils/dateUtils';
+import { retirementDate, yearsUntilRetirement } from '../staff/retirement';
 
 export interface MyAction {
   id: string;
-  kind: 'pms-draft' | 'pms-evaluation' | 'proposal' | 'action-item' | 'ticket' | 'progress-report';
+  kind: 'pms-draft' | 'pms-evaluation' | 'proposal' | 'action-item' | 'ticket' | 'progress-report'
+      | 'retirement' | 'contract-end';
   label: string;
   detail: string;
   due: string | null;
@@ -15,6 +17,17 @@ export interface MyAction {
 
 const PROPOSAL_REVIEWERS: Role[] = ['HRAdmin', 'SystemAdmin', 'MasterAdmin'];
 const PROGRESS_REVIEWERS: Role[] = ['HOD', 'DivisionHead', 'Director', 'HRAdmin', 'SystemAdmin', 'MasterAdmin'];
+// Roles that steward workforce continuity. Their `staff` list is already
+// division-scoped by RLS, so a DivisionHead only sees their own division's
+// retirees — no extra client filter needed here.
+const RETIREMENT_WATCHERS: Role[] = ['Director', 'DivisionHead', 'HOD', 'HRAdmin', 'SystemAdmin', 'MasterAdmin'];
+const CONTRACT_WATCHERS: Role[] = ['HRAdmin', 'SystemAdmin', 'MasterAdmin'];
+
+const RETIREMENT_HORIZON_YEARS = 0.5; // alert when superannuation is within 6 months
+const CONTRACT_HORIZON_DAYS = 60;
+const MS_PER_DAY = 86400000;
+
+const isoDate = (d: Date) => d.toISOString().slice(0, 10);
 
 export interface MyActionsInput {
   userId: string;
@@ -26,12 +39,15 @@ export interface MyActionsInput {
   progressReports: ProjectReport[];
   actionItems: ActionItem[];
   tickets: Ticket[];
+  staff: StaffMember[];
+  contractStaff: ContractStaff[];
 }
 
 /** Pending items requiring the current user's action, most urgent first (nulls-last by due date). */
 export function deriveMyActions(input: MyActionsInput): MyAction[] {
-  const { userId, staffName, role, reports, evaluations, proposals, progressReports, actionItems, tickets } = input;
+  const { userId, staffName, role, reports, evaluations, proposals, progressReports, actionItems, tickets, staff, contractStaff } = input;
   const actions: MyAction[] = [];
+  const now = new Date();
 
   for (const r of reports) {
     if (r.scientistId === userId && r.status === 'DRAFT') {
@@ -136,6 +152,43 @@ export function deriveMyActions(input: MyActionsInput): MyAction[] {
         link: `/helpdesk/${t.id}`,
       });
     }
+  }
+
+  // Staff superannuating within the horizon — workforce-continuity alert for
+  // stewards. `staff` is RLS-scoped, so managers only see their own division.
+  if (RETIREMENT_WATCHERS.includes(role)) {
+    for (const s of staff) {
+      const yrs = yearsUntilRetirement(s.DOB, now);
+      if (yrs === null || yrs < 0 || yrs > RETIREMENT_HORIZON_YEARS) continue;
+      const on = retirementDate(s.DOB);
+      actions.push({
+        id: `retire-${s.ID}`,
+        kind: 'retirement',
+        label: 'Superannuation approaching',
+        detail: `${s.Name}${s.Designation ? ` · ${s.Designation}` : ''}`,
+        due: on ? isoDate(on) : null,
+        link: '/staff/analytics',
+      });
+    }
+  }
+
+  // Contract staff whose engagement ends soon — for HR (all) and the person
+  // themselves (name match).
+  for (const c of contractStaff) {
+    const t = Date.parse(c.ContractEndDate);
+    if (!Number.isFinite(t)) continue;
+    const days = (t - now.getTime()) / MS_PER_DAY;
+    if (days < 0 || days > CONTRACT_HORIZON_DAYS) continue;
+    const isSelf = staffName !== '' && staffNameMatchesAuthor(staffName, c.Name);
+    if (!CONTRACT_WATCHERS.includes(role) && !isSelf) continue;
+    actions.push({
+      id: `contract-${c.id}`,
+      kind: 'contract-end',
+      label: isSelf ? 'Your engagement ends soon' : 'Contract ending soon',
+      detail: `${c.Name}${c.Designation ? ` · ${c.Designation}` : ''}`,
+      due: isoDate(new Date(t)),
+      link: '/staff/project',
+    });
   }
 
   // Due-dated items first (ascending), undated after, stable within groups.

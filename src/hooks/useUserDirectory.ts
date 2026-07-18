@@ -22,23 +22,17 @@ export function useUserDirectory() {
     let cancelled = false;
     async function load() {
       if (!supabase) { setLoading(false); return; }
-      const [{ data: profiles }, { data: roleRows }] = await Promise.all([
-        supabase.from('user_profiles').select('user_id, email'),
-        supabase.from('user_roles').select('user_id, role'),
-      ]);
+      // user_roles has no broad-select RLS policy (by design — see
+      // 20260712000002_auth_rbac.sql); user_directory() RPC is the
+      // sanctioned way for any authenticated caller to resolve identities.
+      const { data } = await supabase.rpc('user_directory');
       if (cancelled) return;
-      const rolesByUser = new Map<string, Role[]>();
-      for (const r of (roleRows as { user_id: string; role: Role }[]) ?? []) {
-        const list = rolesByUser.get(r.user_id) ?? [];
-        list.push(r.role);
-        rolesByUser.set(r.user_id, list);
-      }
       const staffByEmail = new Map(staff.map(s => [(s.Email || '').toLowerCase(), s.Name]));
-      const rows: DirectoryUser[] = ((profiles as { user_id: string; email: string | null }[]) ?? []).map(p => ({
+      const rows: DirectoryUser[] = ((data as { user_id: string; email: string | null; roles: Role[] | null }[]) ?? []).map(p => ({
         userId: p.user_id,
         email: p.email,
         name: p.email ? staffByEmail.get(p.email.toLowerCase()) ?? null : null,
-        roles: rolesByUser.get(p.user_id) ?? [],
+        roles: p.roles ?? [],
       }));
       setUsers(rows);
       setLoading(false);

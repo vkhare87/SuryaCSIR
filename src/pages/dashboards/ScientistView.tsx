@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Briefcase, BookOpen, FileText, CalendarDays, CalendarClock, ClipboardList, Lightbulb,
+  Briefcase, BookOpen, FileText, CalendarDays, CalendarClock, ClipboardList, Lightbulb, Microscope,
 } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -10,13 +10,14 @@ import { supabase } from '../../utils/supabaseClient';
 import { Card } from '../../components/ui/Cards';
 import { KpiCard } from '../../components/ui/KpiCard';
 import ScientistProfile from '../../components/ScientistProfile';
+import { staffNameMatchesAuthor } from '../../utils/dateUtils';
 import {
   deriveOwnMeetings, deriveUpcomingWeekEvents, deriveOwnActionItems,
 } from '../../lib/dashboard/scientistData';
 
 export function ScientistView() {
   const {
-    staff, projects, projectStaff, phDStudents,
+    staff, projects, projectStaff, phDStudents, scientificOutputs,
     meetings, committeeMembers, actionItems, calendarEvents, holidays,
   } = useData();
   const { proposals } = useProposals();
@@ -72,6 +73,14 @@ export function ScientistView() {
   const ownProposals = useMemo(
     () => proposals.filter(p => p.piUserId === user?.id || coPiProposalIds.has(p.id)),
     [proposals, user?.id, coPiProposalIds],
+  );
+  const ownPublications = useMemo(
+    () => ownName
+      ? scientificOutputs
+          .filter(o => o.authors.some(a => staffNameMatchesAuthor(ownName, a)))
+          .sort((a, b) => b.year - a.year)
+      : [],
+    [scientificOutputs, ownName],
   );
 
   if (!ownStaff) {
@@ -190,7 +199,7 @@ export function ScientistView() {
       </Card>
 
       {/* --- 4. Research portfolio grid --- */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Projects */}
         <Card className="p-0 overflow-hidden">
           <div className="px-6 py-4 border-b border-border flex items-center gap-2">
@@ -250,6 +259,27 @@ export function ScientistView() {
             ))}
             {ownProposals.length === 0 && (
               <p className="text-xs text-text-muted italic py-4 text-center">No proposals found.</p>
+            )}
+          </div>
+        </Card>
+
+        {/* Publications */}
+        <Card className="p-0 overflow-hidden">
+          <div className="px-6 py-4 border-b border-border flex items-center gap-2">
+            <Microscope size={16} className="text-terracotta" />
+            <h2 className="text-base font-semibold text-text-muted uppercase tracking-wide">My Publications</h2>
+          </div>
+          <div className="p-4 space-y-3">
+            {ownPublications.map(o => (
+              <div key={o.id} className="border-b border-border last:border-0 pb-2 last:pb-0">
+                <div className="text-sm font-medium text-text truncate" title={o.title}>{o.title}</div>
+                <div className="text-xs text-text-muted">
+                  {[o.journal, o.year, o.impactFactor ? `IF ${o.impactFactor}` : null].filter(Boolean).join(' · ')}
+                </div>
+              </div>
+            ))}
+            {ownPublications.length === 0 && (
+              <p className="text-xs text-text-muted italic py-4 text-center">No publications found.</p>
             )}
           </div>
         </Card>

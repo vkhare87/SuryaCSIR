@@ -22,3 +22,36 @@ describe('ACCESS_MAP ↔ App.tsx route consistency', () => {
     }
   }
 });
+
+describe('ACCESS_MAP role scoping decisions', () => {
+  const can = (path: keyof typeof ACCESS_MAP, role: string) =>
+    (ACCESS_MAP[path] as string[]).includes(role);
+
+  it('unverified users cannot reach Ask SURYA', () => {
+    expect(can('/ask', 'DefaultUser')).toBe(false);
+    expect(can('/ask', 'Guest')).toBe(false);
+    expect(can('/ask', 'Scientist')).toBe(true);
+  });
+
+  it('unverified users keep the safe commons', () => {
+    for (const path of ['/', '/calendar', '/committees', '/helpdesk'] as const) {
+      expect(can(path, 'DefaultUser')).toBe(true);
+      expect(can(path, 'Guest')).toBe(true);
+    }
+  });
+
+  it('HOD gets the division-scoped mini-Director set', () => {
+    for (const path of ['/staff', '/projects', '/phd', '/intelligence', '/facilities', '/divisions'] as const) {
+      expect(can(path, 'HOD')).toBe(true);
+    }
+  });
+
+  it('HRAdmin is removed from Partnerships and Explore', () => {
+    expect(can('/partnerships', 'HRAdmin')).toBe(false);
+    expect(can('/explore', 'HRAdmin')).toBe(false);
+  });
+
+  it('FinanceAdmin can see Proposals', () => {
+    expect(can('/proposals', 'FinanceAdmin')).toBe(true);
+  });
+});

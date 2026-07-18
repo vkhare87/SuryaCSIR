@@ -40,29 +40,29 @@ export function ManageUsersTab() {
   const load = useCallback(async () => {
     if (!supabase) { setLoading(false); return; }
     setLoading(true);
-    const [{ data: profiles }, { data: roleRows }] = await Promise.all([
-      supabase.from('user_profiles').select('user_id, email, active_role'),
-      supabase.from('user_roles').select('user_id, role, division_code'),
-    ]);
-    const byUser = new Map<string, { roles: Role[]; division: string | null }>();
-    for (const r of (roleRows as { user_id: string; role: Role; division_code: string | null }[]) ?? []) {
-      const cur = byUser.get(r.user_id) ?? { roles: [], division: null };
-      cur.roles.push(r.role);
-      if (r.division_code) cur.division = r.division_code;
-      byUser.set(r.user_id, cur);
+    // user_roles has no admin-select RLS policy by design (see
+    // 20260712000002_auth_rbac.sql) — this RPC is the sanctioned way to
+    // read other users' role assignments.
+    const { data, error } = await supabase.rpc('admin_list_users');
+    if (error) {
+      push(error.message, 'error');
+      setUsers([]);
+      setLoading(false);
+      return;
     }
-    const rows: ManagedUser[] = ((profiles as { user_id: string; email: string | null; active_role: Role | null }[]) ?? [])
-      .map((p) => ({
-        user_id: p.user_id,
-        email: p.email,
-        active_role: p.active_role,
-        roles: byUser.get(p.user_id)?.roles ?? [],
-        division: byUser.get(p.user_id)?.division ?? null,
-      }))
-      .sort((a, b) => (a.email ?? '').localeCompare(b.email ?? ''));
+    const rows: ManagedUser[] = ((data as {
+      user_id: string; email: string | null; active_role: Role | null;
+      roles: Role[] | null; division_code: string | null;
+    }[]) ?? []).map((r) => ({
+      user_id: r.user_id,
+      email: r.email,
+      active_role: r.active_role,
+      roles: r.roles ?? [],
+      division: r.division_code,
+    }));
     setUsers(rows);
     setLoading(false);
-  }, []);
+  }, [push]);
 
   useEffect(() => { void load(); }, [load]);
 

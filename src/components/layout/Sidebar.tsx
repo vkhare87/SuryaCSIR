@@ -5,12 +5,13 @@ import {
   Settings as SettingsIcon, LayoutDashboard, Calendar as CalendarIcon,
   Building2, Handshake, Activity, FileText, Database, Network, Cloud, X,
   ClipboardCheck, Ticket as TicketIcon, CalendarDays, UserCog, UserCheck,
-  ScanText, Sparkles, Share2, Microscope,
+  ScanText, Sparkles, Share2, Microscope, SlidersHorizontal,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { LucideIcon } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useFeatureControls } from '../../contexts/FeatureControlContext';
 import type { Role } from '../../types';
 import { ROLE_ROUTES } from '../../constants/roleRoutes';
 import { ACCESS_MAP } from '../../constants/access';
@@ -71,6 +72,7 @@ const NAV_SECTIONS: NavSection[] = [
     label: 'Admin',
     items: [
       { path: '/admin/access-requests', label: 'Access Requests', icon: UserCheck, allowedRoles: ACCESS_MAP['/admin/access-requests'] },
+      { path: '/admin/features', label: 'Feature Controls', icon: SlidersHorizontal, allowedRoles: ACCESS_MAP['/admin/features'] },
       { path: '/data',         label: 'Data Management', icon: Database,        allowedRoles: ACCESS_MAP['/data'] },
       { path: '/irins-sync',   label: 'IRINS Sync',      icon: Cloud,           allowedRoles: ACCESS_MAP['/irins-sync'] },
       { path: '/admin/rag',    label: 'RAG Ingestion',   icon: ScanText,        allowedRoles: ACCESS_MAP['/admin/rag'] },
@@ -196,6 +198,7 @@ interface SidebarProps {
  *  the surrounding Layout (topbar / main content) — no shared re-render path. */
 export function Sidebar({ isMobile, deviceType, mobileOpen, onCloseMobile, onOpenSettings }: SidebarProps) {
   const { role, logout } = useAuth();
+  const { isEnabled } = useFeatureControls();
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   // Auto-collapse on tablet, expand on desktop.
@@ -209,7 +212,7 @@ export function Sidebar({ isMobile, deviceType, mobileOpen, onCloseMobile, onOpe
     .map(section => ({
       ...section,
       items: section.items
-        .filter(item => role && item.allowedRoles.includes(role))
+        .filter(item => role && item.allowedRoles.includes(role) && isEnabled(item.path))
         .map(item => (item.path === '/' ? { ...item, path: dashboardPath } : item)),
     }))
     .filter(section => section.items.length > 0);

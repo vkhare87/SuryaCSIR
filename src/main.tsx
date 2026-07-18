@@ -11,6 +11,7 @@ import { PMSProvider } from './contexts/PMSContext.tsx'
 import { ProposalsProvider } from './contexts/ProposalsContext.tsx'
 import { ProjectReportsProvider } from './contexts/ProjectReportsContext.tsx'
 import { ToastProvider } from './contexts/ToastContext.tsx'
+import { FeatureControlProvider } from './contexts/FeatureControlContext.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -19,15 +20,17 @@ createRoot(document.getElementById('root')!).render(
         <UIProvider>
           <ToastProvider>
             <AuthProvider>
-              <DataProvider>
-                <PMSProvider>
-                  <ProposalsProvider>
-                    <ProjectReportsProvider>
-                      <App />
-                    </ProjectReportsProvider>
-                  </ProposalsProvider>
-                </PMSProvider>
-              </DataProvider>
+              <FeatureControlProvider>
+                <DataProvider>
+                  <PMSProvider>
+                    <ProposalsProvider>
+                      <ProjectReportsProvider>
+                        <App />
+                      </ProjectReportsProvider>
+                    </ProposalsProvider>
+                  </PMSProvider>
+                </DataProvider>
+              </FeatureControlProvider>
             </AuthProvider>
           </ToastProvider>
         </UIProvider>

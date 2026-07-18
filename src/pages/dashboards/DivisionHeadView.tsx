@@ -3,10 +3,22 @@ import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Card } from '../../components/ui/Cards';
 import { KpiCard } from '../../components/ui/KpiCard';
+import { ThresholdControls } from '../../components/dashboard/ThresholdControls';
+import { AttentionStrip } from '../../components/dashboard/AttentionStrip';
+import { ProjectFinanceSection } from '../../components/dashboard/ProjectFinanceSection';
+import { ResearchSection } from '../../components/dashboard/ResearchSection';
+import { EquipmentOpsSection } from '../../components/dashboard/EquipmentOpsSection';
+import { DEFAULT_THRESHOLDS } from '../../utils/directorMetrics';
+import { useDirectorThresholds } from '../../hooks/useDirectorThresholds';
 
 export function DivisionHeadView() {
   const { staff, projects, phDStudents, equipment, scientificOutputs } = useData();
   const { divisionCode } = useAuth();
+  // Shared with DirectorView despite the hook's name — per-user calibration,
+  // not Director-specific. staff/projects/equipment here are already
+  // RLS-scoped to this manager's division, so every reused section below
+  // (attention flags, finance, research, equipment) reads division-only data.
+  const { thresholds, setThresholds } = useDirectorThresholds();
 
   const activeProjects = projects.filter(p => p.ProjectStatus === 'Active').length;
 
@@ -59,6 +71,16 @@ export function DivisionHeadView() {
           sublabel="Division instruments"
         />
       </div>
+
+      <ThresholdControls
+        thresholds={thresholds}
+        onChange={setThresholds}
+        onReset={() => setThresholds(DEFAULT_THRESHOLDS)}
+      />
+      <AttentionStrip thresholds={thresholds} />
+      <ProjectFinanceSection />
+      <ResearchSection />
+      <EquipmentOpsSection />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Staff Table */}

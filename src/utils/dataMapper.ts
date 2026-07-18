@@ -208,7 +208,7 @@ export const mapVacancyAdvertisementRow = (row: any): VacancyAdvertisement => ({
   qualifications: row.qualifications || '',
   salary: row.salary || undefined,
   applicationDeadline: row.applicationDeadline || row.application_deadline || '',
-  createdAt: row.createdAt || row.created_at || '',
+  createdAt: row.createdAt || row.created_at || row.issue_date || '',
   status: row.status || 'Open',
   staffCategory: row.staff_category || 'Permanent',
   driveStage: row.drive_stage || 'Advertised',

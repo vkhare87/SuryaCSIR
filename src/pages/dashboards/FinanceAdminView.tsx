@@ -1,7 +1,14 @@
-import { Briefcase, TrendingUp, IndianRupee } from 'lucide-react';
+import { useMemo } from 'react';
+import { Briefcase, TrendingUp, IndianRupee, AlertTriangle } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
 import { Card } from '../../components/ui/Cards';
 import { KpiCard } from '../../components/ui/KpiCard';
+import { parseCost } from '../../utils/parseCost';
+
+// Utilization outlier thresholds — low burn suggests underspend risk,
+// near-100%+ suggests overrun risk. Both worth a finance officer's attention.
+const LOW_UTILIZATION_PCT = 30;
+const HIGH_UTILIZATION_PCT = 95;
 
 export function FinanceAdminView() {
   const { projects } = useData();
@@ -12,6 +19,20 @@ export function FinanceAdminView() {
   const sanctionedDisplay = projects.some(p => isNaN(parseFloat(p.SanctionedCost)))
     ? 'N/A'
     : `₹${totalSanctioned.toLocaleString()}`;
+
+  const utilizationOutliers = useMemo(() => {
+    return projects
+      .filter(p => p.ProjectStatus === 'Active')
+      .map(p => {
+        const sanctioned = parseCost(p.SanctionedCost);
+        const utilized = parseCost(p.UtilizedAmount);
+        const pct = sanctioned > 0 ? (utilized / sanctioned) * 100 : null;
+        return { project: p, pct };
+      })
+      .filter((r): r is { project: typeof projects[number]; pct: number } =>
+        r.pct !== null && (r.pct <= LOW_UTILIZATION_PCT || r.pct >= HIGH_UTILIZATION_PCT))
+      .sort((a, b) => a.pct - b.pct);
+  }, [projects]);
 
   return (
     <div className="space-y-8 pb-12">
@@ -46,6 +67,53 @@ export function FinanceAdminView() {
           sublabel="Sum across all projects"
         />
       </div>
+
+      {/* Utilization Outliers */}
+      <Card className="p-0 overflow-hidden">
+        <div className="px-6 py-4 border-b border-[#f0eee6] flex items-center gap-2">
+          <AlertTriangle size={16} className="text-[#c96442]" />
+          <h2 className="text-base font-semibold text-[#4d4c48] uppercase tracking-wide">
+            Utilization Outliers — active projects
+          </h2>
+          <span className="text-[10px] text-[#87867f] font-normal normal-case ml-1">
+            ≤{LOW_UTILIZATION_PCT}% (underspend) or ≥{HIGH_UTILIZATION_PCT}% (overrun risk)
+          </span>
+        </div>
+        {utilizationOutliers.length === 0 ? (
+          <p className="text-xs text-[#87867f] italic py-8 text-center">No projects outside the healthy utilization band.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-[#f5f4ed]">
+                  <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-[#87867f]">Project</th>
+                  <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-[#87867f]">Division</th>
+                  <th className="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-widest text-[#87867f]">Sanctioned</th>
+                  <th className="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-widest text-[#87867f]">Utilized</th>
+                  <th className="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-widest text-[#87867f]">%</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#f0eee6]">
+                {utilizationOutliers.map(({ project: p, pct }) => (
+                  <tr key={p.ProjectID} className="hover:bg-[#f5f4ed] transition-colors">
+                    <td className="px-6 py-3 text-[#4d4c48] font-medium max-w-[220px] truncate">{p.ProjectName}</td>
+                    <td className="px-6 py-3 text-[#87867f] font-mono text-xs">{p.DivisionCode}</td>
+                    <td className="px-6 py-3 text-right text-[#4d4c48] font-mono text-xs">₹{parseCost(p.SanctionedCost).toLocaleString()}</td>
+                    <td className="px-6 py-3 text-right text-[#87867f] font-mono text-xs">₹{parseCost(p.UtilizedAmount).toLocaleString()}</td>
+                    <td className="px-6 py-3 text-right">
+                      <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                        pct <= LOW_UTILIZATION_PCT ? 'bg-[#fdf5e8] text-[#a06020]' : 'bg-[#fde2e2] text-[#991b1b]'
+                      }`}>
+                        {pct.toFixed(0)}%
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
 
       {/* Projects Table */}
       <Card className="p-0 overflow-hidden">

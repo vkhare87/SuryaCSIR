@@ -22,6 +22,16 @@ export default function RecruitmentAnalytics() {
     () => vacancyAdvertisements.filter(a => a.driveStage !== 'Closed'),
     [vacancyAdvertisements],
   );
+  // Days open since the advertisement was issued. Not per-stage timing — the
+  // schema only tracks issue date + current stage, no stage-transition log —
+  // but still surfaces which open drives have gone stale.
+  const agingDrives = useMemo(() => {
+    const now = new Date().getTime();
+    return openDrives
+      .map(a => ({ ...a, daysOpen: a.createdAt ? Math.floor((now - Date.parse(a.createdAt)) / 86400000) : null }))
+      .filter(a => a.daysOpen !== null)
+      .sort((a, b) => (b.daysOpen ?? 0) - (a.daysOpen ?? 0));
+  }, [openDrives]);
 
   async function onStageChange(id: string, stage: DriveStage) {
     setStageError('');
@@ -89,6 +99,37 @@ export default function RecruitmentAnalytics() {
 
       <ChartCard title="Applicant status mix">
         <CategoryDonut data={applicantStatusMix} />
+      </ChartCard>
+
+      <ChartCard title="Vacancy pipeline aging" subtitle="open drives, oldest first" className="lg:col-span-2">
+        {agingDrives.length === 0 ? (
+          <p className="text-sm text-text-muted">No open drives with a recorded issue date.</p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs uppercase tracking-wide text-text-muted">
+                <th className="py-1 pr-2">Vacancy</th>
+                <th className="py-1 pr-2">Stage</th>
+                <th className="py-1 text-right">Days Open</th>
+              </tr>
+            </thead>
+            <tbody>
+              {agingDrives.map(a => (
+                <tr key={a.id} className="border-t border-border text-text">
+                  <td className="py-1.5 pr-2 truncate max-w-[240px]">{a.title}</td>
+                  <td className="py-1.5 pr-2 text-text-muted">{a.driveStage}</td>
+                  <td className="py-1.5 text-right tabular-nums">
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                      (a.daysOpen ?? 0) > 60 ? 'bg-[#fde2e2] text-[#991b1b]' : 'bg-surface-hover text-text-muted'
+                    }`}>
+                      {a.daysOpen}d
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </ChartCard>
 
       <ChartCard title="Drive progress" subtitle="drives per stage — permanent vs project staff" className="lg:col-span-2">

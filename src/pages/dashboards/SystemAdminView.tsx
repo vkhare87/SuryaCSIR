@@ -69,7 +69,10 @@ export function SystemAdminView() {
   const [loadingRoles, setLoadingRoles] = useState(false);
   const [passwordResets, setPasswordResets] = useState(0);
 
-  // Live user_roles from Supabase when provisioned; empty otherwise.
+  // Live user roster from Supabase when provisioned; empty otherwise.
+  // user_roles has no broad-select RLS policy (by design — see
+  // 20260712000002_auth_rbac.sql), so this goes through the sanctioned
+  // admin RPC rather than querying the table directly.
   useEffect(() => {
     if (!supabase || !provisioned) {
       setUserRoles([]);
@@ -77,8 +80,14 @@ export function SystemAdminView() {
       return;
     }
     setLoadingRoles(true);
-    supabase.from('user_roles').select('*').then(({ data, error }) => {
-      if (!error && data) setUserRoles(data as UserRoleRow[]);
+    supabase.rpc('admin_list_users').then(({ data, error }) => {
+      if (!error && data) {
+        const rows = (data as { user_id: string; roles: string[] | null; division_code: string | null }[])
+          .flatMap(u => (u.roles ?? []).map(role => ({
+            user_id: u.user_id, role, division_code: u.division_code, last_seen_at: null,
+          })));
+        setUserRoles(rows);
+      }
       setLoadingRoles(false);
     });
     supabase.from('user_profiles').select('must_change_password').then(({ data }) => {

@@ -3,7 +3,7 @@ import { deriveMyActions, type MyActionsInput } from './myActions';
 import type { PMSReport, PMSEvaluation } from '../../types/pms';
 import type { Proposal } from '../../types/proposal';
 import type { ProjectReport } from '../../types/projectReport';
-import type { ActionItem, Ticket } from '../../types';
+import type { ActionItem, Ticket, StaffMember, ContractStaff } from '../../types';
 
 const base: MyActionsInput = {
   userId: 'u1',
@@ -15,7 +15,36 @@ const base: MyActionsInput = {
   progressReports: [],
   actionItems: [],
   tickets: [],
+  staff: [],
+  contractStaff: [],
 };
+
+// DOB such that superannuation (DOB + 60y) lands ~`years` from today.
+// Uses day arithmetic to avoid setFullYear truncating a fractional year to
+// midnight-today (which would read as already-retired).
+const dobForYearsToRetire = (years: number): string => {
+  const d = new Date();
+  d.setDate(d.getDate() + Math.round(years * 365) - Math.round(60 * 365));
+  return d.toISOString().slice(0, 10);
+};
+const daysFromNow = (days: number): string => {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+};
+
+const staffMember = (over: Partial<StaffMember>): StaffMember => ({
+  ID: 's1', LabCode: '', EmployeeType: '', Name: 'Dr. R Old', Designation: 'Chief Scientist',
+  Group: '', Division: 'D1', DoAPP: '', DOJ: '', DOB: dobForYearsToRetire(0.3), Cat: '',
+  AppointmentType: '', Level: '', CoreArea: '', Expertise: '', Email: '', Ext: '',
+  VidwanID: '', ReportingID: '', HighestQualification: '', Gender: '', ...over,
+} as StaffMember);
+
+const contractStaff = (over: Partial<ContractStaff>): ContractStaff => ({
+  id: 'cs1', Name: 'Mr B Temp', Designation: 'JRF', Division: 'D1',
+  DateOfJoining: '', ContractEndDate: daysFromNow(30), LabCode: '',
+  DateOfBirth: '', AttachedToStaffID: '', ...over,
+});
 
 const progressReport = (over: Partial<ProjectReport>): ProjectReport => ({
   id: 'g1', projectNo: 'P1', projectName: 'Coating', divisionCode: 'D1',
@@ -120,5 +149,32 @@ describe('deriveMyActions', () => {
       tickets: [ticket({}), ticket({ id: 't2', status: 'Resolved' })],
     });
     expect(out.map(a => a.id)).toEqual(['ai-a1', 'tk-t1']); // dated action item first
+  });
+
+  it('alerts watchers to imminent retirements, but not non-watchers', () => {
+    const staff = [
+      staffMember({}),                                            // 0.3y → within horizon
+      staffMember({ ID: 's2', Name: 'Dr Young', DOB: dobForYearsToRetire(9) }), // far off
+      staffMember({ ID: 's3', Name: 'No DOB', DOB: '' }),         // unknown
+    ];
+    const director = deriveMyActions({ ...base, role: 'Director', staff });
+    expect(director.map(a => a.id)).toEqual(['retire-s1']);
+
+    const scientist = deriveMyActions({ ...base, role: 'Scientist', staff });
+    expect(scientist).toEqual([]); // Scientist is not a retirement watcher
+  });
+
+  it('alerts HR to contracts ending soon, and the holder to their own', () => {
+    const cs = [
+      contractStaff({}),                                          // 30d → soon
+      contractStaff({ id: 'cs2', Name: 'Mr Late', ContractEndDate: daysFromNow(200) }), // far off
+    ];
+    const hr = deriveMyActions({ ...base, role: 'HRAdmin', contractStaff: cs });
+    expect(hr.map(a => a.id)).toEqual(['contract-cs1']);
+
+    // The contract holder sees their own even without a watcher role.
+    const self = deriveMyActions({ ...base, role: 'ProjectStaff', staffName: 'Mr B Temp', contractStaff: cs });
+    expect(self.map(a => a.id)).toEqual(['contract-cs1']);
+    expect(self[0].label).toBe('Your engagement ends soon');
   });
 });

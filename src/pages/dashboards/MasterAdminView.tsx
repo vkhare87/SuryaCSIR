@@ -23,6 +23,8 @@ interface UserRow {
   must_change_password: boolean;
   last_seen_at: string | null;
   roles: string[];
+  active_role: string | null;
+  division_code: string | null;
 }
 
 const ALL_ROLE_VALUES: Role[] = [
@@ -81,28 +83,35 @@ export function MasterAdminView() {
   const [newRole, setNewRole] = useState<Role>('DefaultUser');
   const [newDivCode, setNewDivCode] = useState('');
 
+  // user_roles has no broad-select RLS policy (by design — see
+  // 20260712000002_auth_rbac.sql), so the roster goes through the
+  // sanctioned admin RPC rather than querying tables directly.
   const fetchUsers = async () => {
     if (!supabase || !provisioned) {
       setUsers([]);
       return;
     }
     setLoading(true);
-    const { data: profiles } = await supabase
-      .from('user_profiles')
-      .select('user_id, email, must_change_password, last_seen_at');
-    const { data: roleRows } = await supabase.from('user_roles').select('user_id, role');
-    if (!profiles) { setLoading(false); return; }
-    const rolesByUser: Record<string, string[]> = {};
-    (roleRows ?? []).forEach(r => {
-      if (!rolesByUser[r.user_id]) rolesByUser[r.user_id] = [];
-      rolesByUser[r.user_id].push(r.role);
-    });
-    setUsers(profiles.map(p => ({
-      user_id: p.user_id,
-      email: p.email,
-      must_change_password: p.must_change_password,
-      last_seen_at: p.last_seen_at,
-      roles: rolesByUser[p.user_id] ?? [],
+    const [{ data: rosters }, { data: profiles }] = await Promise.all([
+      supabase.rpc('admin_list_users'),
+      supabase.from('user_profiles').select('user_id, must_change_password, last_seen_at'),
+    ]);
+    if (!rosters) { setLoading(false); return; }
+    const profileByUser = new Map(
+      ((profiles as { user_id: string; must_change_password: boolean; last_seen_at: string | null }[]) ?? [])
+        .map(p => [p.user_id, p]),
+    );
+    setUsers((rosters as {
+      user_id: string; email: string | null; active_role: string | null;
+      roles: string[] | null; division_code: string | null;
+    }[]).map(r => ({
+      user_id: r.user_id,
+      email: r.email,
+      must_change_password: profileByUser.get(r.user_id)?.must_change_password ?? false,
+      last_seen_at: profileByUser.get(r.user_id)?.last_seen_at ?? null,
+      roles: r.roles ?? [],
+      active_role: r.active_role,
+      division_code: r.division_code,
     })));
     setLoading(false);
   };
@@ -149,17 +158,27 @@ export function MasterAdminView() {
   }, [users]);
 
   // ── User mutation handlers ──
+  // Both route through admin_set_user_roles (never raw user_roles writes):
+  // it enforces the lockout guards — an admin can't strip their own last
+  // admin role, and the system always keeps at least one administrator.
+  // Raw upsert/delete on user_roles would bypass both checks entirely.
   const handleAddRole = async (userId: string) => {
     if (!supabase || !provisioned) {
       toast.push('Role assignment requires Supabase backend (currently in demo mode).', 'warning');
       return;
     }
     if (!newRole) return;
-    await supabase.from('user_roles').upsert({
-      user_id: userId, role: newRole,
-      division_code: newDivCode || null,
-      must_change_password: false,
+    const current = users.find(u => u.user_id === userId);
+    const nextRoles = Array.from(new Set([...(current?.roles ?? []), newRole]));
+    const activeRole = current?.active_role && nextRoles.includes(current.active_role)
+      ? current.active_role : newRole;
+    const { error } = await supabase.rpc('admin_set_user_roles', {
+      p_user_id: userId,
+      p_roles: nextRoles,
+      p_active_role: activeRole,
+      p_division: newDivCode || current?.division_code || null,
     });
+    if (error) { toast.push(error.message, 'error'); return; }
     toast.push(`Assigned ${newRole}`, 'success');
     setAddingRoleFor(null);
     setNewRole('DefaultUser');
@@ -172,7 +191,21 @@ export function MasterAdminView() {
       toast.push('Role removal requires Supabase backend.', 'warning');
       return;
     }
-    await supabase.from('user_roles').delete().eq('user_id', userId).eq('role', role);
+    const current = users.find(u => u.user_id === userId);
+    const nextRoles = (current?.roles ?? []).filter(r => r !== role);
+    if (nextRoles.length === 0) {
+      toast.push('Cannot remove a user\'s only role — assign a replacement first.', 'warning');
+      return;
+    }
+    const activeRole = current?.active_role && nextRoles.includes(current.active_role)
+      ? current.active_role : nextRoles[0];
+    const { error } = await supabase.rpc('admin_set_user_roles', {
+      p_user_id: userId,
+      p_roles: nextRoles,
+      p_active_role: activeRole,
+      p_division: current?.division_code ?? null,
+    });
+    if (error) { toast.push(error.message, 'error'); return; }
     toast.push(`Removed ${role}`, 'success');
     fetchUsers();
   };

@@ -17,6 +17,8 @@ const KIND_BADGE: Record<string, { label: string; variant: 'info' | 'warning' | 
   'action-item':    { label: 'Committee', variant: 'neutral' },
   'ticket':         { label: 'Helpdesk',  variant: 'warning' },
   'progress-report': { label: 'Progress', variant: 'info' },
+  'retirement':     { label: 'Workforce', variant: 'warning' },
+  'contract-end':   { label: 'Contract',  variant: 'warning' },
 };
 
 // Discovery chips shown when the inbox is empty — first visit orientation.
@@ -36,7 +38,7 @@ const AREA_LABELS: Partial<Record<AccessPath, string>> = {
 
 export function MyActions() {
   const { user } = useAuth();
-  const { staff, actionItems, tickets } = useData();
+  const { staff, actionItems, tickets, contractStaff } = useData();
   const { reports, evaluations } = usePMS();
   const { proposals } = useProposals();
   const { reports: progressReports } = useProjectReports();
@@ -58,8 +60,10 @@ export function MyActions() {
       progressReports,
       actionItems,
       tickets,
+      staff,
+      contractStaff,
     });
-  }, [user, staffName, reports, evaluations, proposals, progressReports, actionItems, tickets]);
+  }, [user, staffName, reports, evaluations, proposals, progressReports, actionItems, tickets, staff, contractStaff]);
 
   const areas = useMemo(() => {
     if (!user) return [];

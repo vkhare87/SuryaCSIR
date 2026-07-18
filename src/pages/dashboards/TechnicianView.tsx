@@ -1,15 +1,21 @@
-import { Wrench, CheckCircle, AlertTriangle } from 'lucide-react';
+import { useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Wrench, CheckCircle, AlertTriangle, CalendarClock } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Card } from '../../components/ui/Cards';
 import { KpiCard } from '../../components/ui/KpiCard';
+import { formatDate, parseDate } from '../../utils/dateUtils';
+import { getAmcExpiryList } from '../../utils/directorMetrics';
 
 export function TechnicianView() {
   const { equipment } = useData();
   const { divisionCode } = useAuth();
+  const navigate = useNavigate();
 
   const working = equipment.filter(e => e.WorkingStatus === 'Working').length;
   const nonWorking = equipment.filter(e => e.WorkingStatus !== 'Working').length;
+  const amcExpiring = useMemo(() => getAmcExpiryList(equipment, 6), [equipment]);
 
   return (
     <div className="space-y-8 pb-12">
@@ -44,6 +50,30 @@ export function TechnicianView() {
           sublabel="Requires attention"
         />
       </div>
+
+      {/* AMC Expiry Watchlist */}
+      <Card className="p-0 overflow-hidden">
+        <div className="px-6 py-4 border-b border-[#f0eee6] flex items-center gap-2">
+          <CalendarClock size={16} className="text-[#c96442]" />
+          <h2 className="text-base font-semibold text-[#4d4c48] uppercase tracking-wide">AMC Expiring (next 6 months)</h2>
+        </div>
+        {amcExpiring.length === 0 ? (
+          <p className="text-xs text-[#87867f] italic py-8 text-center">No AMC contracts expiring.</p>
+        ) : (
+          <ul className="divide-y divide-[#f0eee6] text-sm">
+            {amcExpiring.map(e => (
+              <li
+                key={e.UInsID}
+                className="flex justify-between items-center px-6 py-3 cursor-pointer hover:bg-[#f5f4ed] transition-colors"
+                onClick={() => navigate(`/facilities/${e.UInsID}`)}
+              >
+                <span className="truncate text-[#4d4c48] font-medium">{e.Name}</span>
+                <span className="text-[#87867f] tabular-nums text-xs">{formatDate(parseDate(e.amc_end_date))}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
 
       {/* Equipment Table */}
       <Card className="p-0 overflow-hidden">
