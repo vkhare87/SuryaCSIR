@@ -19,6 +19,15 @@ Every staff member logs in and sees their role-scoped slice of the institute.
 
 ---
 
+## Design System
+
+Always read [DESIGN.md](DESIGN.md) before making any visual or UI decisions.
+All font choices, colors, spacing, and aesthetic direction are defined there.
+Do not deviate without explicit user approval. In QA/design-review mode, flag
+any code that doesn't match DESIGN.md.
+
+---
+
 ## Stack
 
 - **React 19** + **TypeScript 5.9** (strict, `verbatimModuleSyntax`)
