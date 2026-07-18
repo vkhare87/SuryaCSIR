@@ -122,7 +122,7 @@ export function Layout() {
 
         {/* Error Banner */}
         {error && (
-          <div className="px-4 py-2 bg-rose-50 border-b border-rose-200 text-rose-700 text-sm flex items-center gap-2">
+          <div className="px-4 py-2 bg-rose-50 dark:bg-rose-950/30 border-b border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-400 text-sm flex items-center gap-2">
             <AlertCircle size={14} />
             <span>Data load failed: {error}</span>
           </div>
