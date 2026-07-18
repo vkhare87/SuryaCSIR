@@ -100,7 +100,7 @@ function ProtectedRoute({ allowedRoles, accessPath, children }: ProtectedRoutePr
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" replace state={{ from: window.location.hash }} />;
   }
 
   // Force password change before accessing any other route

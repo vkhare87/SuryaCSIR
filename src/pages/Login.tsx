@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Sun, Lock, ArrowRight, Mail, ExternalLink, Newspaper,
   Eye, Scale, Users, Clock, Map, Compass, BookOpen,
   FolderX, Layers, Lightbulb,
 } from 'lucide-react';
 import { ROLE_ROUTES } from '../constants/roleRoutes';
+import { resolvePostLoginPath } from '../lib/auth/postLogin';
 import { NetworkCanvas } from '../components/NetworkCanvas';
 import { useCountUp } from '../utils/useCountUp';
 import csirLogo from '../assets/csir-logo.jpg';
@@ -107,6 +108,7 @@ export default function Login() {
   const [paused, setPaused] = useState(false);
   const { login, isAuthenticated, role } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -129,9 +131,10 @@ export default function Login() {
   // Navigate to role-specific dashboard once auth and role are both resolved
   useEffect(() => {
     if (isAuthenticated && role) {
-      navigate(ROLE_ROUTES[role]);
+      const from = (location.state as { from?: unknown } | null)?.from;
+      navigate(resolvePostLoginPath(from, ROLE_ROUTES[role]));
     }
-  }, [isAuthenticated, role, navigate]);
+  }, [isAuthenticated, role, navigate, location.state]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
