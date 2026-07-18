@@ -5,7 +5,14 @@
       "name": "Surya Dev Server",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
-      "port": 5173
+      "port": 5173,
+      "autoPort": true
+    },
+    {
+      "name": "RAG API (Ask SURYA)",
+      "runtimeExecutable": "rag/.venv/Scripts/python.exe",
+      "runtimeArgs": ["rag/dev_server.py"],
+      "port": 8000
     }
   ]
 }
