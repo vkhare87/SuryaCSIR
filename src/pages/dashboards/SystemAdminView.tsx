@@ -183,7 +183,7 @@ export function SystemAdminView() {
 
       {/* ── Research Output ──────────────────────────────────────── */}
       <section className="space-y-3">
-        <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#87867f]">Research Output</h2>
+        <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-text-muted">Research Output</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <KpiCard label="Active Projects"   value={activeProjects}             icon={<Briefcase size={18} />}  sublabel={`of ${projects.length} total`} />
           <KpiCard label="Publications"      value={scientificOutputs.length}   icon={<Microscope size={18} />} sublabel={`${totalCitations} citations`} />
@@ -194,7 +194,7 @@ export function SystemAdminView() {
 
       {/* ── People ──────────────────────────────────────────────── */}
       <section className="space-y-3">
-        <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#87867f]">People</h2>
+        <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-text-muted">People</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <KpiCard label="Total Staff"   value={staff.length}        icon={<Users size={18} />}         sublabel={`${contractStaff.length} contract`} />
           <KpiCard label="PhD Students"  value={phDStudents.length}  icon={<BookOpen size={18} />}      sublabel="Enrolled scholars" />
@@ -207,7 +207,7 @@ export function SystemAdminView() {
 
       {/* ── Operations & Helpdesk ───────────────────────────────── */}
       <section className="space-y-3">
-        <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#87867f]">Operations &amp; Helpdesk</h2>
+        <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-text-muted">Operations &amp; Helpdesk</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <KpiCard label="Equipment"       value={equipment.length}                                       icon={<Wrench size={18} />}        sublabel={`${equipmentDown} down`} />
           <KpiCard label="Open Tickets"    value={openTickets}                                            icon={<TicketIcon size={18} />}    sublabel={`${criticalTickets} critical`} />
@@ -218,7 +218,7 @@ export function SystemAdminView() {
 
       {/* ── Performance Management ──────────────────────────────── */}
       <section className="space-y-3">
-        <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#87867f]">Performance Management</h2>
+        <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-text-muted">Performance Management</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <KpiCard label="PMS Cycles"  value={cycles.length}      icon={<FileText size={18} />} sublabel={openCycle ? `Open: ${openCycle.name}` : 'No open cycle'} />
           <KpiCard label="PMS Reports" value={reports.length}     icon={<FileText size={18} />} sublabel={`${reports.filter(r => r.status === 'FINALIZED').length} finalized`} />
