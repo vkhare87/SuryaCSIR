@@ -113,7 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser({
         id: 'dev-admin',
         email,
-        roles: ['SystemAdmin'],
+        roles: ['SystemAdmin', 'MasterAdmin'],
         activeRole: 'SystemAdmin',
         divisionCode: null,
         mustChangePassword: false,
