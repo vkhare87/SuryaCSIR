@@ -38,13 +38,22 @@ export function FeatureRoleLookup() {
           </select>
         </label>
       </div>
-      <div className="px-6 py-4 space-y-2">
+      <div className="px-6 py-4 space-y-3">
         <p className="text-sm text-text">
           Enabled for <span className="font-semibold">{summary.enabledCount} of {summary.totalEligible}</span> eligible roles
         </p>
         {summary.globallyKilled && <Badge variant="danger">Off for everyone</Badge>}
-        {!summary.globallyKilled && summary.blockedRoles.length > 0 && (
-          <p className="text-xs text-text-muted">Blocked: {summary.blockedRoles.join(', ')}</p>
+        {summary.eligibleRoles.length === 0 ? (
+          <p className="text-xs text-text-muted">No roles are eligible for this feature.</p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {summary.eligibleRoles.map((r) => {
+              const blocked = summary.blockedRoles.includes(r);
+              return (
+                <Badge key={r} variant={blocked ? 'danger' : 'success'}>{r}</Badge>
+              );
+            })}
+          </div>
         )}
       </div>
     </Card>

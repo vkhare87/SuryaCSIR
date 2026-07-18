@@ -108,6 +108,7 @@ describe('featureRoleSummary', () => {
     expect(featureRoleSummary('/data' as AccessPath, undefined)).toEqual({
       totalEligible: 2,
       enabledCount: 2,
+      eligibleRoles: ['HRAdmin', 'SystemAdmin'],
       blockedRoles: [],
       globallyKilled: false,
     });
@@ -118,6 +119,7 @@ describe('featureRoleSummary', () => {
     expect(featureRoleSummary('/data' as AccessPath, c)).toEqual({
       totalEligible: 2,
       enabledCount: 1,
+      eligibleRoles: ['HRAdmin', 'SystemAdmin'],
       blockedRoles: ['HRAdmin'],
       globallyKilled: false,
     });
@@ -128,6 +130,7 @@ describe('featureRoleSummary', () => {
     expect(featureRoleSummary('/data' as AccessPath, c)).toEqual({
       totalEligible: 2,
       enabledCount: 0,
+      eligibleRoles: ['HRAdmin', 'SystemAdmin'],
       blockedRoles: ['HRAdmin', 'SystemAdmin'],
       globallyKilled: true,
     });

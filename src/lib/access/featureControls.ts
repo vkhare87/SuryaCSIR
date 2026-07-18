@@ -77,6 +77,7 @@ export function toggleRoleBlock(control: FeatureControl, role: Role): FeatureCon
 export interface FeatureRoleSummary {
   totalEligible: number;
   enabledCount: number;
+  eligibleRoles: Role[];
   blockedRoles: Role[];
   globallyKilled: boolean;
 }
@@ -93,6 +94,7 @@ export function featureRoleSummary(
   return {
     totalEligible: eligibleRoles.length,
     enabledCount: eligibleRoles.length - blockedRoles.length,
+    eligibleRoles,
     blockedRoles,
     globallyKilled: !c.enabled,
   };
