@@ -64,14 +64,14 @@ function StaffMappingPanel({ divisions, staff, projectStaff, phDStudents, contra
 
   const divSelect = (value: string, onChange: (v: string) => void) => (
     <select value={value} onChange={(e) => onChange(e.target.value)}
-      className="w-full bg-white border border-border text-text text-sm rounded-lg p-2.5 outline-none focus:ring-[#3898ec] focus:border-[#3898ec]">
+      className="w-full bg-surface border border-border text-text text-sm rounded-lg p-2.5 outline-none focus:ring-[#3898ec] focus:border-[#3898ec]">
       <option value="">— Select Division —</option>
       {divisions.map((d) => <option key={d.divCode} value={d.divCode}>{d.divCode} — {d.divName}</option>)}
     </select>
   );
   const staffSelect = (value: string, onChange: (v: string) => void, useId = false) => (
     <select value={value} onChange={(e) => onChange(e.target.value)}
-      className="w-full bg-white border border-border text-text text-sm rounded-lg p-2.5 outline-none focus:ring-[#3898ec] focus:border-[#3898ec]">
+      className="w-full bg-surface border border-border text-text text-sm rounded-lg p-2.5 outline-none focus:ring-[#3898ec] focus:border-[#3898ec]">
       <option value="">— Select Staff —</option>
       {staff.map((s) => <option key={s.ID} value={useId ? s.ID : s.Name}>{s.Name} ({s.Designation})</option>)}
     </select>

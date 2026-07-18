@@ -130,7 +130,7 @@ export function ManualEntryGrid({ type, onComplete }: ManualEntryGridProps) {
                     const opts = optionsFor(f.column);
                     const cellHasError = rowErrors.some((e) => e.field === f.column);
                     const cellClass = clsx(
-                      'w-full min-w-[120px] px-2 py-1 text-sm bg-white border rounded outline-none focus:ring-1 focus:ring-[#c96442]',
+                      'w-full min-w-[120px] px-2 py-1 text-sm bg-surface border rounded outline-none focus:ring-1 focus:ring-[#c96442]',
                       cellHasError ? 'border-rose-400' : 'border-border',
                     );
                     return (

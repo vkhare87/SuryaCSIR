@@ -56,7 +56,7 @@ export function SignatureUpload({ currentUrl, onUpload }: Props) {
           />
           <button
             onClick={clearPreview}
-            className="absolute -top-2 -right-2 bg-white border border-border rounded-full p-0.5 text-text-muted hover:text-rose-600"
+            className="absolute -top-2 -right-2 bg-surface border border-border rounded-full p-0.5 text-text-muted hover:text-rose-600"
           >
             <X size={12} />
           </button>
