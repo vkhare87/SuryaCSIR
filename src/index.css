@@ -190,7 +190,7 @@
     .shimmer::after, .animate-sun, .animate-amber-glow, .animate-slide-in { animation: none; }
   }
   .glass-dark {
-    @apply bg-[#141413]/80 backdrop-blur-md border border-[#30302e];
+    @apply bg-background/80 backdrop-blur-md border border-border;
   }
   .heading {
     font-family: Georgia, 'Times New Roman', serif;
