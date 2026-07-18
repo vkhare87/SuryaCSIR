@@ -32,3 +32,68 @@ export function featureEnabled(
   if (!c) return true;
   return c.enabled && !c.disabled_roles.includes(role);
 }
+
+// Grouping used by the Feature Controls admin panels — mirrors the sidebar
+// sections, with workflow sub-paths listed under their parent area.
+export const FEATURE_GROUPS: { label: string; paths: AccessPath[] }[] = [
+  { label: 'Overview', paths: ['/ask', '/intelligence', '/explore', '/calendar'] },
+  { label: 'Unified Human Resource', paths: ['/staff', '/staff/analytics', '/staff/project', '/phd', '/divisions', '/recruitment'] },
+  { label: 'Research Ops', paths: ['/projects', '/proposals', '/reports', '/reports/new', '/facilities', '/partnerships', '/rnd-monitor'] },
+  { label: 'Governance', paths: ['/committees', '/helpdesk', '/pms', '/pms/cycles', '/pms/evaluation-committees', '/pms/reports/new', '/pms/assign', '/pms/committee', '/pms/audit'] },
+  { label: 'Data Ops', paths: ['/data', '/irins-sync'] },
+];
+
+export function blankControl(path: string): FeatureControl {
+  return {
+    feature_key: path,
+    enabled: true,
+    disabled_roles: [],
+    note: null,
+    updated_by: null,
+    updated_at: '',
+  };
+}
+
+/** Filters each group's paths to only those the role is eligible for
+ * (present in ACCESS_MAP[path]); drops a group entirely if it ends up empty. */
+export function featuresForRole(
+  role: Role,
+  groups: { label: string; paths: AccessPath[] }[],
+): { label: string; paths: AccessPath[] }[] {
+  return groups
+    .map((g) => ({ label: g.label, paths: g.paths.filter((p) => (ACCESS_MAP[p] as Role[]).includes(role)) }))
+    .filter((g) => g.paths.length > 0);
+}
+
+/** Pure state transform: returns the next FeatureControl after toggling
+ * whether `role` is blocked. Does not mutate the input. */
+export function toggleRoleBlock(control: FeatureControl, role: Role): FeatureControl {
+  const disabled_roles = control.disabled_roles.includes(role)
+    ? control.disabled_roles.filter((r) => r !== role)
+    : [...control.disabled_roles, role];
+  return { ...control, disabled_roles };
+}
+
+export interface FeatureRoleSummary {
+  totalEligible: number;
+  enabledCount: number;
+  blockedRoles: Role[];
+  globallyKilled: boolean;
+}
+
+/** Summarizes how exposed a feature currently is across its eligible roles
+ * (ACCESS_MAP[path] minus MasterAdmin, which is always exempt). */
+export function featureRoleSummary(
+  path: AccessPath,
+  control: FeatureControl | undefined,
+): FeatureRoleSummary {
+  const eligibleRoles = (ACCESS_MAP[path] as Role[]).filter((r) => r !== 'MasterAdmin');
+  const c = control ?? blankControl(path);
+  const blockedRoles = c.enabled ? eligibleRoles.filter((r) => c.disabled_roles.includes(r)) : eligibleRoles;
+  return {
+    totalEligible: eligibleRoles.length,
+    enabledCount: eligibleRoles.length - blockedRoles.length,
+    blockedRoles,
+    globallyKilled: !c.enabled,
+  };
+}
