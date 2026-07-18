@@ -421,7 +421,7 @@ export default function Login() {
                 type="button"
                 aria-label={title}
                 onClick={() => setSlide(i)}
-                className={`h-2 rounded-full transition-all duration-300 ${
+                className={`relative after:absolute after:-inset-2 h-2 rounded-full transition-all duration-300 ${
                   i === slide ? 'w-8 bg-[#d97757]' : 'w-2 bg-[#faf9f5]/25 hover:bg-[#faf9f5]/50'
                 }`}
               />
@@ -559,7 +559,7 @@ export default function Login() {
                   window.location.reload();
                 }
               }}
-              className="mt-6 text-[10px] text-[#b0aea5] hover:text-[#c96442] transition-colors underline underline-offset-2"
+              className="mt-6 p-2 -m-2 text-xs text-[#b0aea5] hover:text-[#c96442] transition-colors underline underline-offset-2"
             >
               Reset App
             </button>
