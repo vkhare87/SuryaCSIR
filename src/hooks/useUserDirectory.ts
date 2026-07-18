@@ -17,16 +17,24 @@ export function useUserDirectory() {
   const { staff } = useData();
   const [users, setUsers] = useState<DirectoryUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      if (!supabase) { setLoading(false); return; }
+      if (!supabase) { setLoading(false); setError(null); return; }
+      setError(null);
       // user_roles has no broad-select RLS policy (by design — see
       // 20260712000002_auth_rbac.sql); user_directory() RPC is the
       // sanctioned way for any authenticated caller to resolve identities.
-      const { data } = await supabase.rpc('user_directory');
+      const { data, error: rpcError } = await supabase.rpc('user_directory');
       if (cancelled) return;
+      if (rpcError) {
+        setError(rpcError.message);
+        setUsers([]);
+        setLoading(false);
+        return;
+      }
       const staffByEmail = new Map(staff.map(s => [(s.Email || '').toLowerCase(), s.Name]));
       const rows: DirectoryUser[] = ((data as { user_id: string; email: string | null; roles: Role[] | null }[]) ?? []).map(p => ({
         userId: p.user_id,
@@ -35,11 +43,12 @@ export function useUserDirectory() {
         roles: p.roles ?? [],
       }));
       setUsers(rows);
+      setError(null);
       setLoading(false);
     }
     void load();
     return () => { cancelled = true; };
   }, [staff]);
 
-  return { users, loading };
+  return { users, loading, error };
 }

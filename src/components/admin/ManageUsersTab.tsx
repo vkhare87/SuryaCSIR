@@ -32,6 +32,7 @@ export function ManageUsersTab() {
   const { push } = useToast();
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [expanded, setExpanded] = useState<string | null>(null);
   const [draft, setDraft] = useState<Record<string, Draft>>({});
@@ -40,11 +41,13 @@ export function ManageUsersTab() {
   const load = useCallback(async () => {
     if (!supabase) { setLoading(false); return; }
     setLoading(true);
+    setLoadError(null);
     // user_roles has no admin-select RLS policy by design (see
     // 20260712000002_auth_rbac.sql) — this RPC is the sanctioned way to
     // read other users' role assignments.
     const { data, error } = await supabase.rpc('admin_list_users');
     if (error) {
+      setLoadError(error.message);
       push(error.message, 'error');
       setUsers([]);
       setLoading(false);
@@ -61,6 +64,7 @@ export function ManageUsersTab() {
       division: r.division_code,
     }));
     setUsers(rows);
+    setLoadError(null);
     setLoading(false);
   }, [push]);
 
@@ -133,8 +137,23 @@ export function ManageUsersTab() {
 
       {loading ? (
         <p className="text-sm text-text-muted">Loading…</p>
+      ) : loadError ? (
+        <div className="space-y-3">
+          <Card><EmptyState variant="error" icon={ShieldQuestion} title="Couldn't load users" description={loadError} /></Card>
+          <div className="flex justify-center">
+            <button onClick={() => void load()} className="text-sm text-brand-blue hover:underline">
+              Retry
+            </button>
+          </div>
+        </div>
       ) : filtered.length === 0 ? (
-        <Card><EmptyState icon={Users} title="No users" description="No registered users match." /></Card>
+        <Card>
+          <EmptyState
+            icon={Users}
+            title="No users"
+            description={search.trim() ? "No registered users match your search." : "No registered users found."}
+          />
+        </Card>
       ) : (
         <div className="space-y-3">
           {filtered.map((u) => {
