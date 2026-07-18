@@ -59,9 +59,9 @@ export function Layout() {
                 <Menu size={24} />
               </button>
             )}
-            <h1 className="text-sm md:text-xl font-medium md:font-normal text-text truncate uppercase tracking-tight md:tracking-normal font-serif">
+            <div className="text-sm md:text-xl font-medium md:font-normal text-text truncate uppercase tracking-tight md:tracking-normal font-serif">
               {isMobile ? 'SURYA Platform' : 'CSIR-AMPRI Executive Terminal'}
-            </h1>
+            </div>
           </div>
 
           <div className="flex items-center gap-2 md:gap-4">
