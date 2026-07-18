@@ -64,7 +64,7 @@ export function TechnicianView() {
             {amcExpiring.map(e => (
               <li
                 key={e.UInsID}
-                className="flex justify-between items-center px-6 py-3 cursor-pointer hover:bg-[#f5f4ed] transition-colors"
+                className="flex justify-between items-center px-6 py-3 cursor-pointer hover:bg-background transition-colors"
                 onClick={() => navigate(`/facilities/${e.UInsID}`)}
               >
                 <span className="truncate text-[#4d4c48] font-medium">{e.Name}</span>
@@ -83,7 +83,7 @@ export function TechnicianView() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-[#f5f4ed]">
+              <tr className="bg-background">
                 <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-[#87867f]">Name</th>
                 <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-[#87867f]">Status</th>
                 <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-[#87867f]">Operator</th>
@@ -93,7 +93,7 @@ export function TechnicianView() {
             </thead>
             <tbody className="divide-y divide-[#f0eee6]">
               {equipment.map(e => (
-                <tr key={e.UInsID} className="hover:bg-[#f5f4ed] transition-colors">
+                <tr key={e.UInsID} className="hover:bg-background transition-colors">
                   <td className="px-6 py-3 text-[#4d4c48] font-medium">{e.Name}</td>
                   <td className="px-6 py-3">
                     <span

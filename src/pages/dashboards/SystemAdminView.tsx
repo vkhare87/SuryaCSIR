@@ -303,7 +303,7 @@ export function SystemAdminView() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-[#f5f4ed]">
+              <tr className="bg-background">
                 <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-text-muted">Code</th>
                 <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-text-muted">Name</th>
                 <th className="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-widest text-text-muted">Current</th>
@@ -318,7 +318,7 @@ export function SystemAdminView() {
                   ? Math.round((d.divCurrentStrength / d.divSanctionedstrength) * 100)
                   : 0;
                 return (
-                  <tr key={d.divCode} className="hover:bg-[#f5f4ed] transition-colors">
+                  <tr key={d.divCode} className="hover:bg-background transition-colors">
                     <td className="px-6 py-3 font-mono text-xs text-[#c96442] font-semibold">{d.divCode}</td>
                     <td className="px-6 py-3 text-text">{d.divName}</td>
                     <td className="px-6 py-3 text-right font-semibold text-text">{d.divCurrentStrength}</td>

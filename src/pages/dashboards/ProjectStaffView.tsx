@@ -53,7 +53,7 @@ export function ProjectStaffView() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-[#f5f4ed]">
+                <tr className="bg-background">
                   <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-[#87867f]">Project No</th>
                   <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-[#87867f]">Designation</th>
                   <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-[#87867f]">Joined</th>
@@ -61,7 +61,7 @@ export function ProjectStaffView() {
               </thead>
               <tbody className="divide-y divide-[#f0eee6]">
                 {ownLinks.map(ps => (
-                  <tr key={ps.id} className="hover:bg-[#f5f4ed] transition-colors">
+                  <tr key={ps.id} className="hover:bg-background transition-colors">
                     <td className="px-6 py-3 font-mono text-xs text-[#87867f]">{ps.ProjectNo}</td>
                     <td className="px-6 py-3 text-[#4d4c48] font-medium">{ps.Designation}</td>
                     <td className="px-6 py-3 text-[#87867f] text-xs">{ps.DateOfJoining}</td>
@@ -86,18 +86,18 @@ export function ProjectStaffView() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-[#f5f4ed]">
+                <tr className="bg-background">
                   <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-[#87867f]">Project Name</th>
                   <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-[#87867f]">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#f0eee6]">
                 {ownProjects.map(p => (
-                  <tr key={p.ProjectID} className="hover:bg-[#f5f4ed] transition-colors">
+                  <tr key={p.ProjectID} className="hover:bg-background transition-colors">
                     <td className="px-6 py-3 text-[#4d4c48] font-medium max-w-[200px] truncate">{p.ProjectName}</td>
                     <td className="px-6 py-3">
                       <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
-                        p.ProjectStatus === 'Active' ? 'bg-[#f0f8f0] text-[#3a7a3a]' : 'bg-[#f5f4ed] text-[#87867f]'
+                        p.ProjectStatus === 'Active' ? 'bg-[#f0f8f0] text-[#3a7a3a]' : 'bg-background text-[#87867f]'
                       }`}>
                         {p.ProjectStatus}
                       </span>
