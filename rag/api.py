@@ -11,6 +11,7 @@ import time
 import urllib.error
 
 from fastapi import FastAPI, Header, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
@@ -19,6 +20,18 @@ from query_service import parse_bearer, handle_query, stream_query, log_query, f
 from llm import make_llm
 
 app = FastAPI(title="Ask SURYA")
+
+# Same-origin in prod (nginx proxies /rag/ under the SPA's own origin) so this is a
+# no-op there. Laptop/demo runs the Vite dev server and uvicorn on different ports,
+# so CORS_ORIGINS enables that split without touching the prod deploy.
+_cors_origins = [o.strip() for o in os.environ.get("CORS_ORIGINS", "").split(",") if o.strip()]
+if _cors_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_cors_origins,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 _ANON_URL = os.environ["SUPABASE_URL"]
 _ANON_KEY = os.environ["SUPABASE_ANON_KEY"]

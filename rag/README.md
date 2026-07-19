@@ -51,7 +51,7 @@ run without it.
 
 | Env | Values | Notes |
 |-----|--------|-------|
-| `OCR_BACKEND` | `null` \| `tesseract` | `null` returns empty text (dev/offline) |
+| `OCR_BACKEND` | `null` \| `tesseract` \| `ollama` | `null` returns empty text (dev/offline); `ollama` uses a vision model on the Ollama server (`OCR_MODEL`, defaults to `OPENLLM_MODEL`) |
 | `LLM_BACKEND` | `fake` \| `openllm` | `fake` = deterministic first-line summary |
 
 ## Layout
