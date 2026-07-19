@@ -74,6 +74,9 @@ export default function TicketForm() {
       setError('You must be logged in to submit a ticket.');
       return;
     }
+    if (!category) {
+      return;
+    }
 
     setSubmitting(true);
     setError(null);
