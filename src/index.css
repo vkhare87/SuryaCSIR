@@ -24,6 +24,9 @@
      but never defined, so Tailwind 4 generated nothing for them. */
   --color-danger: #b53333;
   --color-brand-blue: #3898ec;
+  /* Freshness/status range (DESIGN.md R2) — light/dark values set per-theme below. */
+  --color-archive-green: var(--color-archive-green);
+  --color-turmeric: var(--color-turmeric);
 
   /* CSS-var pass-throughs for Tailwind utility resolution */
   --color-surface: var(--color-surface);
@@ -74,6 +77,9 @@
   --density-padding-base: 1rem;
   --density-gap-base: 1rem;
 
+  --color-archive-green: #3F5C46;
+  --color-turmeric: #D9A441;
+
   /* Layered surfaces + gradients (light) */
   --color-surface-raised: #ffffff;
   --gradient-hero: radial-gradient(1200px 600px at 20% -10%, #faf3ea 0%, transparent 60%), radial-gradient(900px 500px at 90% 0%, #f3ede2 0%, transparent 55%), #f5f4ed;
@@ -89,6 +95,9 @@
   --color-border: #30302e;          /* Border Dark */
   --color-text: #faf9f5;            /* Ivory */
   --color-text-muted: #b0aea5;      /* Warm Silver */
+
+  --color-archive-green: #7FA388;
+  --color-turmeric: #E0B65E;
 
   /* Dark needs 2 surface levels to show elevation; glows run hotter */
   --color-surface-raised: #3a3a37;

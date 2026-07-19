@@ -1,13 +1,15 @@
 import React, { useState, useRef } from 'react';
-import { Check, ChevronRight, UploadCloud, FileSpreadsheet, AlertCircle } from 'lucide-react';
+import { Check, ChevronRight, UploadCloud, FileSpreadsheet, AlertCircle, Sparkles } from 'lucide-react';
 import clsx from 'clsx';
 import { Card } from './ui/Cards';
 import { Button } from './ui/Button';
 import {
-  parseFile,
+  parseFileRaw,
+  applyColumnMapping,
   detectColumnMappings,
   validateRows,
   pushToSupabase,
+  FIELD_META,
   type FileType,
   type RowValidationResult,
   TABLE_NAMES,
@@ -15,6 +17,14 @@ import {
 } from '../utils/dataMigration';
 import { isProvisioned, supabase } from '../utils/supabaseClient';
 import { useData } from '../contexts/DataContext';
+import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import {
+  fingerprintHeaders,
+  lookupSavedMapping,
+  saveMapping,
+  suggestMappingsViaAI,
+} from '../lib/ingest/columnMapping';
 
 const STEPS = [
   { num: 1 as const, label: 'Upload' },
@@ -27,18 +37,29 @@ interface ImportFlowProps {
   type?: FileType;
   /** Show the entity dropdown (DataManagement) vs lock to `type` (wizard). */
   showTypePicker?: boolean;
+  /** Pre-supplied file (e.g. a harvested import) — skips the drag/drop step
+   * straight to Step 1 with the file already selected. */
+  initialFile?: File;
   /** Called after a successful commit + data refresh. */
   onComplete?: () => void;
 }
 
-export function ImportFlow({ type, showTypePicker = false, onComplete }: ImportFlowProps) {
+export function ImportFlow({ type, showTypePicker = false, initialFile, onComplete }: ImportFlowProps) {
   const { refreshData } = useData();
+  const { user } = useAuth();
+  const { push: pushToast } = useToast();
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [selectedType, setSelectedType] = useState<FileType>(type ?? 'staff');
-  const [file, setFile] = useState<File | null>(null);
+  const [file, setFile] = useState<File | null>(initialFile ?? null);
+  const [rawData, setRawData] = useState<Record<string, string>[]>([]);
   const [parsedData, setParsedData] = useState<Record<string, string>[]>([]);
   const [columnMappings, setColumnMappings] = useState<Array<{ raw: string; mapped: string | null }>>([]);
+  const [headerFingerprint, setHeaderFingerprint] = useState<string | null>(null);
+  // parsedData row i came from rawData row parsedRowToRaw[i] — indexes drift
+  // when applyColumnMapping drops rows that are empty under the current mapping.
+  const [parsedRowToRaw, setParsedRowToRaw] = useState<number[]>([]);
+  const [isSuggesting, setIsSuggesting] = useState(false);
   const [isParsing, setIsParsing] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -60,10 +81,13 @@ export function ImportFlow({ type, showTypePicker = false, onComplete }: ImportF
   const resetFlow = () => {
     setStep(1);
     setFile(null);
+    setRawData([]);
     setParsedData([]);
     setValidationResults([]);
     setCommitResult(null);
     setColumnMappings([]);
+    setHeaderFingerprint(null);
+    setParsedRowToRaw([]);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -84,12 +108,34 @@ export function ImportFlow({ type, showTypePicker = false, onComplete }: ImportF
     e.preventDefault();
   };
 
+  // Recomputes parsedData/validation from rawData for a given mapping —
+  // shared by the initial parse, manual per-column correction, and the AI
+  // suggestion merge. Never touches HR tables; still requires Confirm Import.
+  const applyMapping = (raw: Record<string, string>[], newMappings: Array<{ raw: string; mapped: string | null }>) => {
+    setColumnMappings(newMappings);
+    const mappingRecord = Object.fromEntries(newMappings.map((m) => [m.raw, m.mapped]));
+    // Row-at-a-time so we can record which raw row each parsed row came from
+    // (cell edits write back through this map — see handleCellSave).
+    const formatted: Record<string, string>[] = [];
+    const rowMap: number[] = [];
+    raw.forEach((row, i) => {
+      const [mapped] = applyColumnMapping([row], mappingRecord, effectiveType);
+      if (mapped) {
+        formatted.push(mapped);
+        rowMap.push(i);
+      }
+    });
+    setParsedRowToRaw(rowMap);
+    setParsedData(formatted);
+    setValidationResults(validateRows(formatted, effectiveType));
+  };
+
   const handleNext1 = async () => {
     if (!file) return;
     setIsParsing(true);
     setParseError(null);
 
-    const result = await parseFile(file, effectiveType);
+    const result = await parseFileRaw(file);
 
     if (!result.success || !result.data) {
       setParseError(result.error ?? 'Failed to parse file');
@@ -97,16 +143,80 @@ export function ImportFlow({ type, showTypePicker = false, onComplete }: ImportF
       return;
     }
 
-    const data = result.data;
-    setParsedData(data);
+    const raw = result.data;
+    setRawData(raw);
 
-    const rawHeaders = data.length > 0 ? Object.keys(data[0]) : [];
-    setColumnMappings(detectColumnMappings(rawHeaders, effectiveType));
-    setValidationResults(validateRows(data, effectiveType));
+    const rawHeaders = raw.length > 0 ? Object.keys(raw[0]) : [];
+    const detected = detectColumnMappings(rawHeaders, effectiveType);
 
+    // Phase C: a header shape already confirmed before auto-applies, no AI
+    // call or re-review of the mapping needed (still a full human review of
+    // the row data in Step 2/3 — this only skips re-asking "which column").
+    let finalMappings = detected;
+    if (supabase && detected.some((m) => m.mapped === null)) {
+      // Best-effort: fingerprint needs crypto.subtle (secure contexts only) —
+      // on failure fall through to manual/AI mapping instead of a dead spinner.
+      try {
+        const fp = await fingerprintHeaders(rawHeaders);
+        setHeaderFingerprint(fp);
+        const saved = await lookupSavedMapping(supabase, effectiveType, fp);
+        if (saved) {
+          // Skip saved targets that collide with an auto-detected column —
+          // one target per header, same rule as the dropdowns.
+          const used = new Set(detected.map((m) => m.mapped).filter(Boolean));
+          finalMappings = detected.map((m) => {
+            if (m.mapped) return m;
+            const s = saved[m.raw];
+            if (s && !used.has(s)) {
+              used.add(s);
+              return { raw: m.raw, mapped: s };
+            }
+            return { raw: m.raw, mapped: null };
+          });
+        }
+      } catch {
+        setHeaderFingerprint(null);
+      }
+    } else {
+      setHeaderFingerprint(null);
+    }
+
+    applyMapping(raw, finalMappings);
     setIsParsing(false);
     setStep(2);
   };
+
+  const handleMappingSelect = (raw: string, mapped: string | null) => {
+    // A target column can back only one header — selecting it here clears it
+    // from any other row (applyColumnMapping would otherwise last-write-win).
+    applyMapping(rawData, columnMappings.map((m) => {
+      if (m.raw === raw) return { raw, mapped };
+      return mapped !== null && m.mapped === mapped ? { raw: m.raw, mapped: null } : m;
+    }));
+  };
+
+  const handleSuggestAI = async () => {
+    if (!supabase) return;
+    setIsSuggesting(true);
+    try {
+      const unmapped = columnMappings.filter((m) => m.mapped === null).map((m) => m.raw);
+      // Only offer targets no header uses yet — the server dedupes within its
+      // own suggestions but can't see the already-mapped columns.
+      const usedTargets = new Set(columnMappings.map((m) => m.mapped).filter(Boolean));
+      const targetFields = FIELD_META[effectiveType]
+        .filter((f) => !usedTargets.has(f.column))
+        .map((f) => ({ column: f.column, label: f.label }));
+      const suggestions = await suggestMappingsViaAI(supabase, unmapped, targetFields);
+      applyMapping(rawData, columnMappings.map((m) => (m.mapped ? m : { raw: m.raw, mapped: suggestions[m.raw] ?? null })));
+    } catch (err) {
+      pushToast(`AI mapping suggestion failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
+    } finally {
+      setIsSuggesting(false);
+    }
+  };
+
+  const mappedColumns = columnMappings.filter((m): m is { raw: string; mapped: string } => m.mapped !== null);
+  const unmappedCount = columnMappings.length - mappedColumns.length;
 
   const handleCellClick = (rowIndex: number, field: string) => {
     const rowErrors = validationResults[rowIndex]?.errors || [];
@@ -121,6 +231,13 @@ export function ImportFlow({ type, showTypePicker = false, onComplete }: ImportF
     const updatedData = parsedData.map((row, idx) => (idx === rowIndex ? { ...row, [field]: editValue } : row));
     setParsedData(updatedData);
     setValidationResults(validateRows(updatedData, effectiveType));
+    // Write through to rawData too — applyMapping rebuilds parsedData from
+    // rawData, so without this any later mapping change silently discards edits.
+    const rawKey = columnMappings.find((m) => m.mapped === field)?.raw;
+    const rawIndex = parsedRowToRaw[rowIndex];
+    if (rawKey !== undefined && rawIndex !== undefined) {
+      setRawData(rawData.map((row, idx) => (idx === rawIndex ? { ...row, [rawKey]: editValue } : row)));
+    }
     setEditingCell(null);
   };
 
@@ -129,6 +246,24 @@ export function ImportFlow({ type, showTypePicker = false, onComplete }: ImportF
     setIsCommitting(true);
     const result = await pushToSupabase(supabase, TABLE_NAMES[effectiveType], parsedData, (msg) => console.log(msg));
     setCommitResult(result);
+
+    if (result.upserted > 0 && user) {
+      const { error: eventErr } = await supabase.from('import_events').insert({
+        file_type: effectiveType,
+        row_count: result.upserted,
+        uploaded_by: user.id,
+        uploaded_by_email: user.email,
+      });
+      if (eventErr) pushToast(`Import saved, but the upload log failed: ${eventErr.message}`, 'warning');
+    }
+
+    // Phase C: remember this header shape's mapping so the next file from
+    // the same source auto-maps. Best-effort — never blocks a completed import.
+    if (result.upserted > 0 && user && headerFingerprint && mappedColumns.length > 0) {
+      const mappingRecord = Object.fromEntries(mappedColumns.map((m) => [m.raw, m.mapped]));
+      saveMapping(supabase, effectiveType, headerFingerprint, mappingRecord, user.id).catch(() => {});
+    }
+
     setIsCommitting(false);
     await refreshData();
     if (result.failed === 0) onComplete?.();
@@ -254,29 +389,56 @@ export function ImportFlow({ type, showTypePicker = false, onComplete }: ImportF
             </div>
           )}
 
-          {parsedData.length > 0 && columnMappings.length > 0 && (
+          {/* Column mapping — each raw header's target column, human-editable.
+             Nothing here writes to HR tables; it only decides how Step 3 will. */}
+          {columnMappings.length > 0 && (
+            <div className="rounded-xl border border-border overflow-hidden">
+              <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-surface-hover border-b border-border">
+                <span className="text-xs font-semibold text-text-muted uppercase tracking-wide">
+                  Column Mapping {unmappedCount > 0 && `— ${unmappedCount} unmapped`}
+                </span>
+                {unmappedCount > 0 && (
+                  <Button variant="secondary" size="sm" onClick={handleSuggestAI} disabled={isSuggesting}>
+                    <Sparkles size={13} className="mr-1.5" />
+                    {isSuggesting ? 'Suggesting…' : 'Suggest with AI'}
+                  </Button>
+                )}
+              </div>
+              <div className="divide-y divide-border max-h-56 overflow-y-auto">
+                {columnMappings.map(({ raw, mapped }) => (
+                  <div key={raw} className="flex items-center gap-3 px-4 py-2 text-sm">
+                    <span className="flex-1 min-w-0 truncate text-text-muted" title={raw}>{raw}</span>
+                    <ChevronRight size={14} className="text-text-muted shrink-0" />
+                    <select
+                      value={mapped ?? ''}
+                      onChange={(e) => handleMappingSelect(raw, e.target.value || null)}
+                      className={clsx(
+                        'flex-1 min-w-0 bg-surface border rounded-lg text-sm p-1.5 outline-none',
+                        mapped ? 'border-border text-text' : 'border-amber-300 text-amber-700',
+                      )}
+                    >
+                      <option value="">— Not imported —</option>
+                      {FIELD_META[effectiveType].map((f) => (
+                        <option key={f.column} value={f.column}>{f.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {parsedData.length > 0 && mappedColumns.length > 0 && (
             <div className="overflow-x-auto rounded-xl border border-border">
               <table className="w-full text-xs">
                 <thead>
                   <tr className="bg-surface-hover border-b border-border">
                     <th className="px-2 pt-3 pb-2 text-left font-medium text-text-muted whitespace-nowrap align-bottom w-8">
-                      <div className="mb-1.5 h-[22px]" />
                       <span>#</span>
                     </th>
-                    {columnMappings.map(({ raw, mapped }) => (
-                      <th key={raw} className="px-3 pt-3 pb-2 text-left font-medium text-text-muted whitespace-nowrap align-bottom">
-                        <div className="mb-1.5">
-                          {mapped !== null ? (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-[#c96442]/10 text-[#c96442] border border-[#c96442]/30 whitespace-nowrap">
-                              Mapped: {mapped}
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-[#e8e6dc] text-[#5e5d59] border border-[#d4d2c8] whitespace-nowrap">
-                              Unmapped
-                            </span>
-                          )}
-                        </div>
-                        <span>{raw}</span>
+                    {mappedColumns.map(({ mapped }) => (
+                      <th key={mapped} className="px-3 py-2 text-left font-medium text-text-muted whitespace-nowrap align-bottom">
+                        {mapped}
                       </th>
                     ))}
                   </tr>
@@ -302,20 +464,20 @@ export function ImportFlow({ type, showTypePicker = false, onComplete }: ImportF
                             </span>
                           )}
                         </td>
-                        {columnMappings.map(({ raw }) => {
-                          const cellHasError = rowErrors.some((e) => e.field === raw);
-                          const isEditing = editingCell?.rowIndex === rowIdx && editingCell?.field === raw;
+                        {mappedColumns.map(({ mapped }) => {
+                          const cellHasError = rowErrors.some((e) => e.field === mapped);
+                          const isEditing = editingCell?.rowIndex === rowIdx && editingCell?.field === mapped;
 
                           return (
                             <td
-                              key={raw}
-                              onClick={() => handleCellClick(rowIdx, raw)}
+                              key={mapped}
+                              onClick={() => handleCellClick(rowIdx, mapped)}
                               className={clsx(
                                 'px-3 py-1.5 text-text whitespace-nowrap max-w-[180px] truncate',
                                 cellHasError && 'outline outline-1 outline-red-400',
                                 cellHasError && !isEditing && 'cursor-pointer hover:bg-rose-100',
                               )}
-                              title={isEditing ? undefined : row[raw] ?? ''}
+                              title={isEditing ? undefined : row[mapped] ?? ''}
                             >
                               {isEditing ? (
                                 <input
@@ -334,7 +496,7 @@ export function ImportFlow({ type, showTypePicker = false, onComplete }: ImportF
                                   className="w-full px-2 py-1 text-sm border border-[#c96442] rounded outline-none focus:ring-1 focus:ring-[#c96442]"
                                 />
                               ) : (
-                                row[raw] ?? ''
+                                row[mapped] ?? ''
                               )}
                             </td>
                           );

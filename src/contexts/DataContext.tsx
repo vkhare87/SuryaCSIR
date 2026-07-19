@@ -29,6 +29,7 @@ import type {
   HelpdeskRouting,
   CalendarEvent,
   Holiday,
+  ImportEvent,
 } from '../types';
 import { supabase, isProvisioned } from '../utils/supabaseClient';
 import {
@@ -59,6 +60,7 @@ import {
   mapHelpdeskRoutingRow,
   mapCalendarEventRow,
   mapHolidayRow,
+  mapImportEventRow,
 } from '../utils/dataMapper';
 import { useAuth } from './AuthContext';
 import { useToast } from './ToastContext';
@@ -122,6 +124,7 @@ interface DataContextType {
   helpdeskRouting: HelpdeskRouting[];
   calendarEvents: CalendarEvent[];
   holidays: Holiday[];
+  importEvents: ImportEvent[];
   refreshCalendar: () => Promise<void>;
   refreshHolidays: () => Promise<void>;
   isLoading: boolean;
@@ -169,6 +172,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [helpdeskRouting, setHelpdeskRouting] = useState<HelpdeskRouting[]>([]);
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
+  const [importEvents, setImportEvents] = useState<ImportEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -200,6 +204,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setHelpdeskRouting([]);
     setCalendarEvents([]);
     setHolidays([]);
+    setImportEvents([]);
   };
 
   const loadData = async () => {
@@ -216,7 +221,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         divRes, staffRes, projRes, psRes, phdRes, equipRes, labsRes, soRes, ipRes, csRes,
         vaRes, vpRes,
         cmtRes, cmmRes, mtgRes, agiRes, actRes, mdcRes, tktRes, trsRes, tevRes, hrtRes,
-        ceRes, holRes, mouRes, ttRes, phmRes,
+        ceRes, holRes, mouRes, ttRes, phmRes, ieRes,
       ] = await Promise.all([
         supabase.from('divisions').select('*'),
         supabase.from('staff').select('*'),
@@ -245,6 +250,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         supabase.from('mous').select('*'),
         supabase.from('tech_transfers').select('*'),
         supabase.from('phd_milestones').select('*'),
+        supabase.from('import_events').select('*').order('uploaded_at', { ascending: false }),
       ]);
 
       // Surface per-table errors — Promise.all hides them as empty data
@@ -279,6 +285,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       checkTable('mous', mouRes);
       checkTable('tech_transfers', ttRes);
       checkTable('phd_milestones', phmRes);
+      checkTable('import_events', ieRes);
       if (tableErrors.length > 0) {
         const summary = `${tableErrors.length} table(s) failed to load: ${tableErrors.map(e => e.table).join(', ')}`;
         logger.error('partial_data_load_failed', new Error(summary), { tableErrors });
@@ -316,6 +323,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setHelpdeskRouting(hrtRes.data ? hrtRes.data.map(mapHelpdeskRoutingRow) : []);
       setCalendarEvents(ceRes.data ? ceRes.data.map(mapCalendarEventRow) : []);
       setHolidays(holRes.data ? holRes.data.map(mapHolidayRow) : []);
+      setImportEvents(ieRes.data ? ieRes.data.map(mapImportEventRow) : []);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load data';
       setError(message);
@@ -388,6 +396,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       helpdeskRouting,
       calendarEvents,
       holidays,
+      importEvents,
       refreshCalendar,
       refreshHolidays,
       isLoading,

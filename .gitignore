@@ -19,3 +19,7 @@ __pycache__/
 .pytest_cache/
 rag/eval/corpus.json
 rag/eval/eval_report.md
+
+# Ingest worker (Python) local env
+ingest/.venv/
+ingest/.env

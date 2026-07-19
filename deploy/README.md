@@ -109,6 +109,34 @@ plus a documented browser exception.
    *"Not found in institute documents."*
 4. `/admin/rag` shows the ingestion counts.
 
+## 7. Phase B: watched-folder / mail-in capture (optional)
+
+Only worth installing once you actually have a network folder share and/or an
+IT-provisioned mailbox — the design doc left both as open questions. No native
+deps (unlike `rag/`), so any Python 3.10+ works, no WDAC DLL concerns.
+
+```powershell
+cd C:\surya\ingest
+py -3.12 -m venv .venv
+.venv\Scripts\pip install -r requirements.txt
+```
+
+Fill in `C:\surya\env\ingest-worker.env` (copy `ingest/.env.example`) —
+`INGEST_OWNER_USER_ID` needs a real `auth.users` row created via the
+Dashboard first. Leave `WATCH_ROOT` and/or `IMAP_*` blank to run with only
+one source active.
+
+```powershell
+nssm install surya-ingest-worker C:\surya\ingest\.venv\Scripts\python.exe worker.py
+nssm set     surya-ingest-worker AppDirectory C:\surya\ingest
+nssm set     surya-ingest-worker AppEnvironmentExtra :C:\surya\env\ingest-worker.env
+nssm start   surya-ingest-worker
+```
+
+Harvested structured files show up under Data Management → **Harvested** for
+review; harvested PDFs/scans flow into the existing RAG ingest queue
+automatically.
+
 ## Notes
 
 - Windows paths in this doc assume `C:\surya`; adjust consistently.

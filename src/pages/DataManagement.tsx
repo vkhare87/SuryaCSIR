@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { MapPin, Tags, Database } from 'lucide-react';
+import { MapPin, Tags, Database, Inbox } from 'lucide-react';
 import clsx from 'clsx';
 import { Card } from '../components/ui/Cards';
+import { DataFreshnessLedger } from '../components/DataFreshnessLedger';
 import { DatabaseBuilderPanel } from '../components/DatabaseBuilderPanel';
 import { EntityRecordsPanel } from '../components/EntityRecordsPanel';
+import { HarvestedImportsPanel } from '../components/HarvestedImportsPanel';
 import { supabase } from '../utils/supabaseClient';
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -197,7 +199,7 @@ export default function DataManagement() {
   const { divisions, staff, projectStaff, phDStudents, contractStaff, refreshData } = useData();
   useAuth(); // ensure context is available
 
-  const [activeTab, setActiveTab] = useState<'build' | 'mapping' | 'records'>('build');
+  const [activeTab, setActiveTab] = useState<'build' | 'mapping' | 'records' | 'harvested'>('build');
   const [activeEntityType, setActiveEntityType] = useState<FileType>('staff');
 
   const untaggedProjectStaff = projectStaff.filter((p) => !p.DivisionCode).length;
@@ -212,6 +214,8 @@ export default function DataManagement() {
         <h1 className="text-2xl font-[500] text-text font-serif">Data Management</h1>
         <p className="text-text-muted mt-1">Import data and manage division assignments</p>
       </div>
+
+      <DataFreshnessLedger />
 
       {/* Untagged banner */}
       {totalUntagged > 0 && (
@@ -250,6 +254,12 @@ export default function DataManagement() {
           <Database size={14} />
           Manage Records
         </button>
+        <button onClick={() => setActiveTab('harvested')}
+          className={clsx('px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors flex items-center gap-2',
+            activeTab === 'harvested' ? 'border-[#c96442] text-[#c96442]' : 'border-transparent text-text-muted hover:text-text')}>
+          <Inbox size={14} />
+          Harvested
+        </button>
       </div>
 
       {activeTab === 'mapping' && (
@@ -280,6 +290,10 @@ export default function DataManagement() {
           </div>
           <EntityRecordsPanel key={activeEntityType} type={activeEntityType} />
         </div>
+      )}
+
+      {activeTab === 'harvested' && (
+        <HarvestedImportsPanel onImported={refreshData} />
       )}
     </div>
   );

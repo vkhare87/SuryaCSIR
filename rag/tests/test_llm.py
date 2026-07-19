@@ -28,3 +28,10 @@ def test_fake_llm_answer_grounded_in_context():
 def test_fake_llm_answer_empty_context_not_found():
     from llm import NOT_FOUND
     assert FakeLLM().answer("what is X", "   ") == NOT_FOUND
+
+
+def test_fake_llm_map_columns_matches_column_or_label():
+    import json
+    fields = [{"column": "DOJ", "label": "Date of Joining"}]
+    reply = json.loads(FakeLLM().map_columns(["doj", "Date of Joining", "Unrelated"], fields))
+    assert reply == {"mapping": {"doj": "DOJ", "Date of Joining": "DOJ", "Unrelated": None}}

@@ -413,6 +413,31 @@ export interface Holiday {
   year: number;
 }
 
+export interface ImportEvent {
+  id: string;
+  file_type: string;
+  row_count: number;
+  uploaded_by: string;
+  uploaded_by_email: string;
+  uploaded_at: string;
+}
+
+export interface HarvestedImport {
+  id: string;
+  file_name: string;
+  source: 'folder' | 'mail';
+  source_identifier: string;
+  division_code: string | null;
+  storage_bucket: string;
+  storage_path: string;
+  file_size: number;
+  content_hash: string;
+  status: 'pending' | 'reviewed' | 'discarded';
+  landed_at: string;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+}
+
 export interface FeatureControl {
   feature_key: string;      // ACCESS_MAP path
   enabled: boolean;         // false = off for everyone (MasterAdmin exempt)

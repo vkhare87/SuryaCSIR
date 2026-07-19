@@ -1,4 +1,4 @@
-import type { DivisionInfo, StaffMember, ProjectInfo, ProjectStaff, PhDStudent, PhDMilestone, Equipment, ScientificOutput, IPIntelligence, MoU, TechTransfer, ContractStaff, VacancyAdvertisement, VacancyPost, Notification, Committee, CommitteeMember, Meeting, AgendaItem, ActionItem, MeetingDocument, Ticket, TicketResponse, TicketEvent, HelpdeskRouting, CalendarEvent, Holiday } from '../types';
+import type { DivisionInfo, StaffMember, ProjectInfo, ProjectStaff, PhDStudent, PhDMilestone, Equipment, ScientificOutput, IPIntelligence, MoU, TechTransfer, ContractStaff, VacancyAdvertisement, VacancyPost, Notification, Committee, CommitteeMember, Meeting, AgendaItem, ActionItem, MeetingDocument, Ticket, TicketResponse, TicketEvent, HelpdeskRouting, CalendarEvent, Holiday, ImportEvent } from '../types';
 
 /**
  * These mappers will eventually transform raw Supabase rows 
@@ -365,4 +365,13 @@ export const mapHolidayRow = (row: any): Holiday => ({
   name: row.name || '',
   holiday_type: row.holiday_type || 'Gazetted',
   year: parseInt(row.year || '0', 10),
+});
+
+export const mapImportEventRow = (row: any): ImportEvent => ({
+  id: String(row.id || ''),
+  file_type: row.file_type || '',
+  row_count: parseInt(row.row_count || '0', 10),
+  uploaded_by: row.uploaded_by || '',
+  uploaded_by_email: row.uploaded_by_email || '',
+  uploaded_at: row.uploaded_at || '',
 });

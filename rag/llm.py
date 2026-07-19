@@ -15,6 +15,7 @@ ROUTE_TIMEOUT_S = int(os.environ.get("RAG_ROUTE_TIMEOUT_S", "10"))
 PICK_TIMEOUT_S = int(os.environ.get("RAG_PICK_TIMEOUT_S", "20"))
 ANSWER_TIMEOUT_S = int(os.environ.get("RAG_ANSWER_TIMEOUT_S", "60"))
 SUMMARIZE_TIMEOUT_S = int(os.environ.get("RAG_SUMMARIZE_TIMEOUT_S", "300"))
+MAP_COLUMNS_TIMEOUT_S = int(os.environ.get("RAG_MAP_COLUMNS_TIMEOUT_S", "20"))
 
 _SUMMARY_PROMPT = "Summarize the following document section in one sentence:\n\n"
 _ROUTE_SYSTEM = (
@@ -37,6 +38,20 @@ _ANSWER_SYSTEM = (
     f"If the excerpts do not contain the answer, reply exactly {NOT_FOUND}. "
     "Never use outside knowledge."
 )
+_MAP_COLUMNS_SYSTEM = (
+    "You map spreadsheet column headers to a fixed target schema for an institute HR "
+    'database import. Reply with ONLY a JSON object, no prose: {"mapping": '
+    '{"<raw header>": "<target column or null>", ...}}. Map a raw header to a target '
+    "column only if it is a plausible semantic match — a header with no good match maps "
+    "to null. Never invent a target column that is not in the given list. Each target "
+    "column should be used by at most one raw header."
+)
+
+
+def _map_columns_prompt(raw_headers: list, target_fields: list) -> str:
+    fields_listing = "\n".join(f"- {f['column']}: {f['label']}" for f in target_fields)
+    headers_listing = "\n".join(f"- {h}" for h in raw_headers)
+    return f"Target schema columns:\n{fields_listing}\n\nRaw headers to map:\n{headers_listing}"
 
 
 def _route_user_prompt(question: str, catalog: dict, examples=None) -> str:
@@ -92,6 +107,22 @@ class FakeLLM:
         mid = max(1, len(text) // 2)
         yield text[:mid]
         yield text[mid:]
+
+    def map_columns(self, raw_headers: list, target_fields: list) -> str:
+        """Deterministic, offline: case-insensitive exact match against each
+        target's column name or label. Crude but genuinely useful as an
+        offline fallback (LLM_BACKEND=fake) when no real model is deployed —
+        not just a test double."""
+        mapping = {}
+        for h in raw_headers:
+            norm = h.strip().lower()
+            match = next(
+                (f["column"] for f in target_fields
+                 if norm == f["column"].lower() or norm == f["label"].lower()),
+                None,
+            )
+            mapping[h] = match
+        return json.dumps({"mapping": mapping})
 
 
 class OpenLLMClient:
@@ -162,6 +193,12 @@ class OpenLLMClient:
                     continue
                 if delta:
                     yield delta
+
+    def map_columns(self, raw_headers: list, target_fields: list) -> str:
+        return self._chat(
+            _map_columns_prompt(raw_headers, target_fields),
+            system=_MAP_COLUMNS_SYSTEM, timeout=MAP_COLUMNS_TIMEOUT_S,
+        )
 
 
 def make_llm(backend: str, base_url: str, model: str):
