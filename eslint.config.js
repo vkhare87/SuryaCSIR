@@ -47,4 +47,28 @@ export default tseslint.config(
       ],
     },
   },
+  // Design tokens: warn on raw Tailwind palette / arbitrary-hex colors in className.
+  // Semantic tokens (bg-surface, text-text-muted, …) live in src/index.css.
+  // viz components excluded — chart series legitimately need raw hex.
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/components/viz/**'],
+    rules: {
+      'no-restricted-syntax': [
+        'warn',
+        {
+          selector:
+            "JSXAttribute[name.name='className'] Literal[value=/(^|[\\s:])(bg|text|border|ring|divide|from|via|to|fill|stroke|outline|accent|caret|decoration|placeholder|shadow)-(white|black|(slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\\d{2,3})([\\s\\/]|$)/]",
+          message:
+            'Raw Tailwind color class. Use semantic tokens from src/index.css (bg-surface, text-text-muted, border-border, …).',
+        },
+        {
+          selector:
+            "JSXAttribute[name.name='className'] Literal[value=/\\[#[0-9a-fA-F]{3,8}\\]/]",
+          message:
+            'Arbitrary hex color in className. Use semantic tokens from src/index.css; raw hex belongs only in index.css and chart fill props.',
+        },
+      ],
+    },
+  },
 );
