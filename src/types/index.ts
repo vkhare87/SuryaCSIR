@@ -14,6 +14,9 @@ export interface DivisionInfo {
 
 export interface StaffMember {
   ID: string;
+  /** auth.users.id when the roster row is linked to a login (20260725000002).
+   *  Null until HR reconciles an ambiguous or missing email. */
+  user_id: string | null;
   LabCode: string;
   EmployeeType: string;
   Name: string;
@@ -375,7 +378,8 @@ export interface TicketEvent {
   id: string;
   ticket_id: string;
   event_type: TicketEventType;
-  actor_id: string;
+  /** auth.users.id. Null when the system acted (auto-assignment on create). */
+  actor_id: string | null;
   details: Record<string, unknown>;
   created_at: string;
 }

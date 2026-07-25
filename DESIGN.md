@@ -49,6 +49,32 @@
 - **Approach:** Intentional-minimal — unchanged. `framer-motion` page-transition fades already correct; `prefers-reduced-motion` already honored in `src/index.css`.
 - **Easing/duration:** existing values are fine — no changes proposed.
 
+## Implementation status (2026-07-25)
+
+The 2026-07-25 audit found this document describing adopted risks as though
+they had shipped. They mostly had not — R1 and R3 did not exist in the
+codebase at all, and no font was ever loaded, so `--font-sans: 'Inter'` and
+`--font-serif: Georgia-fallback` both silently rendered as `system-ui`. A
+design doc that overstates what shipped is worse than none, because the next
+session reads it as ground truth.
+
+| Risk | Status | Where |
+|------|--------|-------|
+| R1 Fraunces | **Shipped** 2026-07-25 | `index.html` font links, `--font-serif` in `src/index.css` |
+| R2 expanded ink palette | **Shipped** 2026-07-25 | `--color-archive-green`, `--color-turmeric`, `--color-iron-gall`; terracotta demotion is a slow drift-reversal, ongoing |
+| R3 `<StatusSeal>` | **Shipped** 2026-07-25 | `src/components/pms/StatusSeal.tsx`; `pms/StatusBadge` now delegates to it, so all six PMS call sites render seals |
+| R5 sentence-first greeting | Not implemented | — |
+| R6 ledger tables | Partial | `SystemAdminView` only |
+
+Also shipped 2026-07-25: IBM Plex Mono and Tiro Devanagari Sanskrit are now
+actually fetched (both were specified below but never loaded), and the
+design-token lint is enforced as an **error** outside a shrinking allowlist
+(`eslint.design-debt.json`, `scripts/update-design-debt.mjs`) rather than
+1083 warnings nobody could act on.
+
+**Keep this table honest.** If you adopt a risk and do not build it, say so
+here the same day.
+
 ## Adopted Risks (2026-07-18)
 
 These are the deliberate departures from gov-software convention this session approved. Each is additive — existing pages keep working unstyled until touched.

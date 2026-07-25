@@ -225,7 +225,7 @@ export default function CommandPalette({ isOpen, onClose }: { isOpen: boolean; o
 
               {/* --- IP Intelligence --- */}
               {results.ip.length > 0 && (
-                <ResultSection label="IP &amp; Patents">
+                <ResultSection label="IP & Patents">
                   {results.ip.map((i) => (
                     <ResultRow
                       key={i.id}
@@ -242,7 +242,7 @@ export default function CommandPalette({ isOpen, onClose }: { isOpen: boolean; o
 
               {/* --- Equipment --- */}
               {results.equipment.length > 0 && (
-                <ResultSection label="Equipment &amp; Facilities">
+                <ResultSection label="Equipment & Facilities">
                   {results.equipment.map((e) => (
                     <ResultRow
                       key={e.UInsID}
@@ -308,8 +308,7 @@ export default function CommandPalette({ isOpen, onClose }: { isOpen: boolean; o
 function ResultSection({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <h3 className="px-3 py-2 text-[10px] font-bold text-text-muted uppercase tracking-widest"
-          dangerouslySetInnerHTML={{ __html: label }} />
+      <h3 className="px-3 py-2 text-[10px] font-bold text-text-muted uppercase tracking-widest">{label}</h3>
       {children}
     </div>
   );

@@ -26,6 +26,7 @@ export const mapDivisionRow = (row: any): DivisionInfo => {
 export const mapStaffRow = (row: any): StaffMember => {
   return {
     ID: String(row.ID || row.id || ''),
+    user_id: row.user_id ?? null,
     LabCode: row.LabCode || row.lab_code || '',
     EmployeeType: row.EmployeeType || row.employee_type || '',
     Name: row.Name || row.name || '',
@@ -331,7 +332,8 @@ export const mapTicketEventRow = (row: any): TicketEvent => ({
   id: row.id || '',
   ticket_id: row.ticket_id || '',
   event_type: row.event_type || 'StatusChanged',
-  actor_id: row.actor_id || '',
+  // Null is meaningful here (system-generated event), so don't coerce to ''.
+  actor_id: row.actor_id ?? null,
   details: row.details || {},
   created_at: row.created_at || '',
 });

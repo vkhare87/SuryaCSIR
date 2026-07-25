@@ -74,7 +74,9 @@ class SupabaseDB:
             "storage_bucket": "documents", "storage_path": kw["storage_path"],
             "file_name": kw["file_name"], "file_size": kw["file_size"],
             "mime_type": kw["mime_type"], "owner_id": self.owner_id,
-            "division_code": kw["division_code"], "access_tier": "institute",
+            "division_code": kw["division_code"],
+            # Chosen by sink.land_file — never 'institute' for unreviewed input.
+            "access_tier": kw["access_tier"],
             "content_hash": kw["content_hash"],
         }).execute().data
         return rows[0]["id"] if rows else None

@@ -23,14 +23,19 @@ import type { TicketEvent, StaffMember } from '../../types';
 // Helpers
 // ---------------------------------------------------------------------------
 
-function getAuthorName(authorId: string, staff: StaffMember[]): string {
-  const s = staff.find(st => st.ID === authorId);
-  return s?.Name ?? authorId;
+// Ticket actor columns hold an auth.users.id (20260725000002), so resolve
+// through the staff↔auth link rather than staff."ID".
+function findStaff(authorId: string, staff: StaffMember[]): StaffMember | undefined {
+  return staff.find(st => st.user_id === authorId);
+}
+
+function getAuthorName(authorId: string | null, staff: StaffMember[]): string {
+  if (!authorId) return 'the system';
+  return findStaff(authorId, staff)?.Name ?? authorId;
 }
 
 function getAuthorRole(authorId: string, staff: StaffMember[]): string {
-  const s = staff.find(st => st.ID === authorId);
-  return s?.Designation ?? '';
+  return findStaff(authorId, staff)?.Designation ?? '';
 }
 
 function renderEventDetails(event: TicketEvent, staff: StaffMember[]): string {

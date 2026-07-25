@@ -52,3 +52,52 @@ jobs:
           cache-dependency-path: ingest/requirements.txt
       - run: pip install -r requirements.txt pytest
       - run: python -m pytest -v
+
+  # Policy tests. The 2026-07-25 audit found a full privilege-escalation path
+  # (any authenticated user could UPDATE their own user_roles row to
+  # MasterAdmin) that the 588-test vitest suite could never have caught — the
+  # suite covers pure TypeScript and the bug was three lines of SQL. This job
+  # is what converts that class of finding from "discovered by audit" to
+  # "discovered by CI".
+  db:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      # Boots Postgres + GoTrue + Storage, applies supabase/migrations/* in
+      # order, then supabase/seed/* (config.toml [db.seed]). The auth and
+      # storage schemas are why this needs the real stack rather than a bare
+      # postgres service container — the migrations reference auth.users,
+      # auth.uid() and storage.objects throughout.
+      - name: Start local Supabase stack
+        run: supabase start -x realtime,imgproxy,studio,edge-runtime,logflare,vector
+
+      # Fails the job if any migration errored on the way up. `supabase start`
+      # surfaces migration failures, but re-running the reset makes the
+      # failure the step that fails, with the offending file in the log.
+      # Seeding is the default; supabase/config.toml [db.seed] lists the paths.
+      - name: Apply migrations + seed
+        run: supabase db reset
+
+      - name: RLS negative-path tests
+        run: |
+          DB_URL="$(supabase status -o json | jq -r '.DB_URL')"
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/tests/rls_negative.sql
+
+      - name: RLS positive-path tests
+        run: |
+          DB_URL="$(supabase status -o json | jq -r '.DB_URL')"
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/tests/rls_positive.sql
+
+      # Every SECURITY DEFINER function bypasses RLS by definition, so each one
+      # is an authorization boundary. Three helpdesk RPCs shipped with no check
+      # at all while a fourth in the same file had the right one.
+      - name: SECURITY DEFINER authorization guard
+        run: python3 scripts/check_security_definer.py
+
+      - name: Dump stack logs on failure
+        if: failure()
+        run: supabase status || true

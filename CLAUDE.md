@@ -165,6 +165,8 @@ No path aliases. Always relative imports.
 - **Bootstrap data**: run `supabase/seed/*.sql` after the schema — creates helpdesk routing defaults + an OPEN appraisal cycle. First SystemAdmin is created via Dashboard → Authentication → Users, then promoted (see `supabase/ops/README.md`).
 - **Add new migration**: new timestamped file after stage 08. Never edit a shipped baseline file.
 - **RLS is mandatory** on every table. New tables ship with RLS enabled and an explicit policy block.
+- **Every `SECURITY DEFINER` function opens with an authorization block.** No exceptions, and "the UI gates it" is not one — these run as the owner, so RLS does not apply and the function *is* the boundary. Three helpdesk RPCs shipped without one while a fourth in the same file had it right; any authenticated user could drive any ticket and forge the audit actor. Enforced by `scripts/check_security_definer.py` (CI `db` job). A function that genuinely needs no check — a trigger, a caller-identity resolver, or an internal helper with `EXECUTE` revoked — goes in that script's `EXEMPT` map **with a stated reason**.
+- **Client-supplied actor ids are not identity.** If an RPC takes `p_actor_id` / `p_submitted_by` / `p_author_id`, it must assert it equals `auth.uid()::text`.
 - **Auth source of truth**: Supabase Auth. App roles live in `user_roles` (composite PK `(user_id, role)`). Active role + flags live in `user_profiles`.
 - **Auto-register**: on every `auth.users` INSERT, trigger creates `DefaultUser` row in `user_roles` and `user_profiles` row.
 - **HR tables**: quoted CamelCase columns (`"divCode"`, `"StaffName"`) — mirrors Excel.
