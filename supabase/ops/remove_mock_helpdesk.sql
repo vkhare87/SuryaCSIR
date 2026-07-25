@@ -93,27 +93,49 @@ DELETE FROM public.audit_log
 -- ticket_responses and ticket_events are ON DELETE CASCADE (stage 05).
 DELETE FROM public.tickets WHERE id IN (SELECT id FROM _mock_tickets);
 
--- Prove the blocker is gone before committing: this is exactly the check
--- 20260725000004 runs, so a clean result here means the push will proceed.
+-- Prove the blocker is gone before committing.
+--
+-- This must mirror what 20260725000004 ACTUALLY does, not just its guard.
+-- The migration nulls the 'system' sentinel in step 1, *before* the guard in
+-- step 2 — so 'system' never reaches the check and must be excluded here too.
+-- An earlier version of this block omitted that and failed on a value the
+-- migration handles perfectly well, rolling back a correct cleanup.
 DO $$
-DECLARE v_bad int;
+DECLARE
+    v_bad     int;
+    v_details text;
 BEGIN
-    SELECT (SELECT count(*) FROM public.tickets
-             WHERE submitted_by !~* '^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$')
-         + (SELECT count(*) FROM public.tickets
-             WHERE assigned_to IS NOT NULL
-               AND assigned_to !~* '^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$')
-         + (SELECT count(*) FROM public.ticket_responses
-             WHERE author_id !~* '^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$')
-         + (SELECT count(*) FROM public.ticket_events
-             WHERE actor_id IS NOT NULL
-               AND actor_id !~* '^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$')
-      INTO v_bad;
+    WITH offenders AS (
+        SELECT 'tickets.submitted_by' AS col, submitted_by AS val
+          FROM public.tickets
+         WHERE submitted_by !~* '^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$'
+        UNION ALL
+        SELECT 'tickets.assigned_to', assigned_to
+          FROM public.tickets
+         WHERE assigned_to IS NOT NULL
+           AND assigned_to !~* '^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$'
+        UNION ALL
+        SELECT 'ticket_responses.author_id', author_id
+          FROM public.ticket_responses
+         WHERE author_id !~* '^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$'
+        UNION ALL
+        SELECT 'ticket_events.actor_id', actor_id
+          FROM public.ticket_events
+         WHERE actor_id IS NOT NULL
+           -- Excluded: 20260725000004 nulls this before its own guard runs.
+           AND actor_id <> 'system'
+           AND actor_id !~* '^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$'
+    )
+    SELECT count(*), string_agg(DISTINCT format('%s = %L', col, val), E'\n  ')
+      INTO v_bad, v_details
+      FROM offenders;
 
     IF v_bad > 0 THEN
-        RAISE EXCEPTION 'still % non-uuid actor value(s) after cleanup — 20260725000004 would abort again. Rolling back so you can inspect.', v_bad;
+        -- Name the values. Counting alone made the previous failure a guess.
+        RAISE EXCEPTION E'still % non-uuid actor value(s) after cleanup:\n  %\n20260725000004 would abort again. Rolling back so you can inspect.',
+            v_bad, v_details;
     END IF;
-    RAISE NOTICE 'clean: no non-uuid actor values remain. 20260725000004 will apply.';
+    RAISE NOTICE 'clean: no blocking actor values remain. 20260725000004 will apply.';
 END $$;
 
 COMMIT;
