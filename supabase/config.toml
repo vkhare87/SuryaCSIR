@@ -52,12 +52,24 @@ port = 54323
 # local mail-catcher is enabled by default anyway. Configuring it bought
 # nothing and only earned a deprecation warning.
 
-# No [storage] block. `config push` sends vector-bucket fields as part of the
-# storage payload, which is a paid-tier feature — pushing it against a free
-# project fails with `402: Please upgrade the project to a paid tier to enable
-# vector buckets`. Nothing here needed non-default storage settings anyway:
-# the buckets and their RLS come from migrations, not from this file. Answer
-# `No` if `config push` still offers to push storage config.
+[storage]
+enabled = true
+
+# Vector buckets are a PAID-TIER feature and the CLI defaults this to true.
+# Omitting the block does not avoid it — with no block the CLI still resolves
+# `enabled = true`, diffs it against the remote's `false`, and `config push`
+# dies with:
+#
+#   unexpected status 402: Please upgrade the project to a paid tier to
+#   enable vector buckets
+#
+# Stating `false` matches what SuryaCC (free tier) actually reports, so the
+# storage section reads "up to date" and stops blocking the auth push. Flip
+# to true only if the project is upgraded AND something here needs vector
+# buckets — nothing does; the RAG corpus indexes into `doc_indexes`, a normal
+# Postgres table (20260712000008_rag_documents.sql).
+[storage.vector]
+enabled = false
 
 [auth]
 enabled = true
