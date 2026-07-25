@@ -124,6 +124,22 @@ Order matters because of FKs: `divisions` → `staff` → `projects` → … See
 every role to a single dev account for role-switcher testing — edit the email
 inside before running. `15_proposals.sql` seeds demo proposal rows.
 
+## Demo data that reached production
+
+`mock/` is dev-only, but `mock/10_helpdesk_tickets.sql` was loaded into the
+live project at some point — 20 fake tickets, including HRGrievance ones,
+visible in a real helpdesk and attributed to staff IDs with no login.
+
+`ops/remove_mock_helpdesk.sql` removes exactly those 20 (and their responses,
+events and audit_log rows), double-gated on the known tokens **and** on the
+actor not being uuid-shaped, so it cannot touch a genuine ticket. It verifies
+the result before committing and rolls back if anything unexpected remains.
+
+This surfaced because `20260725000004` refuses to convert actor columns to
+`uuid` while non-uuid values remain. Worth checking whether other `mock/`
+files also reached prod — the helpdesk fixture is unlikely to have been the
+only one.
+
 ## Wipe + reseed cycle (dev only)
 
 ```sh
