@@ -43,7 +43,12 @@ WITH unique_staff AS (
      GROUP BY lower("Email")
     HAVING count(*) = 1
 ), unique_accounts AS (
-    SELECT lower(email) AS email, min(user_id) AS user_id
+    -- (array_agg(...))[1], not min(): user_id is uuid and Postgres has no
+    -- min(uuid) aggregate. HAVING count(*) = 1 means the group holds exactly
+    -- one row, so picking the first element is the whole set. Same idiom as
+    -- 20260718000005_admin_list_users.sql. (min("ID") above is fine —
+    -- staff."ID" is text.)
+    SELECT lower(email) AS email, (array_agg(user_id))[1] AS user_id
       FROM public.user_profiles
      WHERE email IS NOT NULL AND length(trim(email)) > 0
      GROUP BY lower(email)
