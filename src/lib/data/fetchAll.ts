@@ -2,8 +2,9 @@
  * Paged table reads.
  *
  * `DataContext` issued 28 unbounded `select('*')` calls. PostgREST caps every
- * response at `db-max-rows` (5000 here, see supabase/config.toml) and reports
- * a cap by returning fewer rows — no error, no flag. Every downstream
+ * response at `db-max-rows` (1000 — Supabase's default, stated explicitly in
+ * supabase/config.toml) and reports a cap by returning fewer rows — no error,
+ * no flag. Every downstream
  * `useMemo` then aggregated a silently truncated set, so the institute's
  * analytics would start quietly under-reporting the moment any table crossed
  * the cap. Nothing in the app would have noticed.

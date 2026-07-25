@@ -20,11 +20,14 @@ enabled = true
 port = 54321
 schemas = ["public", "graphql_public"]
 extra_search_path = ["public", "extensions"]
-# PostgREST row cap. Explicit because DataContext issues 28 unbounded
-# select('*') calls and silent truncation would corrupt analytics with no
-# error (see docs/ARCHITECTURE-REMEDIATION.md, A2). Raise deliberately, or
-# better, shrink the queries.
-max_rows = 5000
+# PostgREST row cap. Stated explicitly because DataContext's reads are paged
+# against it: src/lib/data/fetchAll.ts uses PAGE_SIZE = 1000, and a page size
+# above this cap would make a capped response indistinguishable from a final
+# short one, so paging would stop early — the exact silent-truncation bug
+# fetchAll exists to prevent (A2). 1000 is also Supabase's own default, so
+# `config push` is a no-op here rather than a quiet production change.
+# If you raise it, raise PAGE_SIZE with it, never past it.
+max_rows = 1000
 
 [db]
 port = 54322
@@ -49,9 +52,12 @@ port = 54323
 # local mail-catcher is enabled by default anyway. Configuring it bought
 # nothing and only earned a deprecation warning.
 
-[storage]
-enabled = true
-file_size_limit = "50MiB"
+# No [storage] block. `config push` sends vector-bucket fields as part of the
+# storage payload, which is a paid-tier feature — pushing it against a free
+# project fails with `402: Please upgrade the project to a paid tier to enable
+# vector buckets`. Nothing here needed non-default storage settings anyway:
+# the buckets and their RLS come from migrations, not from this file. Answer
+# `No` if `config push` still offers to push storage config.
 
 [auth]
 enabled = true
