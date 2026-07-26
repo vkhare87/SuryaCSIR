@@ -1,5 +1,14 @@
 -- ═══════════════════════════════════════════════════════════════════════
--- 20260726000002_relock_rpc_execute
+-- 20260726000005_relock_rpc_execute
+-- Numbered after 20260726000004 deliberately: 000003 and 000004 were already
+-- applied to the remote from security/audit-remediation-2026-07-25 before
+-- this file existed, and pushing an older version out of order is how a
+-- migration silently gets skipped.
+--
+-- 20260726000004_baseline_grants fixed the *table* privileges and states
+-- that anon is granted nothing. It does not revoke function EXECUTE, which
+-- is a separate privilege and the one at issue here.
+--
 -- 20260718000007 locked every public function to authenticated +
 -- service_role and set ALTER DEFAULT PRIVILEGES FOR ROLE postgres so future
 -- functions would inherit it. That default only applies to objects created
