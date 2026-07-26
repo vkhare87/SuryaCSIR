@@ -26,6 +26,21 @@ describe('pmsTrack', () => {
     }
   });
 
+  // CSIR-AMPRI staff records carry descriptive titles, not grade letters — as
+  // of 2026-07-26 the staff table held no "Scientist <letter>" row at all.
+  // These are the designations actually present, so all 13 Scientist-role
+  // holders reach the portal rather than only the 4 Chief Scientists.
+  it('routes the CSIR-AMPRI title vocabulary, not just grade letters', () => {
+    expect(pmsTrack('Scientist', 'Scientist')).toBe('STANDARD');
+    expect(pmsTrack('Scientist', 'Senior Scientist')).toBe('STANDARD');
+    expect(pmsTrack('Scientist', 'Principal Scientist')).toBe('STANDARD');
+    expect(pmsTrack('Scientist', 'Chief Scientist')).toBe('ANNEXURE_I');
+    // Non-scientific staff stay out.
+    expect(pmsTrack('Technician', 'Technical Officer')).toBeNull();
+    expect(pmsTrack('Technician', 'Section Officer')).toBeNull();
+    expect(pmsTrack('Technician', 'Assistant Section Officer')).toBeNull();
+  });
+
   it('routes Scientist G and the senior designations to Annexure-I', () => {
     expect(pmsTrack('Scientist', 'Scientist G')).toBe('ANNEXURE_I');
     expect(pmsTrack('Scientist', 'Chief Scientist')).toBe('ANNEXURE_I');
@@ -43,6 +58,7 @@ describe('pmsTrack', () => {
     expect(pmsTrack('Technician', 'Technician')).toBeNull();
     expect(pmsTrack('Scientist', 'Technical Officer')).toBeNull();
     expect(pmsTrack('Scientist', 'Scientist A')).toBeNull();
+    expect(pmsTrack('Scientist', '')).toBeNull();
   });
 });
 

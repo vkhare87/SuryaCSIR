@@ -1,6 +1,6 @@
 import type { Role, UserAccount } from '../../types';
 import type { CommitteeTier, PmsTrack, PMSEvaluationCommitteeMember, PMSReport } from '../../types/pms';
-import { COMMITTEE_TIERS, ELIGIBLE_SCIENTIST_GRADES, SENIOR_DESIGNATIONS } from './constants';
+import { COMMITTEE_TIERS, ELIGIBLE_SCIENTIST_GRADES, SENIOR_DESIGNATIONS, STANDARD_DESIGNATIONS } from './constants';
 
 export function canEditReport(user: UserAccount, report: PMSReport): boolean {
   return report.scientistId === user.id && report.status === 'DRAFT';
@@ -48,7 +48,11 @@ export function scientistGrade(designation: string): string | null {
 export function pmsTrack(activeRole: Role, designation: string): PmsTrack | null {
   if (activeRole === 'Director') return 'ANNEXURE_II';
   const trimmed = designation.trim();
-  if (SENIOR_DESIGNATIONS.some(d => d.toLowerCase() === trimmed.toLowerCase())) return 'ANNEXURE_I';
+  const matches = (list: string[]) => list.some(d => d.toLowerCase() === trimmed.toLowerCase());
+
+  if (matches(SENIOR_DESIGNATIONS)) return 'ANNEXURE_I';
+  if (matches(STANDARD_DESIGNATIONS)) return 'STANDARD';
+
   const grade = scientistGrade(trimmed);
   if (grade === 'G') return 'ANNEXURE_I';
   if (grade !== null && ELIGIBLE_SCIENTIST_GRADES.includes(grade)) return 'STANDARD';

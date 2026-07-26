@@ -138,11 +138,23 @@ export const COMMITTEE_TIERS: Record<CommitteeTier, string[]> = {
 
 export const ELIGIBLE_SCIENTIST_GRADES = ['B', 'C', 'D', 'E', 'F'];
 
-/** Annexure-I designations that do not parse as "Scientist <letter>". */
+// CSIR guidelines are written in grade letters (Scientist B–G), but CSIR-AMPRI
+// staff records carry the equivalent descriptive titles instead — as of
+// 2026-07-26 the staff table holds no "Scientist <letter>" row at all. Both
+// vocabularies are matched so either spelling resolves.
+
+/** Annexure-I designations — the Scientist G tier. */
 export const SENIOR_DESIGNATIONS = [
   'Chief Scientist',
   'Outstanding Scientist',
   'Distinguished Scientist',
+];
+
+/** Standard-track titles, i.e. everything below Chief Scientist. */
+export const STANDARD_DESIGNATIONS = [
+  'Scientist',
+  'Senior Scientist',
+  'Principal Scientist',
 ];
 
 // Workflow milestones on financial-year cycles (month is 1-based).
