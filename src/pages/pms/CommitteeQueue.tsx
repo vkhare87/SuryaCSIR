@@ -29,7 +29,7 @@ const STATUS_LABEL: Record<ReportStatus, string> = {
 
 export default function CommitteeQueue() {
   const { user } = useAuth();
-  const { reports, isLoading, getReportEvaluations, getReport, finalizeReport } = usePMS();
+  const { reports, isLoading, getReportEvaluations, getReport, finalizeReport, finalizeSeniorReport } = usePMS();
 
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
   const [reportEvaluations, setReportEvaluations] = useState<PMSEvaluation[]>([]);
@@ -61,7 +61,12 @@ export default function CommitteeQueue() {
     );
   }
 
-  const committeeReports = reports.filter(r => r.status === 'EMPOWERED_COMMITTEE_REVIEW');
+  // Annexure-II is evaluated by the DG outside SURYA — the committee records
+  // the returned Appendix-C outcome straight from SUBMITTED.
+  const committeeReports = reports.filter(r =>
+    r.status === 'EMPOWERED_COMMITTEE_REVIEW'
+    || (r.track === 'ANNEXURE_II' && r.status === 'SUBMITTED')
+  );
 
   const openModal = async (reportId: string) => {
     setSelectedReportId(reportId);
@@ -87,6 +92,9 @@ export default function CommitteeQueue() {
     }
   };
 
+  const selectedReport = reports.find(r => r.id === selectedReportId);
+  const isSenior = selectedReport != null && selectedReport.track !== 'STANDARD';
+
   const parsedScore = finalScore === '' ? null : parseInt(finalScore, 10);
   const needsOutstanding = parsedScore != null && !isNaN(parsedScore) && requiresOutstandingReasons(parsedScore);
   const needsBelow = parsedScore != null && !isNaN(parsedScore) && requiresBelowThresholdReasons(parsedScore);
@@ -94,6 +102,23 @@ export default function CommitteeQueue() {
 
   const handleFinalize = async () => {
     if (!selectedReportId) return;
+    if (isSenior) {
+      if (justLen < 50) {
+        setError('Review remarks must be at least 50 characters.');
+        return;
+      }
+      setSaving(true);
+      setError(null);
+      try {
+        await finalizeSeniorReport(selectedReportId, justification);
+        setSelectedReportId(null);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Finalization failed');
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
     if (parsedScore == null || !isValidScore(parsedScore)) {
       setError(`Score must be a whole number between ${SCORE_RANGE.min} and ${SCORE_RANGE.max}.`);
       return;
@@ -127,8 +152,6 @@ export default function CommitteeQueue() {
       setSaving(false);
     }
   };
-
-  const selectedReport = reports.find(r => r.id === selectedReportId);
 
   return (
     <div className="space-y-6">
@@ -210,6 +233,8 @@ export default function CommitteeQueue() {
                 <EvidencePanel report={reportDetail} sections={reportDetail.sections} />
               )}
 
+              {!isSenior && (
+               <>
               {/* Final score */}
               <div>
                 <label className="block text-sm font-medium text-text mb-1">
@@ -274,11 +299,14 @@ export default function CommitteeQueue() {
                   </div>
                 </>
               )}
+               </>
+              )}
 
               {/* Justification */}
               <div>
                 <label className="block text-sm font-medium text-text mb-1">
-                  Justification <span className="text-text-muted font-normal">(min 50 characters)</span>
+                  {isSenior ? 'Review remarks' : 'Justification'}{' '}
+                  <span className="text-text-muted font-normal">(min 50 characters)</span>
                 </label>
                 <textarea
                   rows={4}

@@ -5,6 +5,7 @@ import type {
   PMSEvaluationCommittee, PMSEvaluationCommitteeMember,
   PMSEmpoweredCommitteeMember, PMSGrievanceMember,
   PMSEvaluation, PMSCommitteeDecision, PMSAWPActivity, PMSRepresentation, PMSNotification,
+  PenPicture,
 } from '../types/pms';
 import { supabase, isProvisioned } from '../utils/supabaseClient';
 import { useAuth } from './AuthContext';
@@ -113,9 +114,11 @@ interface PMSContextType {
   assignEvaluators: (reportId: string, committeeId: string) => Promise<void>;
   saveEvaluationScores: (evaluationId: string, payload: EvaluationPayload) => Promise<void>;
   completeEvaluation: (evaluationId: string, payload: EvaluationPayload) => Promise<void>;
+  savePenPicture: (evaluationId: string, penPicture: PenPicture, complete: boolean) => Promise<void>;
   getReportEvaluations: (reportId: string) => Promise<PMSEvaluation[]>;
   getCommitteeDecision: (reportId: string) => Promise<PMSCommitteeDecision | null>;
   finalizeReport: (reportId: string, decision: FinalDecisionPayload) => Promise<void>;
+  finalizeSeniorReport: (reportId: string, remarks: string) => Promise<void>;
 
   // Representation / grievance
   submitRepresentation: (reportId: string, grounds: string) => Promise<void>;
@@ -542,6 +545,27 @@ export function PMSProvider({ children }: { children: ReactNode }) {
     await loadData();
   }
 
+  // Senior tracks (Annexure-I / II) have no 0–100 score: Appendix-C is a
+  // categorical pen picture plus a ~100 word narrative. scores/total_score are
+  // left at their defaults so the standard-track scoring rules never see them.
+  async function savePenPicture(evaluationId: string, penPicture: PenPicture, complete: boolean): Promise<void> {
+    if (!supabase) throw new Error('Supabase not provisioned');
+    ensureUser(user);
+    if (complete && !penPicture.narrative.trim()) {
+      throw new Error('An evaluation report is required before submitting the appraisal');
+    }
+    const { error: err } = await supabase
+      .from('pms_evaluations')
+      .update({
+        pen_picture: penPicture,
+        comments: penPicture.narrative,
+        status: complete ? 'COMPLETED' : 'IN_PROGRESS',
+      })
+      .eq('id', evaluationId);
+    if (err) throw err;
+    await loadData();
+  }
+
   async function getReportEvaluations(reportId: string): Promise<PMSEvaluation[]> {
     if (!supabase) return [];
     const { data, error: err } = await supabase
@@ -601,6 +625,20 @@ export function PMSProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  async function finalizeSeniorReport(reportId: string, remarks: string): Promise<void> {
+    if (!supabase) throw new Error('Supabase not provisioned');
+    ensureUser(user);
+    if (remarks.trim().length < 50) {
+      throw new Error('Review remarks must be at least 50 characters');
+    }
+    const { error: err } = await supabase.rpc('pms_finalize_senior_report', {
+      p_report_id: reportId,
+      p_remarks: remarks,
+    });
+    if (err) throw err;
+    await loadData();
+  }
+
   // --- Representation / grievance ---
 
   async function submitRepresentation(reportId: string, grounds: string): Promise<void> {
@@ -655,9 +693,9 @@ export function PMSProvider({ children }: { children: ReactNode }) {
       uploadSignature, uploadAnnexure, deleteAnnexure,
       submitReport, getSignedUrl,
       setDutyDays, markNotAssessed, recordNonSubmission,
-      assignEvaluators, saveEvaluationScores, completeEvaluation,
+      assignEvaluators, saveEvaluationScores, completeEvaluation, savePenPicture,
       getReportEvaluations,
-      getCommitteeDecision, finalizeReport,
+      getCommitteeDecision, finalizeReport, finalizeSeniorReport,
       submitRepresentation, resolveRepresentation,
       markNotificationRead,
       refreshData: loadData,
