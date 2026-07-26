@@ -295,9 +295,11 @@ BEGIN
     -- Keyed to DUPA specifically. The sync_staff_key trigger leaves
     -- pi_staff_id NULL here (the name is ambiguous), so set it explicitly —
     -- that is exactly the state HR reconciliation produces.
-    INSERT INTO public.projects ("ProjectNo", "ProjectName", "PrincipalInvestigator",
-                                 "DivisionCode", pi_staff_id)
-    VALUES ('T13-PRJ', 'Confidential budget', 'R. Kumar', 'TSTD', 'DUPA');
+    -- "ProjectID" is the primary key, not "ProjectNo" — omitting it is a
+    -- not-null violation, not a defaulted column.
+    INSERT INTO public.projects ("ProjectID", "ProjectNo", "ProjectName",
+                                 "PrincipalInvestigator", "DivisionCode", pi_staff_id)
+    VALUES ('T13-PID', 'T13-PRJ', 'Confidential budget', 'R. Kumar', 'TSTD', 'DUPA');
 
     CALL pg_temp.become('33333333-3333-3333-3333-333333333333', 'kumar.b@test.local');
     SELECT count(*) INTO v_count FROM public.projects WHERE "ProjectNo" = 'T13-PRJ';

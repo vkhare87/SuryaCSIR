@@ -282,9 +282,10 @@ END $$;
 DO $$
 DECLARE v_count int;
 BEGIN
-    INSERT INTO public.projects ("ProjectNo", "ProjectName", "PrincipalInvestigator",
-                                 "DivisionCode")
-    VALUES ('P14-PRJ', 'My own project', 'Test Submitter', 'CMPD');
+    -- "ProjectID" is the primary key, not "ProjectNo".
+    INSERT INTO public.projects ("ProjectID", "ProjectNo", "ProjectName",
+                                 "PrincipalInvestigator", "DivisionCode")
+    VALUES ('P14-PID', 'P14-PRJ', 'My own project', 'Test Submitter', 'CMPD');
 
     CALL pg_temp.become('aaaaaaaa-0000-0000-0000-000000000001', 'submitter@test.local');
     SELECT count(*) INTO v_count FROM public.projects WHERE "ProjectNo" = 'P14-PRJ';
