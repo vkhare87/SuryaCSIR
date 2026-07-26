@@ -347,6 +347,39 @@ BEGIN
     END IF;
 END $$;
 
+-- ── P18 — the flag DOES clear once the password actually changes ───────
+-- The counterweight to T15, which is satisfiable by refusing every caller —
+-- and that would lock anyone flagged for rotation out permanently.
+DO $$
+DECLARE v_flag boolean;
+BEGIN
+    -- Give the account a password and flag it, recording the baseline the
+    -- same way admin_force_password_reset does.
+    UPDATE auth.users SET encrypted_password = 'hash-before'
+     WHERE id = 'aaaaaaaa-0000-0000-0000-000000000001';
+
+    UPDATE public.user_profiles up
+       SET must_change_password = true,
+           password_fingerprint = encode(digest(u.encrypted_password, 'sha256'), 'hex')
+      FROM auth.users u
+     WHERE u.id = up.user_id
+       AND up.user_id = 'aaaaaaaa-0000-0000-0000-000000000001';
+
+    -- Stand in for supabase.auth.updateUser() succeeding.
+    UPDATE auth.users SET encrypted_password = 'hash-after'
+     WHERE id = 'aaaaaaaa-0000-0000-0000-000000000001';
+
+    CALL pg_temp.become('aaaaaaaa-0000-0000-0000-000000000001', 'submitter@test.local');
+    PERFORM public.clear_must_change_password();
+    RESET ROLE;
+
+    SELECT must_change_password INTO v_flag FROM public.user_profiles
+     WHERE user_id = 'aaaaaaaa-0000-0000-0000-000000000001';
+    IF v_flag IS NOT FALSE THEN
+        RAISE EXCEPTION 'P18 FAILED: flag did not clear after a real password change';
+    END IF;
+END $$;
+
 DO $$ BEGIN RAISE NOTICE 'ALL RLS POSITIVE TESTS PASSED'; END $$;
 
 ROLLBACK;

@@ -105,18 +105,33 @@ RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, extensi
 DECLARE
     v_current text;
     v_stored  text;
+    v_flag    boolean;
 BEGIN
     IF auth.uid() IS NULL THEN RAISE EXCEPTION 'not authenticated'; END IF;
 
     SELECT encode(digest(u.encrypted_password, 'sha256'), 'hex')
       INTO v_current FROM auth.users u WHERE u.id = auth.uid();
 
-    SELECT password_fingerprint
-      INTO v_stored FROM public.user_profiles WHERE user_id = auth.uid();
+    SELECT must_change_password, password_fingerprint
+      INTO v_flag, v_stored
+      FROM public.user_profiles WHERE user_id = auth.uid();
+
+    -- Not awaiting rotation: nothing to do, and no reason to complain.
+    IF v_flag IS NOT TRUE THEN
+        RETURN;
+    END IF;
 
     -- Unchanged hash ⇒ supabase.auth.updateUser() never succeeded ⇒ the
     -- caller is trying to skip the rotation, not report finishing it.
-    IF v_stored IS NOT NULL AND v_current IS NOT DISTINCT FROM v_stored THEN
+    --
+    -- IS NOT DISTINCT FROM, and no `v_stored IS NOT NULL` guard: an account
+    -- with no encrypted_password (OAuth/magic-link only) digests to NULL on
+    -- both sides, and the earlier version treated that as "cannot verify, so
+    -- allow" — fail-open on exactly the accounts that cannot prove anything.
+    -- Both-NULL now compares equal and is refused. A passwordless account
+    -- that is genuinely flagged has to set a password first, which is the
+    -- point of the flag.
+    IF v_current IS NOT DISTINCT FROM v_stored THEN
         RAISE EXCEPTION 'password has not been changed yet';
     END IF;
 
