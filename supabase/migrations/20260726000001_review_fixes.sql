@@ -46,12 +46,17 @@ BEGIN
         RAISE EXCEPTION 'Ticket not found';
     END IF;
 
-    IF NOT (
+    -- COALESCE is load-bearing. assigned_to is nullable, so on an unassigned
+    -- ticket `v_assigned_to = auth.uid()` is NULL, the whole OR-chain
+    -- collapses to NULL, `NOT NULL` is NULL, and `IF NULL THEN` does not
+    -- execute — the guard reads correctly and lets everyone through. Caught
+    -- by T14 on the first CI run that reached it.
+    IF NOT COALESCE(
         v_submitted_by = auth.uid()
         OR v_assigned_to = auth.uid()
         OR public.caller_is_admin()
         OR public.caller_has_role('Director')
-    ) THEN
+    , false) THEN
         RAISE EXCEPTION 'not authorized to respond to this ticket';
     END IF;
 
