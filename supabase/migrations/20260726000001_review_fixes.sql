@@ -91,8 +91,12 @@ UPDATE public.user_profiles up
    AND up.must_change_password
    AND up.password_fingerprint IS NULL;
 
+-- search_path must include `extensions`: Supabase installs pgcrypto there,
+-- not in public, so a body pinned to `public` alone cannot resolve digest().
+-- The backfill above works because a migration runs with the default
+-- search_path — only the pinned function bodies need it spelled out.
 CREATE OR REPLACE FUNCTION public.clear_must_change_password()
-RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, extensions AS $$
 DECLARE
     v_current text;
     v_stored  text;
@@ -121,7 +125,7 @@ $$;
 -- Raising the flag must record the baseline, or the check above has nothing
 -- to compare and falls open.
 CREATE OR REPLACE FUNCTION public.admin_force_password_reset(p_user_id uuid)
-RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, extensions AS $$
 BEGIN
     IF NOT (public.user_has_role('SystemAdmin') OR public.user_has_role('MasterAdmin')) THEN
         RAISE EXCEPTION 'not authorized';
@@ -145,7 +149,7 @@ $$;
 
 -- Same for accounts created by the auth trigger, which ship flagged.
 CREATE OR REPLACE FUNCTION public.handle_new_auth_user()
-RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, extensions AS $$
 BEGIN
     INSERT INTO public.user_roles (user_id, role, must_change_password)
     VALUES (NEW.id, 'DefaultUser', true)

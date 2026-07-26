@@ -31,6 +31,21 @@ export default tseslint.config(
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
+  // Repo tooling runs under Node, not the browser. `npm run lint` is
+  // `eslint .`, so these are linted too — the globals block above only
+  // covers **/*.{ts,tsx} and left `process`/`console` undefined here.
+  {
+    files: ['scripts/**/*.{js,mjs,cjs}', '*.config.{js,mjs,cjs}'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'module',
+      globals: {
+        console: 'readonly',
+        process: 'readonly',
+        URL: 'readonly',
+      },
+    },
+  },
   {
     files: ['**/*.{ts,tsx}'],
     languageOptions: {
