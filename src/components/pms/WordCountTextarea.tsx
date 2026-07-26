@@ -8,19 +8,21 @@ interface Props {
   placeholder?: string;
   className?: string;
   rows?: number;
+  id?: string;
 }
 
 function countWords(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length;
 }
 
-export function WordCountTextarea({ value, onChange, maxWords, placeholder, className, rows = 5 }: Props) {
+export function WordCountTextarea({ value, onChange, maxWords, placeholder, className, rows = 5, id }: Props) {
   const count = useMemo(() => countWords(value), [value]);
   const over = count > maxWords;
 
   return (
     <div className="space-y-1">
       <textarea
+        id={id}
         rows={rows}
         value={value}
         onChange={e => onChange(e.target.value)}

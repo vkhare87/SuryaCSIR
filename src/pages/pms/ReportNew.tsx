@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { usePMS } from '../../contexts/PMSContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
-import { isEligibleAppraisee } from '../../lib/pms/permissions';
+import { pmsTrack } from '../../lib/pms/permissions';
 import { isPastSelfAppraisalDeadline } from '../../lib/pms/deadlines';
 import { Button } from '../../components/ui/Button';
 
@@ -22,9 +22,12 @@ export default function ReportNew() {
       navigate('/pms', { replace: true });
       return;
     }
-    // 2026 guidelines: appraisees up to Scientist F only
-    if (ownStaff && !isEligibleAppraisee(ownStaff.Designation)) {
-      setBlocked(`PMS appraisal covers Scientists B through F only. Your designation on record is "${ownStaff.Designation}".`);
+    // Scientists B–F use the 2026 proforma; Scientist G / senior designations
+    // use Annexure-I and the Director uses Annexure-II. The DB derives the
+    // track itself on insert — this is the client-side "are you an appraisee"
+    // gate only.
+    if (ownStaff && user && pmsTrack(user.activeRole, ownStaff.Designation) === null) {
+      setBlocked(`PMS appraisal is not open to your designation on record ("${ownStaff.Designation}"). Contact administration if this is wrong.`);
       return;
     }
     if (isPastSelfAppraisalDeadline(openCycle)) {

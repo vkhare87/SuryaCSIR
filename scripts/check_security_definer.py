@@ -41,6 +41,7 @@ AUTHZ_MARKERS = (
     "pms_is_admin",
     "pms_is_evaluation_committee_member",
     "pms_is_grievance_member",
+    "pms_caller_track",
     "proposals_caller_",
 )
 

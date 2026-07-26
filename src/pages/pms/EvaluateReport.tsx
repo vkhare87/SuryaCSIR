@@ -3,18 +3,20 @@ import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import { usePMS } from '../../contexts/PMSContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { EVALUATION_DIMENSIONS, SCORE_RANGE } from '../../lib/pms/constants';
+import { PEN_PICTURE_SPECS } from '../../lib/pms/annexureSpecs';
 import { getGrade, requiresBelowThresholdReasons, requiresOutstandingReasons } from '../../lib/pms/scoring';
 import { Button } from '../../components/ui/Button';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { EvidencePanel } from '../../components/pms/EvidencePanel';
-import type { PMSReportSection, PMSAnnexure, PMSReport } from '../../types/pms';
+import { PenPictureForm } from '../../components/pms/PenPictureForm';
+import type { PenPicture, PMSReportSection, PMSAnnexure, PMSReport } from '../../types/pms';
 
 type ReportDetail = PMSReport & { sections: PMSReportSection[]; annexures: PMSAnnexure[] };
 
 export default function EvaluateReport() {
   const { evaluationId } = useParams<{ evaluationId: string }>();
   const { user } = useAuth();
-  const { evaluations, reports, saveEvaluationScores, completeEvaluation, getReport } = usePMS();
+  const { evaluations, reports, saveEvaluationScores, completeEvaluation, savePenPicture, getReport } = usePMS();
   const navigate = useNavigate();
 
   const evaluation = evaluations.find(e => e.id === evaluationId);
@@ -26,6 +28,7 @@ export default function EvaluateReport() {
   const [reasonsOutstanding, setReasonsOutstanding] = useState('');
   const [reasonsBelow, setReasonsBelow] = useState('');
   const [suggestions, setSuggestions] = useState('');
+  const [penPicture, setPenPicture] = useState<PenPicture>({ ratings: {}, narrative: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reportDetail, setReportDetail] = useState<ReportDetail | null>(null);
@@ -39,6 +42,7 @@ export default function EvaluateReport() {
       setReasonsOutstanding(evaluation.reasonsForOutstanding ?? '');
       setReasonsBelow(evaluation.reasonsBelowThreshold ?? '');
       setSuggestions(evaluation.suggestionsForImprovement ?? '');
+      setPenPicture(evaluation.penPicture ?? { ratings: {}, narrative: '' });
     }
   }, [evaluation]);
 
@@ -90,7 +94,30 @@ export default function EvaluateReport() {
   const summaryReport = reportDetail ?? report;
   const nonSubmission = Boolean(summaryReport?.nonSubmissionCertificatePath);
 
+  const track = summaryReport?.track ?? 'STANDARD';
+  const isSenior = track !== 'STANDARD';
+  const penGroups = isSenior ? PEN_PICTURE_SPECS[track as 'ANNEXURE_I' | 'ANNEXURE_II'] : [];
+  const penComplete = penGroups.every(g => g.rows.every(r => penPicture.ratings[r.key]))
+    && penPicture.narrative.trim().length > 0;
+
   const handleSave = async (complete: boolean) => {
+    if (isSenior) {
+      if (complete && !penComplete) {
+        setError('Rate every row of the pen picture and record the evaluation report before submitting.');
+        return;
+      }
+      setSaving(true);
+      setError(null);
+      try {
+        await savePenPicture(evaluation.id, penPicture, complete);
+        navigate('/pms/evaluate');
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Save failed');
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
     if (complete && effectiveTotal == null) {
       setError(nonSubmission
         ? 'Enter a total score (a zero score is permitted for non-submission).'
@@ -177,6 +204,15 @@ export default function EvaluateReport() {
         <EvidencePanel report={reportDetail} sections={reportDetail.sections} />
       )}
 
+      {isSenior ? (
+        <PenPictureForm
+          groups={penGroups}
+          value={penPicture}
+          onChange={setPenPicture}
+          disabled={isCompleted}
+        />
+      ) : (
+       <>
       {/* 12-dimension score grid (worksheet) */}
       <div className="space-y-3">
         <h2 className="font-semibold text-text">
@@ -284,6 +320,8 @@ export default function EvaluateReport() {
           </div>
         </>
       )}
+       </>
+      )}
 
       {/* Comments */}
       <div>
@@ -315,7 +353,7 @@ export default function EvaluateReport() {
           <Button
             onClick={() => handleSave(true)}
             isLoading={saving}
-            disabled={effectiveTotal == null}
+            disabled={isSenior ? !penComplete : effectiveTotal == null}
           >
             Submit Appraisal
           </Button>

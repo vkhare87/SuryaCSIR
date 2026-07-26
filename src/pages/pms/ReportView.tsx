@@ -92,13 +92,19 @@ export default function ReportView() {
   if (!report) return null;
 
   const canRepresent = user?.id === report.scientistId && representationWindowOpen(report);
+  const isSenior = report.track !== 'STANDARD';
+  const heading = report.track === 'ANNEXURE_II'
+    ? 'Performance Mapping Proforma — Director'
+    : report.track === 'ANNEXURE_I'
+      ? 'Performance Mapping Proforma — Chief Scientist / OS / DS'
+      : (report.cycle?.name ?? 'Appraisal Report');
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="sm" onClick={() => navigate('/pms')}>← Back</Button>
         <h1 className="text-2xl font-serif font-medium text-text flex-1">
-          {report.cycle?.name ?? 'Appraisal Report'}
+          {heading}
         </h1>
         <StatusBadge status={report.status} />
         <Button variant="secondary" size="sm" onClick={handleExportPDF} isLoading={exportLoading}>
@@ -122,12 +128,14 @@ export default function ReportView() {
                 : '—'}
             </span>
           </div>
-          <div>
-            <span className="text-text-muted">Self Score: </span>
-            <span className="text-text">
-              {report.selfScore != null ? `${report.selfScore} (${getGrade(report.selfScore)})` : '—'}
-            </span>
-          </div>
+          {!isSenior && (
+            <div>
+              <span className="text-text-muted">Self Score: </span>
+              <span className="text-text">
+                {report.selfScore != null ? `${report.selfScore} (${getGrade(report.selfScore)})` : '—'}
+              </span>
+            </div>
+          )}
           {report.submittedAt && (
             <div>
               <span className="text-text-muted">Submitted: </span>

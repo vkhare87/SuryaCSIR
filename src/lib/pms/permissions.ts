@@ -1,6 +1,6 @@
-import type { UserAccount } from '../../types';
-import type { CommitteeTier, PMSEvaluationCommitteeMember, PMSReport } from '../../types/pms';
-import { COMMITTEE_TIERS, ELIGIBLE_SCIENTIST_GRADES } from './constants';
+import type { Role, UserAccount } from '../../types';
+import type { CommitteeTier, PmsTrack, PMSEvaluationCommitteeMember, PMSReport } from '../../types/pms';
+import { COMMITTEE_TIERS, ELIGIBLE_SCIENTIST_GRADES, SENIOR_DESIGNATIONS, STANDARD_DESIGNATIONS } from './constants';
 
 export function canEditReport(user: UserAccount, report: PMSReport): boolean {
   return report.scientistId === user.id && report.status === 'DRAFT';
@@ -39,10 +39,24 @@ export function scientistGrade(designation: string): string | null {
   return match ? match[1].toUpperCase() : null;
 }
 
-/** 2026 guidelines: appraisees are Scientists B through F only. */
-export function isEligibleAppraisee(designation: string): boolean {
-  const grade = scientistGrade(designation);
-  return grade !== null && ELIGIBLE_SCIENTIST_GRADES.includes(grade);
+/**
+ * Which appraisal proforma applies to a user. The 2026 guidelines cover
+ * Scientists B–F only; Scientist G (and the Chief/Outstanding/Distinguished
+ * Scientist designations) file Annexure-I and the Director files Annexure-II.
+ * Returns null when the person is not an appraisee at all.
+ */
+export function pmsTrack(activeRole: Role, designation: string): PmsTrack | null {
+  if (activeRole === 'Director') return 'ANNEXURE_II';
+  const trimmed = designation.trim();
+  const matches = (list: string[]) => list.some(d => d.toLowerCase() === trimmed.toLowerCase());
+
+  if (matches(SENIOR_DESIGNATIONS)) return 'ANNEXURE_I';
+  if (matches(STANDARD_DESIGNATIONS)) return 'STANDARD';
+
+  const grade = scientistGrade(trimmed);
+  if (grade === 'G') return 'ANNEXURE_I';
+  if (grade !== null && ELIGIBLE_SCIENTIST_GRADES.includes(grade)) return 'STANDARD';
+  return null;
 }
 
 /** Committee tier responsible for a given scientist designation, if any. */
