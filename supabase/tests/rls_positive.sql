@@ -308,6 +308,45 @@ BEGIN
     END IF;
 END $$;
 
+-- ── P16 — a rename moves visibility to the new person ──────────────────
+-- The counterweight to the stale-key bug: sync_staff_key must re-resolve
+-- when the source name changes, not just when the key is NULL.
+DO $$
+DECLARE v_key text;
+BEGIN
+    INSERT INTO public.staff ("ID", "Name", "Email", "Division", user_id)
+    VALUES ('TSTAFF2', 'Second Owner', 'second@test.local', 'CMPD', NULL)
+    ON CONFLICT ("ID") DO NOTHING;
+
+    UPDATE public.projects
+       SET "PrincipalInvestigator" = 'Second Owner'
+     WHERE "ProjectNo" = 'P14-PRJ';
+
+    SELECT pi_staff_id INTO v_key FROM public.projects WHERE "ProjectNo" = 'P14-PRJ';
+    IF v_key IS DISTINCT FROM 'TSTAFF2' THEN
+        RAISE EXCEPTION 'P16 FAILED: PI rename left the key at % instead of TSTAFF2', v_key;
+    END IF;
+END $$;
+
+-- ── P17 — a participant can still respond ──────────────────────────────
+-- T14 must not have been satisfied by refusing everyone.
+DO $$
+DECLARE v_ticket uuid; v_count int;
+BEGIN
+    SELECT id INTO v_ticket FROM public.tickets WHERE token = 'AMPRI-POS-001';
+
+    CALL pg_temp.become('aaaaaaaa-0000-0000-0000-000000000001', 'submitter@test.local');
+    PERFORM public.helpdesk_add_response(
+        v_ticket, 'aaaaaaaa-0000-0000-0000-000000000001', 'participant reply');
+    RESET ROLE;
+
+    SELECT count(*) INTO v_count FROM public.ticket_responses
+     WHERE ticket_id = v_ticket AND message = 'participant reply';
+    IF v_count <> 1 THEN
+        RAISE EXCEPTION 'P17 FAILED: the submitter could not respond to their own ticket';
+    END IF;
+END $$;
+
 DO $$ BEGIN RAISE NOTICE 'ALL RLS POSITIVE TESTS PASSED'; END $$;
 
 ROLLBACK;
