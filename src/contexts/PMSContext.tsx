@@ -10,6 +10,7 @@ import { supabase, isProvisioned } from '../utils/supabaseClient';
 import { useAuth } from './AuthContext';
 import { registerDocument, unregisterDocument } from '../lib/documents/registry';
 import { fileFinalizedReport } from '../lib/pms/fileFinalized';
+import type { BasicInfoPayload } from '../lib/pms/basicInfo';
 import { SCORE_RANGE } from '../lib/pms/constants';
 import { isValidScore, requiresBelowThresholdReasons, requiresOutstandingReasons } from '../lib/pms/scoring';
 import {
@@ -94,7 +95,7 @@ interface PMSContextType {
   createReport: (cycleId: string) => Promise<PMSReport>;
   getReport: (reportId: string) => Promise<PMSReport & { sections: PMSReportSection[]; annexures: PMSAnnexure[]; awpActivities: PMSAWPActivity[] }>;
   saveSection: (reportId: string, sectionKey: string, data: Record<string, unknown>) => Promise<void>;
-  saveBasicInfo: (reportId: string, data: { previousPmsSubmittedOnTime: boolean | null; previousPmsSubmissionDate: string | null }) => Promise<void>;
+  saveBasicInfo: (reportId: string, data: BasicInfoPayload) => Promise<void>;
   saveAWPActivities: (reportId: string, activities: Omit<PMSAWPActivity, 'id' | 'reportId' | 'createdAt' | 'updatedAt'>[]) => Promise<void>;
   uploadSignature: (reportId: string, file: File) => Promise<string>;
   uploadAnnexure: (reportId: string, file: File) => Promise<PMSAnnexure>;
@@ -352,16 +353,16 @@ export function PMSProvider({ children }: { children: ReactNode }) {
     if (err) throw err;
   }
 
-  async function saveBasicInfo(
-    reportId: string,
-    data: { previousPmsSubmittedOnTime: boolean | null; previousPmsSubmissionDate: string | null }
-  ): Promise<void> {
+  async function saveBasicInfo(reportId: string, data: BasicInfoPayload): Promise<void> {
     if (!supabase) throw new Error('Supabase not provisioned');
     const { error: err } = await supabase
       .from('pms_reports')
       .update({
         previous_pms_submitted_on_time: data.previousPmsSubmittedOnTime,
         previous_pms_submission_date: data.previousPmsSubmissionDate,
+        period_from: data.periodFrom,
+        period_to: data.periodTo,
+        self_score: data.selfScore,
       })
       .eq('id', reportId);
     if (err) throw err;
