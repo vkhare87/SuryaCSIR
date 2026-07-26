@@ -1,14 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import {
-  isEligibleAppraisee,
   isEmpoweredCommitteeValid,
   isPanelValid,
+  pmsTrack,
   scientistGrade,
   tierForDesignation,
 } from './permissions';
+import { wizardStepsFor } from './constants';
 import type { PMSEvaluationCommitteeMember } from '../../types/pms';
 
-describe('scientistGrade / isEligibleAppraisee', () => {
+describe('scientistGrade', () => {
   it('parses grade letters from free-text designations', () => {
     expect(scientistGrade('Scientist F')).toBe('F');
     expect(scientistGrade('Scientist-C')).toBe('C');
@@ -16,14 +17,32 @@ describe('scientistGrade / isEligibleAppraisee', () => {
     expect(scientistGrade('Principal Scientist')).toBeNull();
     expect(scientistGrade('Technician')).toBeNull();
   });
+});
 
-  it('eligibility is Scientist B through F only', () => {
+describe('pmsTrack', () => {
+  it('routes Scientists B through F to the standard proforma', () => {
     for (const g of ['B', 'C', 'D', 'E', 'F']) {
-      expect(isEligibleAppraisee(`Scientist ${g}`)).toBe(true);
+      expect(pmsTrack('Scientist', `Scientist ${g}`)).toBe('STANDARD');
     }
-    expect(isEligibleAppraisee('Scientist G')).toBe(false); // above F
-    expect(isEligibleAppraisee('Scientist H')).toBe(false);
-    expect(isEligibleAppraisee('Technical Officer')).toBe(false);
+  });
+
+  it('routes Scientist G and the senior designations to Annexure-I', () => {
+    expect(pmsTrack('Scientist', 'Scientist G')).toBe('ANNEXURE_I');
+    expect(pmsTrack('Scientist', 'Chief Scientist')).toBe('ANNEXURE_I');
+    expect(pmsTrack('Scientist', 'outstanding scientist')).toBe('ANNEXURE_I');
+    expect(pmsTrack('Scientist', '  Distinguished Scientist ')).toBe('ANNEXURE_I');
+  });
+
+  it('routes the Director role to Annexure-II regardless of designation', () => {
+    expect(pmsTrack('Director', 'Scientist G')).toBe('ANNEXURE_II');
+    expect(pmsTrack('Director', 'Chief Scientist')).toBe('ANNEXURE_II');
+    expect(pmsTrack('Director', '')).toBe('ANNEXURE_II');
+  });
+
+  it('returns null for designations that are not appraisees', () => {
+    expect(pmsTrack('Technician', 'Technician')).toBeNull();
+    expect(pmsTrack('Scientist', 'Technical Officer')).toBeNull();
+    expect(pmsTrack('Scientist', 'Scientist A')).toBeNull();
   });
 });
 
@@ -34,7 +53,24 @@ describe('tierForDesignation', () => {
     expect(tierForDesignation('Scientist D')).toBe('I');
     expect(tierForDesignation('Scientist E')).toBe('II');
     expect(tierForDesignation('Scientist F')).toBe('III');
-    expect(tierForDesignation('Scientist G')).toBeNull();
+    expect(tierForDesignation('Scientist G')).toBe('IV');
+    expect(tierForDesignation('Chief Scientist')).toBeNull();
+  });
+});
+
+describe('wizardStepsFor', () => {
+  it('gives each track its own steps and only the standard track an AWP step', () => {
+    expect(wizardStepsFor('STANDARD').some(s => s.awp)).toBe(true);
+    expect(wizardStepsFor('ANNEXURE_I').some(s => s.awp)).toBe(false);
+    expect(wizardStepsFor('ANNEXURE_II').some(s => s.awp)).toBe(false);
+  });
+
+  it('starts every track with a period-bearing section and ends with review', () => {
+    for (const track of ['STANDARD', 'ANNEXURE_I', 'ANNEXURE_II'] as const) {
+      const steps = wizardStepsFor(track);
+      expect(steps[0].keys.length).toBeGreaterThan(0);
+      expect(steps[steps.length - 1].label).toBe('Review & Submit');
+    }
   });
 });
 

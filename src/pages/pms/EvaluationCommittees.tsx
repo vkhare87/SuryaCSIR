@@ -34,6 +34,7 @@ const TIER_LABELS: Record<CommitteeTier, string> = {
   I:   'Committee I — Scientists B, C, D',
   II:  'Committee II — Scientist E',
   III: 'Committee III — Scientist F',
+  IV:  'Committee IV — Scientist G (Annexure-I)',
 };
 
 export default function EvaluationCommittees() {

@@ -28,7 +28,7 @@ interface Props {
   cycleOpen: boolean;
 }
 
-const FORM_MAP: Record<SectionKey, FormComponent> = {
+const FORM_MAP: Partial<Record<SectionKey, FormComponent>> = {
   summary:                  SummaryForm,
   section_i1:               SectionI1Form,
   section_i2:               SectionI2Form,
@@ -293,10 +293,12 @@ export function ReportWizard({ report: initialReport, cycleOpen }: Props) {
                       {key.replace(/_/g, ' ')}
                     </h3>
                   )}
-                  <FormComponent
-                    data={getSectionData(key)}
-                    onChange={d => handleSectionChange(key, d)}
-                  />
+                  {FormComponent && (
+                    <FormComponent
+                      data={getSectionData(key)}
+                      onChange={(d: Record<string, unknown>) => handleSectionChange(key, d)}
+                    />
+                  )}
                 </div>
               );
             })}

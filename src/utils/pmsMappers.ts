@@ -1,5 +1,7 @@
 import type {
   AppraisalCycle,
+  PenPicture,
+  PmsTrack,
   PMSReport,
   PMSReportSection,
   PMSAnnexure,
@@ -31,6 +33,7 @@ export function mapReportRow(row: Record<string, unknown>): PMSReport {
     cycleId:      row.cycle_id as string,
     scientistId:  row.scientist_id as string,
     status:       row.status as PMSReport['status'],
+    track:        (row.track as PmsTrack) ?? 'STANDARD',
     periodFrom:   (row.period_from as string) ?? null,
     periodTo:     (row.period_to as string) ?? null,
     selfScore:    row.self_score != null ? Number(row.self_score) : null,
@@ -115,6 +118,9 @@ export function mapEvaluationRow(row: Record<string, unknown>): PMSEvaluation {
     evaluatorId: row.evaluator_id as string,
     status:      row.status as PMSEvaluation['status'],
     scores:      (row.scores as Record<string, number>) ?? {},
+    penPicture:  row.pen_picture && Object.keys(row.pen_picture as object).length > 0
+                   ? (row.pen_picture as PenPicture)
+                   : null,
     totalScore:  row.total_score != null ? Number(row.total_score) : null,
     reasonsForOutstanding:     (row.reasons_for_outstanding as string) ?? null,
     reasonsBelowThreshold:     (row.reasons_below_threshold as string) ?? null,
