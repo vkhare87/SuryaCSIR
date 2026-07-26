@@ -17,6 +17,8 @@ const APPOINTMENT_TYPES = ['Permanent', 'Contractual', 'Deputation', 'Honorary']
 
 const EMPTY_STAFF: StaffMember = {
   ID: '',
+  // Set by the auth link, not by this form — HR reconciles it separately.
+  user_id: null,
   LabCode: '',
   EmployeeType: '',
   Name: '',

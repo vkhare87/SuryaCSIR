@@ -4,6 +4,7 @@ import { Sun, Lock, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../utils/supabaseClient';
 import { ROLE_ROUTES } from '../constants/roleRoutes';
+import { validatePassword, MIN_PASSWORD_LENGTH } from '../lib/auth/passwordPolicy';
 
 export default function ChangePassword() {
   const { user, clearMustChangePassword, role } = useAuth();
@@ -21,8 +22,9 @@ export default function ChangePassword() {
     e.preventDefault();
     setError('');
 
-    if (newPassword.length < 8) {
-      setError('New password must be at least 8 characters.');
+    const policyError = validatePassword(newPassword);
+    if (policyError) {
+      setError(policyError);
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -34,27 +36,28 @@ export default function ChangePassword() {
       return;
     }
 
-    setIsLoading(true);
-
-    // Step 1: verify current password by re-authenticating.
-    // Skipped for first-time / magic-link users who have no current password.
-    if (currentPassword) {
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: user.email,
-        password: currentPassword,
-      });
-      if (signInError) {
-        setError('Current password is incorrect.');
-        setIsLoading(false);
-        return;
-      }
+    if (!currentPassword) {
+      setError('Enter your current password to confirm this change.');
+      return;
     }
 
-    // Step 2: clear must_change_password in DB BEFORE updating password.
-    // This ensures onAuthStateChange (fired by updateUser) reads false from DB.
-    await clearMustChangePassword();
+    setIsLoading(true);
 
-    // Step 3: update to new password
+    // Step 1: re-authenticate. Previously skipped whenever the field was
+    // left blank, which turned any hijacked session into a permanent
+    // account takeover. Users who genuinely have no password (magic-link
+    // first login) set one via the recovery link, not this form.
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: user.email,
+      password: currentPassword,
+    });
+    if (signInError) {
+      setError('Current password is incorrect.');
+      setIsLoading(false);
+      return;
+    }
+
+    // Step 2: update to the new password.
     const { error: updateError } = await supabase.auth.updateUser({
       password: newPassword,
     });
@@ -63,6 +66,10 @@ export default function ChangePassword() {
       setIsLoading(false);
       return;
     }
+
+    // Step 3: only now clear the rotation flag. Clearing it first meant a
+    // failed update left the user un-prompted with the old password intact.
+    await clearMustChangePassword();
 
     // Step 4: navigate to role dashboard
     navigate(role ? ROLE_ROUTES[role] : '/');
@@ -141,7 +148,7 @@ export default function ChangePassword() {
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
                   className="w-full pl-12 pr-12 py-4 bg-[#f5f4ed] border border-[#f0eee6] rounded-[12px] focus:ring-2 focus:ring-[#3898ec] focus:border-[#3898ec] outline-none text-[#141413] font-medium transition-all placeholder:text-[#b0aea5]"
-                  placeholder="Leave blank if first-time setup"
+                  placeholder="Your current password"
                 />
                 <button
                   type="button"
@@ -167,7 +174,7 @@ export default function ChangePassword() {
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   className="w-full pl-12 pr-12 py-4 bg-[#f5f4ed] border border-[#f0eee6] rounded-[12px] focus:ring-2 focus:ring-[#3898ec] focus:border-[#3898ec] outline-none text-[#141413] font-medium transition-all placeholder:text-[#b0aea5]"
-                  placeholder="Min. 8 characters"
+                  placeholder={`Min. ${MIN_PASSWORD_LENGTH} chars, mixed case, digit, symbol`}
                   required
                 />
                 <button

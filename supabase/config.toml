@@ -1,0 +1,114 @@
+# ═══════════════════════════════════════════════════════════════════════
+# Supabase project config — SURYA
+#
+# Added 2026-07-25 (A8). Until now the auth settings below existed only as
+# clicks in the Supabase dashboard: unversioned, unreviewable, and silently
+# different between the local stack and the live project. The 2026-07-25
+# audit depended on one of them (`secure_password_change`) to fully close
+# MED-6, which made "it's a dashboard setting" an unacceptable answer.
+#
+# Local stack : `supabase start` / `supabase db reset` read this file.
+# Live project: `supabase link --project-ref <ref>` then
+#               `supabase config push` applies the [auth] block remotely.
+#               Run it whenever this file changes.
+# ═══════════════════════════════════════════════════════════════════════
+
+project_id = "surya"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+# PostgREST row cap. Stated explicitly because DataContext's reads are paged
+# against it: src/lib/data/fetchAll.ts uses PAGE_SIZE = 1000, and a page size
+# above this cap would make a capped response indistinguishable from a final
+# short one, so paging would stop early — the exact silent-truncation bug
+# fetchAll exists to prevent (A2). 1000 is also Supabase's own default, so
+# `config push` is a no-op here rather than a quiet production change.
+# If you raise it, raise PAGE_SIZE with it, never past it.
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+# Must match the live project, or the local stack validates migrations against
+# a different Postgres than production runs. The linked project (SuryaCC,
+# ref zorujjeeigrkiitkdely) reports 17.6.1 — see supabase/.temp/postgres-version.
+# Re-check after any Supabase platform upgrade.
+major_version = 17
+
+[db.seed]
+enabled = true
+# Bootstrap data the app needs to function — helpdesk routing defaults and
+# an OPEN appraisal cycle. Applied by `supabase db reset` after migrations.
+sql_paths = ["./seed/*.sql"]
+
+[studio]
+enabled = true
+port = 54323
+
+# No [inbucket] block: renamed to [local_smtp] in newer CLI versions, and the
+# local mail-catcher is enabled by default anyway. Configuring it bought
+# nothing and only earned a deprecation warning.
+
+[storage]
+enabled = true
+
+# Vector buckets are a PAID-TIER feature and the CLI defaults this to true.
+# Omitting the block does not avoid it — with no block the CLI still resolves
+# `enabled = true`, diffs it against the remote's `false`, and `config push`
+# dies with:
+#
+#   unexpected status 402: Please upgrade the project to a paid tier to
+#   enable vector buckets
+#
+# Stating `false` matches what SuryaCC (free tier) actually reports, so the
+# storage section reads "up to date" and stops blocking the auth push. Flip
+# to true only if the project is upgraded AND something here needs vector
+# buckets — nothing does; the RAG corpus indexes into `doc_indexes`, a normal
+# Postgres table (20260712000008_rag_documents.sql).
+[storage.vector]
+enabled = false
+
+[auth]
+enabled = true
+site_url = "http://localhost:5173"
+additional_redirect_urls = ["http://localhost:5173"]
+
+# Short access tokens + rotating refresh tokens bound the blast radius of a
+# stolen JWT. This matters more than usual here: supabase.auth.updateUser()
+# is reachable with nothing but a valid access token.
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+
+# Accounts are provisioned by an admin and then approved through
+# access_requests; the auth trigger only ever grants 'DefaultUser'. Public
+# self-signup is not part of that flow.
+enable_signup = false
+enable_anonymous_sign_ins = false
+enable_manual_linking = false
+
+# A8.2 — the client-side check in ChangePassword.tsx enforces 8; the server
+# is the one that counts. 12 + mixed classes for an institutional system
+# holding appraisal scores and personnel records.
+minimum_password_length = 12
+password_requirements = "lower_upper_letters_digits_symbols"
+
+[auth.email]
+enable_signup = false
+# A8.1 — THE fix for MED-6. The audit found ChangePassword.tsx skipped
+# re-authentication whenever the current-password field was left blank,
+# turning any hijacked session into permanent account takeover. That form is
+# now fixed, but supabase.auth.updateUser({password}) is callable directly
+# with a stolen token and bypasses the form entirely. This setting makes
+# GoTrue itself require a recent sign-in before a password change, which is
+# the only version of the control an attacker cannot route around.
+secure_password_change = true
+# Email changes are an account-takeover path too: confirm at both addresses.
+double_confirm_changes = true
+enable_confirmations = true
+
+[analytics]
+enabled = false

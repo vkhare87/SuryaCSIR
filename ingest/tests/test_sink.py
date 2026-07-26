@@ -19,6 +19,16 @@ def test_unstructured_file_lands_in_documents():
     assert db.harvested == {}
 
 
+def test_harvested_document_is_never_institute_tier():
+    """'institute' is readable by every authenticated user (documents_can_read),
+    so unreviewed harvested input must not land there."""
+    db = FakeDB()
+    mapped = land_file(db, "mail", "hod@ampri.res.in", "CMPD", "scan.pdf", b"%PDF-1.4 a")
+    unmapped = land_file(db, "folder", "unknown", None, "scan2.pdf", b"%PDF-1.4 b")
+    assert db.documents[mapped]["access_tier"] == "division"
+    assert db.documents[unmapped]["access_tier"] == "confidential"
+
+
 def test_duplicate_content_is_not_relanded():
     db = FakeDB()
     content = b"same bytes"

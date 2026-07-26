@@ -1,8 +1,13 @@
 import type { ReportStatus } from '../../types/pms';
-import { STATUS_COLORS } from '../../lib/pms/constants';
-import { StatusBadge as BaseStatusBadge } from '../ui/StatusBadge';
+import { StatusSeal } from './StatusSeal';
 
+/**
+ * PMS report status. Kept as a named re-export so the six call sites
+ * (Reports, ReportView, Index, EvaluatorQueue, CommitteeQueue,
+ * AssignEvaluators) did not all need touching — the seal is DESIGN.md R3 and
+ * replaces the filled pill wholesale, so there is no case left where the old
+ * badge is the right answer.
+ */
 export function StatusBadge({ status }: { status: ReportStatus }) {
-  const c = STATUS_COLORS[status];
-  return <BaseStatusBadge label={c.label} bg={c.bg} text={c.text} />;
+  return <StatusSeal status={status} />;
 }

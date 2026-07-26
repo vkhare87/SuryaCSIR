@@ -18,6 +18,8 @@ class Config:
     imap_user: str | None
     imap_password: str | None
     imap_mailbox: str
+    # Optional private-CA bundle for the mail server. None = system trust store.
+    imap_ca_file: str | None
 
 
 def load_config(env: dict) -> Config:
@@ -40,4 +42,5 @@ def load_config(env: dict) -> Config:
         imap_user=env.get("IMAP_USER"),
         imap_password=env.get("IMAP_PASSWORD"),
         imap_mailbox=env.get("IMAP_MAILBOX", "INBOX"),
+        imap_ca_file=env.get("IMAP_CA_FILE") or None,
     )

@@ -5,6 +5,30 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>suryafd</title>
+
+    <!--
+      DESIGN.md typography. None of these were actually loaded before —
+      --font-sans declared 'Inter' and --font-mono declared 'JetBrains Mono'
+      while the page fetched neither, so every surface silently rendered in
+      system-ui and the design system existed only on paper.
+
+        Fraunces      display/headings (R1)
+        Inter         body/UI
+        IBM Plex Mono identifiers, dates, scores (tabular-nums)
+        Tiro Devanagari Sanskrit  सूर्य on the login screen only
+
+      font-display=swap so a blocked or slow CDN degrades to the fallback
+      stack in --font-* rather than blanking the page. If the institute host
+      cannot reach fonts.googleapis.com, self-host these and drop the links —
+      the fallbacks (Georgia, system-ui, ui-monospace) keep the app legible
+      either way.
+    -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&family=Tiro+Devanagari+Sanskrit&display=swap"
+    />
   </head>
   <body>
     <div id="root"></div>

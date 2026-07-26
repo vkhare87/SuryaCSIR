@@ -27,7 +27,12 @@ function initSupabase(): SupabaseClient | null {
     return createClient(envUrl, envKey, clientOptions);
   }
 
-  // Fallback: localStorage keys set by Setup Wizard
+  // Fallback: localStorage keys set by Setup Wizard. Dev only — in a
+  // production bundle this would let any script foothold repoint the whole
+  // app at an attacker-controlled Supabase and harvest credentials through
+  // a pixel-identical login screen.
+  if (import.meta.env.PROD) return null;
+
   if (typeof localStorage !== 'undefined') {
     const lsUrl = localStorage.getItem('surya_supabase_url');
     const lsKey = localStorage.getItem('surya_supabase_anon_key');
