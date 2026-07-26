@@ -28,7 +28,9 @@ export default function AssignEvaluators() {
     );
   }
 
-  const submittedReports = reports.filter(r => r.status === 'SUBMITTED');
+  // Annexure-II (Director) is evaluated by the DG outside SURYA — it never
+  // gets an Evaluation Committee.
+  const submittedReports = reports.filter(r => r.status === 'SUBMITTED' && r.track !== 'ANNEXURE_II');
   const selectedReport = reports.find(r => r.id === selectedReportId);
   const cycleCommittees = selectedReport
     ? committees.filter(c => c.cycleId === selectedReport.cycleId)

@@ -1,10 +1,14 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { ComponentType } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePMS } from '../../contexts/PMSContext';
-import { WIZARD_STEPS } from '../../lib/pms/constants';
+import { PERIOD_SECTION_KEYS, wizardStepsFor } from '../../lib/pms/constants';
+import { basicInfoFromSection } from '../../lib/pms/basicInfo';
+import { ANNEXURE_SPECS } from '../../lib/pms/annexureSpecs';
+import type { SectionSpec } from '../../lib/pms/annexureSpecs';
 import { canSubmitReport } from '../../lib/pms/permissions';
+import { SpecSection } from './SpecSection';
 import { Button } from '../ui/Button';
 import {
   SummaryForm,
@@ -51,6 +55,8 @@ export function ReportWizard({ report: initialReport, cycleOpen }: Props) {
   const { saveSection, saveBasicInfo, saveAWPActivities, uploadSignature, uploadAnnexure, deleteAnnexure, submitReport } = usePMS();
   const navigate = useNavigate();
 
+  const steps = useMemo(() => wizardStepsFor(initialReport.track), [initialReport.track]);
+
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -80,16 +86,16 @@ export function ReportWizard({ report: initialReport, cycleOpen }: Props) {
     setSectionData(prev => ({ ...prev, [key]: data }));
   };
 
-  const currentStepIsAWP = WIZARD_STEPS[step]?.label.startsWith('Part V');
+  const currentStepIsAWP = steps[step]?.awp === true;
 
   const saveCurrent = useCallback(async (currentSectionData: Record<string, Record<string, unknown>>) => {
-    const currentStep = WIZARD_STEPS[step];
+    const currentStep = steps[step];
     if (!currentStep) return;
-    if (currentStep.keys.length === 0 && !currentStep.label.startsWith('Part V')) return;
+    if (currentStep.keys.length === 0 && !currentStep.awp) return;
     setSaving(true);
     setError(null);
     try {
-      if (currentStep.label.startsWith('Part V')) {
+      if (currentStep.awp) {
         await saveAWPActivities(report.id, awpActivities.filter(a => a.natureOfActivity.trim()));
       } else {
         await Promise.all(
@@ -98,16 +104,12 @@ export function ReportWizard({ report: initialReport, cycleOpen }: Props) {
           )
         );
       }
-      if (currentStep.keys.includes('summary')) {
-        await saveBasicInfo(report.id, basicInfo);
-        const s = currentSectionData['summary'] ?? {};
-        setReport(r => ({
-          ...r,
-          ...basicInfo,
-          periodFrom: (s.periodFrom as string) || r.periodFrom,
-          periodTo:   (s.periodTo as string) || r.periodTo,
-          selfScore:  typeof s.selfScore === 'number' ? s.selfScore : r.selfScore,
-        }));
+      // Each track carries period_from / period_to on its own first section.
+      const periodKey = currentStep.keys.find(k => PERIOD_SECTION_KEYS.includes(k));
+      if (periodKey) {
+        const payload = basicInfoFromSection(currentSectionData[periodKey] ?? {}, basicInfo);
+        await saveBasicInfo(report.id, payload);
+        setReport(r => ({ ...r, ...payload }));
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Save failed');
@@ -115,12 +117,12 @@ export function ReportWizard({ report: initialReport, cycleOpen }: Props) {
     } finally {
       setSaving(false);
     }
-  }, [step, report.id, saveSection, saveBasicInfo, saveAWPActivities, basicInfo, awpActivities]);
+  }, [step, steps, report.id, saveSection, saveBasicInfo, saveAWPActivities, basicInfo, awpActivities]);
 
   const goNext = async () => {
     try {
       await saveCurrent(sectionData);
-      setStep(s => Math.min(s + 1, WIZARD_STEPS.length - 1));
+      setStep(s => Math.min(s + 1, steps.length - 1));
       setError(null);
     } catch {
       // error already set in saveCurrent
@@ -164,8 +166,8 @@ export function ReportWizard({ report: initialReport, cycleOpen }: Props) {
     setReport(r => ({ ...r, annexures: r.annexures.filter(a => a.id !== annexureId) }));
   };
 
-  const currentStepDef = WIZARD_STEPS[step];
-  const isLastStep  = step === WIZARD_STEPS.length - 1;
+  const currentStepDef = steps[step];
+  const isLastStep  = step === steps.length - 1;
   const isFirstStep = step === 0;
 
   return (
@@ -173,17 +175,17 @@ export function ReportWizard({ report: initialReport, cycleOpen }: Props) {
       {/* Progress */}
       <div className="space-y-2">
         <div className="flex justify-between text-xs text-text-muted">
-          <span>Step {step + 1} of {WIZARD_STEPS.length}</span>
+          <span>Step {step + 1} of {steps.length}</span>
           <span>{currentStepDef.label}</span>
         </div>
         <div className="w-full h-1.5 bg-surface-hover rounded-full overflow-hidden">
           <div
             className="h-full bg-[#c96442] rounded-full transition-all duration-300"
-            style={{ width: `${((step + 1) / WIZARD_STEPS.length) * 100}%` }}
+            style={{ width: `${((step + 1) / steps.length) * 100}%` }}
           />
         </div>
         <div className="flex gap-1.5 flex-wrap">
-          {WIZARD_STEPS.map((_, i) => (
+          {steps.map((_, i) => (
             <button
               key={i}
               onClick={() => { if (i < step) { setStep(i); setError(null); } }}
@@ -285,20 +287,27 @@ export function ReportWizard({ report: initialReport, cycleOpen }: Props) {
               </div>
             )}
             {currentStepDef.keys.map(key => {
+              const spec: SectionSpec | undefined = ANNEXURE_SPECS[key as keyof typeof ANNEXURE_SPECS];
               const FormComponent = FORM_MAP[key];
               return (
                 <div key={key}>
                   {currentStepDef.keys.length > 1 && (
                     <h3 className="text-sm font-mono font-medium text-text-muted uppercase tracking-wider mb-3">
-                      {key.replace(/_/g, ' ')}
+                      {spec?.title ?? key.replace(/_/g, ' ')}
                     </h3>
                   )}
-                  {FormComponent && (
+                  {spec ? (
+                    <SpecSection
+                      spec={spec}
+                      data={getSectionData(key)}
+                      onChange={d => handleSectionChange(key, d)}
+                    />
+                  ) : FormComponent ? (
                     <FormComponent
                       data={getSectionData(key)}
                       onChange={(d: Record<string, unknown>) => handleSectionChange(key, d)}
                     />
-                  )}
+                  ) : null}
                 </div>
               );
             })}
