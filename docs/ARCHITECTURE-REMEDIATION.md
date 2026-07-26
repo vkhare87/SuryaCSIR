@@ -266,16 +266,20 @@ Three settings that no migration can set and that the audit's fixes depend on:
 
 | Order | Item | Status |
 |---|---|---|
-| 1 | **A8.3** — verify migrations applied | ⚠️ **operator only** — needs the live project |
-| 2 | **A8.1** — GoTrue secure password change | ✅ codified in `supabase/config.toml`; needs `supabase config push` |
-| 3 | **A7.1–2** — run the RLS tests, wire CI | ✅ CI `db` job added · ⚠️ never executed |
+| 1 | **A8.3** — verify migrations applied | ✅ done — all 21 prior + all 5 new are live on SuryaCC |
+| 2 | **A8.1** — GoTrue secure password change | ✅ **pushed and active** |
+| 3 | **A7.1–2** — run the RLS tests, wire CI | ✅ CI `db` job added · ⚠️ **still never executed** |
 | 4 | **A5.1–2** — RAG review queue + allowlist | ✅ done |
 | 5 | **A1.2–3** — SECURITY DEFINER audit + CI grep | ✅ done — found and fixed 3 |
 | 6 | **A6.1** — lint ratchet | ✅ done |
-| 7 | **A4** — FK conversion | ✅ migration written, guarded · ⚠️ unapplied |
-| 8 | **A3b** — name columns → FKs | ✅ done (fallback until `staff_link_gaps` is empty) |
+| 7 | **A4** — FK conversion | ✅ **applied** (guard fired first; see below) |
+| 8 | **A3b** — name columns → FKs | ✅ applied (name fallback until `staff_link_gaps` is empty) |
 | 9 | **A2** — data layer | ◐ truncation fixed; aggregate pushdown ongoing |
 | 10 | **A6.2** — reconcile DESIGN.md with reality | ✅ done |
+
+**Next, in order:** get the CI `db` job green (item 3 — the only untested
+thing left), drive `staff_link_gaps` to zero so A3b's name fallback can be
+deleted, then continue A2's aggregate pushdown page by page.
 
 ---
 
@@ -336,17 +340,39 @@ caveats at the end.
   pass-through idiom, identical to `--color-surface` directly below it, and it
   is how the per-theme light/dark values resolve. Left as-is.
 
-### Caveats — read before trusting any of this
+### Applied to production, 2026-07-26
 
-1. **No migration here has been applied.** Neither the Supabase CLI nor Docker
-   was available. `20260725000001`–`20260725000005` are written against the
-   documented schema, not executed against a running one.
-2. **`rls_negative.sql` / `rls_positive.sql` have never run.** Expect to fix
-   syntax on the first pass. They are the CI job's whole point, so run them
-   before relying on the job being meaningful.
-3. **Verified instead:** `npm run build`, `npx eslint src/` (0 errors),
-   621 vitest tests, 41 ingest tests, 170 rag tests, the SECURITY DEFINER
-   guard, the design-debt ratchet, and a live probe confirming all 28
-   `DataContext` order columns resolve against the real schema — that probe
-   caught a genuine regression (`equipment` ordered by a non-existent `id`;
+All five migrations are live on `SuryaCC` (`zorujjeeigrkiitkdely`). Confirmed
+with `npx -y supabase@latest migration list --linked` — every
+`20260725000001`–`20260725000005` shows a remote timestamp. `config push`
+also landed the `[auth]` block, so `secure_password_change` is active and
+A8.1 is closed.
+
+Applying them found four defects that no local check could have:
+
+| Defect | Caught by | Fix |
+|---|---|---|
+| `min(uuid)` does not exist — `000002` aborted | the push | `(array_agg(user_id))[1]`; `min("ID")` was fine only because `staff."ID"` is text |
+| `StaffDetail` registered self-uploads at `access_tier: 'institute'`, which `000001` had just forbidden | reading callers after the failure | self-uploads land at `owner`, admins keep `institute` |
+| `000004` refused to convert 61 actor values | its own precondition guard, working as designed | the values were `mock/10_helpdesk_tickets.sql` fixtures in production; removed via `ops/remove_mock_helpdesk.sql` |
+| `ops/remove_mock_helpdesk.sql` rolled back a correct deletion | its own post-check | the check mirrored `000004`'s guard but not the `'system'` → NULL step preceding it |
+
+Each was invisible to `npm run build`, 621 vitest tests, and the SECURITY
+DEFINER guard, because all four are SQL-against-real-data bugs and nothing
+in this repo exercises that path. That is the case for A7 in one table.
+
+### Caveats — still true
+
+1. **`rls_negative.sql` / `rls_positive.sql` have never run.** Docker was not
+   used, so the CI `db` job is untested. Expect to fix syntax on the first
+   pass. Until it runs green, treat the suites as unproven — they are the
+   whole point of A7, and the table above is the argument for finishing it.
+2. **Demo data reached production.** `mock/10_helpdesk_tickets.sql` was in
+   the live database; the helpdesk fixture is unlikely to have been the only
+   one. Audit the rest of `mock/` against live data.
+3. **Verified by local tooling:** `npm run build`, `npx eslint src/`
+   (0 errors), 621 vitest, 41 ingest, 170 rag, the SECURITY DEFINER guard,
+   the design-debt ratchet, and a live probe confirming all 28 `DataContext`
+   order columns resolve against the real schema — that probe caught a
+   regression introduced here (`equipment` ordered by a non-existent `id`;
    its PK is `"UInsID"`).
