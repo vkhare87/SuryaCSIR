@@ -1,6 +1,7 @@
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 import type { PMSReport, PMSReportSection, PMSAnnexure } from '../../types/pms';
 import { getGrade } from '../../lib/pms/scoring';
+import { ANNEXURE_SPECS } from '../../lib/pms/annexureSpecs';
 
 const styles = StyleSheet.create({
   page: { fontFamily: 'Helvetica', fontSize: 10, padding: 40, color: '#141413', backgroundColor: '#ffffff' },
@@ -25,11 +26,30 @@ function SectionBlock({ section }: { section: PMSReportSection }) {
   const data = section.data;
   const items = (data.items as Record<string, string>[] | undefined) ?? [];
   const text = data.text as string | undefined;
+  const spec = ANNEXURE_SPECS[section.sectionKey as keyof typeof ANNEXURE_SPECS];
+
+  const labels: Record<string, string> = spec?.kind === 'fields'
+    ? Object.fromEntries(spec.fields.map(f => [f.key, f.label]))
+    : spec?.kind === 'prompts'
+      ? Object.fromEntries(spec.prompts.map(p => [p.key, p.label]))
+      : {};
+
+  const entries = Object.entries(data).filter(
+    ([key, value]) => key !== 'items' && key !== 'text' && typeof value === 'string' && value.trim() !== ''
+  ) as [string, string][];
 
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{section.sectionKey.replace(/_/g, ' ').toUpperCase()}</Text>
+      <Text style={styles.sectionTitle}>
+        {spec?.title ?? section.sectionKey.replace(/_/g, ' ').toUpperCase()}
+      </Text>
       {text && <Text style={{ fontSize: 9, color: '#141413', lineHeight: 1.4 }}>{text}</Text>}
+      {entries.map(([key, value]) => (
+        <View key={key} style={styles.row}>
+          <Text style={styles.label}>{labels[key] ?? key}</Text>
+          <Text style={styles.value}>{value}</Text>
+        </View>
+      ))}
       {items.length > 0 && (
         <View>
           {items.slice(0, 10).map((item, i) => (
@@ -58,11 +78,16 @@ export function ReportPDF({
   report, sections, annexures,
   finalScore, justification,
 }: ReportPDFProps) {
+  const title =
+    report.track === 'ANNEXURE_II' ? 'Performance Mapping Proforma — Director'
+    : report.track === 'ANNEXURE_I' ? 'Performance Mapping Proforma — Chief Scientist / OS / DS'
+    : 'Performance Appraisal Report';
+
   return (
-    <Document title={`PMS Report — ${report.id}`} author="CSIR-AMPRI SURYA Platform">
+    <Document title={`${title} — ${report.id}`} author="CSIR-AMPRI SURYA Platform">
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
-          <Text style={styles.title}>Performance Appraisal Report</Text>
+          <Text style={styles.title}>{title}</Text>
           <Text style={styles.subtitle}>CSIR-AMPRI · {report.cycle?.name ?? 'Appraisal Cycle'}</Text>
           <Text style={styles.subtitle}>Generated: {new Date().toLocaleDateString('en-IN', { dateStyle: 'long' })}</Text>
         </View>
@@ -73,7 +98,9 @@ export function ReportPDF({
           <View style={styles.row}><Text style={styles.label}>Period:</Text><Text style={styles.value}>{report.periodFrom ?? '—'} to {report.periodTo ?? '—'}</Text></View>
           <View style={styles.row}><Text style={styles.label}>Submitted:</Text><Text style={styles.value}>{report.submittedAt ? new Date(report.submittedAt).toLocaleDateString('en-IN') : '—'}</Text></View>
           <View style={styles.row}><Text style={styles.label}>Status:</Text><Text style={styles.value}>{report.status}</Text></View>
-          <View style={styles.row}><Text style={styles.label}>Self Score:</Text><Text style={styles.value}>{report.selfScore != null ? `${report.selfScore} (${getGrade(report.selfScore)})` : '—'}</Text></View>
+          {report.track === 'STANDARD' && (
+            <View style={styles.row}><Text style={styles.label}>Self Score:</Text><Text style={styles.value}>{report.selfScore != null ? `${report.selfScore} (${getGrade(report.selfScore)})` : '—'}</Text></View>
+          )}
           {report.dutyDays != null && (
             <View style={styles.row}><Text style={styles.label}>Duty Days:</Text><Text style={styles.value}>{report.dutyDays}</Text></View>
           )}
