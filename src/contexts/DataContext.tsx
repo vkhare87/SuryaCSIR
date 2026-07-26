@@ -29,6 +29,7 @@ import type {
   HelpdeskRouting,
   CalendarEvent,
   Holiday,
+  ImportEvent,
 } from '../types';
 import { supabase, isProvisioned } from '../utils/supabaseClient';
 import {
@@ -59,10 +60,12 @@ import {
   mapHelpdeskRoutingRow,
   mapCalendarEventRow,
   mapHolidayRow,
+  mapImportEventRow,
 } from '../utils/dataMapper';
 import { useAuth } from './AuthContext';
 import { useToast } from './ToastContext';
 import { logger } from '../utils/logger';
+import { fetchAll } from '../lib/data/fetchAll';
 
 // ---------------------------------------------------------------------------
 // Client-side division scoping helpers (applied after data load)
@@ -122,6 +125,7 @@ interface DataContextType {
   helpdeskRouting: HelpdeskRouting[];
   calendarEvents: CalendarEvent[];
   holidays: Holiday[];
+  importEvents: ImportEvent[];
   refreshCalendar: () => Promise<void>;
   refreshHolidays: () => Promise<void>;
   isLoading: boolean;
@@ -169,6 +173,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [helpdeskRouting, setHelpdeskRouting] = useState<HelpdeskRouting[]>([]);
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
+  const [importEvents, setImportEvents] = useState<ImportEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -200,6 +205,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setHelpdeskRouting([]);
     setCalendarEvents([]);
     setHolidays([]);
+    setImportEvents([]);
   };
 
   const loadData = async () => {
@@ -216,35 +222,44 @@ export function DataProvider({ children }: { children: ReactNode }) {
         divRes, staffRes, projRes, psRes, phdRes, equipRes, labsRes, soRes, ipRes, csRes,
         vaRes, vpRes,
         cmtRes, cmmRes, mtgRes, agiRes, actRes, mdcRes, tktRes, trsRes, tevRes, hrtRes,
-        ceRes, holRes, mouRes, ttRes, phmRes,
+        ceRes, holRes, mouRes, ttRes, phmRes, ieRes,
       ] = await Promise.all([
-        supabase.from('divisions').select('*'),
-        supabase.from('staff').select('*'),
-        supabase.from('projects').select('*'),
-        supabase.from('project_staff').select('*'),
-        supabase.from('phd_students').select('*'),
-        supabase.from('equipment').select('*'),
-        supabase.from('labs').select('*'),
-        supabase.from('scientific_outputs').select('*'),
-        supabase.from('ip_intelligence').select('*'),
-        supabase.from('contract_staff').select('*'),
-        supabase.from('vacancy_advertisements').select('*').order('created_at', { ascending: false }),
-        supabase.from('vacancy_posts').select('*'),
-        supabase.from('committees').select('*'),
-        supabase.from('committee_members').select('*'),
-        supabase.from('meetings').select('*'),
-        supabase.from('agenda_items').select('*'),
-        supabase.from('action_items').select('*'),
-        supabase.from('meeting_documents').select('*'),
-        supabase.from('tickets').select('*').order('created_at', { ascending: false }),
-        supabase.from('ticket_responses').select('*'),
-        supabase.from('ticket_events').select('*'),
-        supabase.from('helpdesk_routing').select('*'),
-        supabase.from('calendar_events').select('*').order('event_date', { ascending: true }),
-        supabase.from('holidays').select('*').order('holiday_date', { ascending: true }),
-        supabase.from('mous').select('*'),
-        supabase.from('tech_transfers').select('*'),
-        supabase.from('phd_milestones').select('*'),
+        // Every read is paged (fetchAll) — an unbounded select is capped at
+        // db-max-rows silently, with no error and no flag, so the aggregates
+        // downstream would quietly under-report once a table outgrew the cap.
+        // Each query carries a stable .order(): without one, Postgres may
+        // return a different row order per page and paging can both duplicate
+        // and drop rows.
+        fetchAll(supabase.from('divisions').select('*').order('divCode')),
+        fetchAll(supabase.from('staff').select('*').order('ID')),
+        fetchAll(supabase.from('projects').select('*').order('ProjectNo')),
+        fetchAll(supabase.from('project_staff').select('*').order('ProjectNo').order('StaffName')),
+        fetchAll(supabase.from('phd_students').select('*').order('EnrollmentNo')),
+        // equipment's PK is "UInsID", not id — ordering by a column that does
+        // not exist is a 400, not a silent no-op.
+        fetchAll(supabase.from('equipment').select('*').order('UInsID')),
+        fetchAll(supabase.from('labs').select('*').order('id')),
+        fetchAll(supabase.from('scientific_outputs').select('*').order('id')),
+        fetchAll(supabase.from('ip_intelligence').select('*').order('id')),
+        fetchAll(supabase.from('contract_staff').select('*').order('Name')),
+        fetchAll(supabase.from('vacancy_advertisements').select('*').order('created_at', { ascending: false }).order('id')),
+        fetchAll(supabase.from('vacancy_posts').select('*').order('id')),
+        fetchAll(supabase.from('committees').select('*').order('id')),
+        fetchAll(supabase.from('committee_members').select('*').order('id')),
+        fetchAll(supabase.from('meetings').select('*').order('id')),
+        fetchAll(supabase.from('agenda_items').select('*').order('id')),
+        fetchAll(supabase.from('action_items').select('*').order('id')),
+        fetchAll(supabase.from('meeting_documents').select('*').order('id')),
+        fetchAll(supabase.from('tickets').select('*').order('created_at', { ascending: false }).order('id')),
+        fetchAll(supabase.from('ticket_responses').select('*').order('id')),
+        fetchAll(supabase.from('ticket_events').select('*').order('id')),
+        fetchAll(supabase.from('helpdesk_routing').select('*').order('id')),
+        fetchAll(supabase.from('calendar_events').select('*').order('event_date', { ascending: true }).order('id')),
+        fetchAll(supabase.from('holidays').select('*').order('holiday_date', { ascending: true }).order('id')),
+        fetchAll(supabase.from('mous').select('*').order('id')),
+        fetchAll(supabase.from('tech_transfers').select('*').order('id')),
+        fetchAll(supabase.from('phd_milestones').select('*').order('id')),
+        fetchAll(supabase.from('import_events').select('*').order('uploaded_at', { ascending: false }).order('id')),
       ]);
 
       // Surface per-table errors — Promise.all hides them as empty data
@@ -279,6 +294,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       checkTable('mous', mouRes);
       checkTable('tech_transfers', ttRes);
       checkTable('phd_milestones', phmRes);
+      checkTable('import_events', ieRes);
       if (tableErrors.length > 0) {
         const summary = `${tableErrors.length} table(s) failed to load: ${tableErrors.map(e => e.table).join(', ')}`;
         logger.error('partial_data_load_failed', new Error(summary), { tableErrors });
@@ -316,6 +332,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setHelpdeskRouting(hrtRes.data ? hrtRes.data.map(mapHelpdeskRoutingRow) : []);
       setCalendarEvents(ceRes.data ? ceRes.data.map(mapCalendarEventRow) : []);
       setHolidays(holRes.data ? holRes.data.map(mapHolidayRow) : []);
+      setImportEvents(ieRes.data ? ieRes.data.map(mapImportEventRow) : []);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load data';
       setError(message);
@@ -388,6 +405,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       helpdeskRouting,
       calendarEvents,
       holidays,
+      importEvents,
       refreshCalendar,
       refreshHolidays,
       isLoading,

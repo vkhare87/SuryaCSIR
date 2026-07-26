@@ -430,56 +430,94 @@ export function formatData(
 // parseFile
 // ---------------------------------------------------------------------------
 
+/** Reads a CSV/Excel File into raw row objects, headers untouched. Throws on
+ * read/parse failure or an unsupported extension — callers wrap it. */
+async function readRawRows(file: File): Promise<Record<string, any>[]> {
+  const fileName = file.name.toLowerCase();
+
+  if (fileName.endsWith('.csv')) {
+    // CSV path: read as text, parse with papaparse
+    const text = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve((e.target?.result as string) ?? '');
+      reader.onerror = () => reject(new Error('Failed to read CSV file'));
+      reader.readAsText(file);
+    });
+
+    const result = Papa.parse<Record<string, string>>(text, {
+      header: true,
+      skipEmptyLines: true,
+    });
+
+    return result.data as Record<string, any>[];
+  }
+
+  if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+    // Excel path: read as ArrayBuffer, parse with xlsx
+    const arrayBuffer = await new Promise<ArrayBuffer>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target?.result as ArrayBuffer);
+      reader.onerror = () => reject(new Error('Failed to read Excel file'));
+      reader.readAsArrayBuffer(file);
+    });
+
+    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+    const firstSheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[firstSheetName];
+    return XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { defval: '' });
+  }
+
+  throw new Error('Unsupported file type. Please upload a .csv, .xlsx, or .xls file.');
+}
+
 /**
- * Parses an uploaded File (CSV or Excel) into formatted rows.
- * Never rejects — always resolves with a success/error shape.
+ * Parses a File into rows with ORIGINAL headers untouched — no SCHEMA_MAPS
+ * rename, no ALLOWED_COLUMNS filter. Needed when the caller wants to see
+ * (and possibly correct, e.g. Phase C's AI mapping suggestion) which raw
+ * headers exist before committing to a mapping — formatData's rename+filter
+ * would have silently dropped anything SCHEMA_MAPS doesn't recognize.
  */
-export async function parseFile(
+export async function parseFileRaw(
   file: File,
-  type: FileType,
 ): Promise<{ success: boolean; data?: Record<string, string>[]; rowCount?: number; error?: string }> {
   try {
-    const fileName = file.name.toLowerCase();
-
-    let rawRows: Record<string, any>[];
-
-    if (fileName.endsWith('.csv')) {
-      // CSV path: read as text, parse with papaparse
-      const text = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = (e) => resolve((e.target?.result as string) ?? '');
-        reader.onerror = () => reject(new Error('Failed to read CSV file'));
-        reader.readAsText(file);
+    const rawRows = await readRawRows(file);
+    const data = rawRows
+      .filter((row) => !Object.values(row).some((v) => v === EXAMPLE_SENTINEL))
+      .map((row) => {
+        const out: Record<string, string> = {};
+        for (const [key, value] of Object.entries(row)) out[key] = String(value ?? '');
+        return out;
       });
-
-      const result = Papa.parse<Record<string, string>>(text, {
-        header: true,
-        skipEmptyLines: true,
-      });
-
-      rawRows = result.data as Record<string, any>[];
-    } else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
-      // Excel path: read as ArrayBuffer, parse with xlsx
-      const arrayBuffer = await new Promise<ArrayBuffer>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = (e) => resolve(e.target?.result as ArrayBuffer);
-        reader.onerror = () => reject(new Error('Failed to read Excel file'));
-        reader.readAsArrayBuffer(file);
-      });
-
-      const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-      const firstSheetName = workbook.SheetNames[0];
-      const sheet = workbook.Sheets[firstSheetName];
-      rawRows = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { defval: '' });
-    } else {
-      return { success: false, error: 'Unsupported file type. Please upload a .csv, .xlsx, or .xls file.' };
-    }
-
-    const formatted = formatData(rawRows, type);
-    return { success: true, data: formatted, rowCount: formatted.length };
+    return { success: true, data, rowCount: data.length };
   } catch (err: any) {
     return { success: false, error: err?.message ?? 'Unknown error during file parsing' };
   }
+}
+
+/**
+ * Renames raw rows per an explicit raw-header -> canonical-column mapping
+ * (a raw header mapped to null is dropped), then filters to ALLOWED_COLUMNS
+ * and drops empty rows — same shape as formatData's output, but driven by a
+ * mapping the caller controls (detected / saved fingerprint / AI-suggested /
+ * human-corrected) instead of re-deriving it from SCHEMA_MAPS per row.
+ */
+export function applyColumnMapping(
+  rawRows: Record<string, string>[],
+  mapping: Record<string, string | null>,
+  type: FileType,
+): Record<string, string>[] {
+  const allowedSet = new Set(ALLOWED_COLUMNS[type]);
+  return rawRows
+    .map((row) => {
+      const filtered: Record<string, string> = {};
+      for (const [key, value] of Object.entries(row)) {
+        const mapped = mapping[key];
+        if (mapped && allowedSet.has(mapped)) filtered[mapped] = value;
+      }
+      return filtered;
+    })
+    .filter((row) => Object.values(row).some((v) => v !== '' && v != null));
 }
 
 // ---------------------------------------------------------------------------

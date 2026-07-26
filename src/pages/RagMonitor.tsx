@@ -6,8 +6,9 @@ import { EmptyState } from '../components/ui/EmptyState';
 import {
   fetchMonitorRows, fetchLatencies, fetchDownvoted, fetchQueryLogRows, labelRoute,
   requeueDocument, requeueAll, countByStatus, percentile, computeTraceability, toCsv,
+  fetchReviewQueue, setAccessTier,
 } from '../lib/rag/monitor';
-import type { MonitorRow, IngestStatus, LatencyPoint, DownvotedQuery, RouteMode, QueryLogRow } from '../lib/rag/monitor';
+import type { MonitorRow, IngestStatus, LatencyPoint, DownvotedQuery, RouteMode, QueryLogRow, ReviewRow, AccessTier } from '../lib/rag/monitor';
 
 const ROUTES: RouteMode[] = ['structured', 'document', 'hybrid'];
 
@@ -26,6 +27,7 @@ export default function RagMonitor() {
   const [latencies, setLatencies] = useState<LatencyPoint[]>([]);
   const [downvoted, setDownvoted] = useState<DownvotedQuery[]>([]);
   const [queryRows, setQueryRows] = useState<QueryLogRow[]>([]);
+  const [reviewQueue, setReviewQueue] = useState<ReviewRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   async function load() {
@@ -35,6 +37,7 @@ export default function RagMonitor() {
       setLatencies(await fetchLatencies());
       setDownvoted(await fetchDownvoted());
       setQueryRows(await fetchQueryLogRows());
+      setReviewQueue(await fetchReviewQueue());
     } catch (e) {
       console.error('Failed to load RAG monitor', e);
       setRows([]);
@@ -88,6 +91,15 @@ export default function RagMonitor() {
       await load();
     } catch (e) {
       console.error('Requeue failed', e);
+    }
+  }
+
+  async function promote(row: ReviewRow, tier: AccessTier) {
+    try {
+      await setAccessTier(row.id, tier);
+      await load();
+    } catch (e) {
+      console.error('Access tier change failed', e);
     }
   }
 
@@ -159,6 +171,54 @@ export default function RagMonitor() {
               </LineChart>
             </ResponsiveContainer>
           </div>
+        </Card>
+      )}
+
+      {reviewQueue.length > 0 && (
+        <Card className="p-4 space-y-3">
+          <div>
+            <div className="text-sm font-medium text-text">
+              Harvested documents awaiting review
+              <Badge variant="warning" className="ml-2">{reviewQueue.length}</Badge>
+            </div>
+            <div className="text-xs text-text-muted">
+              Files picked up by the watched folder or mail-in. They are indexed but
+              readable only at the tier shown — promote to Institute once the content
+              has been checked. Ask SURYA answers from whatever is readable, so this
+              is the step that decides what counts as institute knowledge.
+            </div>
+          </div>
+          <ul className="space-y-2">
+            {reviewQueue.map((d) => (
+              <li key={d.id} className="flex items-center justify-between gap-3 text-sm">
+                <span className="min-w-0 flex-1 truncate text-text" title={d.fileName ?? d.title}>
+                  {d.title}
+                  {d.divisionCode && (
+                    <span className="ml-2 text-xs text-text-muted">{d.divisionCode}</span>
+                  )}
+                  <span className="ml-2 text-xs text-text-muted">
+                    {new Date(d.createdAt).toLocaleDateString()}
+                  </span>
+                </span>
+                <Badge variant={STATUS_VARIANT[d.status]}>{d.status}</Badge>
+                <span className="text-xs text-text-muted w-24 text-right">{d.accessTier}</span>
+                <span className="flex gap-1">
+                  <button
+                    onClick={() => void promote(d, 'institute')}
+                    className="rounded border border-border px-2 py-0.5 text-xs text-text-muted hover:bg-surface-hover hover:text-text"
+                  >
+                    Publish
+                  </button>
+                  <button
+                    onClick={() => void promote(d, 'owner')}
+                    className="rounded border border-border px-2 py-0.5 text-xs text-text-muted hover:bg-surface-hover hover:text-text"
+                  >
+                    Restrict
+                  </button>
+                </span>
+              </li>
+            ))}
+          </ul>
         </Card>
       )}
 

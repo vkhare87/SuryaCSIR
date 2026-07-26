@@ -6,7 +6,8 @@ import { useData } from '../contexts/DataContext';
 import { usePMS } from '../contexts/PMSContext';
 import { Card, Badge } from './ui/Cards';
 import { instituteFreshness } from '../lib/divisions/freshness';
-import { buildDataHealthDigest, sortAndCap, type DigestSeverity } from '../lib/digest/dataHealth';
+import { domainUploadLedger } from '../lib/divisions/uploadFreshness';
+import { buildDataHealthDigest, buildUploadRecencyDigest, sortAndCap, type DigestSeverity } from '../lib/digest/dataHealth';
 import { buildExecutiveDigest } from '../lib/digest/executive';
 import { buildPmsDigest } from '../lib/digest/pms';
 
@@ -20,7 +21,7 @@ const SEVERITY_BADGE: Record<DigestSeverity, { label: string; variant: 'danger' 
  * nothing to flag, so it stays out of the way on healthy dashboards. */
 export function DataHealthDigest() {
   const { user, divisionCode } = useAuth();
-  const { divisions, staff, projects, scientificOutputs, ipIntelligence, mous, techTransfers, phDStudents, phdMilestones, vacancyAdvertisements } = useData();
+  const { divisions, staff, projects, scientificOutputs, ipIntelligence, mous, techTransfers, phDStudents, phdMilestones, vacancyAdvertisements, importEvents } = useData();
   const { evaluations, reports } = usePMS();
 
   const items = useMemo(() => {
@@ -28,12 +29,14 @@ export function DataHealthDigest() {
     const freshness = instituteFreshness(divisions, {
       staff, projects, scientificOutputs, ipIntelligence, mous, techTransfers, phDStudents,
     });
+    const uploadLedger = domainUploadLedger(importEvents);
     return sortAndCap([
       ...buildExecutiveDigest(user.activeRole, divisionCode, { projects, phdMilestones, vacancyAdvertisements }),
       ...buildDataHealthDigest(user.activeRole, divisionCode, freshness),
+      ...buildUploadRecencyDigest(user.activeRole, uploadLedger),
       ...buildPmsDigest(user.activeRole, user.id, evaluations, reports),
     ]);
-  }, [user, divisionCode, divisions, staff, projects, scientificOutputs, ipIntelligence, mous, techTransfers, phDStudents, phdMilestones, vacancyAdvertisements, evaluations, reports]);
+  }, [user, divisionCode, divisions, staff, projects, scientificOutputs, ipIntelligence, mous, techTransfers, phDStudents, phdMilestones, vacancyAdvertisements, importEvents, evaluations, reports]);
 
   if (items.length === 0) return null;
 

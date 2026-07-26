@@ -69,6 +69,49 @@ applied to the live project) is exactly what caused a multi-week outage of
 RAG/MOU/tech-transfer/progress-report features — see
 `docs/superpowers/specs/2026-07-11-db-file-restructure-design.md`.
 
+## Auth settings live in `config.toml`, not the Dashboard
+
+`supabase/config.toml` is the source of truth for GoTrue configuration —
+password rules, session lifetimes, signup policy, and
+`secure_password_change`. Before 2026-07-25 these were dashboard clicks:
+unversioned, unreviewable, and free to differ between the local stack and
+the live project.
+
+```sh
+supabase link --project-ref <your-project-ref>   # once
+supabase config push                              # after every config.toml change
+```
+
+**`supabase db push` does not apply `[auth]`.** Schema and auth config are
+separate pushes; changing one without the other is how the two environments
+drift apart again.
+
+Two settings are load-bearing for security, not preference:
+
+| Setting | Why |
+|---|---|
+| `[auth.email] secure_password_change` | `supabase.auth.updateUser({password})` is callable with nothing but a stolen access token, bypassing the re-authentication in `ChangePassword.tsx`. This makes GoTrue itself demand a recent sign-in. It is the only version of the control an attacker cannot route around. |
+| `[auth] minimum_password_length` / `password_requirements` | The client mirror lives in `src/lib/auth/passwordPolicy.ts` so the UI can name the failing rule. **Change both together** or users are told a password is fine and then watch it be refused. |
+
+Leaked-password protection (HaveIBeenPwned) has no `config.toml` key — it is
+Dashboard → Authentication → Policies, and a paid-plan feature. Enable it
+there if the plan allows.
+
+## Verify what is actually applied before trusting the repo
+
+The repo has drifted from the live project before — see the CLI-adoption
+section above. Migration files existing in `supabase/migrations/` is not
+evidence they ran.
+
+```sh
+supabase migration list          # local vs remote, side by side
+```
+
+Anything showing as local-only is unapplied. This matters most for
+`20260718000001_rls_scope_reads.sql` (scopes personnel reads — without it
+every authenticated user reads the full staff table) and the 2026-07-25
+security migrations. Run this **first** when picking up unfamiliar state.
+
 ## Local dev — load demo data
 
 ```sh
@@ -80,6 +123,40 @@ Order matters because of FKs: `divisions` → `staff` → `projects` → … See
 `13_dev_all_roles.sql` / `14_dev_scientist_staff.sql` / `16_test_roles.sql` grant
 every role to a single dev account for role-switcher testing — edit the email
 inside before running. `15_proposals.sql` seeds demo proposal rows.
+
+## Mock fixtures and the uuid actor columns
+
+`mock/10_helpdesk_tickets.sql` was loaded into SuryaCC deliberately, to
+exercise the helpdesk features. That is a legitimate use of the fixture on a
+project that is still being built out — the earlier framing of it as data
+that "leaked into production" was wrong.
+
+What it did collide with is `20260725000004`, which converts the ticket actor
+columns to `uuid REFERENCES auth.users(id)`. The fixture wrote `staff."ID"`
+codes (`S001`, `T002`) into those columns, so it both blocked the migration
+and can no longer be loaded as originally written.
+
+Resolved by making the fixture speak the new identity model:
+
+- **`mock/02b_staff_auth.sql`** (new) gives all 18 mock staff real auth
+  accounts and sets `staff.user_id`. Password `Test@1234`, roles derived from
+  the ID band (`S`→Scientist, `T`→Technician, `H`→HRAdmin), division from the
+  staff row. This also makes the fixture *more* useful: you can sign in as any
+  staff member and see their own scoped view, which is the only way to
+  exercise the RLS from 20260718000001 and 20260725000005 by hand.
+- **`mock/10_helpdesk_tickets.sql`** now stages its rows in temp tables and
+  resolves `staff."ID"` → `staff.user_id` on insert. The readable staff codes
+  stay in the VALUES, because that is what makes the fixture reviewable.
+  `'system'` actors resolve to NULL, matching the sentinel retirement.
+
+`ops/remove_mock_helpdesk.sql` removes the 20 pre-existing rows that were
+written under the old convention. Re-seed afterwards with `02b` then `10` to
+get them back in uuid form. It is double-gated on the known tokens **and** on
+the actor not being uuid-shaped, so it cannot touch a ticket filed through the
+app.
+
+Other `mock/` files are unaffected — only the helpdesk fixture wrote to
+columns whose type changed.
 
 ## Wipe + reseed cycle (dev only)
 

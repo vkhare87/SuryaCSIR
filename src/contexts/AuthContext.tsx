@@ -33,11 +33,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const resolveUserRoles = async (authUser: SupabaseUser): Promise<boolean> => {
     if (!supabase) return false;
 
-    // Fetch all role rows for this user
+    // Fetch all role rows for this user. ORDER BY is load-bearing: roles[0]
+    // is the fallback active role, and without it a multi-role user landed
+    // on a different dashboard depending on planner row order.
     const { data: roleRows, error: rolesError } = await supabase
       .from('user_roles')
       .select('role, division_code')
-      .eq('user_id', authUser.id);
+      .eq('user_id', authUser.id)
+      .order('role');
 
     if (rolesError || !roleRows || roleRows.length === 0) {
       await supabase.auth.signOut();
@@ -99,7 +102,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       async (event, session) => {
         if (event === 'SIGNED_OUT' || !session) {
           setUser(null);
-        } else if (session?.user) {
+          return;
+        }
+        // USER_UPDATED fires on password change. Nothing it touches affects
+        // roles or the profile, and re-resolving here raced the
+        // rotation-flag clear in ChangePassword — re-reading `true` after
+        // the flag had already been cleared and bouncing the user back to
+        // the form. Skip it; TOKEN_REFRESHED is likewise a no-op for roles.
+        if (event === 'USER_UPDATED' || event === 'TOKEN_REFRESHED') return;
+        if (session.user) {
           await resolveUserRoles(session.user);
         }
       }
@@ -154,17 +165,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
+  // must_change_password is no longer in the caller's column grant on
+  // user_profiles (20260725000001) — clearing it goes through the RPC, and
+  // only after the password actually changed. See ChangePassword.tsx.
   const clearMustChangePassword = async () => {
     if (!supabase || !user) return;
-    await supabase
-      .from('user_profiles')
-      .update({ must_change_password: false })
-      .eq('user_id', user.id);
+    const { error } = await supabase.rpc('clear_must_change_password');
+    if (error) {
+      console.error('Failed to clear password-rotation flag:', error);
+      return;
+    }
     setUser((prev) => prev ? { ...prev, mustChangePassword: false } : prev);
   };
 
   const setActiveRole = async (role: Role) => {
     if (!user || !user.roles.includes(role)) return;
+    const previousRole = user.activeRole;
 
     // Optimistic: switch immediately so nav/route guards see the new role
     // without waiting on the network. Division code refreshes once fetched.
@@ -173,19 +189,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!supabase) return;
 
     try {
-      const [{ data }] = await Promise.all([
+      const [{ data }, { error: persistError }] = await Promise.all([
         supabase.from('user_roles').select('division_code').eq('user_id', user.id).eq('role', role).single(),
         supabase.from('user_profiles').update({ active_role: role }).eq('user_id', user.id),
       ]);
+      // A silently-dropped write meant the role reverted at next login with
+      // no signal — roll the optimistic switch back instead.
+      if (persistError) {
+        console.error('Failed to persist active role:', persistError);
+        setUser((prev) => (prev && prev.activeRole === role ? { ...prev, activeRole: previousRole } : prev));
+        return;
+      }
       setUser((prev) => (prev && prev.activeRole === role ? { ...prev, divisionCode: data?.division_code ?? null } : prev));
     } catch (err) {
       console.error('Failed to persist active role:', err);
+      setUser((prev) => (prev && prev.activeRole === role ? { ...prev, activeRole: previousRole } : prev));
     }
   };
 
+  // Permission follows the ACTIVE role, matching ProtectedRoute in App.tsx.
+  // Checking every assigned role meant a user acting as Scientist still saw
+  // HRAdmin upload controls on pages the route guard would have denied.
   const hasPermission = (allowedRoles: Role[]) => {
-    if (!user) return false;
-    return user.roles.some(r => allowedRoles.includes(r));
+    if (!user?.activeRole) return false;
+    return allowedRoles.includes(user.activeRole);
   };
 
   return (

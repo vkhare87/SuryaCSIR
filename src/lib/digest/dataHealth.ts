@@ -1,5 +1,6 @@
 import type { Role } from '../../types';
 import type { DivisionFreshness } from '../divisions/freshness';
+import type { DomainUpload } from '../divisions/uploadFreshness';
 
 export type DigestSeverity = 'urgent' | 'warning' | 'info';
 
@@ -76,6 +77,34 @@ export function buildDataHealthDigest(
     href: HREF,
   });
   return items;
+}
+
+function daysAgoText(days: number): string {
+  if (days === 0) return 'today';
+  if (days === 1) return '1 day ago';
+  return `${days} days ago`;
+}
+
+/**
+ * Upload-recency alerts — the "who hasn't uploaded" half of Phase A, distinct
+ * from buildDataHealthDigest's content-recency signal above. Institute-wide
+ * only (import_events isn't per-division yet — see TODOS.md), so scoped to
+ * the same steward roles as the institute rollup, not division heads.
+ */
+export function buildUploadRecencyDigest(role: Role, ledger: DomainUpload[]): DigestItem[] {
+  if (!STEWARD_ROLES.includes(role)) return [];
+
+  return ledger
+    .filter((d) => d.status !== 'fresh')
+    .map((d) => ({
+      id: `upload-${d.domain}`,
+      severity: d.status === 'urgent' ? 'urgent' : 'warning',
+      title: d.daysSinceUpload === null
+        ? `${d.label} has never been uploaded`
+        : `${d.label} last uploaded ${daysAgoText(d.daysSinceUpload)}`,
+      detail: 'Upload the latest file on Data Management.',
+      href: '/data',
+    }));
 }
 
 const SEVERITY_RANK: Record<DigestSeverity, number> = { urgent: 0, warning: 1, info: 2 };

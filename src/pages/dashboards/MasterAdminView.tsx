@@ -215,7 +215,13 @@ export function MasterAdminView() {
       toast.push('Password reset requires Supabase backend.', 'warning');
       return;
     }
-    await supabase.from('user_profiles').update({ must_change_password: true }).eq('user_id', userId);
+    // must_change_password is outside the caller column grant on
+    // user_profiles (20260725000001) — admins flag it via the audited RPC.
+    const { error } = await supabase.rpc('admin_force_password_reset', { p_user_id: userId });
+    if (error) {
+      toast.push(`Could not flag password reset: ${error.message}`, 'warning');
+      return;
+    }
     toast.push('Password reset flagged on next login', 'success');
     fetchUsers();
   };

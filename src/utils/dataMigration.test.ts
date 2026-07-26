@@ -9,6 +9,7 @@ import {
   validateRows,
   detectColumnMappings,
   resolveImportDivisions,
+  applyColumnMapping,
   type FileType,
 } from './dataMigration';
 
@@ -103,6 +104,35 @@ describe('detectColumnMappings', () => {
     expect(out[0]).toEqual({ raw: 'Employee ID', mapped: 'ID' });
     expect(out[1]).toEqual({ raw: 'DOJ', mapped: 'DOJ' });
     expect(out[2]).toEqual({ raw: 'Shoe Size', mapped: null });
+  });
+});
+
+describe('applyColumnMapping', () => {
+  it('renames per an explicit mapping and drops unmapped headers', () => {
+    const out = applyColumnMapping(
+      [{ 'Emp ID': 'E1', 'Full Name': 'Dr X', 'Shoe Size': '9' }],
+      { 'Emp ID': 'ID', 'Full Name': 'Name', 'Shoe Size': null },
+      'staff',
+    );
+    expect(out).toEqual([{ ID: 'E1', Name: 'Dr X' }]);
+  });
+
+  it('drops a mapped-but-not-allowed column (mapping bug guard)', () => {
+    const out = applyColumnMapping(
+      [{ Foo: 'bar' }],
+      { Foo: 'NotAnAllowedColumn' },
+      'staff',
+    );
+    expect(out).toEqual([]);
+  });
+
+  it('drops rows that end up entirely empty after mapping', () => {
+    const out = applyColumnMapping(
+      [{ 'Emp ID': '', 'Shoe Size': '9' }],
+      { 'Emp ID': 'ID', 'Shoe Size': null },
+      'staff',
+    );
+    expect(out).toEqual([]);
   });
 });
 

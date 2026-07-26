@@ -574,13 +574,20 @@ export default function StaffDetail() {
           {(() => {
             const isOwnProfile = Boolean(user?.email && member.Email && user.email.toLowerCase() === member.Email.toLowerCase());
             const canUpload = isOwnProfile || canEdit;
+            // documents_insert (20260725000001) only lets admins/Director
+            // register at a shared tier — self-publishing institute-wide was
+            // HIGH-4. A user uploading their own CV lands it at 'owner' (still
+            // visible to them, and to admins) and an admin promotes it from
+            // the /admin/rag review queue. Without this the insert is simply
+            // rejected and the upload appears to do nothing.
+            const uploadTier = canEdit ? 'institute' : 'owner';
             return (
               <>
                 <DocumentPanel
                   entityType="staff_profile"
                   entityId={member.ID}
                   docType="expertise"
-                  accessTier="institute"
+                  accessTier={uploadTier}
                   title="Expertise & CV Documents"
                   canUpload={canUpload}
                   divisionCode={member.Division}
@@ -589,7 +596,7 @@ export default function StaffDetail() {
                   entityType="publication"
                   entityId={member.ID}
                   docType="full_text"
-                  accessTier="institute"
+                  accessTier={uploadTier}
                   title="Publication Full-Texts"
                   canUpload={canUpload}
                   divisionCode={member.Division}

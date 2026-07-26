@@ -53,9 +53,11 @@ export default function TicketList() {
 
   const seesAll = user ? canViewAllTickets(user) : false;
 
+  // Keyed by auth user id — ticket actor columns hold auth.users.id
+  // (20260725000002), not staff."ID".
   const staffById = useMemo(() => {
     const m = new Map<string, string>();
-    staff.forEach((s) => m.set(s.ID, s.Name));
+    staff.forEach((s) => { if (s.user_id) m.set(s.user_id, s.Name); });
     return m;
   }, [staff]);
 

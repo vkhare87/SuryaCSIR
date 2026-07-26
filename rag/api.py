@@ -18,6 +18,7 @@ from pydantic import BaseModel
 from auth import verify_token, scoped_client
 from query_service import parse_bearer, handle_query, stream_query, log_query, find_similar
 from llm import make_llm
+from mapping_service import suggest_mapping
 
 app = FastAPI(title="Ask SURYA")
 
@@ -125,3 +126,36 @@ def similar(body: SimilarIn, authorization: str | None = Header(default=None)):
         raise HTTPException(status_code=401, detail="invalid token")
     client = scoped_client(_ANON_URL, _ANON_KEY, jwt)
     return {"matches": find_similar(text, client, _LLM)}
+
+
+class TargetField(BaseModel):
+    column: str
+    label: str
+
+
+class MapColumnsIn(BaseModel):
+    raw_headers: list[str]
+    target_fields: list[TargetField]
+
+
+@app.post("/map-columns")
+def map_columns(body: MapColumnsIn, authorization: str | None = Header(default=None)):
+    """Phase C: propose raw-header -> canonical-column mappings for an import
+    file with unrecognized headers. Advisory only — the caller (ImportFlow)
+    still requires a human confirm before anything writes to HR tables."""
+    try:
+        jwt = parse_bearer(authorization)
+    except ValueError:
+        raise HTTPException(status_code=401, detail="missing bearer token")
+    try:
+        verify_token(jwt, _ANON_URL, _ANON_KEY)
+    except PermissionError:
+        raise HTTPException(status_code=401, detail="invalid token")
+    if not body.raw_headers or not body.target_fields:
+        raise HTTPException(status_code=400, detail="raw_headers and target_fields required")
+    if len(body.raw_headers) > 400 or len(body.target_fields) > 400:
+        raise HTTPException(status_code=400, detail="too many headers/fields (max 400)")
+
+    target_fields = [f.model_dump() for f in body.target_fields]
+    mapping = suggest_mapping(_LLM, body.raw_headers, target_fields)
+    return {"mapping": mapping}

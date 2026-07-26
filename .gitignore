@@ -11,6 +11,12 @@ dist/
 # Auto-generated SQL rollups (sources live in supabase/migrations + seed + mock)
 supabase/bundles/
 
+# Supabase CLI scratch state — per-machine link info (project ref, pooler URL)
+# and cached remote version stamps. Not config: supabase/config.toml is the
+# tracked source of truth. This directory outliving an uninstalled CLI is what
+# made the repo look linked when it was not.
+supabase/.temp/
+
 # RAG worker (Python) local env
 rag/.venv/
 rag/.env
@@ -19,3 +25,7 @@ __pycache__/
 .pytest_cache/
 rag/eval/corpus.json
 rag/eval/eval_report.md
+
+# Ingest worker (Python) local env
+ingest/.venv/
+ingest/.env

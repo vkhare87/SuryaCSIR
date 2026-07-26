@@ -1,4 +1,4 @@
-import type { DivisionInfo, StaffMember, ProjectInfo, ProjectStaff, PhDStudent, PhDMilestone, Equipment, ScientificOutput, IPIntelligence, MoU, TechTransfer, ContractStaff, VacancyAdvertisement, VacancyPost, Notification, Committee, CommitteeMember, Meeting, AgendaItem, ActionItem, MeetingDocument, Ticket, TicketResponse, TicketEvent, HelpdeskRouting, CalendarEvent, Holiday } from '../types';
+import type { DivisionInfo, StaffMember, ProjectInfo, ProjectStaff, PhDStudent, PhDMilestone, Equipment, ScientificOutput, IPIntelligence, MoU, TechTransfer, ContractStaff, VacancyAdvertisement, VacancyPost, Notification, Committee, CommitteeMember, Meeting, AgendaItem, ActionItem, MeetingDocument, Ticket, TicketResponse, TicketEvent, HelpdeskRouting, CalendarEvent, Holiday, ImportEvent } from '../types';
 
 /**
  * These mappers will eventually transform raw Supabase rows 
@@ -26,6 +26,7 @@ export const mapDivisionRow = (row: any): DivisionInfo => {
 export const mapStaffRow = (row: any): StaffMember => {
   return {
     ID: String(row.ID || row.id || ''),
+    user_id: row.user_id ?? null,
     LabCode: row.LabCode || row.lab_code || '',
     EmployeeType: row.EmployeeType || row.employee_type || '',
     Name: row.Name || row.name || '',
@@ -331,7 +332,8 @@ export const mapTicketEventRow = (row: any): TicketEvent => ({
   id: row.id || '',
   ticket_id: row.ticket_id || '',
   event_type: row.event_type || 'StatusChanged',
-  actor_id: row.actor_id || '',
+  // Null is meaningful here (system-generated event), so don't coerce to ''.
+  actor_id: row.actor_id ?? null,
   details: row.details || {},
   created_at: row.created_at || '',
 });
@@ -365,4 +367,13 @@ export const mapHolidayRow = (row: any): Holiday => ({
   name: row.name || '',
   holiday_type: row.holiday_type || 'Gazetted',
   year: parseInt(row.year || '0', 10),
+});
+
+export const mapImportEventRow = (row: any): ImportEvent => ({
+  id: String(row.id || ''),
+  file_type: row.file_type || '',
+  row_count: parseInt(row.row_count || '0', 10),
+  uploaded_by: row.uploaded_by || '',
+  uploaded_by_email: row.uploaded_by_email || '',
+  uploaded_at: row.uploaded_at || '',
 });

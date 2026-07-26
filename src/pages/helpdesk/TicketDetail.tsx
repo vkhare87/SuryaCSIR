@@ -23,14 +23,19 @@ import type { TicketEvent, StaffMember } from '../../types';
 // Helpers
 // ---------------------------------------------------------------------------
 
-function getAuthorName(authorId: string, staff: StaffMember[]): string {
-  const s = staff.find(st => st.ID === authorId);
-  return s?.Name ?? authorId;
+// Ticket actor columns hold an auth.users.id (20260725000002), so resolve
+// through the staff↔auth link rather than staff."ID".
+function findStaff(authorId: string, staff: StaffMember[]): StaffMember | undefined {
+  return staff.find(st => st.user_id === authorId);
+}
+
+function getAuthorName(authorId: string | null, staff: StaffMember[]): string {
+  if (!authorId) return 'the system';
+  return findStaff(authorId, staff)?.Name ?? authorId;
 }
 
 function getAuthorRole(authorId: string, staff: StaffMember[]): string {
-  const s = staff.find(st => st.ID === authorId);
-  return s?.Designation ?? '';
+  return findStaff(authorId, staff)?.Designation ?? '';
 }
 
 function renderEventDetails(event: TicketEvent, staff: StaffMember[]): string {
@@ -443,10 +448,16 @@ export default function TicketDetail() {
       {/* Reassign Modal */}
       <Modal isOpen={showReassignModal} onClose={() => setShowReassignModal(false)} title="Reassign Ticket">
         <div className="space-y-4">
+          {/* assigned_to is an auth.users id (20260725000004), so the handler
+              must come from staff.user_id — s.ID is the roster key and would
+              fail the uuid cast. Staff with no login cannot hold a ticket, so
+              they are filtered out rather than offered and then rejected.
+              excludeIds is matched against the picker's own s.ID, hence the
+              lookup back to the currently-assigned staff row. */}
           <StaffPicker
             placeholder="Search by name..."
-            excludeIds={ticket.assigned_to ? [ticket.assigned_to] : []}
-            onSelect={(s) => handleReassign(s.ID)}
+            filter={(s) => Boolean(s.user_id) && s.user_id !== ticket.assigned_to}
+            onSelect={(s) => handleReassign(s.user_id!)}
           />
           <div className="flex justify-end gap-3 pt-2 border-t border-border">
             <Button variant="ghost" onClick={() => setShowReassignModal(false)}>Cancel</Button>

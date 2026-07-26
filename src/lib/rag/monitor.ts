@@ -174,6 +174,59 @@ export async function labelRoute(queryId: string, question: string, route: Route
   if (error) throw error;
 }
 
+// ── A5.1: harvested-document review queue ──────────────────────────────
+// Harvested files land at 'division'/'confidential' (ingest/sink.py), never
+// 'institute' — unreviewed input is not institute knowledge. That closed the
+// self-publish hole but left promotion with no surface: an admin had to
+// already know a document existed to widen it. This is that surface.
+
+export type AccessTier = 'owner' | 'confidential' | 'division' | 'institute';
+
+export interface ReviewRow {
+  id: string;
+  title: string;
+  fileName: string | null;
+  divisionCode: string | null;
+  accessTier: AccessTier;
+  status: IngestStatus;
+  createdAt: string;
+}
+
+/** Harvested documents still at an unreviewed tier, oldest first — a queue,
+ *  so the longest-waiting file is the one an admin sees at the top. */
+export async function fetchReviewQueue(): Promise<ReviewRow[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from('documents')
+    .select('id, title, file_name, division_code, access_tier, ingest_status, created_at')
+    .eq('entity_type', 'harvested')
+    .in('access_tier', ['owner', 'confidential', 'division'])
+    .order('created_at', { ascending: true })
+    .limit(200);
+  if (error) throw error;
+  return (data ?? []).map((d) => ({
+    id: d.id,
+    title: d.title,
+    fileName: d.file_name ?? null,
+    divisionCode: d.division_code ?? null,
+    accessTier: d.access_tier as AccessTier,
+    status: d.ingest_status as IngestStatus,
+    createdAt: d.created_at,
+  }));
+}
+
+/** Widen or narrow a reviewed document. Goes through the audited RPC —
+ *  documents_update_admin does not cover access_tier by design, so this is
+ *  the only path and every promotion lands in pms_audit_logs. */
+export async function setAccessTier(docId: string, tier: AccessTier): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.rpc('documents_set_access_tier', {
+    p_document_id: docId,
+    p_tier: tier,
+  });
+  if (error) throw error;
+}
+
 export async function requeueDocument(docId: string): Promise<void> {
   if (!supabase) return;
   const { error } = await supabase.rpc('rag_requeue_document', { p_doc_id: docId });
