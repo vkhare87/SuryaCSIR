@@ -308,6 +308,78 @@ BEGIN
     END IF;
 END $$;
 
+-- ── P16 — a rename moves visibility to the new person ──────────────────
+-- The counterweight to the stale-key bug: sync_staff_key must re-resolve
+-- when the source name changes, not just when the key is NULL.
+DO $$
+DECLARE v_key text;
+BEGIN
+    INSERT INTO public.staff ("ID", "Name", "Email", "Division", user_id)
+    VALUES ('TSTAFF2', 'Second Owner', 'second@test.local', 'CMPD', NULL)
+    ON CONFLICT ("ID") DO NOTHING;
+
+    UPDATE public.projects
+       SET "PrincipalInvestigator" = 'Second Owner'
+     WHERE "ProjectNo" = 'P14-PRJ';
+
+    SELECT pi_staff_id INTO v_key FROM public.projects WHERE "ProjectNo" = 'P14-PRJ';
+    IF v_key IS DISTINCT FROM 'TSTAFF2' THEN
+        RAISE EXCEPTION 'P16 FAILED: PI rename left the key at % instead of TSTAFF2', v_key;
+    END IF;
+END $$;
+
+-- ── P17 — a participant can still respond ──────────────────────────────
+-- T14 must not have been satisfied by refusing everyone.
+DO $$
+DECLARE v_ticket uuid; v_count int;
+BEGIN
+    SELECT id INTO v_ticket FROM public.tickets WHERE token = 'AMPRI-POS-001';
+
+    CALL pg_temp.become('aaaaaaaa-0000-0000-0000-000000000001', 'submitter@test.local');
+    PERFORM public.helpdesk_add_response(
+        v_ticket, 'aaaaaaaa-0000-0000-0000-000000000001', 'participant reply');
+    RESET ROLE;
+
+    SELECT count(*) INTO v_count FROM public.ticket_responses
+     WHERE ticket_id = v_ticket AND message = 'participant reply';
+    IF v_count <> 1 THEN
+        RAISE EXCEPTION 'P17 FAILED: the submitter could not respond to their own ticket';
+    END IF;
+END $$;
+
+-- ── P18 — the flag DOES clear once the password actually changes ───────
+-- The counterweight to T15, which is satisfiable by refusing every caller —
+-- and that would lock anyone flagged for rotation out permanently.
+DO $$
+DECLARE v_flag boolean;
+BEGIN
+    -- Give the account a password and flag it, recording the baseline the
+    -- same way admin_force_password_reset does.
+    UPDATE auth.users SET encrypted_password = 'hash-before'
+     WHERE id = 'aaaaaaaa-0000-0000-0000-000000000001';
+
+    UPDATE public.user_profiles up
+       SET must_change_password = true,
+           password_fingerprint = encode(digest(u.encrypted_password, 'sha256'), 'hex')
+      FROM auth.users u
+     WHERE u.id = up.user_id
+       AND up.user_id = 'aaaaaaaa-0000-0000-0000-000000000001';
+
+    -- Stand in for supabase.auth.updateUser() succeeding.
+    UPDATE auth.users SET encrypted_password = 'hash-after'
+     WHERE id = 'aaaaaaaa-0000-0000-0000-000000000001';
+
+    CALL pg_temp.become('aaaaaaaa-0000-0000-0000-000000000001', 'submitter@test.local');
+    PERFORM public.clear_must_change_password();
+    RESET ROLE;
+
+    SELECT must_change_password INTO v_flag FROM public.user_profiles
+     WHERE user_id = 'aaaaaaaa-0000-0000-0000-000000000001';
+    IF v_flag IS NOT FALSE THEN
+        RAISE EXCEPTION 'P18 FAILED: flag did not clear after a real password change';
+    END IF;
+END $$;
+
 DO $$ BEGIN RAISE NOTICE 'ALL RLS POSITIVE TESTS PASSED'; END $$;
 
 ROLLBACK;

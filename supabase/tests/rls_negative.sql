@@ -310,6 +310,54 @@ BEGIN
     END IF;
 END $$;
 
+-- ── T14 — posting into a ticket you have nothing to do with ────────────
+-- helpdesk_add_response verified the AUTHOR was the caller but never that
+-- the caller was a participant. SECURITY DEFINER bypasses RLS, so a leaked
+-- ticket UUID was enough to write into a private grievance thread.
+DO $$
+DECLARE v_ticket uuid; v_count int;
+BEGIN
+    SELECT id INTO v_ticket FROM public.tickets WHERE token = 'AMPRI-TEST-001';
+
+    CALL pg_temp.become('11111111-1111-1111-1111-111111111111', 'lowpriv@test.local');
+    PERFORM pg_temp.blocked(format(
+        'SELECT public.helpdesk_add_response(%L::uuid,
+                ''11111111-1111-1111-1111-111111111111'', ''injected'')', v_ticket));
+    RESET ROLE;
+
+    SELECT count(*) INTO v_count FROM public.ticket_responses
+     WHERE ticket_id = v_ticket AND message = 'injected';
+    IF v_count <> 0 THEN
+        RAISE EXCEPTION 'T14 FAILED: outsider posted into a foreign ticket';
+    END IF;
+END $$;
+
+-- ── T15 — retiring the rotation flag without rotating ──────────────────
+-- clear_must_change_password is granted to authenticated and scopes to
+-- auth.uid(), so calling it directly used to keep an admin-assigned
+-- temporary password alive indefinitely.
+DO $$
+DECLARE v_flag boolean;
+BEGIN
+    UPDATE public.user_profiles up
+       SET must_change_password = true,
+           password_fingerprint = encode(digest(u.encrypted_password, 'sha256'), 'hex')
+      FROM auth.users u
+     WHERE u.id = up.user_id
+       AND up.user_id = '11111111-1111-1111-1111-111111111111';
+
+    CALL pg_temp.become('11111111-1111-1111-1111-111111111111', 'lowpriv@test.local');
+    -- No password change has happened, so this must be refused.
+    PERFORM pg_temp.blocked('SELECT public.clear_must_change_password()');
+    RESET ROLE;
+
+    SELECT must_change_password INTO v_flag FROM public.user_profiles
+     WHERE user_id = '11111111-1111-1111-1111-111111111111';
+    IF v_flag IS NOT TRUE THEN
+        RAISE EXCEPTION 'T15 FAILED: rotation flag cleared without a password change';
+    END IF;
+END $$;
+
 DO $$ BEGIN RAISE NOTICE 'ALL RLS NEGATIVE TESTS PASSED'; END $$;
 
 ROLLBACK;
