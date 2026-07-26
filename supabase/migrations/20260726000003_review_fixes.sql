@@ -90,7 +90,7 @@ COMMENT ON COLUMN public.user_profiles.password_fingerprint IS
 -- Baseline anyone already flagged, so the check has something to compare
 -- against instead of failing open on its first run.
 UPDATE public.user_profiles up
-   SET password_fingerprint = encode(digest(u.encrypted_password, 'sha256'), 'hex')
+   SET password_fingerprint = encode(extensions.digest(u.encrypted_password, 'sha256'), 'hex')
   FROM auth.users u
  WHERE u.id = up.user_id
    AND up.must_change_password
@@ -109,7 +109,7 @@ DECLARE
 BEGIN
     IF auth.uid() IS NULL THEN RAISE EXCEPTION 'not authenticated'; END IF;
 
-    SELECT encode(digest(u.encrypted_password, 'sha256'), 'hex')
+    SELECT encode(extensions.digest(u.encrypted_password, 'sha256'), 'hex')
       INTO v_current FROM auth.users u WHERE u.id = auth.uid();
 
     SELECT must_change_password, password_fingerprint
@@ -153,7 +153,7 @@ BEGIN
 
     UPDATE public.user_profiles up
        SET must_change_password = true,
-           password_fingerprint = encode(digest(u.encrypted_password, 'sha256'), 'hex')
+           password_fingerprint = encode(extensions.digest(u.encrypted_password, 'sha256'), 'hex')
       FROM auth.users u
      WHERE u.id = up.user_id
        AND up.user_id = p_user_id;
@@ -177,7 +177,7 @@ BEGIN
 
     INSERT INTO public.user_profiles (user_id, email, must_change_password, password_fingerprint)
     VALUES (NEW.id, NEW.email, true,
-            encode(digest(COALESCE(NEW.encrypted_password, ''), 'sha256'), 'hex'))
+            encode(extensions.digest(COALESCE(NEW.encrypted_password, ''), 'sha256'), 'hex'))
     ON CONFLICT (user_id) DO NOTHING;
 
     RETURN NEW;
