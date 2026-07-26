@@ -124,21 +124,39 @@ Order matters because of FKs: `divisions` → `staff` → `projects` → … See
 every role to a single dev account for role-switcher testing — edit the email
 inside before running. `15_proposals.sql` seeds demo proposal rows.
 
-## Demo data that reached production
+## Mock fixtures and the uuid actor columns
 
-`mock/` is dev-only, but `mock/10_helpdesk_tickets.sql` was loaded into the
-live project at some point — 20 fake tickets, including HRGrievance ones,
-visible in a real helpdesk and attributed to staff IDs with no login.
+`mock/10_helpdesk_tickets.sql` was loaded into SuryaCC deliberately, to
+exercise the helpdesk features. That is a legitimate use of the fixture on a
+project that is still being built out — the earlier framing of it as data
+that "leaked into production" was wrong.
 
-`ops/remove_mock_helpdesk.sql` removes exactly those 20 (and their responses,
-events and audit_log rows), double-gated on the known tokens **and** on the
-actor not being uuid-shaped, so it cannot touch a genuine ticket. It verifies
-the result before committing and rolls back if anything unexpected remains.
+What it did collide with is `20260725000004`, which converts the ticket actor
+columns to `uuid REFERENCES auth.users(id)`. The fixture wrote `staff."ID"`
+codes (`S001`, `T002`) into those columns, so it both blocked the migration
+and can no longer be loaded as originally written.
 
-This surfaced because `20260725000004` refuses to convert actor columns to
-`uuid` while non-uuid values remain. Worth checking whether other `mock/`
-files also reached prod — the helpdesk fixture is unlikely to have been the
-only one.
+Resolved by making the fixture speak the new identity model:
+
+- **`mock/02b_staff_auth.sql`** (new) gives all 18 mock staff real auth
+  accounts and sets `staff.user_id`. Password `Test@1234`, roles derived from
+  the ID band (`S`→Scientist, `T`→Technician, `H`→HRAdmin), division from the
+  staff row. This also makes the fixture *more* useful: you can sign in as any
+  staff member and see their own scoped view, which is the only way to
+  exercise the RLS from 20260718000001 and 20260725000005 by hand.
+- **`mock/10_helpdesk_tickets.sql`** now stages its rows in temp tables and
+  resolves `staff."ID"` → `staff.user_id` on insert. The readable staff codes
+  stay in the VALUES, because that is what makes the fixture reviewable.
+  `'system'` actors resolve to NULL, matching the sentinel retirement.
+
+`ops/remove_mock_helpdesk.sql` removes the 20 pre-existing rows that were
+written under the old convention. Re-seed afterwards with `02b` then `10` to
+get them back in uuid form. It is double-gated on the known tokens **and** on
+the actor not being uuid-shaped, so it cannot touch a ticket filed through the
+app.
+
+Other `mock/` files are unaffected — only the helpdesk fixture wrote to
+columns whose type changed.
 
 ## Wipe + reseed cycle (dev only)
 

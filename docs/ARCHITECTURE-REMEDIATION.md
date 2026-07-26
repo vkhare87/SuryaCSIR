@@ -367,9 +367,15 @@ in this repo exercises that path. That is the case for A7 in one table.
    used, so the CI `db` job is untested. Expect to fix syntax on the first
    pass. Until it runs green, treat the suites as unproven — they are the
    whole point of A7, and the table above is the argument for finishing it.
-2. **Demo data reached production.** `mock/10_helpdesk_tickets.sql` was in
-   the live database; the helpdesk fixture is unlikely to have been the only
-   one. Audit the rest of `mock/` against live data.
+2. **The helpdesk fixture needed rewriting, not removing.**
+   `mock/10_helpdesk_tickets.sql` was loaded into SuryaCC on purpose, to
+   exercise the helpdesk features — calling it data that "leaked into
+   production" was a wrong read. What it actually collided with is
+   `20260725000004`: it wrote `staff."ID"` codes into columns that are now
+   `uuid REFERENCES auth.users(id)`. Fixed by adding `mock/02b_staff_auth.sql`
+   (auth accounts + `staff.user_id` for all 18 mock staff) and having the
+   ticket fixture resolve codes → uuids on insert. Only the helpdesk fixture
+   touched columns whose type changed; the rest of `mock/` is unaffected.
 3. **Verified by local tooling:** `npm run build`, `npx eslint src/`
    (0 errors), 621 vitest, 41 ingest, 170 rag, the SECURITY DEFINER guard,
    the design-debt ratchet, and a live probe confirming all 28 `DataContext`
