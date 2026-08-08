@@ -10,11 +10,24 @@ export interface CommercialisationSummary {
   licensableAssets: { title: string; type: string; divisionCode: string }[];
 }
 
-const EXTERNAL_FUND_TYPES = /consultan|sponsor|industr|contract/i;
+const EXTERNAL_FUND_TYPES = /consultan|sponsor|industr|contract|extramural|\bECF\b/i;
+
+/** CSIR-AMPRI's own project records name the funder, not the arrangement: fund type
+ * 'ECF' (External Cash Flow) against sponsor types 'Central Govt/Agencies',
+ * 'State Govt/Agencies', 'Private' and 'PSU', with in-house work sponsored by 'CSIR'
+ * itself. Matching only 'consultancy/sponsored/industry' read every externally funded
+ * project as in-house and showed the commercialisation strip as zero. */
+const IN_HOUSE_SPONSOR = /^\s*(csir|in[- ]?house|lab)\b/i;
+
+function isExternallyFunded(p: ProjectInfo): boolean {
+  if (EXTERNAL_FUND_TYPES.test(p.FundType ?? '')) return true;
+  const sponsor = (p.SponsorerType ?? '').trim();
+  return sponsor !== '' && !IN_HOUSE_SPONSOR.test(sponsor);
+}
 
 /**
  * Income side of the R&D balance sheet: granted IP = licensable assets;
- * consultancy/sponsored projects = external revenue engagements.
+ * externally funded projects = external revenue engagements.
  */
 export function commercialisationSummary(
   ip: IPIntelligence[],
@@ -22,9 +35,7 @@ export function commercialisationSummary(
   transfers: TechTransfer[] = [],
 ): CommercialisationSummary {
   const granted = ip.filter(i => i.status === 'Granted');
-  const external = projects.filter(
-    p => EXTERNAL_FUND_TYPES.test(p.FundType) || EXTERNAL_FUND_TYPES.test(p.SponsorerType),
-  );
+  const external = projects.filter(isExternallyFunded);
   const live = transfers.filter(t => t.status !== 'Terminated');
   return {
     grantedPatents: granted.length,

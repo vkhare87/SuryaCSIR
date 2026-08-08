@@ -1,3 +1,4 @@
+import re
 from datetime import date, timedelta
 
 from answer import Answer
@@ -32,10 +33,25 @@ def _num(value) -> float:
 
 
 def _parse_date(value):
-    try:
-        return date.fromisoformat(str(value))
-    except (TypeError, ValueError):
+    """CSIR-AMPRI's own HR records write dates as '28.12.1970', and project sheets
+    use '28/12/1970'; ISO-only parsing silently dropped every real staff row, so
+    succession risk and retirement analytics saw only seeded demo data.
+    Mirrors parseDate() in src/utils/dateUtils.ts."""
+    text = str(value or "").strip()
+    if not text:
         return None
+    try:
+        return date.fromisoformat(text)
+    except ValueError:
+        pass
+    match = re.match(r"^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$", text)
+    if match:
+        day, month, year = (int(g) for g in match.groups())
+        try:
+            return date(year, month, day)
+        except ValueError:
+            return None
+    return None
 
 
 def _add_years(d, years):
@@ -69,18 +85,39 @@ def _count_projects_by_status(params, client) -> Answer:
                   "(source: projects table)", "structured", [])
 
 
+def _recorded(value) -> bool:
+    """True when a figure was actually supplied. Utilisation comes from Finance &
+    Accounts, not the projects register, so it is routinely blank — and summing
+    blanks to 0 reports 'nothing was spent', which is a different and much worse
+    claim than 'we do not hold this figure'."""
+    return str(value or "").strip() != ""
+
+
 def _project_expenditure_summary(params, client) -> Answer:
     rows = _rows(client, "projects", "DivisionCode, SanctionedCost, UtilizedAmount")
     division = params.get("division_code")
     if division:
         rows = [r for r in rows if str(r.get("DivisionCode", "")).lower() == str(division).lower()]
     sanctioned = sum(_num(r.get("SanctionedCost")) for r in rows)
-    utilized = sum(_num(r.get("UtilizedAmount")) for r in rows)
-    pct = (utilized / sanctioned * 100) if sanctioned else 0.0
+    with_util = [r for r in rows if _recorded(r.get("UtilizedAmount"))]
     scope = f"division {division}" if division else "all divisions"
+
+    if not with_util:
+        return Answer(f"Expenditure across {len(rows)} project(s) in {scope} — "
+                      f"sanctioned {sanctioned:,.0f}. Utilisation is not recorded for "
+                      f"any of these projects, so no utilisation percentage can be "
+                      f"reported. (source: projects table)", "structured", [])
+
+    utilized = sum(_num(r.get("UtilizedAmount")) for r in with_util)
+    util_sanctioned = sum(_num(r.get("SanctionedCost")) for r in with_util)
+    pct = (utilized / util_sanctioned * 100) if util_sanctioned else 0.0
+    coverage = ("" if len(with_util) == len(rows) else
+                f" Utilisation is recorded for {len(with_util)} of {len(rows)} project(s); "
+                f"the percentage covers only those.")
     return Answer(f"Expenditure across {len(rows)} project(s) in {scope} — "
                   f"sanctioned {sanctioned:,.0f}, utilized {utilized:,.0f} "
-                  f"({pct:.1f}% utilization). (source: projects table)", "structured", [])
+                  f"({pct:.1f}% utilization).{coverage} (source: projects table)",
+                  "structured", [])
 
 
 def _patent_pipeline_counts(params, client) -> Answer:
@@ -186,12 +223,19 @@ def _project_budget_variance(params, client) -> Answer:
                  "SanctionedCost, UtilizedAmount")
     today = date.today()
     flags = []
+    assessable = 0
     for r in rows:
         if str(r.get("ProjectStatus", "")).lower() in ("completed", "closed"):
             continue
         sanctioned = _num(r.get("SanctionedCost"))
         if sanctioned <= 0:
             continue
+        # No utilisation figure means unassessed, not on-budget. Treating blanks as
+        # zero spend made every project look massively under-burnt, so the analytic
+        # returned a reassuring "nothing breaches the threshold" over no data at all.
+        if not _recorded(r.get("UtilizedAmount")):
+            continue
+        assessable += 1
         util_pct = _num(r.get("UtilizedAmount")) / sanctioned * 100
         name = r.get("ProjectNo") or r.get("ProjectName") or "unknown"
         if util_pct > 100:
@@ -207,9 +251,14 @@ def _project_budget_variance(params, client) -> Answer:
                              f"elapsed ({direction} burn by {abs(variance):.0f}pp)")
         elif util_pct >= 90:
             flags.append(f"{name}: near exhaustion ({util_pct:.0f}% spent, no timeline)")
+    if not assessable:
+        return Answer("Budget variance cannot be assessed: no active project has a "
+                      "recorded utilisation figure. (source: projects table)",
+                      "structured", [])
     if not flags:
-        return Answer("No active projects breach the budget-variance threshold. "
-                      "(source: projects table)", "structured", [])
+        return Answer(f"No active projects breach the budget-variance threshold "
+                      f"({assessable} project(s) assessed). (source: projects table)",
+                      "structured", [])
     return Answer(f"{len(flags)} project(s) flagged for budget variance — "
                   f"{'; '.join(flags[:15])}"
                   f"{' …' if len(flags) > 15 else ''}. (source: projects table)",
@@ -221,30 +270,47 @@ _RETIREMENT_AGE = 60
 _SUCCESSION_YEARS = 3
 
 
+# HR records leave unknown expertise as the literal 'N/A', which is not a capability
+# anyone can inherit — treat it as blank so it neither raises nor absorbs risk.
+_NO_EXPERTISE = {"", "n/a", "na", "none", "-"}
+
+
+def _expertise_key(row) -> str:
+    """The capability a person actually carries. 'Expertise' is the specific field
+    ('Radiation Shielding'); CoreArea is the broad discipline bucket ('Material
+    Science', 'Group-I') that dozens share, so keying succession risk on CoreArea
+    finds nothing real. Prefer Expertise, fall back to CoreArea."""
+    for field in ("Expertise", "CoreArea"):
+        value = str(row.get(field) or "").strip().lower()
+        if value not in _NO_EXPERTISE:
+            return value
+    return ""
+
+
 def _expertise_succession_risk(params, client) -> Answer:
     """Key-person risk: staff retiring within N years whose CoreArea is held by no
     colleague remaining after them. Financial analogue: single-point-of-failure /
     uninsured concentration."""
     years = int(_num(params.get("years")) or _SUCCESSION_YEARS)
-    rows = _rows(client, "staff", "Name, Designation, Division, DOB, CoreArea")
+    rows = _rows(client, "staff", "Name, Designation, Division, DOB, CoreArea, Expertise")
     today = date.today()
     horizon = _add_years(today, years)
     retiring, staying_areas = [], set()
     for r in rows:
         dob = _parse_date(r.get("DOB"))
-        core = str(r.get("CoreArea") or "").strip()
+        area = _expertise_key(r)
         retire_on = _add_years(dob, _RETIREMENT_AGE) if dob else None
         if retire_on and today <= retire_on <= horizon:
-            retiring.append((r, retire_on, core.lower()))
-        elif core:
-            staying_areas.add(core.lower())
+            retiring.append((r, retire_on, area))
+        elif area:
+            staying_areas.add(area)
     at_risk = [(r, retire_on) for r, retire_on, core in retiring
                if core and core not in staying_areas]
     if not at_risk:
         return Answer(f"No unique-expertise succession risk within {years} year(s). "
                       "(source: staff table)", "structured", [])
     listing = "; ".join(
-        f"{r.get('Name') or 'Unknown'} ({r.get('CoreArea') or '—'}, "
+        f"{r.get('Name') or 'Unknown'} ({_expertise_key(r) or '—'}, "
         f"div {r.get('Division') or '—'}, retires {retire_on.isoformat()})"
         for r, retire_on in sorted(at_risk, key=lambda x: x[1]))
     return Answer(f"{len(at_risk)} staff retiring within {years} year(s) hold expertise "
