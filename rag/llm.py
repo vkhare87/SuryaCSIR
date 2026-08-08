@@ -126,9 +126,13 @@ class FakeLLM:
 
 
 class OpenLLMClient:
-    def __init__(self, base_url: str, model: str):
+    """Any OpenAI-compatible /chat/completions endpoint: the locally hosted model
+    (Ollama, no key) or a hosted API (set OPENLLM_API_KEY for the bearer header)."""
+
+    def __init__(self, base_url: str, model: str, api_key: str = ""):
         self.base_url = base_url.rstrip("/")
         self.model = model
+        self.api_key = api_key or os.environ.get("OPENLLM_API_KEY", "")
 
     def _request(self, content: str, system: str | None, stream: bool = False):
         messages = []
@@ -138,10 +142,13 @@ class OpenLLMClient:
         payload = {"model": self.model, "messages": messages, "temperature": 0.0}
         if stream:
             payload["stream"] = True
+        headers = {"Content-Type": "application/json"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
         return urllib.request.Request(
             f"{self.base_url}/chat/completions",
             data=json.dumps(payload).encode(),
-            headers={"Content-Type": "application/json"},
+            headers=headers,
         )
 
     def _chat(self, content: str, system: str | None = None,
@@ -201,9 +208,40 @@ class OpenLLMClient:
         )
 
 
-def make_llm(backend: str, base_url: str, model: str):
+# Presets for the OpenAI-compatible endpoints this project has actually been run
+# against, so moving between them is a provider name plus a key rather than a set
+# of URLs to look up. Any other provider still works — set OPENLLM_BASE_URL and
+# OPENLLM_MODEL explicitly and leave LLM_PROVIDER unset.
+PROVIDERS = {
+    "ollama": {"base_url": "http://localhost:11434/v1", "model": "qwen3-vl:8b"},
+    "deepseek": {"base_url": "https://api.deepseek.com/v1", "model": "deepseek-v4-flash"},
+}
+
+
+def resolve_endpoint(provider: str = "", base_url: str = "", model: str = ""):
+    """(base_url, model) for a provider preset, with explicit values winning.
+
+    Model ids drift; if a provider rejects the preset one, set OPENLLM_MODEL."""
+    key = (provider or "").strip().lower()
+    if key and key not in PROVIDERS:
+        raise ValueError(
+            f"Unknown LLM_PROVIDER: {provider}. Known: {', '.join(sorted(PROVIDERS))}. "
+            "For any other provider set OPENLLM_BASE_URL and OPENLLM_MODEL instead.")
+    preset = PROVIDERS.get(key, {})
+    resolved_url = base_url or preset.get("base_url", "")
+    resolved_model = model or preset.get("model", "")
+    if not resolved_url or not resolved_model:
+        raise ValueError(
+            "No model endpoint configured: set LLM_PROVIDER "
+            f"({', '.join(sorted(PROVIDERS))}) or both OPENLLM_BASE_URL and OPENLLM_MODEL.")
+    return resolved_url, resolved_model
+
+
+def make_llm(backend: str, base_url: str = "", model: str = "",
+             provider: str = "", api_key: str = ""):
     if backend == "fake":
         return FakeLLM()
     if backend == "openllm":
-        return OpenLLMClient(base_url, model)
+        url, name = resolve_endpoint(provider, base_url, model)
+        return OpenLLMClient(url, name, api_key)
     raise ValueError(f"Unknown LLM_BACKEND: {backend}")

@@ -40,6 +40,8 @@ _LLM = make_llm(
     os.environ.get("LLM_BACKEND", "fake"),
     os.environ.get("OPENLLM_BASE_URL", ""),
     os.environ.get("OPENLLM_MODEL", ""),
+    provider=os.environ.get("LLM_PROVIDER", ""),
+    api_key=os.environ.get("OPENLLM_API_KEY", ""),
 )
 
 

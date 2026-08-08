@@ -34,6 +34,18 @@ def select_docs(docs, question: str, llm, max_docs: int = MAX_DOCS_FLAT):
     return [docs[i] for i in picks[:max_docs]]
 
 
+# Section titles alone are often just "Page 7" — nothing for the model to reason
+# over. The tree already holds a summary per node (that is the point of PageIndex),
+# so the pick label carries it, capped so a wide corpus still fits one prompt.
+SECTION_SUMMARY_CHARS = 240
+
+
+def section_label(doc_title: str, node) -> str:
+    label = f"{doc_title} — {node['title']}"
+    summary = " ".join((node.get("summary") or "").split())[:SECTION_SUMMARY_CHARS]
+    return f"{label}: {summary}" if summary else label
+
+
 def descend(candidates, question: str, llm):
     """Recursive per-level pick over (doc_id, doc_title, storage_path, node) tuples.
     Picked nodes with children recurse; without children they are leaf results.
@@ -41,7 +53,7 @@ def descend(candidates, question: str, llm):
     empty-final-set check, since a picked leaf is grounded regardless of siblings."""
     if not candidates:
         return []
-    titles = [f"{title} — {node['title']}" for _, title, _, node in candidates]
+    titles = [section_label(title, node) for _, title, _, node in candidates]
     picks = llm.pick(question, titles)
     leaves, next_level = [], []
     for i in picks:
