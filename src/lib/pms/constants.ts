@@ -11,16 +11,6 @@ export const SECTION_KEYS: StandardSectionKey[] = [
   'section_vi_national', 'section_vi_international',
 ];
 
-// Max word counts per section (undefined = no limit)
-export const MAX_WORDS: Partial<Record<SectionKey, number>> = {
-  section_i4: 150,
-  section_i5: 100,
-  section_iii: 300,
-  section_iv: 300,
-  section_v_curriculum: 100,
-  section_v_other: 150,
-};
-
 export interface WizardStep {
   label: string;
   keys: SectionKey[];

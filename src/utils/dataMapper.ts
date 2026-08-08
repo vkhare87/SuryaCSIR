@@ -1,4 +1,4 @@
-import type { DivisionInfo, StaffMember, ProjectInfo, ProjectStaff, PhDStudent, PhDMilestone, Equipment, ScientificOutput, IPIntelligence, MoU, TechTransfer, ContractStaff, VacancyAdvertisement, VacancyPost, Notification, Committee, CommitteeMember, Meeting, AgendaItem, ActionItem, MeetingDocument, Ticket, TicketResponse, TicketEvent, HelpdeskRouting, CalendarEvent, Holiday, ImportEvent } from '../types';
+import type { DivisionInfo, StaffMember, ProjectInfo, ProjectStaff, PhDStudent, PhDMilestone, Equipment, ScientificOutput, IPIntelligence, MoU, TechTransfer, ContractStaff, VacancyAdvertisement, VacancyPost, Committee, CommitteeMember, Meeting, AgendaItem, ActionItem, MeetingDocument, Ticket, TicketResponse, TicketEvent, HelpdeskRouting, CalendarEvent, Holiday, ImportEvent } from '../types';
 
 /**
  * These mappers will eventually transform raw Supabase rows 
@@ -226,18 +226,6 @@ export const mapVacancyPostRow = (row: any): VacancyPost => ({
   applicationDate: row.applicationDate || row.application_date || '',
   status: row.status || 'Received',
   notes: row.notes || undefined,
-});
-
-export const mapNotificationRow = (row: any): Notification => ({
-  id: String(row.id || ''),
-  user_id: String(row.user_id || ''),
-  title: row.title || '',
-  body: row.body || '',
-  type: row.type || 'announcement',
-  read: Boolean(row.read),
-  entity_type: row.entity_type || null,
-  entity_id: row.entity_id || null,
-  created_at: row.created_at || '',
 });
 
 // ──────────────────────────────────────────────────────────────

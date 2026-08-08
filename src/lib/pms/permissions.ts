@@ -2,10 +2,6 @@ import type { Role, UserAccount } from '../../types';
 import type { CommitteeTier, PmsTrack, PMSEvaluationCommitteeMember, PMSReport } from '../../types/pms';
 import { COMMITTEE_TIERS, ELIGIBLE_SCIENTIST_GRADES, SENIOR_DESIGNATIONS, STANDARD_DESIGNATIONS } from './constants';
 
-export function canEditReport(user: UserAccount, report: PMSReport): boolean {
-  return report.scientistId === user.id && report.status === 'DRAFT';
-}
-
 export function canSubmitReport(
   user: UserAccount,
   report: PMSReport,
@@ -16,13 +12,6 @@ export function canSubmitReport(
     report.status === 'DRAFT' &&
     cycleOpen
   );
-}
-
-export function canEvaluate(
-  user: UserAccount,
-  membership: PMSEvaluationCommitteeMember[]
-): boolean {
-  return membership.some(m => m.userId === user.id);
 }
 
 export function canCommitteeDecide(user: UserAccount): boolean {

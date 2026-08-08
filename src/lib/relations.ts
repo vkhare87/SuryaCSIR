@@ -9,10 +9,6 @@ export function divisionOfStaff(member: StaffMember, divisions: DivisionInfo[]):
   return divisions.find(d => d.divCode === member.Division);
 }
 
-export function staffInDivision(divCode: string, staff: StaffMember[]): StaffMember[] {
-  return staff.filter(s => s.Division === divCode);
-}
-
 /** Projects a staff member leads (PI) or is a team member of. */
 export function projectsForStaff(
   member: StaffMember,

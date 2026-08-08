@@ -252,18 +252,6 @@ export interface VacancyPost {
 export type UIDensity = 'compact' | 'medium' | 'relaxed';
 export type ThemeMode = 'light' | 'dark' | 'system';
 
-export interface Notification {
-  id: string;
-  user_id: string;
-  title: string;
-  body: string;
-  type: 'deadline' | 'announcement';
-  read: boolean;
-  entity_type: string | null;
-  entity_id: string | null;
-  created_at: string;
-}
-
 // --- v1.0 Committees & Helpdesk ---
 
 export interface Committee {

@@ -35,16 +35,6 @@ export type CalEvent =
   | (CalEventBase & { kind: 'birthday'; source: StaffMember })
   | (CalEventBase & { kind: 'retirement'; source: StaffMember; retirementDate: Date });
 
-export const PERSONAL_KINDS: CalEventKind[] = ['birthday', 'retirement', 'action'];
-export const ORG_KINDS: CalEventKind[] = [
-  'meeting',
-  'custom',
-  'pamphlet',
-  'announcement',
-  'holiday',
-  'project_closing',
-];
-
 export const EVENT_COLOR: Record<CalEventKind, string> = {
   meeting: 'bg-[#c96442]',
   action: 'bg-amber-500',

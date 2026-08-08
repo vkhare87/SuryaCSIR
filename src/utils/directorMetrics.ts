@@ -158,15 +158,6 @@ export function getIpPipeline(ip: IPIntelligence[]): FunnelStage[] {
   return IP_STAGES.map((name) => ({ name, value: ip.filter((i) => i.status === name).length }));
 }
 
-export function getOutputByDivision(outputs: ScientificOutput[]): CategoryDatum[] {
-  const m = new Map<string, number>();
-  for (const o of outputs) {
-    const k = o.divisionCode || 'Unspecified';
-    m.set(k, (m.get(k) ?? 0) + 1);
-  }
-  return Array.from(m, ([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);
-}
-
 export function getAvgImpactByDivision(outputs: ScientificOutput[]): CategoryDatum[] {
   const m = new Map<string, { sum: number; n: number }>();
   for (const o of outputs) {
