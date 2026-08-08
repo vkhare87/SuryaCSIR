@@ -43,12 +43,39 @@ def run_eval(cases, llm) -> dict:
             "refusal_total": len(refusal_cases), "refusal_correct": refusal_ok}
 
 
-def run_citation_eval(cases, corpus, llm) -> dict:
+def make_eval_fetch_texts():
+    """Page text for the picked spans, service-role. Without it the harness answers
+    from node summaries alone while production answers from the source pages, so a
+    correctly retrieved section still refused and scored as a retrieval miss.
+    Returns None when no service key is configured; the caller then falls back to
+    summaries as before."""
+    url, key = os.environ.get("SUPABASE_URL"), os.environ.get("SUPABASE_SERVICE_KEY")
+    if not url or not key:
+        return None
+    from supabase import create_client
+    client = create_client(url, key)
+
+    def fetch_texts(spans):
+        out = []
+        for doc_id, page_start, page_end in spans:
+            try:
+                rows = (client.table("doc_pages").select("page, text")
+                        .eq("document_id", doc_id)
+                        .gte("page", page_start).lte("page", page_end)
+                        .order("page").execute().data) or []
+            except Exception:
+                rows = []
+            out.append("\n".join(r.get("text", "") for r in rows))
+        return out
+    return fetch_texts
+
+
+def run_citation_eval(cases, corpus, llm, fetch_texts=None) -> dict:
     """Retrieval-accuracy metric (dissertation target: >=80%). A case hits when any
     returned citation's 'title — node_title' contains expected_citation (case-insensitive)."""
     hits = 0
     for c in cases:
-        ans = traverse(corpus, c["question"], llm)
+        ans = traverse(corpus, c["question"], llm, fetch_texts)
         labels = [f"{ct.title} — {ct.node_title}".lower() for ct in ans.citations]
         if any(c["expected_citation"].lower() in label for label in labels):
             hits += 1
@@ -183,7 +210,9 @@ def main():
     gold = os.path.join(base, "gold.jsonl")
     llm = make_llm(os.environ.get("LLM_BACKEND", "fake"),
                    os.environ.get("OPENLLM_BASE_URL", ""),
-                   os.environ.get("OPENLLM_MODEL", ""))
+                   os.environ.get("OPENLLM_MODEL", ""),
+                   provider=os.environ.get("LLM_PROVIDER", ""),
+                   api_key=os.environ.get("OPENLLM_API_KEY", ""))
     results = {}
     result = run_eval(_load(gold), llm)
     results["router"] = result
@@ -198,7 +227,7 @@ def main():
 
     gold_cit = os.path.join(base, "gold_citations.jsonl")
     if corpus is not None and os.path.exists(gold_cit):
-        cit = run_citation_eval(_load(gold_cit), corpus, llm)
+        cit = run_citation_eval(_load(gold_cit), corpus, llm, make_eval_fetch_texts())
         results["citation"] = cit
         print(f"[eval] citation hit-rate {cit['hits']}/{cit['total']} "
               f"({cit['hit_rate']:.2f}; dissertation target >= 0.80)")
@@ -223,9 +252,12 @@ def main():
         corpus_size = len(corpus) if corpus is not None else 0
         report_path = os.path.join(base, "eval_report.md")
         with open(report_path, "w", encoding="utf-8") as f:
+            # Ask the client which model it resolved to: with LLM_PROVIDER the model
+            # comes from a preset, so reading OPENLLM_MODEL left the evidence record
+            # naming no model at all.
             f.write(render_report(results,
                                   os.environ.get("LLM_BACKEND", "fake"),
-                                  os.environ.get("OPENLLM_MODEL", ""), corpus_size))
+                                  getattr(llm, "model", ""), corpus_size))
         print(f"[eval] report written -> {report_path}")
 
 
