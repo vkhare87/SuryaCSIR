@@ -49,7 +49,8 @@ def build_collections(db, llm) -> int:
 def main():
     cfg = load_config(os.environ)
     ocr = make_ocr(cfg.ocr_backend)
-    llm = make_llm(cfg.llm_backend, cfg.openllm_base_url, cfg.openllm_model)
+    llm = make_llm(cfg.llm_backend, cfg.openllm_base_url, cfg.openllm_model,
+                   provider=cfg.llm_provider, api_key=cfg.openllm_api_key)
     from db import SupabaseDB
     db = SupabaseDB(cfg)
     if "--build-collections" in sys.argv:
@@ -63,6 +64,11 @@ def main():
         return
     once = "--once" in sys.argv
     while True:
+        # Before draining, take back anything a dead worker left mid-flight;
+        # otherwise those documents are never retried and never surface as failed.
+        stale = db.requeue_stale_processing()
+        if stale:
+            print(f"[rag] requeued {stale} stalled document(s)", flush=True)
         n = run_once(db, ocr, llm)
         print(f"[rag] processed {n} document(s)", flush=True)
         if n:  # keep collection summaries fresh for the collection-stage pick

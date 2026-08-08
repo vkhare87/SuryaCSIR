@@ -12,6 +12,14 @@ class DocRow:
 
 MAX_INGEST_ATTEMPTS = 3
 
+# A document is flipped to 'processing' while a worker parses it. If that worker
+# dies mid-document the row is neither 'pending' nor 'failed', so the queue never
+# offers it again — it is silently lost while the console still shows it in flight.
+# Anything held this long is assumed abandoned and returned to the queue. Set well
+# above the slowest realistic parse: a large scanned PDF on a CPU-only host can
+# legitimately occupy a worker for many minutes.
+STALE_PROCESSING_MINUTES = 60
+
 
 class FakeDB:
     def __init__(self, docs, storage):
@@ -21,6 +29,16 @@ class FakeDB:
         self.storage = storage
         self.indexes = {}
         self.pages = {}
+        self.stale_ids = set()   # ids the test declares abandoned mid-processing
+
+    def requeue_stale_processing(self, minutes=STALE_PROCESSING_MINUTES):
+        n = 0
+        for did in list(self.stale_ids):
+            if self.status.get(did) == "processing":
+                self.status[did] = "pending"
+                n += 1
+        self.stale_ids.clear()
+        return n
 
     def claim_pending(self):
         for did, st in self.status.items():
@@ -106,6 +124,28 @@ class SupabaseDB:
                     .eq("id", document_id).execute().data)
             patch["ingest_attempts"] = (rows[0].get("ingest_attempts", 0) + 1) if rows else 1
         self.c.table("documents").update(patch).eq("id", document_id).execute()
+
+    def requeue_stale_processing(self, minutes=STALE_PROCESSING_MINUTES):
+        """Return abandoned 'processing' rows to the queue. Returns the count.
+
+        Uses created_at as the age reference: the schema carries no claim
+        timestamp, and a row cannot have been claimed before it existed, so this
+        errs towards reclaiming later than strictly necessary — safe, since the
+        only cost of a late reclaim is a delayed retry."""
+        from datetime import datetime, timedelta, timezone
+        cutoff = (datetime.now(timezone.utc) - timedelta(minutes=minutes)).isoformat()
+        rows = (self.c.table("documents").select("id")
+                .eq("ingest_status", "processing")
+                .lt("created_at", cutoff).execute().data) or []
+        n = 0
+        for row in rows:
+            upd = (self.c.table("documents")
+                   .update({"ingest_status": "pending",
+                            "ingest_error": "requeued after stalled ingest"})
+                   .eq("id", row["id"]).eq("ingest_status", "processing")
+                   .execute().data)
+            n += 1 if upd else 0
+        return n
 
     def requeue_stale_model(self, model):
         """Reset indexed docs whose index was built by a different model; the
