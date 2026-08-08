@@ -27,6 +27,19 @@ describe('parseDate', () => {
     expect(d.getDate()).toBe(15);
   });
 
+  it('parses the dotted DD.MM.YYYY the HR sheets use', () => {
+    const d = parseDate('22.12.1997')!;
+    expect(d.getFullYear()).toBe(1997);
+    expect(d.getMonth()).toBe(11);
+    expect(d.getDate()).toBe(22);
+  });
+
+  it('does not read an Excel serial as a year', () => {
+    // '44265' is 10-03-2021 as a serial; new Date('44265') yields the year 44265.
+    const d = parseDate('44265');
+    expect(d === null || d.getFullYear() < 3000).toBe(true);
+  });
+
   it('returns null for empty/null/undefined', () => {
     expect(parseDate(null)).toBeNull();
     expect(parseDate(undefined)).toBeNull();

@@ -111,9 +111,12 @@ export const SCHEMA_MAPS: Record<FileType, Record<string, string>> = {
     'Date of Joining':          'DateOfJoining',
     'Date of Project Duration': 'DateOfProjectDuration',
     'PI Name':                  'PIName',
+    'Id':                       'id',
     'StaffName':                'StaffName',
+    'ProjectStaffName':         'StaffName',
     'ProjectNo':                'ProjectNo',
     'RecruitmentCycle':         'RecruitmentCycle',
+    'Recruitment_cycle':        'RecruitmentCycle',
     'DateOfJoining':            'DateOfJoining',
     'DateOfProjectDuration':    'DateOfProjectDuration',
     'PIName':                   'PIName',
@@ -121,10 +124,14 @@ export const SCHEMA_MAPS: Record<FileType, Record<string, string>> = {
   phd: {
     'Enrollment No':     'EnrollmentNo',
     'Student Name':      'StudentName',
+    'Name of student':   'StudentName',
     'Specialization':    'Specialization',
+    'Specialisation':    'Specialization',
     'Supervisor Name':   'SupervisorName',
     'Co-Supervisor':     'CoSupervisorName',
+    'Name of Co-supervisor/specialisation/institute': 'CoSupervisorName',
     'Fellowship':        'FellowshipDetails',
+    'Fellowship/financial support Details/Self financed/Industry sponsored/Working Employee': 'FellowshipDetails',
     'Current Status':    'CurrentStatus',
     'Thesis Title':      'ThesisTitle',
     'Project No':        'ProjectNo',
@@ -432,6 +439,11 @@ export function formatData(
 
 /** Reads a CSV/Excel File into raw row objects, headers untouched. Throws on
  * read/parse failure or an unsupported extension — callers wrap it. */
+function toISODate(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 async function readRawRows(file: File): Promise<Record<string, any>[]> {
   const fileName = file.name.toLowerCase();
 
@@ -454,6 +466,8 @@ async function readRawRows(file: File): Promise<Record<string, any>[]> {
 
   if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
     // Excel path: read as ArrayBuffer, parse with xlsx
+    // xlsx builds date cells in local time, so read the local components — using
+    // toISOString() here would shift 10-03-2021 back to the 9th east of UTC.
     const arrayBuffer = await new Promise<ArrayBuffer>((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = (e) => resolve(e.target?.result as ArrayBuffer);
@@ -461,10 +475,20 @@ async function readRawRows(file: File): Promise<Record<string, any>[]> {
       reader.readAsArrayBuffer(file);
     });
 
-    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+    // cellDates: a date cell is a serial number underneath (10-03-2021 is 44265).
+    // Stored raw, '44265' later parses as the YEAR 44265 — timelines, overdue
+    // detection and burn-rate variance all silently stopped working on real files.
+    const workbook = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
     const firstSheetName = workbook.SheetNames[0];
     const sheet = workbook.Sheets[firstSheetName];
-    return XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { defval: '' });
+    const rows = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { defval: '' });
+    return rows.map((row) => {
+      const out: Record<string, any> = {};
+      for (const [key, value] of Object.entries(row)) {
+        out[key] = value instanceof Date ? toISODate(value) : value;
+      }
+      return out;
+    });
   }
 
   throw new Error('Unsupported file type. Please upload a .csv, .xlsx, or .xls file.');
@@ -565,6 +589,17 @@ export function generateTemplate(type: FileType, format: 'xlsx' | 'csv'): Blob {
 // ---------------------------------------------------------------------------
 
 /**
+ * Every parsed cell is a string, so a blank optional cell arrives as ''. Postgres
+ * rejects that for date/numeric/uuid columns ("invalid input syntax for type
+ * date"), failing the whole batch over cells the source simply left empty.
+ */
+function blanksToNull(row: Record<string, any>): Record<string, any> {
+  const out: Record<string, any> = {};
+  for (const [k, v] of Object.entries(row)) out[k] = v === '' ? null : v;
+  return out;
+}
+
+/**
  * Upserts rows to a Supabase table in batches of BATCH_SIZE.
  * Calls onLog() with progress messages. Never rejects.
  */
@@ -579,7 +614,7 @@ export async function pushToSupabase(
 
   const chunks: Record<string, any>[][] = [];
   for (let i = 0; i < rows.length; i += BATCH_SIZE) {
-    chunks.push(rows.slice(i, i + BATCH_SIZE));
+    chunks.push(rows.slice(i, i + BATCH_SIZE).map(blanksToNull));
   }
 
   const total = chunks.length;
@@ -683,6 +718,13 @@ export function validateRows(
 // detectColumnMappings
 // ---------------------------------------------------------------------------
 
+/** Real institute files carry headers like 'Project status', 'SponsorerType ' and
+ * 'approvalAuthority' — the right column, off by case or a trailing space. Matching
+ * on the exact string dropped those silently, so compare on a normalised key. */
+function headerKey(header: string): string {
+  return header.trim().toLowerCase();
+}
+
 /**
  * For each raw header from the parsed file, returns whether it maps to a
  * known field for the given FileType.
@@ -692,19 +734,12 @@ export function detectColumnMappings(
   type: FileType,
 ): Array<{ raw: string; mapped: string | null }> {
   const schemaMap = SCHEMA_MAPS[type];
-  const allowedSet = new Set(ALLOWED_COLUMNS[type]);
+  const byKey = new Map(Object.entries(schemaMap).map(([k, v]) => [headerKey(k), v]));
+  for (const col of ALLOWED_COLUMNS[type]) {
+    if (!byKey.has(headerKey(col))) byKey.set(headerKey(col), col);
+  }
 
-  return rawHeaders.map((raw) => {
-    // Check if the raw header maps via SCHEMA_MAPS
-    if (schemaMap[raw] != null) {
-      return { raw, mapped: schemaMap[raw] };
-    }
-    // Check if it's already a canonical allowed column name
-    if (allowedSet.has(raw)) {
-      return { raw, mapped: raw };
-    }
-    return { raw, mapped: null };
-  });
+  return rawHeaders.map((raw) => ({ raw, mapped: byKey.get(headerKey(raw)) ?? null }));
 }
 
 // ---------------------------------------------------------------------------

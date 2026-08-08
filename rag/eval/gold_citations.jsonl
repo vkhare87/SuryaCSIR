@@ -1,1 +1,14 @@
-{"question": "REPLACE with a real institute question", "expected_citation": "REPLACE with expected 'title — node_title' substring"}
+{"question": "How much did AMPRI receive in lump-sum payments for its first six non-exclusive technology licences?", "expected_citation": "Patents Licensed to Industry — Page 1"}
+{"question": "Which AMPRI technologies were licensed to companies between January 2020 and February 2021?", "expected_citation": "Patents Licensed to Industry — Page 3"}
+{"question": "Was the portable hypochlorite disinfectant generator licensed to any company, and for how much?", "expected_citation": "Patents Licensed to Industry — Page 4"}
+{"question": "Has AMPRI filed a patent on a bamboo-based composite for 3D printing?", "expected_citation": "India — Page 12"}
+{"question": "Which Indian patents did AMPRI file between 1986 and 1990?", "expected_citation": "India — Page 1"}
+{"question": "Which AMPRI patent applications from 2004 to 2010 relate to fly-ash road compositions and jarosite recycling?", "expected_citation": "India — Page 5"}
+{"question": "Which Indian patent applications did AMPRI file in 2022 and 2023 on heat and fire alarm systems and bamboo composite bridges?", "expected_citation": "India — Page 10"}
+{"question": "Does AMPRI hold any patent on nanocomposites for hydrogen storage?", "expected_citation": "India — Page 11"}
+{"question": "Which AMPRI patents were filed or granted in the United States between 2015 and 2017?", "expected_citation": "Abroad — Page 2"}
+{"question": "Has AMPRI protected any invention abroad on cement-free concrete made from sea sand and seawater?", "expected_citation": "Abroad — Page 3"}
+{"question": "Which international patent covers a superplasticizer for geopolymeric concrete?", "expected_citation": "Abroad — Page 4"}
+{"question": "What is Dr. Sarika Verma's research specialisation and what are her publication metrics?", "expected_citation": "Scientific Profile — Page 2"}
+{"question": "Which CSIR-AMPRI scientists work on green building materials, electromagnetic forming and cyber-physical systems?", "expected_citation": "Scientific Profile — Page 5"}
+{"question": "What are CSIR's ongoing Mission Mode Projects and over what period do they run?", "expected_citation": "R&D Projects of CSIR — Council Overview — Page 1"}

@@ -9,7 +9,7 @@ import subprocess
 from answer import Answer
 from llm import NOT_FOUND, REFUSAL_TEXT
 from router import decide
-from retrieval import traverse, pick_context, flatten, select_docs
+from retrieval import traverse, pick_context, flatten, select_docs, section_label
 from analytics import run_analytics, CATALOG
 
 
@@ -229,14 +229,19 @@ def find_similar(text, client, llm):
     return similar_matches(read_docs(client), text, llm)
 
 
+# A scientist checking a proposal for prior work reads a shortlist, not a shelf.
+# Ranked by the model's own pick order, so the cut keeps its strongest matches.
+MAX_SIMILAR_MATCHES = 6
+
+
 def similar_matches(docs, text, llm):
     """Client-free core of find_similar, shared with the offline duplication eval."""
     prompt = f"Find prior or ongoing work similar to: {text}"
     candidates = flatten(select_docs(docs, prompt, llm))
     if not candidates:
         return []
-    titles = [f"{title} — {node['title']}" for _, title, _, node in candidates]
-    picks = llm.pick(prompt, titles)
+    titles = [section_label(title, node) for _, title, _, node in candidates]
+    picks = llm.pick(prompt, titles)[:MAX_SIMILAR_MATCHES]
     matches = []
     for i in picks:
         doc_id, title, storage_path, node = candidates[i]

@@ -63,8 +63,10 @@ def test_expenditure_summary_math_and_division_filter():
 
 
 def test_expenditure_summary_zero_sanctioned_no_crash():
+    """Empty input must not divide by zero. It now reports the absence explicitly
+    rather than printing a 0.0% utilisation that reads as 'nothing was spent'."""
     ans = run_analytics("project_expenditure_summary", {}, _FakeClient([]))
-    assert "0.0% utilization" in ans.text
+    assert "not recorded" in ans.text
 
 
 def test_patent_pipeline_counts_patents_only():
@@ -158,10 +160,16 @@ def test_budget_variance_flags_overrun_and_burn_drift():
 
 
 def test_budget_variance_none_flagged():
-    rows = [{"ProjectNo": "P1", "ProjectStatus": "Active", "SanctionedCost": "0",
-             "UtilizedAmount": "0"}]
+    """A project burning in line with elapsed time is not flagged. Uses a recorded
+    utilisation figure — a blank one is now 'unassessed', not 'on budget'."""
+    today = date.today()
+    rows = [{"ProjectNo": "P1", "ProjectName": "on track", "ProjectStatus": "Active",
+             "StartDate": today.replace(year=today.year - 1).isoformat(),
+             "CompletioDate": today.replace(year=today.year + 1).isoformat(),
+             "SanctionedCost": "1000", "UtilizedAmount": "500"}]
     ans = run_analytics("project_budget_variance", {}, _FakeClient(rows))
     assert "No active projects breach" in ans.text
+    assert "1 project(s) assessed" in ans.text
 
 
 def test_succession_risk_flags_unique_expertise():
@@ -347,3 +355,69 @@ def test_project_team_typed_data():
     assert ans.data["project"]["ProjectNo"] == "GAP-002"
     assert ans.data["pi"] == "Rekha Sharma"
     assert ans.data["team"] == ["Anil Sharma"]
+
+
+def test_parse_date_accepts_real_csir_formats():
+    """Real HR/project records use dd.mm.yyyy and dd/mm/yyyy, not ISO. Parsing only
+    ISO made succession risk skip every real staff row and answer from demo data."""
+    from analytics import _parse_date
+    from datetime import date
+    assert _parse_date("1970-12-28") == date(1970, 12, 28)
+    assert _parse_date("28.12.1970") == date(1970, 12, 28)
+    assert _parse_date("28/12/1970") == date(1970, 12, 28)
+    assert _parse_date("3.10.1967") == date(1967, 10, 3)
+    assert _parse_date("") is None
+    assert _parse_date(None) is None
+    assert _parse_date("not a date") is None
+    assert _parse_date("32.13.1970") is None
+
+
+def test_expertise_key_prefers_specific_field_and_ignores_na():
+    """Real records carry a specific 'Expertise' and a coarse 'CoreArea' bucket that
+    dozens share; unknown expertise is the literal 'N/A'. Keying succession risk on
+    CoreArea, or treating 'N/A' as a capability, finds nothing real."""
+    from analytics import _expertise_key
+    assert _expertise_key({"Expertise": "Radiation Shielding", "CoreArea": "Physics"}) == "radiation shielding"
+    assert _expertise_key({"Expertise": "N/A", "CoreArea": "Material Science"}) == "material science"
+    assert _expertise_key({"Expertise": "N/A", "CoreArea": ""}) == ""
+    assert _expertise_key({}) == ""
+
+
+class _FakeClient:
+    """Minimal PostgREST stand-in: .table(name).select(cols).execute().data"""
+    def __init__(self, rows): self._rows = rows
+    def table(self, _name): return self
+    def select(self, _cols): return self
+    def execute(self):
+        return type("R", (), {"data": self._rows})()
+
+
+def test_expenditure_reports_absent_utilisation_not_zero_spend():
+    """Blank utilisation is 'we do not hold the figure', not 'nothing was spent' —
+    summing blanks printed a confident 0.0% against ~41 crore of real sanctions."""
+    from analytics import _project_expenditure_summary
+    rows = [{"DivisionCode": "FMCD", "SanctionedCost": "1000", "UtilizedAmount": ""},
+            {"DivisionCode": "ARC", "SanctionedCost": "500", "UtilizedAmount": None}]
+    text = _project_expenditure_summary({}, _FakeClient(rows)).text
+    assert "not recorded" in text
+    assert "0.0% utilization" not in text
+    assert "1,500" in text          # sanctioned total still reported
+
+
+def test_expenditure_percentage_covers_only_recorded_projects():
+    from analytics import _project_expenditure_summary
+    rows = [{"DivisionCode": "A", "SanctionedCost": "1000", "UtilizedAmount": "500"},
+            {"DivisionCode": "B", "SanctionedCost": "1000", "UtilizedAmount": ""}]
+    text = _project_expenditure_summary({}, _FakeClient(rows)).text
+    assert "50.0% utilization" in text          # 500/1000, not 500/2000
+    assert "recorded for 1 of 2" in text
+
+
+def test_budget_variance_says_unassessable_rather_than_all_clear():
+    """'No project breaches the threshold' over zero data reads as reassurance."""
+    from analytics import _project_budget_variance
+    rows = [{"ProjectNo": "P1", "ProjectName": "x", "ProjectStatus": "Active",
+             "StartDate": "2024-01-01", "CompletioDate": "2027-01-01",
+             "SanctionedCost": "1000", "UtilizedAmount": ""}]
+    text = _project_budget_variance({}, _FakeClient(rows)).text
+    assert "cannot be assessed" in text

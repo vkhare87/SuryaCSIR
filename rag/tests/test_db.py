@@ -69,3 +69,31 @@ def test_indexed_success_does_not_touch_attempts():
     db = _seed()
     db.mark("d1", "indexed")
     assert db.attempts["d1"] == 0
+
+
+def test_stalled_processing_row_is_returned_to_the_queue():
+    """A worker that dies mid-document leaves the row in 'processing' — neither
+    pending nor failed, so the queue never offers it again and it is silently lost.
+    Reclaiming it is what makes unattended ingestion safe to restart."""
+    from db import DocRow, FakeDB
+    doc = DocRow(id="d1", storage_bucket="documents", storage_path="a.pdf",
+                 mime_type="application/pdf", title="A")
+    db = FakeDB([doc], {"a.pdf": b"%PDF-"})
+
+    assert db.claim_pending().id == "d1"        # worker claims it...
+    assert db.status["d1"] == "processing"
+    assert db.claim_pending() is None           # ...then dies: queue looks empty
+
+    db.stale_ids.add("d1")
+    assert db.requeue_stale_processing() == 1
+    assert db.status["d1"] == "pending"
+    assert db.claim_pending().id == "d1"        # picked up again on restart
+
+
+def test_requeue_is_a_no_op_when_nothing_is_stalled():
+    from db import DocRow, FakeDB
+    doc = DocRow(id="d1", storage_bucket="documents", storage_path="a.pdf",
+                 mime_type="application/pdf", title="A")
+    db = FakeDB([doc], {"a.pdf": b"%PDF-"})
+    assert db.requeue_stale_processing() == 0
+    assert db.status["d1"] == "pending"

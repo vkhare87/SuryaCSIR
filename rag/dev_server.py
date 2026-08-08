@@ -1,18 +1,21 @@
 """Dev launcher for the RAG API.
 
-Loads the repo-root .env and maps the SPA's VITE_-prefixed Supabase vars to
-the names api.py expects, then starts uvicorn. Production uses deploy/ env
-files instead — this file is for local `preview_start` only.
+Loads rag/.env.api (LLM backend) and the repo-root .env, maps the SPA's
+VITE_-prefixed Supabase vars to the names api.py expects, then starts uvicorn.
+Production uses deploy/ env files instead — this file is for local
+`preview_start` only. Without .env.api, api.py silently falls back to the
+FakeLLM and every answer is the first line of the retrieved context.
 """
 import os
 import sys
 from pathlib import Path
 
 RAG_DIR = Path(__file__).resolve().parent
-ENV_FILE = RAG_DIR.parent / ".env"
 
-if ENV_FILE.exists():
-    for line in ENV_FILE.read_text().splitlines():
+for env_file in (RAG_DIR / ".env.api", RAG_DIR.parent / ".env"):
+    if not env_file.exists():
+        continue
+    for line in env_file.read_text().splitlines():
         line = line.strip()
         if not line or line.startswith("#") or "=" not in line:
             continue

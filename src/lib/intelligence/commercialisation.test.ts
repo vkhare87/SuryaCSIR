@@ -35,6 +35,18 @@ describe('commercialisationSummary', () => {
     expect(s.externalProjects).toBe(2);
     expect(s.externalValue).toBe(2000000);
   });
+
+  it("reads CSIR-AMPRI's own vocabulary: ECF and non-CSIR sponsor types", () => {
+    const s = commercialisationSummary([], [
+      proj({ FundType: 'ECF', SponsorerType: 'Central Govt/Agencies', SanctionedCost: '2774644' }),
+      proj({ FundType: '', SponsorerType: 'Private', SanctionedCost: '500000' }),
+      proj({ FundType: '', SponsorerType: 'PSU', SanctionedCost: '250000' }),
+      proj({ FundType: 'Lab Grant', SponsorerType: 'CSIR', SanctionedCost: '900000' }),
+      proj({ FundType: '', SponsorerType: '', SanctionedCost: '100' }),
+    ]);
+    expect(s.externalProjects).toBe(3);
+    expect(s.externalValue).toBe(3524644);
+  });
 });
 
 function tt(over: Partial<TechTransfer>): TechTransfer {

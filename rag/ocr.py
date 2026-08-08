@@ -57,8 +57,11 @@ def make_ocr(backend: str):
     if backend == "tesseract":
         return TesseractOCR()
     if backend == "ollama":
+        # OCR_BASE_URL keeps page images on the local vision model even when the
+        # summarising LLM is a hosted API — scanned pages never leave the host.
         return OllamaVisionOCR(
-            os.environ.get("OPENLLM_BASE_URL", "http://localhost:11434/v1"),
+            os.environ.get("OCR_BASE_URL",
+                           os.environ.get("OPENLLM_BASE_URL", "http://localhost:11434/v1")),
             os.environ.get("OCR_MODEL", os.environ.get("OPENLLM_MODEL", "gemma4:e4b")),
         )
     raise ValueError(f"Unknown OCR_BACKEND: {backend}")

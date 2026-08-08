@@ -7,8 +7,14 @@ export function parseDate(value: string | null | undefined): Date | null {
   const s = value.trim();
   if (!s) return null;
 
-  // DD/MM/YYYY
-  const dmyMatch = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  // A bare number is an Excel date serial that escaped conversion, never a date a
+  // person wrote. new Date('44265') silently returns the YEAR 44265, so timelines
+  // and overdue checks quietly stop firing instead of failing loudly.
+  if (/^\d{1,6}$/.test(s)) return null;
+
+  // DD/MM/YYYY, and the dotted DD.MM.YYYY the HR sheets actually use ('22.12.1997').
+  // Without the dot form these fell through to new Date(), which rejects them.
+  const dmyMatch = s.match(/^(\d{1,2})[./](\d{1,2})[./](\d{4})$/);
   if (dmyMatch) {
     const d = new Date(
       parseInt(dmyMatch[3]),
