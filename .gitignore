@@ -29,3 +29,8 @@ rag/eval/eval_report.md
 # Ingest worker (Python) local env
 ingest/.venv/
 ingest/.env
+rag/tok.tmp
+
+# Extracted from the institute's licensing PDF: real commercial terms (licensees
+# and amounts). Regenerate with rag/eval/extract_licensing.py — don't commit it.
+scripts/licensing_rows.json

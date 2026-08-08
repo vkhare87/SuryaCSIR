@@ -137,6 +137,53 @@ Harvested structured files show up under Data Management → **Harvested** for
 review; harvested PDFs/scans flow into the existing RAG ingest queue
 automatically.
 
+## Model host sizing (read before choosing hardware)
+
+The retrieval path costs **three model calls per question** — route, section pick,
+answer — so end-to-end latency is roughly three times the single-call latency.
+Measured on a CPU-only laptop (Intel Arc iGPU not used by Ollama), `qwen3-vl:8b`
+took route 104 s + pick 54 s + answer 67 s ≈ **3–4 minutes per question**.
+Disabling thinking tokens only moved the answer step to 47 s, so this is raw
+CPU inference, not reasoning overhead.
+
+Measured on the real 6-document corpus with `eval/bench_local.py` (same laptop,
+CPU-only, gold citation questions):
+
+| Model | Retrieval hit-rate | Latency per question |
+|---|---|---|
+| `qwen2.5:3b-instruct` (local, CPU) | 0.20 (1/5) | median 45 s, max 123 s |
+| `qwen3-vl:8b` (local, CPU) | 1/1 completed | **586 s**; 2 of 3 hit the 600 s cap |
+| hosted `deepseek-v4-flash` | 0.93 (13/14) | 7–20 s |
+
+Two things follow. **Quality is fine locally** — the 8B answered correctly with a
+precise citation, so self-hosting is not a accuracy compromise. **Speed is entirely
+the GPU question**: the same model on this CPU-only host needs ~10 minutes per
+question, largely because the section-pick prompt carries node summaries (~10 KB)
+and CPU prefill of that is slow. A GPU that holds the model makes the prefill
+negligible.
+
+Do not reach for a smaller model to buy speed back: the 3B was still slow *and*
+failed four of five questions by refusing — it could not pick the right section or
+ground an answer. Retrieval quality is set by the model, so size down only with a
+`bench_local.py` run to back it up.
+
+Consequences:
+
+- **Give the model host a GPU** with enough VRAM to hold the chosen model, or
+  expect minutes per question. `ollama ps` shows `100% CPU` when there is no
+  GPU offload — check it after install; that one line predicts your latency.
+- Raise `RAG_*_TIMEOUT_S` (see the env examples) on any CPU-only host. The
+  shipped defaults of 10/20/60 s assume a GPU and every query will time out.
+- Ingestion is unaffected in practice: it is a batch job behind a queue, so a
+  slow local model only means indexing takes longer, not that anything fails.
+- `OCR_BASE_URL` lets page images stay on the local vision model even if the
+  summarising LLM is a hosted API — the mixed mode where scans never leave the
+  institute but answers are fast.
+
+Whatever the model, verify it on the real corpus before trusting it:
+`python rag/eval/bench_local.py --model <name> --cases 5` reports hit-rate and
+per-question latency against the gold citation set.
+
 ## Notes
 
 - Windows paths in this doc assume `C:\surya`; adjust consistently.
