@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { MapPin, Tags, Database, Inbox } from 'lucide-react';
+import { MapPin, Tags, Database, Inbox, FileText } from 'lucide-react';
 import clsx from 'clsx';
 import { Card } from '../components/ui/Cards';
 import { DataFreshnessLedger } from '../components/DataFreshnessLedger';
 import { DatabaseBuilderPanel } from '../components/DatabaseBuilderPanel';
 import { EntityRecordsPanel } from '../components/EntityRecordsPanel';
+import { DocumentPanel } from '../components/ui/DocumentPanel';
 import { HarvestedImportsPanel } from '../components/HarvestedImportsPanel';
 import { supabase } from '../utils/supabaseClient';
 import { useData } from '../contexts/DataContext';
@@ -199,7 +200,7 @@ export default function DataManagement() {
   const { divisions, staff, projectStaff, phDStudents, contractStaff, refreshData } = useData();
   useAuth(); // ensure context is available
 
-  const [activeTab, setActiveTab] = useState<'build' | 'mapping' | 'records' | 'harvested'>('build');
+  const [activeTab, setActiveTab] = useState<'build' | 'mapping' | 'records' | 'harvested' | 'documents'>('build');
   const [activeEntityType, setActiveEntityType] = useState<FileType>('staff');
 
   const untaggedProjectStaff = projectStaff.filter((p) => !p.DivisionCode).length;
@@ -260,6 +261,12 @@ export default function DataManagement() {
           <Inbox size={14} />
           Harvested
         </button>
+        <button onClick={() => setActiveTab('documents')}
+          className={clsx('px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors flex items-center gap-2',
+            activeTab === 'documents' ? 'border-[#c96442] text-[#c96442]' : 'border-transparent text-text-muted hover:text-text')}>
+          <FileText size={14} />
+          Institute Documents
+        </button>
       </div>
 
       {activeTab === 'mapping' && (
@@ -294,6 +301,17 @@ export default function DataManagement() {
 
       {activeTab === 'harvested' && (
         <HarvestedImportsPanel onImported={refreshData} />
+      )}
+
+      {activeTab === 'documents' && (
+        <DocumentPanel
+          entityType="institute"
+          entityId="AMPRI"
+          docType="institute_record"
+          accessTier="institute"
+          title="Institute-Wide Documents"
+          canUpload
+        />
       )}
     </div>
   );
