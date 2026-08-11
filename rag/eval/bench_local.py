@@ -38,7 +38,8 @@ def main():
     # Local models on CPU need far longer than the hosted defaults.
     for k in ("RAG_ROUTE_TIMEOUT_S", "RAG_PICK_TIMEOUT_S", "RAG_ANSWER_TIMEOUT_S"):
         os.environ[k] = "600"
-    os.environ["OPENLLM_API_KEY"] = args.api_key
+    if args.api_key:  # else keep whatever .env supplied — blanking it 401s the hosted run
+        os.environ["OPENLLM_API_KEY"] = args.api_key
 
     from llm import make_llm                                      # noqa: E402
     from retrieval import traverse                                # noqa: E402
