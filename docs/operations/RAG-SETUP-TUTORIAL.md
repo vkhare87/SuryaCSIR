@@ -150,9 +150,9 @@ in `eval/run_eval.py`'s docstring to `eval/corpus.json` and author real cases in
 Upload → parse (+ OCR) → PageIndex tree → RLS-scoped retrieval → routed, cited,
 logged answers — the Memory Layer and the retrieval half of the Brain Layer. Next:
 production deployment as Windows services behind nginx is in
-[`deploy/README.md`](../deploy/README.md); the feature surface is in
-[FEATURES.md](FEATURES.md); planned upgrades (true hierarchical traversal, answer
-synthesis from page text) are in [IMPROVEMENT-PROPOSALS.md](IMPROVEMENT-PROPOSALS.md).
+[`deploy/README.md`](../../deploy/README.md); the feature surface is in
+[FEATURES.md](../engineering/FEATURES.md); planned upgrades (true hierarchical traversal, answer
+synthesis from page text) are in [IMPROVEMENT-PROPOSALS.md](../roadmap/sources/IMPROVEMENT-PROPOSALS.md).
 
 ## Troubleshooting
 

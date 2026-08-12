@@ -1,5 +1,11 @@
 # Improvement Proposals — Structure Upgrades to Take Up Next
 
+> **Source document for [ROADMAP.md](../ROADMAP.md).** This brief carries the implementation detail;
+> the roadmap says which work package it belongs to and what it depends on. Item IDs here
+> are the ones the roadmap references. Status lines below may predate the roadmap — check
+> there first.
+
+
 Prioritized upgrade briefs for the intelligence stack. Each is self-contained enough
 to hand to a Claude session as-is ("implement proposal P1 from
 docs/IMPROVEMENT-PROPOSALS.md"). Ordered by answer-quality impact per unit of effort.

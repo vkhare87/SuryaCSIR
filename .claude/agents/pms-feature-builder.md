@@ -7,14 +7,22 @@ You are adding a new PMS feature to SURYA (CSIR-AMPRI dashboard).
 
 ## PMS Architecture
 
-**State machine** (pms_reports.status):
-`DRAFT → SUBMITTED → UNDER_COLLEGIUM_REVIEW → CHAIRMAN_REVIEW → EMPOWERED_COMMITTEE_REVIEW → FINALIZED`
+**State machine** (pms_reports.status) — 2026 CSIR guidelines:
+`DRAFT → SUBMITTED → UNDER_EVALUATION_COMMITTEE_REVIEW → EMPOWERED_COMMITTEE_REVIEW → FINALIZED`,
+plus terminal `NOT_ASSESSED` (duty days < 90) and `FINALIZED ⇄ UNDER_GRIEVANCE_REVIEW`.
+
+There is no chairman-review stage and no "collegium" — that was a pre-2026 draft. The
+Evaluation Committee (tiers I/II/III) scores; the Empowered Committee finalizes.
 
 **Never patch `status` directly from the client.** Always call the RPC:
-- `supabase.rpc('pms_submit_report', { p_report_id })` 
-- `supabase.rpc('pms_assign_evaluators', { p_report_id, p_user_ids })`
-- `supabase.rpc('pms_save_chairman_review', { p_report_id, p_min, p_max, p_comments })`
-- `supabase.rpc('pms_finalize_report', { p_report_id, p_final_score, p_justification })`
+- `supabase.rpc('pms_submit_report', { p_report_id })`
+- `supabase.rpc('pms_assign_evaluators', { p_report_id, p_committee_id })`
+- `supabase.rpc('pms_finalize_report', { p_report_id, p_final_score, p_justification, ... })`
+- `supabase.rpc('pms_finalize_senior_report', { p_report_id, p_remarks })` — Annexure-I/II
+- `pms_set_duty_days` · `pms_mark_not_assessed` · `pms_record_non_submission`
+- `pms_submit_representation` · `pms_resolve_representation`
+
+Full signatures and authorization rules: `docs/engineering/api_spec.md` Part B.2.
 
 **Triad for new features:**
 - `src/pages/pms/<Page>.tsx` — route-level page (`export default function`)

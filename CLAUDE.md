@@ -10,7 +10,7 @@
 Two halves of the same app:
 
 1. **HR analytics & data ops** — staff, divisions, projects, PhD students, equipment, scientific outputs, IP. Excel/CSV upload pipeline with cleaning UI.
-2. **PMS (Performance Management System)** — multi-stage scientist appraisal: scientist self-report → collegium evaluation → chairman review → empowered committee final score.
+2. **PMS (Performance Management System)** — multi-stage scientist appraisal: scientist self-report → Evaluation Committee (tiers I/II/III) → Empowered Committee final score, with a grievance/representation path. Three tracks: `STANDARD` (Sci B–F), `ANNEXURE_I` (Chief/Outstanding/Distinguished Scientist), `ANNEXURE_II` (Director).
 
 Every staff member logs in and sees their role-scoped slice of the institute.
 
@@ -44,20 +44,56 @@ any code that doesn't match DESIGN.md.
 
 ```
 /
-├── CLAUDE.md, README.md, CONTRIBUTING.md
+├── CLAUDE.md, README.md, DESIGN.md
 ├── .env.example, .gitignore
 ├── package.json, vite.config.ts, tsconfig*.json, eslint.config.js, index.html
-├── src/                  Application source (see "Where things live")
+├── src/                  SPA source (see "Where things live")
+├── rag/                  Ask SURYA query API + ingestion worker (Python 3.12)
+├── ingest/               Optional watched-folder / mail-in capture worker
+├── scripts/              check_security_definer.py, IRINS sync, data importers
+├── deploy/               Windows Server runbook, nginx.conf, env examples
 ├── supabase/
 │   ├── migrations/       Schema — 8-file domain baseline; append new timestamped files, never edit shipped ones
 │   ├── migrations_archive/  Pre-2026-07-12 history — reference only, not applied anywhere
 │   ├── seed/             Bootstrap data the app needs to function (runs on every env)
 │   ├── mock/             CSIR-AMPRI demo fixture (dev only — NEVER in prod)
 │   ├── ops/              wipe_data.sql + README on apply order
+│   ├── tests/            RLS positive/negative policy suites (CI `db` job)
 │   └── bundles/          Auto-generated rollups (gitignored)
-├── docs/                 Architecture / Stack / Structure / Data Model
+├── docs/                 Engineering doc suite (see below) + roadmaps + academic artifacts
 └── .claude/              Project-scoped agents, commands, skills
 ```
+
+**`docs/` is foldered by purpose** — index at `docs/README.md`:
+
+| Folder | Holds | Authoritative about the system? |
+|---|---|---|
+| `docs/engineering/` | The system as built | **Yes.** If code disagrees, the doc is a bug |
+| `docs/roadmap/` | `ROADMAP.md` (20 work packages), `VISION-ARCHITECTURE.md`, `sources/` | No — intent |
+| `docs/operations/` | RAG setup tutorial, evaluation protocol | For running it |
+| `docs/project/` | Dissertation / viva artifacts | Records of that phase only |
+| `docs/history/` | Design records for shipped work | The *why*, not the *what* |
+
+**Engineering suite** — read the relevant one before working in that area:
+
+| Doc | Owns |
+|---|---|
+| `docs/engineering/app.md` | Product spec — vision, differentiator, phases, non-goals |
+| `docs/engineering/architecture_addendum.md` | Architecture, layers, folder map, security, extension points |
+| `docs/engineering/system_design.md` | Flows, all state machines, deployment, failure/scaling |
+| `docs/engineering/api_spec.md` | PostgREST + every RPC signature + Ask SURYA HTTP endpoints |
+| `docs/engineering/database_design.md` | All 65 tables, ER diagrams, indexes, migrations, retention |
+| `docs/engineering/development_guide.md` | Setup, branching, testing, commits, PR checklist, debugging |
+| `docs/engineering/coding_standards.md` | Expanded TS / Python / SQL conventions |
+| `docs/engineering/FEATURES.md` · `STACK.md` | Feature catalogue · versions |
+
+`docs/ARCHITECTURE.md`, `docs/STRUCTURE.md`, `docs/DATA-MODEL.md` stay at the old paths as
+redirect stubs only.
+
+**Planning new work?** `docs/roadmap/ROADMAP.md` is the single merged plan — every proposal
+in the repo, grouped into work packages with dependencies and original item IDs preserved.
+Add a new proposal to `docs/roadmap/sources/` and index it there; do not start a new
+top-level plan document.
 
 ---
 
@@ -74,7 +110,7 @@ any code that doesn't match DESIGN.md.
 | Modal/overlay (top-level) | `src/components/<Name>.tsx` |
 | Context | `src/contexts/<Name>Context.tsx` (provider + `use<Name>` hook in same file) |
 | PMS business logic | `src/lib/pms/{constants,permissions,scoring,validation}.ts` |
-| File upload (any module) | register in unified registry via `src/lib/documents/registry.ts` (`documents` table = RAG ingest queue; see `docs/OVERHAUL-PLAN.md` T1) |
+| File upload (any module) | register in unified registry via `src/lib/documents/registry.ts` (`documents` table = RAG ingest queue; see `docs/history/OVERHAUL-PLAN.md` T1) |
 | Page access roles | `src/constants/access.ts` `ACCESS_MAP` — single source for nav + route guards |
 | Domain types | `src/types/index.ts` (single barrel) |
 | Pure utility | `src/utils/<name>.ts` (camelCase) |
@@ -222,9 +258,12 @@ Set in `.env` at repo root. The Setup Wizard fallback writes them to `localStora
 
 ## Health Stack
 
-- typecheck: npx tsc --noEmit
-- lint: npx eslint src/
-- test: npm test
+- typecheck: `npm run build` — **`npx tsc --noEmit` passes vacuously** under the
+  project-references layout, so it proves nothing. `npm run build` runs `tsc -b`.
+- lint: `npm run lint` (`eslint .` — covers `scripts/` and configs too, not just `src/`)
+- test: `npm test` — 66 files, 652 tests (as of 2026-08-08)
+- python: `python -m pytest` in `rag/` and in `ingest/`
+- policy audit: `python scripts/check_security_definer.py`
 
 ---
 
@@ -244,7 +283,8 @@ Read the relevant `.claude/skills/*` before working on PMS, RLS, or new UI primi
 
 **Open:**
 - **HR column casing**: `"divCode"`, `"DOJ"`, `"CompletioDate"` (typo) etc. — quoted CamelCase, mirrors source Excel. Renaming to snake_case is a coordinated DB-migration + code-change task; out of scope for now.
-- **RAG not yet run E2E** — needs, on the target host: migrations applied, `SUPABASE_SERVICE_KEY`, native DLLs allowed (WDAC), Ollama. Runbook: `deploy/README.md`.
+- **RAG production host not yet stood up.** The full loop *is* proven E2E — document row → worker → parse → PageIndex tree → `indexed` → Ask SURYA answers with a page-level citation, on real institute data (2026-08-05, `docs/project/VIVA-PLAN.md`). What remains is host provisioning: migrations applied, `SUPABASE_SERVICE_KEY`, native DLLs allowed past WDAC, and **a GPU** — CPU-only Ollama measured 3–4 min/question. Runbook: `deploy/README.md`.
+- **M4b duplication precision below target** — 0.38–0.41 vs a 0.60 target (`rag/eval/eval_report.md`). Recall (0.90) and citation hit-rate (0.93–1.00) are met.
 
 **Resolved (2026-07-10):**
 - ~~Citation deep-links~~ — `storage_path` threaded through `/query` citations; `src/lib/ask/citations.ts` (`citationHref`) opens signed URLs from AskSurya + SimilarWorkPanel.
@@ -262,12 +302,12 @@ Read the relevant `.claude/skills/*` before working on PMS, RLS, or new UI primi
 **Resolved (2026-07-03):**
 - ~~Bundle size ~3.3 MB / 993 KB gz, no code-splitting~~ — routes lazy-loaded via `React.lazy()`; prod index chunk now ~359 KB / ~95 KB gz.
 - ~~Green build~~ — fixed React 19 types drift (`ImportFlow` drag handlers, `fileFinalized` @react-pdf cast). `npm run build` passes.
-- **RAG stack (T4–T6) shipped** — server-side Python worker in `rag/` (parse → PageIndex tree → `doc_indexes`, OCR/LLM behind adapters), Ask SURYA `/query` (FastAPI, caller-JWT end-to-end so RLS is the only doc gate; whitelisted analytics only), `/ask` + `/admin/rag` SPA pages, query log + feedback, collection indexes, eval harness. Migrations `20260702000000/010000/020000/030000`. Not yet run E2E (needs service key + native-DLL policy allowed on host). Specs/plans in `docs/superpowers/`.
+- **RAG stack (T4–T6) shipped** — server-side Python worker in `rag/` (parse → PageIndex tree → `doc_indexes`, OCR/LLM behind adapters), Ask SURYA `/query` (FastAPI, caller-JWT end-to-end so RLS is the only doc gate; whitelisted analytics only), `/ask` + `/admin/rag` SPA pages, query log + feedback, collection indexes, eval harness. Specs/plans in `docs/superpowers/`. *(The four migrations this entry originally named — `20260702*`/`20260703*` — no longer exist as separate files; the 2026-07-12 restructure folded that schema into `20260712000008_rag_documents.sql`. E2E proven 2026-08-05; see Open above.)*
 
 **Resolved (2026-05-16):**
 - ~~`scientificOutputs` / `ipIntelligence` Supabase wire-up~~ — loaded in `DataContext`.
 - ~~Calendar / Recruitment hardcoded data~~ — both consume `useData()` (meetings/actionItems and vacancyAdvertisements/vacancyPosts).
-- ~~No tests~~ — vitest infrastructure with `@testing-library/react` + jsdom; 5 test files, 127 tests passing (`dateUtils`, committees/helpdesk permissions, helpdesk routing, EmptyState component).
+- ~~No tests~~ — vitest infrastructure with `@testing-library/react` + jsdom. *(Counts in this entry are the 2026-05-16 snapshot: 5 files / 127 tests. Current: **66 files / 652 tests**, plus the `rag/` and `ingest/` pytest suites and the `supabase/tests/` RLS suites in CI.)*
 - ~~No error boundary~~ — `src/components/ErrorBoundary.tsx` wraps `<App />` in `main.tsx`.
 - ~~Hardcoded auth fallback~~ — `admin@dev.local` bypass gated behind `import.meta.env.DEV`; absent from production bundle.
 - ~~`dist/` artifacts tracked~~ — cleaned.

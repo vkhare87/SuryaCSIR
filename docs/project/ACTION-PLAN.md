@@ -20,7 +20,7 @@ All effort below optimises for Phase 4 validation quality, not new features.
 
 | # | Action | Why | When |
 |---|--------|-----|------|
-> **Status 2026-07-08:** A1/A5 → protocol + sheets in [EVALUATION-PROTOCOL.md](EVALUATION-PROTOCOL.md) (staff timing still to do).
+> **Status 2026-07-08:** A1/A5 → protocol + sheets in [EVALUATION-PROTOCOL.md](../operations/EVALUATION-PROTOCOL.md) (staff timing still to do).
 > A2/A3 → duplication recall+precision eval and ₹ cost-avoidance metric coded in `rag/eval/run_eval.py`
 > (`gold_duplication.jsonl` + `AVG_PROJECT_COST_INR`). B3.1 comparables sheet → shipped
 > (`src/lib/ask/comparables.ts` + `SimilarWorkPanel`). **B3.2 expertise NL path, B4.1 budget

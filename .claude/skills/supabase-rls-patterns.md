@@ -22,7 +22,9 @@ description: How SURYA writes Row Level Security policies. Read before adding an
 3. **Available helpers:**
    - `public.user_has_role(check_role text) → boolean` — checks user_roles table
    - `pms_is_admin() → boolean` — true if user has HRAdmin, SystemAdmin, or MasterAdmin
-   - `pms_is_collegium_member(p_cycle_id uuid) → boolean` — true if user is in collegium for cycle
+   - `pms_is_evaluation_committee_member(p_cycle_id uuid) → boolean` — true if user sits on any Evaluation Committee for that cycle
+   - `pms_is_grievance_member(p_cycle_id uuid) → boolean` — true if user sits on the cycle's Grievance Committee
+   - `caller_has_role` / `caller_division` / `caller_staff_id` / `caller_is_admin` / `caller_sees_all_personnel` — identity resolvers used across the scoped-read policies
 
 4. **Policy naming pattern**: `<table>_<operation>_<who>` — e.g., `staff_select`, `staff_write_admin`, `reports_select_owner`.
 
@@ -35,7 +37,7 @@ description: How SURYA writes Row Level Security policies. Read before adding an
    CREATE POLICY "reports_select_admin" ON pms_reports FOR SELECT TO authenticated
      USING (pms_is_admin());
    ```
-   Exception: PMS reports use one combined policy because it combines owner + evaluator + collegium (intrinsically coupled).
+   Exception: PMS reports use one combined policy because it combines owner + evaluator + evaluation committee + grievance member (intrinsically coupled).
 
 6. **Idempotency**: wrap policies in existence checks for migrations that may re-run:
    ```sql
@@ -45,7 +47,9 @@ description: How SURYA writes Row Level Security policies. Read before adding an
      END IF;
    END $$;
    ```
-   In fresh `00000000000000_init.sql` (applied once) plain `CREATE POLICY` is fine.
+   In the shipped 8-file baseline (`20260712000001`–`…008`, applied once) plain
+   `CREATE POLICY` is fine. Those files are immutable — new work is a new timestamped
+   migration.
 
 7. **`auth.uid()` in stable context**: wrap in subquery `(select auth.uid())` in USING clauses that are evaluated per-row to avoid re-evaluation cost:
    ```sql

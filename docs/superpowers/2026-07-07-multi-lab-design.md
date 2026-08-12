@@ -1,7 +1,7 @@
 # Multi-Institute (Multi-Lab) Scalability — Design
 
 **Status:** design only — implement after real-data validation (P10) and the dissertation §4.5 write-up.
-**Proposal:** P7 in `docs/IMPROVEMENT-PROPOSALS.md`.
+**Proposal:** P7 in `docs/roadmap/sources/IMPROVEMENT-PROPOSALS.md`.
 **Class:** coordinated DB + RLS + UI change (same class as the HR column-casing debt). Do not implement piecemeal.
 
 ## Problem

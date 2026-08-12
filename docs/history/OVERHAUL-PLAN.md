@@ -1,5 +1,15 @@
 # SURYA Overhaul & RAG Roadmap
 
+> **Status: HISTORICAL — tranches T0–T6 are all shipped.** Written 2026-07-07 as the plan
+> that produced the RAG stack; retained as a design record of why the tranches were
+> sequenced this way. Its "Current Feature Inventory" is a 2026-07-07 snapshot and has
+> since drifted — notably it uses the pre-2026 PMS vocabulary ("collegium", "chairman
+> review"), which was never the shipped state machine.
+>
+> **For current system state, read `docs/engineering/app.md`, `docs/engineering/system_design.md`, and
+> `docs/engineering/FEATURES.md` instead.** Planned work now lives in
+> `docs/roadmap/sources/IMPROVEMENT-PROPOSALS.md` (P1–P10) and `docs/roadmap/VISION-ARCHITECTURE.md`.
+
 > Holistic feature review + overhaul plan toward a document-collecting, LLM-queryable institutional portal.
 > Implement in tranches (T0–T6). Each tranche independently shippable.
 

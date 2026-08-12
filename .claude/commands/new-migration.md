@@ -23,7 +23,9 @@ Example: `/new-migration add_calendar_events_table`
 
 ## Rules enforced
 
-- Never touches `00000000000000_init.sql`
+- Never edits a shipped migration — least of all the 8-file domain baseline
+  (`20260712000001`–`20260712000008`). New work is always a new timestamped file
+- Timestamp must sort after everything already applied
 - RLS must be enabled and at least one policy present
 - New tables: snake_case columns, `uuid PK DEFAULT gen_random_uuid()`, `created_at timestamptz NOT NULL DEFAULT now()`
 - Tables with mutable data get `updated_at` + `pms_set_updated_at()` trigger

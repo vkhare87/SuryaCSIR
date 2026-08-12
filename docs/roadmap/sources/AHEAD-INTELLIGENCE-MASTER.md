@@ -1,5 +1,11 @@
 # AHEAD+ (SURYA) — Intelligence Platform Master Document
 
+> **Source document for [ROADMAP.md](../ROADMAP.md).** This brief carries the implementation detail;
+> the roadmap says which work package it belongs to and what it depends on. Item IDs here
+> are the ones the roadmap references. Status lines below may predate the roadmap — check
+> there first.
+
+
 > Status: v1.0 — 2026-07-12. Owner: Vivek.
 > Single reference merging the architecture understanding, the 5-year blueprint,
 > the 12-month roadmap, and phase status — the one document to open when planning
@@ -503,7 +509,7 @@ decision, never by drift.
 # PART V — PHASE PLAN
 
 > Detailed per-phase implementation planning (work packages, entry/exit
-> criteria, decision-consumption map): `docs/INTELLIGENCE-PHASES.md`.
+> criteria, decision-consumption map): `docs/roadmap/sources/INTELLIGENCE-PHASES.md`.
 
 ## 16. Phase ladder
 

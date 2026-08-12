@@ -9,9 +9,11 @@ Every feature below lists **who** can use it (roles) and **how** (route + steps)
 Role gating is enforced three ways: navigation, route guards (`src/constants/access.ts`
 `ACCESS_MAP`), and Postgres Row-Level Security — RLS is the hard gate.
 
-Related docs: [RAG-SETUP-TUTORIAL.md](RAG-SETUP-TUTORIAL.md) (set up the AI layer),
-[DATA-MODEL.md](DATA-MODEL.md) (schema), [ARCHITECTURE.md](ARCHITECTURE.md),
-[IMPROVEMENT-PROPOSALS.md](IMPROVEMENT-PROPOSALS.md) (planned upgrades).
+Related docs: [app.md](app.md) (product spec), [database_design.md](database_design.md) (schema),
+[architecture_addendum.md](architecture_addendum.md) (architecture),
+[system_design.md](system_design.md) (flows and state machines),
+[RAG-SETUP-TUTORIAL.md](../operations/RAG-SETUP-TUTORIAL.md) (set up the AI layer),
+[ROADMAP.md](../roadmap/ROADMAP.md) (planned upgrades).
 
 ---
 
@@ -250,8 +252,8 @@ Example questions:
 - **Export CSV** button downloads recent `query_log` rows (question, mode, answer,
   citation count, feedback, latency) as an Excel-openable CSV.
 
-Setting up the backend service: see [RAG-SETUP-TUTORIAL.md](RAG-SETUP-TUTORIAL.md).
-Production deployment: see [`deploy/README.md`](../deploy/README.md).
+Setting up the backend service: see [RAG-SETUP-TUTORIAL.md](../operations/RAG-SETUP-TUTORIAL.md).
+Production deployment: see [`deploy/README.md`](../../deploy/README.md).
 
 ---
 

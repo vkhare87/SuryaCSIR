@@ -3,7 +3,7 @@
 **Date:** 2026-07-15
 **Status:** Approved
 **Relation to intelligence ladder:** parallel person-centric track. Stages 1–2
-are pure client-side (no dependency on `docs/INTELLIGENCE-PHASES.md` phases);
+are pure client-side (no dependency on `docs/roadmap/sources/INTELLIGENCE-PHASES.md` phases);
 stage 3 integrates with the ladder after Phase 1b (production RAG gate) exits.
 
 ## Problem

@@ -3,7 +3,8 @@
 Institutional analytics + Performance Management System (PMS) for CSIR-AMPRI, a CSIR research institute.
 
 - **HR analytics**: staff, divisions, projects, PhD students, equipment, scientific outputs, IP. Excel/CSV import with batch upsert.
-- **PMS**: multi-stage scientist appraisal — self-report → collegium evaluation → chairman review → committee final score.
+- **PMS**: multi-stage scientist appraisal — self-report → Evaluation Committee → Empowered Committee final score, with a grievance path. Three proforma tracks (Scientist B–F, senior scientists, Director).
+- **Ask SURYA**: natural-language questions over institute documents and data, answered with citations by an on-premise model — or refused when the corpus does not support an answer.
 
 Every staff member logs in and sees a role-scoped dashboard.
 
@@ -23,18 +24,21 @@ npm install
 cp .env.example .env
 # Fill in VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
 
-# 3. Apply database schema (one-time, clean project)
-# Paste supabase/migrations/00000000000000_init.sql into
-# Supabase SQL Editor (run as postgres role), OR:
-# supabase db reset  (if using Supabase CLI)
+# 3. Apply database schema (Supabase CLI is the only sanctioned path)
+supabase link --project-ref <ref>
+supabase db push        # applies supabase/migrations/* in order
+supabase config push    # applies the [auth] block from supabase/config.toml
 
-# 4. Create first admin user
-# Edit supabase/seed.sql — replace REPLACE_WITH_* placeholders
-# Run seed.sql in Supabase SQL Editor
+# 4. Bootstrap
+# Run supabase/seed/*.sql, then create the first user via
+# Dashboard -> Authentication -> Users and promote it per supabase/ops/README.md
 
 # 5. Start dev server
 npm run dev
 ```
+
+Never paste SQL into the Dashboard SQL Editor — that is how the live project drifted from
+the repo before the 2026-07-12 restructure.
 
 ## Scripts
 
@@ -49,27 +53,56 @@ npm run dev
 
 ```
 /
-├── src/               Application source (components, pages, contexts, utils, types)
+├── src/               SPA source (pages, components, contexts, lib, utils, types)
+├── rag/               Ask SURYA query API + ingestion worker (Python 3.12)
+├── ingest/            Optional watched-folder / mail-in capture worker
 ├── supabase/
-│   ├── migrations/    Database schema — one init file + timestamped additions
-│   └── seed.sql       Bootstrap first admin user
-├── docs/              Architecture, stack, data model reference
+│   ├── migrations/    Schema — 8-file domain baseline + append-only additions
+│   ├── seed/          Bootstrap data every environment needs
+│   ├── mock/          Demo fixture (dev only)
+│   ├── ops/           Runbooks and cleanup scripts
+│   └── tests/         RLS policy suites (run by CI)
+├── deploy/            Windows Server runbook, nginx.conf, env examples
+├── docs/
+│   ├── engineering/   The system as built — the verified reference
+│   ├── roadmap/       Future work: ROADMAP.md, the vision, and the source proposals
+│   ├── operations/    Running and measuring it
+│   ├── project/       Dissertation / viva artifacts
+│   └── history/       Design records for work already shipped
 ├── .claude/           Project agents, commands, skills
 ├── CLAUDE.md          Full project rules (read by Claude automatically)
 └── .env.example       Required environment variables
 ```
 
-See [CLAUDE.md](CLAUDE.md) for coding conventions, folder map, and do/don't rules.
-See [docs/DATA-MODEL.md](docs/DATA-MODEL.md) for the full database schema reference.
-
 ## Documentation
+
+**[docs/README.md](docs/README.md) is the full index.** `docs/engineering/` describes the
+system as built; `docs/roadmap/` describes what might come next; nothing else is
+authoritative about the system.
+
+**Engineering suite** — start here:
 
 | Doc | What it covers |
 |---|---|
-| [docs/FEATURES.md](docs/FEATURES.md) | Every feature, who can use it, and how (routes + steps) |
-| [docs/RAG-SETUP-TUTORIAL.md](docs/RAG-SETUP-TUTORIAL.md) | Set up the PageIndex RAG stack from zero to a cited answer |
-| [docs/IMPROVEMENT-PROPOSALS.md](docs/IMPROVEMENT-PROPOSALS.md) | Prioritized upgrade briefs (P1–P10) for the intelligence stack |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System architecture |
+| [app.md](docs/engineering/app.md) | Product spec — vision, differentiator, phases, non-goals |
+| [architecture_addendum.md](docs/engineering/architecture_addendum.md) | Architecture — principles, layers, folder map, security, extension points |
+| [system_design.md](docs/engineering/system_design.md) | Flows, state machines, deployment, failure recovery, scaling |
+| [api_spec.md](docs/engineering/api_spec.md) | All three API surfaces: PostgREST, RPCs, Ask SURYA HTTP |
+| [database_design.md](docs/engineering/database_design.md) | All 65 tables, ER diagrams, indexes, migrations, retention |
+| [development_guide.md](docs/engineering/development_guide.md) | Setup, branching, testing, commits, PR checklist, debugging |
+| [coding_standards.md](docs/engineering/coding_standards.md) | TypeScript, Python, and SQL conventions |
+
+**Reference:**
+
+| Doc | What it covers |
+|---|---|
+| [CLAUDE.md](CLAUDE.md) | Condensed project rules, read by every Claude session |
+| [DESIGN.md](DESIGN.md) | Design system — read before any visual change |
+| [docs/engineering/FEATURES.md](docs/engineering/FEATURES.md) | Every feature, who can use it, and how (routes + steps) |
+| [docs/engineering/STACK.md](docs/engineering/STACK.md) | Versions and dependencies |
+| [docs/roadmap/ROADMAP.md](docs/roadmap/ROADMAP.md) | Master roadmap — 20 work packages merged from every proposal |
+| [docs/roadmap/VISION-ARCHITECTURE.md](docs/roadmap/VISION-ARCHITECTURE.md) | The north star: the institute record spine |
+| [docs/operations/RAG-SETUP-TUTORIAL.md](docs/operations/RAG-SETUP-TUTORIAL.md) | Set up the PageIndex RAG stack from zero to a cited answer |
 | [deploy/README.md](deploy/README.md) | Windows Server production deployment runbook |
 
 ## Roles
@@ -84,4 +117,5 @@ The app runs in mock-data mode without Supabase credentials — useful for UI de
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md).
+See [docs/development_guide.md](docs/engineering/development_guide.md) — setup, branching, testing
+workflow, commit conventions, PR checklist, and Definition of Done.

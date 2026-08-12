@@ -1,6 +1,6 @@
 # AHEAD+ Intelligence Blueprint
 
-> **SUPERSEDED 2026-07-12 by `docs/AHEAD-INTELLIGENCE-MASTER.md`** — kept as history; edit the master instead.
+> **SUPERSEDED 2026-07-12 by `docs/roadmap/sources/AHEAD-INTELLIGENCE-MASTER.md`** — kept as history; edit the master instead.
 >
 > Status: DRAFT v0.1 — 2026-07-12. Owner: Vivek.
 > The architectural constitution for AHEAD+ (SURYA): where intelligence lives, how

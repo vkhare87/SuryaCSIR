@@ -1,6 +1,6 @@
 # T4 — RAG Ingestion MVP (Design Spec)
 
-> Tranche T4 of the SURYA overhaul (see `docs/OVERHAUL-PLAN.md` §6, feature F6 + minimal F8).
+> Tranche T4 of the SURYA overhaul (see `docs/history/OVERHAUL-PLAN.md` §6, feature F6 + minimal F8).
 > Server-side document indexing worker + `doc_indexes` table + admin monitor page.
 > Date: 2026-07-03. Status: approved design, pre-implementation.
 

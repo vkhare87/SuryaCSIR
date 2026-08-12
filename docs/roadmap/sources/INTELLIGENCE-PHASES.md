@@ -1,7 +1,13 @@
 # AHEAD+ Intelligence — Phase Implementation Planning
 
+> **Source document for [ROADMAP.md](../ROADMAP.md).** This brief carries the implementation detail;
+> the roadmap says which work package it belongs to and what it depends on. Item IDs here
+> are the ones the roadmap references. Status lines below may predate the roadmap — check
+> there first.
+
+
 > Status: v1.0 — 2026-07-12. Owner: Vivek. Planning document — NO implementation.
-> Breaks `docs/AHEAD-INTELLIGENCE-MASTER.md` (v1.1) Part V into executable phases
+> Breaks `docs/roadmap/sources/AHEAD-INTELLIGENCE-MASTER.md` (v1.1) Part V into executable phases
 > with work packages, entry/exit criteria, and verification. Sits between the
 > master (strategy) and per-phase task plans (execution, TDD-level).
 >

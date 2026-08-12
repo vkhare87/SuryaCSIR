@@ -1,7 +1,18 @@
 # PMS Senior Track — Annexure-I (Chief Scientist/OS/DS) & Annexure-II (Director)
 
-> **Status: PLANNED — not yet implemented.** Future-implementation plan. Runs parallel to the
-> existing 2026-guidelines PMS (Scientist B–F); does not modify that flow.
+> **Status: SHIPPED, 2026-07-26.** This document is now a design record, not a plan.
+> Delivered by migration `20260726000001_pms_senior_track.sql` (`pms_reports.track`,
+> `pms_committee_decisions.pen_picture`, `pms_caller_track`, `pms_set_report_track`,
+> `pms_finalize_senior_report`) and PR #11 (`feature/pms-senior-track`):
+> `ANNEXURE_I_WIZARD_STEPS` / `ANNEXURE_II_WIZARD_STEPS` in `src/lib/pms/constants.ts`,
+> `src/components/pms/PenPictureForm.tsx`, `SpecSection.tsx`, track-aware report view and
+> PDF export.
+>
+> As designed, it runs parallel to the 2026-guidelines PMS (Scientist B–F) and does not
+> modify that flow. Current behaviour lives in
+> [system_design.md §4.1](../engineering/system_design.md#41-pms-report--pms_reportsstatus) and
+> [database_design.md §3.3](../engineering/database_design.md#33-pms--20260712000004_pmssql-);
+> read those first — the sections below record *why* it was built this way.
 
 ## 1. Problem
 

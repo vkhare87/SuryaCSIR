@@ -1,6 +1,6 @@
 # SURYA — Phase 4 Evaluation Protocol (Baselines + Logbook)
 
-> Companion to [ACTION-PLAN.md](ACTION-PLAN.md) Track A. Fill the baseline sheet **before**
+> Companion to [ACTION-PLAN.md](../project/ACTION-PLAN.md) Track A. Fill the baseline sheet **before**
 > staff start using the system — "before" timings cannot be reconstructed later.
 > All measured values feed the dissertation §4.3 indicator table.
 

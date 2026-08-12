@@ -175,21 +175,29 @@ senders and lands harvested files at `division`/`confidential`, never
 
 ## A6 — Make the design system enforceable
 
-**Why.** `npx eslint src/` reports **0 errors and 1083 warnings**, all
-`no-restricted-syntax` design-token violations across 88 files. The rule
-exists, fires correctly, and is configured as `warn` — so CI never fails and
-the drift is unbounded. A rule nobody can act on is not a rule.
+> **A6 is closed.** Everything in this section is the 2026-07-25 audit finding as written
+> at the time. See §A6.1/A6.2 in the completion log at the foot of this document, and the
+> **Now** column below, for what actually shipped.
 
-Separately, `DESIGN.md` documents five adopted risks as decided; the code
-implements roughly one and a half of them:
+**Why (audit-time).** `npx eslint src/` reported **0 errors and 1083 warnings**, all
+`no-restricted-syntax` design-token violations across 88 files. The rule existed, fired
+correctly, and was configured as `warn` — so CI never failed and the drift was unbounded.
+A rule nobody can act on is not a rule.
 
-| Risk | Documented | Actual |
-|---|---|---|
-| R1 Fraunces display type | adopted | **not implemented** — no font link in `index.html`, no `Fraunces` in the codebase |
-| R2 expanded ink palette | adopted | partial — `--color-archive-green` / `--color-turmeric` exist; `--color-iron-gall` never landed |
-| R3 `<StatusSeal>` | adopted | **not implemented** — component does not exist |
-| R5 sentence-first greeting | adopted | not verified |
-| R6 ledger tables | adopted | partial |
+Separately, `DESIGN.md` documented five adopted risks as decided; the code implemented
+roughly one and a half of them:
+
+| Risk | Documented | Audit-time finding | Now (verified 2026-08-08) |
+|---|---|---|---|
+| R1 Fraunces display type | adopted | not implemented — no font link, no `Fraunces` anywhere | ✅ shipped — font link in `index.html`, `--font-display` in `src/index.css` |
+| R2 expanded ink palette | adopted | partial — `--color-iron-gall` never landed | ✅ shipped — all three tokens defined per-theme in `src/index.css` |
+| R3 `<StatusSeal>` | adopted | not implemented — component does not exist | ✅ shipped — `src/components/pms/StatusSeal.tsx` + `StatusSeal.test.tsx` |
+| R5 sentence-first greeting | adopted | not verified | still unverified |
+| R6 ledger tables | adopted | partial | partial |
+
+**Lint ratchet: also shipped.** `no-restricted-syntax` is now `['error', …]` repo-wide and
+`['warn', …]` only for files in `eslint.design-debt.json` (107 at the ratchet, shrinking).
+`scripts/update-design-debt.mjs` enforces in CI that the list only shrinks.
 
 **Direction.**
 1. Flip the lint rule to `error` with a per-file allowlist seeded from today's
@@ -198,8 +206,11 @@ implements roughly one and a half of them:
 2. Either implement R1/R3 or move them back to "proposed" in `DESIGN.md`. A
    design doc that overstates what shipped is worse than no design doc,
    because the next session reads it as ground truth.
-3. Fix `src/index.css:28-29` — `--color-archive-green: var(--color-archive-green);`
-   is a self-referential `@theme` alias that resolves only by cascade accident.
+3. ~~Fix `src/index.css:28-29` — `--color-archive-green: var(--color-archive-green);`
+   is a self-referential `@theme` alias that resolves only by cascade accident.~~
+   **Withdrawn — the audit was wrong.** See "Corrections to the original audit" below:
+   this is Tailwind 4's `@theme` pass-through idiom, identical to `--color-surface`
+   directly beneath it, and it is how the per-theme light/dark values resolve.
 
 **Effort:** ratchet is half a day. R1 is a font link plus a CSS variable. R3
 is a component plus its PDF fallback — 1–2 days.

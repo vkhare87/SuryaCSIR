@@ -153,7 +153,7 @@ CPU-only, gold citation questions):
 |---|---|---|
 | `qwen2.5:3b-instruct` (local, CPU) | 0.20 (1/5) | median 45 s, max 123 s |
 | `qwen3-vl:8b` (local, CPU) | 1/1 completed | **586 s**; 2 of 3 hit the 600 s cap |
-| hosted `deepseek-v4-flash` | 0.93 (13/14) | 7–20 s |
+| hosted `deepseek-v4-flash` | 0.93 (13/14); 1.00 (14/14) on the later run | 7–20 s |
 
 Two things follow. **Quality is fine locally** — the 8B answered correctly with a
 precise citation, so self-hosting is not a accuracy compromise. **Speed is entirely
