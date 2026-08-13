@@ -175,3 +175,81 @@ def test_context_budget_truncates_per_node():
     # 2 picked nodes -> each capped at half the budget (+1 join newline)
     assert len(ctx) == CONTEXT_BUDGET + 1
     assert ctx.count("\n") == 1
+
+
+# --- prefilter (added with the pick-latency fix) ---------------------------------
+
+def test_prefilter_passthrough_when_under_keep():
+    from retrieval import prefilter
+
+    labels = ["alpha", "beta", "gamma"]
+    assert prefilter(labels, "anything", keep=12) == [0, 1, 2]
+
+
+def test_prefilter_keeps_highest_overlap_in_corpus_order():
+    from retrieval import prefilter
+
+    labels = [f"filler section {i}" for i in range(20)]
+    labels[17] = "hypochlorite disinfectant generator licensing"
+    labels[3] = "hypochlorite chemistry overview"
+    window = prefilter(labels, "Was the hypochlorite disinfectant generator licensed?", keep=5)
+    assert len(window) == 5
+    assert 17 in window and 3 in window
+    assert window == sorted(window)          # corpus order preserved, not score order
+
+
+def test_prefilter_without_usable_terms_is_deterministic():
+    from retrieval import prefilter
+
+    labels = [f"s{i}" for i in range(20)]
+    # every word is a stopword or too short -> no ranking signal
+    assert prefilter(labels, "is it the a of", keep=4) == [0, 1, 2, 3]
+
+
+def test_descend_maps_picks_back_through_prefilter_window():
+    """Regression: pick indices are local to the prefiltered window. Resolving them
+    against the unfiltered candidate list cites a different section than the model
+    chose — silently wrong citations, not a crash."""
+    from retrieval import pick_context
+
+    docs = [{
+        "id": "d1", "title": "Report", "storage_path": "",
+        "tree": {"root": {"title": "Report", "summary": "s", "nodes": [
+            {"title": (f"Section {i}" if i != 17 else "hypochlorite disinfectant generator"),
+             "summary": "body", "page_start": i + 1, "page_end": i + 1, "nodes": []}
+            for i in range(20)
+        ]}},
+    }]
+
+    class MarkerLLM(FakeLLM):
+        """Picks whichever label the marker landed on, by its position in the list
+        the model was actually shown."""
+        def pick(self, question, titles):
+            return [next(i for i, t in enumerate(titles) if "hypochlorite" in t)]
+
+    ctx, citations = pick_context(docs, "hypochlorite disinfectant generator", MarkerLLM(),
+                                  fetch_texts=lambda spans: ["page text"] * len(spans))
+    assert len(citations) == 1
+    assert citations[0].node_title == "hypochlorite disinfectant generator"
+    assert citations[0].page_start == 18      # node index 17 -> page 18
+
+
+def test_descend_caps_picked_nodes():
+    from retrieval import pick_context, MAX_PICKS
+
+    docs = [{
+        "id": "d1", "title": "Report", "storage_path": "",
+        "tree": {"root": {"title": "Report", "summary": "s", "nodes": [
+            {"title": f"Section {i}", "summary": "body",
+             "page_start": i + 1, "page_end": i + 1, "nodes": []}
+            for i in range(20)
+        ]}},
+    }]
+
+    class GreedyLLM(FakeLLM):
+        def pick(self, question, titles):
+            return list(range(len(titles)))
+
+    _, citations = pick_context(docs, "section", GreedyLLM(),
+                                fetch_texts=lambda spans: ["page text"] * len(spans))
+    assert len(citations) == MAX_PICKS

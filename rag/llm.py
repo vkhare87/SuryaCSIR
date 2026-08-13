@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import urllib.error
 import urllib.request
 
 # Grounding sentinel: the model must reply exactly this when the supplied excerpts
@@ -33,6 +34,18 @@ _PICK_PROMPT = (
     "indices of the sections most relevant to the question, or the word 'none' if no "
     "section is relevant.\n\nQuestion: "
 )
+# Pick is a selection task, not a reasoning task, and it was the whole latency budget
+# without this: a reasoning model spent ~12k completion tokens (45 KB of thinking) to
+# emit the two characters "28". Constraining the output shape and turning reasoning off
+# takes the call from 88-133 s to under 1 s. See RAG_PICK_REASONING_EFFORT below.
+_PICK_SYSTEM = (
+    "You select relevant sections. Reply with ONLY comma-separated integer indices "
+    "of every relevant section, or the single word none. No explanation, no prose."
+)
+# Reasoning budget for the pick call. "none" is what makes pick fast; it is sent as an
+# OpenAI-compatible extra field and silently dropped for providers that reject it, so
+# local Ollama is unaffected. Set to "" to send nothing at all.
+PICK_REASONING_EFFORT = os.environ.get("RAG_PICK_REASONING_EFFORT", "none").strip()
 _ANSWER_SYSTEM = (
     "You answer questions for institute staff using ONLY the provided document excerpts. "
     f"If the excerpts do not contain the answer, reply exactly {NOT_FOUND}. "
@@ -133,8 +146,12 @@ class OpenLLMClient:
         self.base_url = base_url.rstrip("/")
         self.model = model
         self.api_key = api_key or os.environ.get("OPENLLM_API_KEY", "")
+        # Flipped to False the first time a provider rejects the extra field, so an
+        # endpoint that doesn't know reasoning_effort costs one 400, not one per call.
+        self._extras_ok = True
 
-    def _request(self, content: str, system: str | None, stream: bool = False):
+    def _request(self, content: str, system: str | None, stream: bool = False,
+                 extra: dict | None = None):
         messages = []
         if system:
             messages.append({"role": "system", "content": system})
@@ -142,6 +159,8 @@ class OpenLLMClient:
         payload = {"model": self.model, "messages": messages, "temperature": 0.0}
         if stream:
             payload["stream"] = True
+        if extra:
+            payload.update(extra)
         headers = {"Content-Type": "application/json"}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
@@ -152,10 +171,23 @@ class OpenLLMClient:
         )
 
     def _chat(self, content: str, system: str | None = None,
-              timeout: int = SUMMARIZE_TIMEOUT_S) -> str:
-        req = self._request(content, system)
-        with urllib.request.urlopen(req, timeout=timeout) as r:
-            data = json.load(r)
+              timeout: int = SUMMARIZE_TIMEOUT_S, extra: dict | None = None) -> str:
+        if extra and not self._extras_ok:
+            extra = None
+        req = self._request(content, system, extra=extra)
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                data = json.load(r)
+        except urllib.error.HTTPError as e:
+            # A provider that doesn't understand the extra field rejects the whole
+            # request. Drop the extras and retry once rather than failing the query.
+            if extra and e.code in (400, 404, 422):
+                self._extras_ok = False
+                req = self._request(content, system)
+                with urllib.request.urlopen(req, timeout=timeout) as r:
+                    data = json.load(r)
+            else:
+                raise
         return data["choices"][0]["message"]["content"].strip()
 
     def summarize(self, text: str) -> str:
@@ -167,8 +199,9 @@ class OpenLLMClient:
 
     def pick(self, question: str, titles: list) -> list:
         listing = "\n".join(f"{i}: {t}" for i, t in enumerate(titles))
+        extra = {"reasoning_effort": PICK_REASONING_EFFORT} if PICK_REASONING_EFFORT else None
         reply = self._chat(f"{_PICK_PROMPT}{question}\n\nSections:\n{listing}",
-                           timeout=PICK_TIMEOUT_S)
+                           system=_PICK_SYSTEM, timeout=PICK_TIMEOUT_S, extra=extra)
         # No digits (e.g. 'none') -> [] so traverse refuses instead of force-picking
         # section 0 — force-picking was the ungrounded path.
         idxs = [int(n) for n in re.findall(r"\d+", reply)]
