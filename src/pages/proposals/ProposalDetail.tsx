@@ -6,6 +6,7 @@ import { useProposals } from '../../contexts/ProposalsContext';
 import { Card, Badge } from '../../components/ui/Cards';
 import { Button } from '../../components/ui/Button';
 import { getDownloadUrl } from '../../lib/proposals/storage';
+import { openDocumentUrl } from '../../lib/documents/registry';
 import {
   STATUS_LABELS, STATUS_BADGE_VARIANT, TERMINAL_STATUSES,
 } from '../../lib/proposals/constants';
@@ -194,8 +195,7 @@ export default function ProposalDetail() {
               <button
                 className="text-brand-blue underline"
                 onClick={async () => {
-                  const url = await getDownloadUrl(d.storagePath);
-                  if (url) window.open(url, '_blank');
+                  await openDocumentUrl(() => getDownloadUrl(d.storagePath));
                 }}
               >Download</button>
             </li>

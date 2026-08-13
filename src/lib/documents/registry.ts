@@ -112,6 +112,34 @@ export async function getDocumentUrl(storagePath: string): Promise<string | null
   return data?.signedUrl ?? null;
 }
 
+/**
+ * Open a document whose URL has to be fetched first, from inside a click handler.
+ *
+ * Every signed URL costs a network round trip, and `window.open()` called *after*
+ * awaiting it is silently blocked: the click's user activation is already spent, so
+ * the browser drops the popup and reports nothing. The button appears dead. Claim the
+ * tab synchronously while the activation is still live, then point it at the URL once
+ * it resolves.
+ *
+ * Returns false when no URL could be produced, so callers can surface that instead of
+ * failing silently.
+ */
+export async function openDocumentUrl(resolve: () => Promise<string | null>): Promise<boolean> {
+  const tab = window.open('', '_blank');
+  const url = await resolve();
+  if (!url) {
+    tab?.close();
+    return false;
+  }
+  if (tab) {
+    tab.opener = null;          // keep the noopener guarantee we'd get from window.open
+    tab.location.replace(url);
+  } else {
+    window.location.assign(url);  // popup blocker won: same-tab rather than nothing
+  }
+  return true;
+}
+
 /** List registry rows for one entity (shared bucket). */
 export async function listDocuments(entityType: string, entityId: string) {
   if (!supabase) return [];

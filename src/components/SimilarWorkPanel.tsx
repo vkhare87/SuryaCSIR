@@ -4,6 +4,7 @@ import { Card } from './ui/Cards';
 import { useData } from '../contexts/DataContext';
 import { findSimilar } from '../lib/ask/client';
 import { citationHref } from '../lib/ask/citations';
+import { openDocumentUrl } from '../lib/documents/registry';
 import { resolveComparables } from '../lib/ask/comparables';
 import { parseCost } from '../utils/parseCost';
 import type { AskCitation } from '../lib/ask/client';
@@ -47,8 +48,7 @@ export function SimilarWorkPanel({ text }: SimilarWorkPanelProps) {
   }
 
   async function openMatch(c: AskCitation) {
-    const href = await citationHref(c);
-    if (href) window.open(href, '_blank', 'noopener');
+    await openDocumentUrl(() => citationHref(c));
   }
 
   function comparableLine(c: AskCitation): string | null {

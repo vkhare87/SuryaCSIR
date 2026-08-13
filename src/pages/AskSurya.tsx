@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Sparkles, Send, ThumbsUp, ThumbsDown, ExternalLink } from 'lucide-react';
+import { Sparkles, Send, ThumbsUp, ThumbsDown, FileText } from 'lucide-react';
 import { Card, Badge } from '../components/ui/Cards';
+import { Sheet } from '../components/ui/Sheet';
 import { askSuryaStream, sendFeedback } from '../lib/ask/client';
 import type { AskAnswer } from '../lib/ask/client';
 import { citationHref } from '../lib/ask/citations';
@@ -13,12 +14,21 @@ interface Turn {
   rated: boolean;
 }
 
+/** The cited source, shown beside the conversation rather than replacing it.
+ * `url` already carries the page anchor (#page=N) from citationHref(). */
+interface SourceView {
+  url: string;
+  label: string;
+}
+
 export default function AskSurya() {
   const [question, setQuestion] = useState('');
   const [turns, setTurns] = useState<Turn[]>([]);
   const [loading, setLoading] = useState(false);
   const [streamText, setStreamText] = useState('');
   const [error, setError] = useState('');
+  const [source, setSource] = useState<SourceView | null>(null);
+  const [sourceLoading, setSourceLoading] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -43,9 +53,22 @@ export default function AskSurya() {
     }
   }
 
+  // Opens beside the conversation instead of a new tab: a new tab drops the asker out
+  // of the session they were mid-question in, and the tab is also silently blocked
+  // whenever the click's user-activation has already been spent on the surrounding
+  // await (getSession(), the signed-URL round trip) by the time window.open() runs.
   async function openSource(c: AskAnswer['citations'][number]) {
-    const href = await citationHref(c);
-    if (href) window.open(href, '_blank', 'noopener');
+    const label = `${c.title} — ${c.node_title}`;
+    setSourceLoading(true);
+    setSource({ url: '', label });
+    const url = await citationHref(c);
+    if (!url) {
+      setError('Source document is unavailable.');
+      setSource(null);
+    } else {
+      setSource({ url, label });
+    }
+    setSourceLoading(false);
   }
 
   async function rate(index: number, value: 1 | -1) {
@@ -110,7 +133,7 @@ export default function AskSurya() {
                       >
                         {c.title} — {c.node_title} (p.{c.page_start}
                         {c.page_end !== c.page_start ? `–${c.page_end}` : ''})
-                        <ExternalLink className="h-3 w-3" />
+                        <FileText className="h-3 w-3" />
                       </button>
                     ) : (
                       <>
@@ -149,6 +172,23 @@ export default function AskSurya() {
       </form>
 
       {error && <div className="text-sm text-danger">{error}</div>}
+
+      <Sheet isOpen={source !== null} onClose={() => setSource(null)} title={source?.label}>
+        {sourceLoading || !source?.url ? (
+          <div className="flex h-full items-center justify-center text-sm text-text-muted">
+            Loading source…
+          </div>
+        ) : (
+          // citationHref() already anchors the URL to the cited page (#page=N);
+          // appending it again here breaks the anchor for the second #-fragment.
+          <iframe
+            key={source.url}
+            src={source.url}
+            title={source.label}
+            className="h-full w-full rounded-md border border-border"
+          />
+        )}
+      </Sheet>
     </div>
   );
 }

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Upload, FileText, Download } from 'lucide-react';
 import { Card, Badge } from './Cards';
 import { Button } from './Button';
-import { uploadDocument, getDocumentUrl, listDocuments, type DocAccessTier } from '../../lib/documents/registry';
+import { uploadDocument, getDocumentUrl, openDocumentUrl, listDocuments, type DocAccessTier } from '../../lib/documents/registry';
 
 interface DocumentPanelProps {
   entityType: string;
@@ -52,8 +52,7 @@ export function DocumentPanel({ entityType, entityId, docType, accessTier, title
   }
 
   async function onDownload(path: string) {
-    const url = await getDocumentUrl(path);
-    if (url) window.open(url, '_blank');
+    await openDocumentUrl(() => getDocumentUrl(path));
   }
 
   return (

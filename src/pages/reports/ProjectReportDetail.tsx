@@ -6,7 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Card, Badge } from '../../components/ui/Cards';
 import { Button } from '../../components/ui/Button';
 import { PR_STATUS_LABELS, PR_STATUS_VARIANT, PR_EDITABLE } from '../../lib/projectReports/constants';
-import { uploadDocument, getDocumentUrl, listDocuments } from '../../lib/documents/registry';
+import { uploadDocument, getDocumentUrl, openDocumentUrl, listDocuments } from '../../lib/documents/registry';
 import type { ProjectReport } from '../../types/projectReport';
 
 const REVIEWER_ROLES = ['HOD', 'DivisionHead', 'Director', 'HRAdmin', 'SystemAdmin', 'MasterAdmin'];
@@ -70,8 +70,7 @@ export default function ProjectReportDetail() {
   }
 
   async function onDownload(path: string) {
-    const url = await getDocumentUrl(path);
-    if (url) window.open(url, '_blank');
+    await openDocumentUrl(() => getDocumentUrl(path));
   }
 
   const rows: [string, string][] = [
