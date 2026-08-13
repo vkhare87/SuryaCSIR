@@ -139,8 +139,20 @@ automatically.
 
 ## Model host sizing (read before choosing hardware)
 
-The retrieval path costs **three model calls per question** — route, section pick,
-answer — so end-to-end latency is roughly three times the single-call latency.
+The retrieval path costs **four model calls per question** on the document route — route,
+collection pick, section pick, answer.
+
+Two of those are selection steps, and they are kept cheap on purpose: a reasoning model
+asked to choose a section without an output constraint burns its whole budget thinking
+(measured: 12,131 completion tokens to emit `"28"`), so the picks run with a term-overlap
+prefilter and `reasoning_effort: "none"`. Reasoning stays on for the answer. Measured on
+the 14-question gold citation set against the real corpus with hosted `deepseek-v4-flash`:
+**p50 4.7 s, p90 9.7 s, max 12.2 s**, off-corpus refusals under a second, citation
+hit-rate unchanged at 0.93. Before that change the same set ran p50 12.6 s / p90 34 s with
+a worst logged query of 383 s.
+
+The figures below predate it and describe raw single-call latency, which is what the
+hardware question is really about.
 Measured on a CPU-only laptop (Intel Arc iGPU not used by Ollama), `qwen3-vl:8b`
 took route 104 s + pick 54 s + answer 67 s ≈ **3–4 minutes per question**.
 Disabling thinking tokens only moved the answer step to 47 s, so this is raw

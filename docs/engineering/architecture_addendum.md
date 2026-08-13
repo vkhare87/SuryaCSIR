@@ -293,8 +293,16 @@ question
                                 └─ llm.answer(question, context)   context-only system prompt
 ```
 
-Three model calls per question (route, pick, answer). End-to-end latency is roughly three
-times single-call latency — the reason the deployment guide leads with GPU sizing.
+**Four model calls** on the document route: route, collection pick, section pick, answer.
+(Structured questions cost one call plus the analytics query.)
+
+The pick calls are deliberately cheap. A reasoning model left unconstrained spends its
+entire budget on the *selection* step — measured at 12,131 completion tokens of thinking
+to emit the two characters `"28"` — so `retrieval.prefilter` narrows candidates by term
+overlap first and `llm.pick` sends a system prompt plus `reasoning_effort: "none"`.
+Reasoning stays on for `answer`, where it does the actual work. Turning it off at the pick
+stage *without* the prefilter makes the model reply `"none"` and refuse everything, which
+is why the two changes belong together.
 
 ### 6.3 Safety properties
 
