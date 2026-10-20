@@ -439,6 +439,15 @@ export interface FeatureControl {
   updated_at: string;
 }
 
+/** One extra feature MasterAdmin opened for one user, beyond their role. */
+export interface FeatureGrant {
+  user_id: string;
+  feature_key: string;      // ACCESS_MAP path
+  note: string | null;
+  granted_by: string | null;
+  created_at: string;
+}
+
 export interface AccessRequest {
   id: string;
   user_id: string;
@@ -451,4 +460,21 @@ export interface AccessRequest {
   reviewed_by: string | null;
   reviewed_at: string | null;
   created_at: string;
+}
+
+export type NotificationStatus = 'open' | 'read' | 'accepted' | 'dismissed';
+
+// Row of the general `notifications` feed (rule sweep now, background agents later).
+export interface AppNotification {
+  id: string;
+  userId: string;
+  kind: string;
+  severity: 'info' | 'warning' | 'critical';
+  title: string;
+  body: string;
+  link: string | null;
+  source: 'rule' | 'agent';
+  status: NotificationStatus;
+  proposedAction: Record<string, unknown> | null;
+  createdAt: string;
 }

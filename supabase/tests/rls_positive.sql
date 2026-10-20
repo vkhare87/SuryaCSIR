@@ -380,6 +380,79 @@ BEGIN
     END IF;
 END $$;
 
+-- ═══ BEGIN notifications block (20261020000001) — P19–P20 ═══════════════
+
+-- ── P19 — the sweep notifies, and a second run adds nothing ────────────
+-- Fixtures: an open ticket assigned to the handler, and contract staff with
+-- one end date in range (dotted DD.MM.YYYY, as the HR sheets write it) plus
+-- two junk dates that must be skipped rather than abort the whole sweep.
+DO $$
+DECLARE v_ticket uuid; v_first int; v_second int; v_count int;
+BEGIN
+    INSERT INTO public.tickets (token, subject, category, urgency, description,
+                                submitted_by, assigned_to, status)
+    VALUES ('AMPRI-POS-NTF', 'Projector dead', 'Infrastructure', 'Low', 'body',
+            'aaaaaaaa-0000-0000-0000-000000000001',
+            'aaaaaaaa-0000-0000-0000-000000000002', 'Open')
+    RETURNING id INTO v_ticket;
+
+    INSERT INTO public.contract_staff ("id", "Name", "Designation", "ContractEndDate") VALUES
+      ('TCS-NTF-1', 'Test Contractor', 'Project Associate', to_char(current_date + 30, 'DD.MM.YYYY')),
+      ('TCS-NTF-2', 'Junk Date',       NULL,                'not a date'),
+      ('TCS-NTF-3', 'Impossible Date', NULL,                '31/02/2027');
+
+    -- The intended caller is pg_cron; service_role is the only client role
+    -- that keeps EXECUTE.
+    SET LOCAL ROLE service_role;
+    v_first  := public.notifications_sweep();
+    v_second := public.notifications_sweep();
+    RESET ROLE;
+
+    IF v_first < 2 THEN
+        RAISE EXCEPTION 'P19 FAILED: first sweep inserted % row(s), expected at least the ticket + contract rows', v_first;
+    END IF;
+    IF v_second <> 0 THEN
+        RAISE EXCEPTION 'P19 FAILED: second sweep inserted % duplicate row(s)', v_second;
+    END IF;
+
+    SELECT count(*) INTO v_count FROM public.notifications
+     WHERE user_id = 'aaaaaaaa-0000-0000-0000-000000000002'
+       AND dedupe_key = 'ticket:' || v_ticket;
+    IF v_count <> 1 THEN
+        RAISE EXCEPTION 'P19 FAILED: handler has % notification(s) for the ticket, expected 1', v_count;
+    END IF;
+
+    SELECT count(*) INTO v_count FROM public.notifications
+     WHERE user_id = 'aaaaaaaa-0000-0000-0000-000000000003'
+       AND dedupe_key LIKE 'contract-end:TCS-NTF-%';
+    IF v_count <> 1 THEN
+        RAISE EXCEPTION 'P19 FAILED: HR admin has % contract notification(s), expected 1 (junk dates skipped)', v_count;
+    END IF;
+END $$;
+
+-- ── P20 — the owner can read their notifications and mark them read ────
+-- Counterweight to T16–T19: those pass trivially if the table denies all.
+DO $$
+DECLARE v_seen int; v_open int;
+BEGIN
+    CALL pg_temp.become('aaaaaaaa-0000-0000-0000-000000000002', 'handler@test.local');
+    SELECT count(*) INTO v_seen FROM public.notifications WHERE kind = 'ticket';
+    UPDATE public.notifications SET status = 'read' WHERE kind = 'ticket';
+    RESET ROLE;
+
+    IF v_seen < 1 THEN
+        RAISE EXCEPTION 'P20 FAILED: handler cannot see their own notification';
+    END IF;
+
+    SELECT count(*) INTO v_open FROM public.notifications
+     WHERE user_id = 'aaaaaaaa-0000-0000-0000-000000000002'
+       AND kind = 'ticket' AND status <> 'read';
+    IF v_open <> 0 THEN
+        RAISE EXCEPTION 'P20 FAILED: handler could not mark own notification read';
+    END IF;
+END $$;
+-- ═══ END notifications block ════════════════════════════════════════════
+
 DO $$ BEGIN RAISE NOTICE 'ALL RLS POSITIVE TESTS PASSED'; END $$;
 
 ROLLBACK;

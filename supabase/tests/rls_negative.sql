@@ -358,6 +358,90 @@ BEGIN
     END IF;
 END $$;
 
+-- ═══ BEGIN notifications block (20261020000001) — T16–T20 ═══════════════
+-- Rows are written only by the sweep / agent worker. A client may read and
+-- re-status its own rows and nothing else; in particular it must not be
+-- able to plant or rewrite a `link`, which would make the bell a phishing
+-- vector.
+INSERT INTO public.notifications (user_id, kind, title, body, link, dedupe_key) VALUES
+  ('22222222-2222-2222-2222-222222222222', 'ticket', 'Victim notice', 'private', '/helpdesk/x', 'test:victim'),
+  ('11111111-1111-1111-1111-111111111111', 'ticket', 'Own notice',    'mine',    '/helpdesk/y', 'test:own');
+
+-- T16 — reading another user's notification
+DO $$
+DECLARE v_count int;
+BEGIN
+    CALL pg_temp.become('11111111-1111-1111-1111-111111111111', 'lowpriv@test.local');
+    SELECT count(*) INTO v_count FROM public.notifications WHERE dedupe_key = 'test:victim';
+    RESET ROLE;
+
+    IF v_count <> 0 THEN
+        RAISE EXCEPTION 'T16 FAILED: user read another user''s notification';
+    END IF;
+END $$;
+
+-- T17 — forging a notification, even one addressed to oneself
+DO $$
+DECLARE v_count int;
+BEGIN
+    CALL pg_temp.become('11111111-1111-1111-1111-111111111111', 'lowpriv@test.local');
+    PERFORM pg_temp.blocked(
+        'INSERT INTO public.notifications (user_id, kind, title, link, dedupe_key)
+         VALUES (''11111111-1111-1111-1111-111111111111'', ''ticket'',
+                 ''Reset your password'', ''https://evil.example'', ''test:forged'')');
+    RESET ROLE;
+
+    SELECT count(*) INTO v_count FROM public.notifications WHERE dedupe_key = 'test:forged';
+    IF v_count <> 0 THEN
+        RAISE EXCEPTION 'T17 FAILED: client inserted a notification';
+    END IF;
+END $$;
+
+-- T18 — dismissing someone else's notification
+DO $$
+DECLARE v_status text;
+BEGIN
+    CALL pg_temp.become('11111111-1111-1111-1111-111111111111', 'lowpriv@test.local');
+    PERFORM pg_temp.blocked(
+        'UPDATE public.notifications SET status = ''dismissed'' WHERE dedupe_key = ''test:victim''');
+    RESET ROLE;
+
+    SELECT status INTO v_status FROM public.notifications WHERE dedupe_key = 'test:victim';
+    IF v_status <> 'open' THEN
+        RAISE EXCEPTION 'T18 FAILED: user changed another user''s notification to %', v_status;
+    END IF;
+END $$;
+
+-- T19 — rewriting the link on one's own row (open redirect)
+DO $$
+DECLARE v_link text;
+BEGIN
+    CALL pg_temp.become('11111111-1111-1111-1111-111111111111', 'lowpriv@test.local');
+    PERFORM pg_temp.blocked(
+        'UPDATE public.notifications SET link = ''https://evil.example'' WHERE dedupe_key = ''test:own''');
+    RESET ROLE;
+
+    SELECT link INTO v_link FROM public.notifications WHERE dedupe_key = 'test:own';
+    IF v_link <> '/helpdesk/y' THEN
+        RAISE EXCEPTION 'T19 FAILED: user rewrote own notification link to %', v_link;
+    END IF;
+END $$;
+
+-- T20 — running the sweep from a client session. It reads every user's
+-- work queue, so it is cron-only.
+DO $$
+DECLARE v_blocked boolean;
+BEGIN
+    CALL pg_temp.become('11111111-1111-1111-1111-111111111111', 'lowpriv@test.local');
+    v_blocked := pg_temp.blocked('SELECT public.notifications_sweep()');
+    RESET ROLE;
+
+    IF NOT v_blocked THEN
+        RAISE EXCEPTION 'T20 FAILED: authenticated client executed notifications_sweep()';
+    END IF;
+END $$;
+-- ═══ END notifications block ════════════════════════════════════════════
+
 DO $$ BEGIN RAISE NOTICE 'ALL RLS NEGATIVE TESTS PASSED'; END $$;
 
 ROLLBACK;

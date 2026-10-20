@@ -12,6 +12,8 @@ import { useAuth } from './AuthContext';
 import { registerDocument, unregisterDocument } from '../lib/documents/registry';
 import { fileFinalizedReport } from '../lib/pms/fileFinalized';
 import type { BasicInfoPayload } from '../lib/pms/basicInfo';
+import { mapAppNotificationRow, updateNotificationStatus } from '../lib/notifications/notifications';
+import type { AppNotification, NotificationStatus } from '../types';
 import { SCORE_RANGE } from '../lib/pms/constants';
 import { isValidScore, requiresBelowThresholdReasons, requiresOutstandingReasons } from '../lib/pms/scoring';
 import {
@@ -72,6 +74,7 @@ interface PMSContextType {
   evaluations: PMSEvaluation[];
   representations: PMSRepresentation[];
   notifications: PMSNotification[];
+  appNotifications: AppNotification[];
   isLoading: boolean;
   error: string | null;
 
@@ -125,6 +128,8 @@ interface PMSContextType {
   resolveRepresentation: (reportId: string, resolution: string, revised?: FinalDecisionPayload) => Promise<void>;
 
   markNotificationRead: (id: string) => Promise<void>;
+  /** Move one of my notifications to read / accepted / dismissed. */
+  setAppNotificationStatus: (id: string, status: NotificationStatus) => Promise<void>;
 }
 
 const PMSContext = createContext<PMSContextType | undefined>(undefined);
@@ -141,6 +146,7 @@ export function PMSProvider({ children }: { children: ReactNode }) {
   const [evaluations, setEvaluations] = useState<PMSEvaluation[]>([]);
   const [representations, setRepresentations] = useState<PMSRepresentation[]>([]);
   const [notifications, setNotifications] = useState<PMSNotification[]>([]);
+  const [appNotifications, setAppNotifications] = useState<AppNotification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -157,9 +163,10 @@ export function PMSProvider({ children }: { children: ReactNode }) {
         setEvaluations([]);
         setRepresentations([]);
         setNotifications([]);
+        setAppNotifications([]);
         return;
       }
-      const [cycleRes, reportRes, committeeRes, empoweredRes, grievanceRes, evalRes, reprRes, notifRes] = await Promise.all([
+      const [cycleRes, reportRes, committeeRes, empoweredRes, grievanceRes, evalRes, reprRes, notifRes, appNotifRes] = await Promise.all([
         supabase.from('appraisal_cycles').select('*').order('created_at', { ascending: false }),
         supabase.from('pms_reports').select('*, appraisal_cycles(*)').order('created_at', { ascending: false }),
         supabase.from('pms_evaluation_committees').select('*, pms_evaluation_committee_members(*)').order('created_at', { ascending: false }),
@@ -168,6 +175,7 @@ export function PMSProvider({ children }: { children: ReactNode }) {
         supabase.from('pms_evaluations').select('*').order('created_at', { ascending: false }),
         supabase.from('pms_representations').select('*').order('submitted_at', { ascending: false }),
         supabase.from('pms_notifications').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
+        supabase.from('notifications').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
       ]);
 
       setCycles(cycleRes.data ? cycleRes.data.map(mapCycleRow) : []);
@@ -186,6 +194,7 @@ export function PMSProvider({ children }: { children: ReactNode }) {
       setEvaluations(evalRes.data ? evalRes.data.map(r => mapEvaluationRow(r as Record<string, unknown>)) : []);
       setRepresentations(reprRes.data ? reprRes.data.map(r => mapRepresentationRow(r as Record<string, unknown>)) : []);
       setNotifications(notifRes.data ? notifRes.data.map(r => mapNotificationRow(r as Record<string, unknown>)) : []);
+      setAppNotifications(appNotifRes.data ? appNotifRes.data.map(r => mapAppNotificationRow(r as Record<string, unknown>)) : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load PMS data');
     } finally {
@@ -681,10 +690,15 @@ export function PMSProvider({ children }: { children: ReactNode }) {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
   }
 
+  async function setAppNotificationStatus(id: string, status: NotificationStatus): Promise<void> {
+    await updateNotificationStatus(id, status);
+    setAppNotifications(prev => prev.map(n => n.id === id ? { ...n, status } : n));
+  }
+
   return (
     <PMSContext.Provider value={{
       cycles, reports, committees, empoweredMembers, grievanceMembers,
-      evaluations, representations, notifications, isLoading, error,
+      evaluations, representations, notifications, appNotifications, isLoading, error,
       createCycle, updateCycle,
       createCommittee, addCommitteeMember, removeCommitteeMember,
       addEmpoweredMember, removeEmpoweredMember,
@@ -697,7 +711,7 @@ export function PMSProvider({ children }: { children: ReactNode }) {
       getReportEvaluations,
       getCommitteeDecision, finalizeReport, finalizeSeniorReport,
       submitRepresentation, resolveRepresentation,
-      markNotificationRead,
+      markNotificationRead, setAppNotificationStatus,
       refreshData: loadData,
     }}>
       {children}

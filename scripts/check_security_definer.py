@@ -81,6 +81,13 @@ EXEMPT: dict[str, str] = {
     "route_ticket": "internal to helpdesk_create_ticket; EXECUTE revoked (20260725000003)",
     "pms_committee_panel_valid": "internal validator; EXECUTE revoked (20260725000003)",
     "pms_empowered_committee_valid": "internal validator; EXECUTE revoked (20260725000003)",
+    # Cron-only job. It reads every user's work queue by design — there is no
+    # caller to authorize; pg_cron runs it as the owner.
+    "notifications_sweep": (
+        "pg_cron job; EXECUTE revoked from PUBLIC/anon/authenticated and the "
+        "revoke asserted in 20261020000001. Only writes rows keyed to the "
+        "user each rule names."
+    ),
 }
 
 
