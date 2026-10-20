@@ -2,6 +2,12 @@
 every read, so Postgres RLS is the single gate deciding which documents/trees are visible.
 The query service holds no service key — it cannot see anything the caller cannot."""
 
+import base64
+import hashlib
+import hmac
+import json
+import time
+
 from supabase import create_client
 
 
@@ -15,6 +21,26 @@ def verify_token(jwt: str, anon_url: str, anon_key: str):
     if resp is None or resp.user is None:
         raise PermissionError("invalid token")
     return resp.user
+
+
+def _b64url(raw: bytes) -> str:
+    return base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
+
+
+def mint_user_token(secret: str, user_id: str, email: str | None, ttl_s: int = 300, now=None) -> str:
+    """Short-lived HS256 access token for one user, signed with the project's JWT
+    secret. Used only by the briefs worker to answer a user's saved question AS that
+    user, so RLS scopes the answer. Carries `email` because caller_email() (staff
+    scoping) reads it. Five minutes covers one answer; nothing stores the token."""
+    iat = int(now if now is not None else time.time())
+    header = {"alg": "HS256", "typ": "JWT"}
+    payload = {"sub": user_id, "role": "authenticated", "aud": "authenticated",
+               "iat": iat, "exp": iat + ttl_s}
+    if email:
+        payload["email"] = email
+    signing = ".".join(_b64url(json.dumps(p, separators=(",", ":")).encode()) for p in (header, payload))
+    sig = hmac.new(secret.encode(), signing.encode(), hashlib.sha256).digest()
+    return f"{signing}.{_b64url(sig)}"
 
 
 def scoped_client(anon_url: str, anon_key: str, jwt: str):

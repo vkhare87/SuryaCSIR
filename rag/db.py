@@ -174,6 +174,27 @@ class SupabaseDB:
                         "root_summary": root.get("summary", "")})
         return out
 
+    # ── Scheduled briefs (briefs.py) — service role ──────────────────────
+    def scheduled_queries(self):
+        from datetime import datetime
+        rows = (self.c.table("scheduled_queries")
+                .select("id, owner, question, cadence, last_run_at").execute().data) or []
+        for r in rows:
+            r["last_run_at"] = datetime.fromisoformat(r["last_run_at"]) if r.get("last_run_at") else None
+        return rows
+
+    def user_email(self, user_id):
+        return self.c.auth.admin.get_user_by_id(user_id).user.email
+
+    def post_notification(self, row):
+        # Same dedupe contract as the SQL sweep: a repeat is a no-op.
+        self.c.table("notifications").upsert(
+            row, on_conflict="user_id,dedupe_key", ignore_duplicates=True).execute()
+
+    def mark_brief(self, query_id, ran_at, error):
+        self.c.table("scheduled_queries").update(
+            {"last_run_at": ran_at.isoformat(), "last_error": error}).eq("id", query_id).execute()
+
     def save_collections(self, collections, model):
         for c in collections:
             self.c.table("collection_indexes").upsert({

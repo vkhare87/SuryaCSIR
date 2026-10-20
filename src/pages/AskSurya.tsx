@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Sparkles, Send, ThumbsUp, ThumbsDown, FileText } from 'lucide-react';
+import { Sparkles, Send, ThumbsUp, ThumbsDown, FileText, CalendarClock } from 'lucide-react';
 import { Card, Badge } from '../components/ui/Cards';
 import { Sheet } from '../components/ui/Sheet';
-import { askSuryaStream, sendFeedback } from '../lib/ask/client';
+import { useAuth } from '../contexts/AuthContext';
+import { askSuryaStream, sendFeedback, scheduleBrief } from '../lib/ask/client';
 import type { AskAnswer } from '../lib/ask/client';
 import { citationHref } from '../lib/ask/citations';
 
@@ -12,6 +13,7 @@ interface Turn {
   question: string;
   answer: AskAnswer;
   rated: boolean;
+  scheduled?: boolean;
 }
 
 /** The cited source, shown beside the conversation rather than replacing it.
@@ -22,6 +24,7 @@ interface SourceView {
 }
 
 export default function AskSurya() {
+  const { user } = useAuth();
   const [question, setQuestion] = useState('');
   const [turns, setTurns] = useState<Turn[]>([]);
   const [loading, setLoading] = useState(false);
@@ -82,6 +85,17 @@ export default function AskSurya() {
     }
   }
 
+  async function schedule(index: number) {
+    const turn = turns[index];
+    if (!user || !turn || turn.scheduled) return;
+    try {
+      await scheduleBrief(user.id, turn.question);
+      setTurns((prev) => prev.map((t, i) => (i === index ? { ...t, scheduled: true } : t)));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save the brief');
+    }
+  }
+
   return (
     <div className="p-6 max-w-3xl mx-auto space-y-6">
       <div>
@@ -101,8 +115,16 @@ export default function AskSurya() {
             <Badge variant={turn.answer.mode === 'structured' ? 'info' : turn.answer.mode === 'hybrid' ? 'warning' : 'success'}>
               {turn.answer.mode}
             </Badge>
+            <div className="flex items-center gap-3 text-text-muted">
+              {turn.scheduled ? (
+                <span className="text-xs">Weekly brief saved</span>
+              ) : (
+                <button onClick={() => void schedule(index)} className="inline-flex items-center gap-1 text-xs hover:text-text">
+                  <CalendarClock className="h-4 w-4" /> Send me this weekly
+                </button>
+              )}
             {turn.answer.queryId && (
-              <div className="flex items-center gap-2 text-text-muted">
+              <div className="flex items-center gap-2">
                 {turn.rated ? (
                   <span className="text-xs">Thanks for the feedback</span>
                 ) : (
@@ -117,6 +139,7 @@ export default function AskSurya() {
                 )}
               </div>
             )}
+            </div>
           </div>
           <p className="text-sm leading-relaxed text-text whitespace-pre-wrap">{turn.answer.answer}</p>
 

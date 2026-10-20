@@ -57,6 +57,20 @@ def main():
         n = build_collections(db, llm)
         print(f"[rag] built {n} collection index(es)", flush=True)
         return
+    if "--briefs" in sys.argv:
+        # One pass, then exit — the host scheduler runs it hourly (deploy/README.md).
+        if not cfg.supabase_jwt_secret:
+            raise SystemExit("--briefs needs SUPABASE_JWT_SECRET to answer as each owner")
+        from auth import mint_user_token, scoped_client
+        from briefs import run_briefs
+
+        def client_for(owner):
+            token = mint_user_token(cfg.supabase_jwt_secret, owner, db.user_email(owner))
+            return scoped_client(cfg.supabase_url, cfg.supabase_anon_key, token)
+
+        n = run_briefs(db, llm, client_for)
+        print(f"[rag] posted {n} brief(s)", flush=True)
+        return
     if "--reindex-model" in sys.argv:
         model = sys.argv[sys.argv.index("--reindex-model") + 1]
         n = db.requeue_stale_model(model)

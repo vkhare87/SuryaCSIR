@@ -109,6 +109,27 @@ plus a documented browser exception.
    *"Not found in institute documents."*
 4. `/admin/rag` shows the ingestion counts.
 
+## 6.5 Scheduled briefs agent (optional)
+
+Users can save an Ask SURYA question as a daily or weekly brief (`scheduled_queries`).
+`worker.py --briefs` answers every due one **as its owner** and posts it to that user's
+notification bell (`source='agent'`). It only reads and posts; it never changes a record.
+
+1. Set `SUPABASE_JWT_SECRET` in the worker env file (see `rag-worker.env.example`).
+2. Schedule one pass per hour (Task Scheduler on Windows):
+
+   ```powershell
+   schtasks /Create /SC HOURLY /TN "SURYA briefs" /TR "C:\surya\rag\.venv\Scripts\python.exe C:\surya\rag\worker.py --briefs"
+ag\.venv\Scripts\python.exe C:\surya
+ag\worker.py --briefs"
+   ```
+
+3. Check: save a brief from `/ask`, run the command once by hand, and look for the
+   brief in the bell. `scheduled_queries.last_error` holds the reason when one fails.
+
+Each brief is one full Ask SURYA answer, so it costs the same model time as a user
+question — size the GPU for interactive load plus briefs.
+
 ## 7. Phase B: watched-folder / mail-in capture (optional)
 
 Only worth installing once you actually have a network folder share and/or an

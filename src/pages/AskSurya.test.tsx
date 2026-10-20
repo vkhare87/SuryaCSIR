@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import AskSurya from './AskSurya';
+import { scheduleBrief } from '../lib/ask/client';
 
 const { ANSWER } = vi.hoisted(() => ({
   ANSWER: {
@@ -17,6 +18,11 @@ const { ANSWER } = vi.hoisted(() => ({
 vi.mock('../lib/ask/client', () => ({
   askSuryaStream: vi.fn(async () => ANSWER),
   sendFeedback: vi.fn(),
+  scheduleBrief: vi.fn(async () => undefined),
+}));
+
+vi.mock('../contexts/AuthContext', () => ({
+  useAuth: () => ({ user: { id: 'u-1' } }),
 }));
 
 vi.mock('../lib/ask/citations', () => ({
@@ -49,5 +55,20 @@ describe('AskSurya source citations', () => {
 
     // The whole point of the panel: no tab was spawned, session context is not lost.
     expect(openSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('AskSurya scheduled briefs', () => {
+  it('saves the asked question as a weekly brief for the signed-in user', async () => {
+    render(<AskSurya />);
+    fireEvent.change(screen.getByPlaceholderText(/2025 progress reports/i), {
+      target: { value: 'Which projects end this year?' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^ask$/i }));
+
+    fireEvent.click(await screen.findByRole('button', { name: /send me this weekly/i }));
+
+    expect(await screen.findByText(/weekly brief saved/i)).toBeTruthy();
+    expect(scheduleBrief).toHaveBeenCalledWith('u-1', 'Which projects end this year?');
   });
 });

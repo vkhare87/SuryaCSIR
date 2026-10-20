@@ -118,6 +118,15 @@ export async function findSimilar(text: string): Promise<AskCitation[]> {
 }
 
 // Owner-only feedback update (RLS: user_id = auth.uid()). value: 1 up, -1 down.
+/** Save a question as a recurring brief. The briefs worker answers it as `ownerId`
+ * and posts the answer to their notification bell (rag/briefs.py). RLS requires
+ * ownerId to be the signed-in user. */
+export async function scheduleBrief(ownerId: string, question: string, cadence: 'daily' | 'weekly' = 'weekly'): Promise<void> {
+  if (!supabase) throw new Error('Not signed in');
+  const { error } = await supabase.from('scheduled_queries').insert({ owner: ownerId, question, cadence });
+  if (error) throw error;
+}
+
 export async function sendFeedback(queryId: string, value: 1 | -1): Promise<void> {
   if (!supabase) return;
   const { error } = await supabase.from('query_log').update({ feedback: value }).eq('id', queryId);

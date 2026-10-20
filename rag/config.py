@@ -23,6 +23,8 @@ class Config:
     batch_size: int
     llm_provider: str = ""
     openllm_api_key: str = ""
+    # Only `worker.py --briefs` needs it: signs the per-owner token (auth.mint_user_token).
+    supabase_jwt_secret: str = ""
 
 
 def load_config(env: dict) -> Config:
@@ -37,6 +39,7 @@ def load_config(env: dict) -> Config:
         openllm_model=env.get("OPENLLM_MODEL", ""),
         llm_provider=env.get("LLM_PROVIDER", ""),
         openllm_api_key=env.get("OPENLLM_API_KEY", ""),
+        supabase_jwt_secret=env.get("SUPABASE_JWT_SECRET", ""),
         ocr_backend=env["OCR_BACKEND"],
         llm_backend=env["LLM_BACKEND"],
         poll_interval_s=int(env["POLL_INTERVAL_S"]),
