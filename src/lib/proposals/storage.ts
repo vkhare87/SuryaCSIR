@@ -2,7 +2,7 @@ import { supabase } from '../../utils/supabaseClient';
 import type { ProposalDocType, ProposalDocument } from '../../types/proposal';
 import { mapDocumentRow } from '../../utils/proposalMappers';
 import { ALLOWED_MIME_TYPES, MAX_FILE_SIZE_BYTES } from './constants';
-import { registerDocument } from '../documents/registry';
+import { registerDocument, createSignedUrl } from '../documents/registry';
 
 const BUCKET = 'proposal-documents';
 
@@ -77,10 +77,5 @@ export async function uploadProposalDoc(
 }
 
 export async function getDownloadUrl(storagePath: string): Promise<string | null> {
-  if (!supabase) return null;
-  const { data, error } = await supabase.storage
-    .from(BUCKET)
-    .createSignedUrl(storagePath, 60);
-  if (error) return null;
-  return data?.signedUrl ?? null;
+  return createSignedUrl(BUCKET, storagePath);
 }

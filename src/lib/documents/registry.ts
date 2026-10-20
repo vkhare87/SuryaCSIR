@@ -1,4 +1,5 @@
-import { supabase } from '../../utils/supabaseClient';
+import { supabase, getSupabaseUrl, getSupabaseAnonKey } from '../../utils/supabaseClient';
+import { bearerToken } from '../auth/bearerToken';
 import { logger } from '../../utils/logger';
 
 export type DocAccessTier = 'institute' | 'division' | 'owner' | 'confidential';
@@ -104,12 +105,52 @@ export async function uploadDocument(
   return { ok: true, id };
 }
 
+/**
+ * Signed URL via a raw REST call, not `supabase.storage.from().createSignedUrl()`.
+ *
+ * The SDK method resolves its Authorization header through the same internal
+ * `auth.getSession()` path that has been observed hanging indefinitely (see
+ * `lib/auth/bearerToken.ts`) — when it stalls, no error is thrown and no request is
+ * ever issued, so a document viewer just sits on "Loading source…" forever. Building
+ * the request by hand with `bearerToken()`'s bounded fallback means a stalled auth
+ * client degrades to a clear failure (`null`) instead of an unrecoverable hang.
+ */
+export async function createSignedUrl(
+  bucket: string, storagePath: string, expiresIn = 60,
+): Promise<string | null> {
+  const base = getSupabaseUrl();
+  const anonKey = getSupabaseAnonKey();
+  if (!base || !anonKey) return null;
+
+  let token: string;
+  try {
+    token = await bearerToken();
+  } catch {
+    return null;
+  }
+
+  const path = storagePath.split('/').map(encodeURIComponent).join('/');
+  try {
+    const res = await fetch(`${base}/storage/v1/object/sign/${bucket}/${path}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: anonKey,
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ expiresIn }),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { signedURL?: string };
+    return data.signedURL ? `${base}/storage/v1${data.signedURL}` : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Signed URL for a document in the shared bucket. */
 export async function getDocumentUrl(storagePath: string): Promise<string | null> {
-  if (!supabase) return null;
-  const { data, error } = await supabase.storage.from(SHARED_BUCKET).createSignedUrl(storagePath, 60);
-  if (error) return null;
-  return data?.signedUrl ?? null;
+  return createSignedUrl(SHARED_BUCKET, storagePath);
 }
 
 /**
