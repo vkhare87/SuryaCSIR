@@ -3,6 +3,7 @@ import { UNCONTROLLABLE_PATHS } from '../../lib/access/featureControls';
 import { RoleFeatureEditor } from '../../components/admin/RoleFeatureEditor';
 import { FeatureRoleLookup } from '../../components/admin/FeatureRoleLookup';
 import { GlobalFeatureKillSwitches } from '../../components/admin/GlobalFeatureKillSwitches';
+import { UserFeatureGrants } from '../../components/admin/UserFeatureGrants';
 
 export default function FeatureControls() {
   return (
@@ -12,7 +13,7 @@ export default function FeatureControls() {
           <SlidersHorizontal size={26} className="text-terracotta" /> Feature Controls
         </h1>
         <p className="text-text-muted mt-1 text-sm font-medium">
-          Switch features off institute-wide or for specific roles. Absent entry = fully enabled.
+          Each role sees only the features its profile needs. Switch features off institute-wide or per role, or grant one user an extra feature.
         </p>
       </div>
 
@@ -29,6 +30,7 @@ export default function FeatureControls() {
         <RoleFeatureEditor />
         <GlobalFeatureKillSwitches />
       </div>
+      <UserFeatureGrants />
       <FeatureRoleLookup />
     </div>
   );

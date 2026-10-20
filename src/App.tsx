@@ -8,11 +8,14 @@ import SetupWizard from './pages/SetupWizard';
 import ChangePassword from './pages/ChangePassword';
 import { useAuth } from './contexts/AuthContext';
 import { useFeatureControls } from './contexts/FeatureControlContext';
+import { useUI } from './contexts/UIContext';
+import { Monitor } from 'lucide-react';
+import { EmptyState } from './components/ui/EmptyState';
 import { isProvisioned } from './utils/supabaseClient';
 import type { Role } from './types';
 import { ROLE_ROUTES } from './constants/roleRoutes';
 import { KpiSkeleton, TableSkeleton } from './components/ui/Skeleton';
-import { ACCESS_MAP } from './constants/access';
+import { VERIFIED } from './constants/access';
 
 // Lazy-loaded routes — split into per-chunk bundles to keep the initial
 // payload manageable. Heavy deps (@react-pdf, xlsx, recharts) live behind
@@ -78,16 +81,20 @@ function RouteFallback() {
 }
 
 interface ProtectedRouteProps {
+  /** Extra hard role list (role dashboards, Scientist-only create). Grants do not widen it. */
   allowedRoles?: Role[];
-  /** ACCESS_MAP feature key — enforces MasterAdmin runtime feature controls. */
+  /** ACCESS_MAP feature key — role access or a MasterAdmin grant, then runtime controls. */
   accessPath?: string;
+  /** Heavy authoring / admin page: phones get an "open on desktop" card instead. */
+  desktopOnly?: boolean;
   children?: React.ReactNode;
 }
 
 // Route Guard component
-function ProtectedRoute({ allowedRoles, accessPath, children }: ProtectedRouteProps) {
+function ProtectedRoute({ allowedRoles, accessPath, desktopOnly, children }: ProtectedRouteProps) {
   const { user, isAuthenticated, isLoading, mustChangePassword } = useAuth();
-  const { isEnabled } = useFeatureControls();
+  const { canAccess } = useFeatureControls();
+  const { isMobile } = useUI();
   const provisioned = isProvisioned();
 
   if (isLoading) {
@@ -112,9 +119,20 @@ function ProtectedRoute({ allowedRoles, accessPath, children }: ProtectedRoutePr
     return <Navigate to={ROLE_ROUTES[user.activeRole]} replace />;
   }
 
-  // Runtime feature control (MasterAdmin discretion) — after the role gate.
-  if (accessPath && user && !isEnabled(accessPath)) {
+  if (accessPath && user && !canAccess(accessPath)) {
     return <Navigate to={ROLE_ROUTES[user.activeRole]} replace />;
+  }
+
+  // Phones are for checking and approving; authoring and admin stay on desktop.
+  if (desktopOnly && isMobile && user) {
+    return (
+      <EmptyState
+        icon={Monitor}
+        title="Open this page on a computer"
+        description="This page has large forms or tables. Use SURYA on a desktop or laptop to work on it."
+        action={{ label: 'Back to dashboard', to: ROLE_ROUTES[user.activeRole] }}
+      />
+    );
   }
 
   return children ? <>{children}</> : <Outlet />;
@@ -146,23 +164,23 @@ function App() {
             <Route path="/project-staff" element={<ProtectedRoute allowedRoles={['ProjectStaff']}><Dashboard /></ProtectedRoute>} />
             <Route path="/guest"         element={<ProtectedRoute allowedRoles={['Guest']}><Dashboard /></ProtectedRoute>} />
             <Route path="/pending"       element={<ProtectedRoute allowedRoles={['DefaultUser']}><Dashboard /></ProtectedRoute>} />
-            <Route path="/staff" element={<ProtectedRoute accessPath="/staff" allowedRoles={ACCESS_MAP['/staff']}><HumanCapital /></ProtectedRoute>} />
-            <Route path="/staff/analytics" element={<ProtectedRoute accessPath="/staff/analytics" allowedRoles={ACCESS_MAP['/staff/analytics']}><StaffAnalytics /></ProtectedRoute>} />
-            <Route path="/staff/project" element={<ProtectedRoute accessPath="/staff/project" allowedRoles={ACCESS_MAP['/staff/project']}><ProjectStaffRoster /></ProtectedRoute>} />
-            {/* Detail routes stay open — linked from ALL_ROLES pages (committees, PhD, facilities); RLS scopes data */}
-            <Route path="/staff/:id" element={<StaffDetail />} />
-            <Route path="/projects" element={<ProtectedRoute accessPath="/projects" allowedRoles={ACCESS_MAP['/projects']}><Projects /></ProtectedRoute>} />
-            <Route path="/projects/:id" element={<ProjectDetail />} />
-            <Route path="/phd" element={<ProtectedRoute accessPath="/phd" allowedRoles={ACCESS_MAP['/phd']}><PhDTracker /></ProtectedRoute>} />
-            <Route path="/divisions" element={<ProtectedRoute accessPath="/divisions" allowedRoles={ACCESS_MAP['/divisions']}><Divisions /></ProtectedRoute>} />
-            <Route path="/intelligence" element={<ProtectedRoute accessPath="/intelligence" allowedRoles={ACCESS_MAP['/intelligence']}><Intelligence /></ProtectedRoute>} />
-            <Route path="/explore" element={<ProtectedRoute accessPath="/explore" allowedRoles={ACCESS_MAP['/explore']}><ExploreGraph /></ProtectedRoute>} />
-            <Route path="/facilities" element={<ProtectedRoute accessPath="/facilities" allowedRoles={ACCESS_MAP['/facilities']}><Facilities /></ProtectedRoute>} />
-            <Route path="/partnerships" element={<ProtectedRoute accessPath="/partnerships" allowedRoles={ACCESS_MAP['/partnerships']}><Partnerships /></ProtectedRoute>} />
-            <Route path="/rnd-monitor" element={<ProtectedRoute accessPath="/rnd-monitor" allowedRoles={ACCESS_MAP['/rnd-monitor']}><RnDMonitor /></ProtectedRoute>} />
-            <Route path="/facilities/:uInsID" element={<InstrumentDetail />} />
+            <Route path="/staff" element={<ProtectedRoute accessPath="/staff"><HumanCapital /></ProtectedRoute>} />
+            <Route path="/staff/analytics" element={<ProtectedRoute accessPath="/staff/analytics"><StaffAnalytics /></ProtectedRoute>} />
+            <Route path="/staff/project" element={<ProtectedRoute accessPath="/staff/project"><ProjectStaffRoster /></ProtectedRoute>} />
+            {/* Detail routes — linked from many pages; any verified role, RLS scopes the row */}
+            <Route path="/staff/:id" element={<ProtectedRoute allowedRoles={VERIFIED}><StaffDetail /></ProtectedRoute>} />
+            <Route path="/projects" element={<ProtectedRoute accessPath="/projects"><Projects /></ProtectedRoute>} />
+            <Route path="/projects/:id" element={<ProtectedRoute allowedRoles={VERIFIED}><ProjectDetail /></ProtectedRoute>} />
+            <Route path="/phd" element={<ProtectedRoute accessPath="/phd"><PhDTracker /></ProtectedRoute>} />
+            <Route path="/divisions" element={<ProtectedRoute accessPath="/divisions"><Divisions /></ProtectedRoute>} />
+            <Route path="/intelligence" element={<ProtectedRoute accessPath="/intelligence"><Intelligence /></ProtectedRoute>} />
+            <Route path="/explore" element={<ProtectedRoute desktopOnly accessPath="/explore"><ExploreGraph /></ProtectedRoute>} />
+            <Route path="/facilities" element={<ProtectedRoute accessPath="/facilities"><Facilities /></ProtectedRoute>} />
+            <Route path="/partnerships" element={<ProtectedRoute accessPath="/partnerships"><Partnerships /></ProtectedRoute>} />
+            <Route path="/rnd-monitor" element={<ProtectedRoute accessPath="/rnd-monitor"><RnDMonitor /></ProtectedRoute>} />
+            <Route path="/facilities/:uInsID" element={<ProtectedRoute allowedRoles={VERIFIED}><InstrumentDetail /></ProtectedRoute>} />
             {/* Committee Management — specific routes first (Pitfall 6) */}
-            <Route path="/committees/:id/meetings/:meetId" element={<MeetingDetail />} />
+            <Route path="/committees/:id/meetings/:meetId" element={<ProtectedRoute accessPath="/committees"><MeetingDetail /></ProtectedRoute>} />
             <Route path="/committees/:id/meetings" element={<ProtectedRoute accessPath="/committees"><CommitteeDetail /></ProtectedRoute>} />
             <Route path="/committees/:id/actions" element={<ProtectedRoute accessPath="/committees"><CommitteeDetail /></ProtectedRoute>} />
             <Route path="/committees/:id" element={<ProtectedRoute accessPath="/committees"><CommitteeDetail /></ProtectedRoute>} />
@@ -171,40 +189,40 @@ function App() {
             <Route path="/helpdesk/new" element={<ProtectedRoute accessPath="/helpdesk"><TicketForm /></ProtectedRoute>} />
             <Route path="/helpdesk/:id" element={<ProtectedRoute accessPath="/helpdesk"><TicketDetail /></ProtectedRoute>} />
             <Route path="/helpdesk" element={<ProtectedRoute accessPath="/helpdesk"><TicketList /></ProtectedRoute>} />
-            <Route path="/recruitment" element={<ProtectedRoute accessPath="/recruitment" allowedRoles={ACCESS_MAP['/recruitment']}><Recruitment /></ProtectedRoute>} />
+            <Route path="/recruitment" element={<ProtectedRoute accessPath="/recruitment"><Recruitment /></ProtectedRoute>} />
             <Route path="/calendar" element={<ProtectedRoute accessPath="/calendar"><Calendar /></ProtectedRoute>} />
-            <Route path="/ask" element={<ProtectedRoute accessPath="/ask" allowedRoles={ACCESS_MAP['/ask']}><AskSurya /></ProtectedRoute>} />
-            <Route path="/data" element={<ProtectedRoute accessPath="/data" allowedRoles={ACCESS_MAP['/data']}><DataManagement /></ProtectedRoute>} />
-            <Route path="/pms" element={<ProtectedRoute accessPath="/pms" allowedRoles={ACCESS_MAP['/pms']}><PMSIndex /></ProtectedRoute>} />
-            <Route path="/pms/cycles" element={<ProtectedRoute accessPath="/pms/cycles" allowedRoles={ACCESS_MAP['/pms/cycles']}><PMSCycles /></ProtectedRoute>} />
-            <Route path="/pms/evaluation-committees" element={<ProtectedRoute accessPath="/pms/evaluation-committees" allowedRoles={ACCESS_MAP['/pms/evaluation-committees']}><EvaluationCommittees /></ProtectedRoute>} />
+            <Route path="/ask" element={<ProtectedRoute accessPath="/ask"><AskSurya /></ProtectedRoute>} />
+            <Route path="/data" element={<ProtectedRoute desktopOnly accessPath="/data"><DataManagement /></ProtectedRoute>} />
+            <Route path="/pms" element={<ProtectedRoute accessPath="/pms"><PMSIndex /></ProtectedRoute>} />
+            <Route path="/pms/cycles" element={<ProtectedRoute desktopOnly accessPath="/pms/cycles"><PMSCycles /></ProtectedRoute>} />
+            <Route path="/pms/evaluation-committees" element={<ProtectedRoute desktopOnly accessPath="/pms/evaluation-committees"><EvaluationCommittees /></ProtectedRoute>} />
             <Route path="/pms/collegiums" element={<Navigate to="/pms/evaluation-committees" replace />} />
             <Route path="/pms/reports" element={<ProtectedRoute accessPath="/pms"><PMSReports /></ProtectedRoute>} />
-            <Route path="/pms/reports/new" element={<ProtectedRoute accessPath="/pms/reports/new" allowedRoles={ACCESS_MAP['/pms/reports/new']}><ReportNew /></ProtectedRoute>} />
+            <Route path="/pms/reports/new" element={<ProtectedRoute desktopOnly accessPath="/pms/reports/new"><ReportNew /></ProtectedRoute>} />
             <Route path="/pms/reports/:id" element={<ProtectedRoute accessPath="/pms"><ReportView /></ProtectedRoute>} />
-            <Route path="/pms/reports/:id/edit" element={<ProtectedRoute accessPath="/pms/reports/new" allowedRoles={ACCESS_MAP['/pms/reports/new']}><ReportEdit /></ProtectedRoute>} />
-            <Route path="/pms/assign" element={<ProtectedRoute accessPath="/pms/assign" allowedRoles={ACCESS_MAP['/pms/assign']}><AssignEvaluators /></ProtectedRoute>} />
+            <Route path="/pms/reports/:id/edit" element={<ProtectedRoute desktopOnly accessPath="/pms/reports/new"><ReportEdit /></ProtectedRoute>} />
+            <Route path="/pms/assign" element={<ProtectedRoute desktopOnly accessPath="/pms/assign"><AssignEvaluators /></ProtectedRoute>} />
             <Route path="/pms/evaluate" element={<ProtectedRoute accessPath="/pms"><EvaluatorQueue /></ProtectedRoute>} />
             <Route path="/pms/evaluate/:evaluationId" element={<ProtectedRoute accessPath="/pms"><EvaluateReport /></ProtectedRoute>} />
             <Route path="/pms/grievance" element={<ProtectedRoute accessPath="/pms"><PMSGrievance /></ProtectedRoute>} />
-            <Route path="/pms/committee" element={<ProtectedRoute accessPath="/pms/committee" allowedRoles={ACCESS_MAP['/pms/committee']}><CommitteeQueue /></ProtectedRoute>} />
-            <Route path="/pms/audit" element={<ProtectedRoute accessPath="/pms/audit" allowedRoles={ACCESS_MAP['/pms/audit']}><PmsAuditLog /></ProtectedRoute>} />
+            <Route path="/pms/committee" element={<ProtectedRoute accessPath="/pms/committee"><CommitteeQueue /></ProtectedRoute>} />
+            <Route path="/pms/audit" element={<ProtectedRoute accessPath="/pms/audit"><PmsAuditLog /></ProtectedRoute>} />
             <Route path="/db-wizard" element={<Navigate to="/data" replace />} />
-            <Route path="/irins-sync" element={<ProtectedRoute accessPath="/irins-sync" allowedRoles={ACCESS_MAP['/irins-sync']}><IrinsSync /></ProtectedRoute>} />
-            <Route path="/admin/rag" element={<ProtectedRoute accessPath="/admin/rag" allowedRoles={ACCESS_MAP['/admin/rag']}><RagMonitor /></ProtectedRoute>} />
-            <Route path="/admin/holidays" element={<ProtectedRoute accessPath="/admin/holidays" allowedRoles={ACCESS_MAP['/admin/holidays']}><HolidaysAdmin /></ProtectedRoute>} />
-            <Route path="/admin/access-requests" element={<ProtectedRoute accessPath="/admin/access-requests" allowedRoles={ACCESS_MAP['/admin/access-requests']}><AccessRequests /></ProtectedRoute>} />
-            <Route path="/admin/features" element={<ProtectedRoute accessPath="/admin/features" allowedRoles={ACCESS_MAP['/admin/features']}><FeatureControlsAdmin /></ProtectedRoute>} />
+            <Route path="/irins-sync" element={<ProtectedRoute desktopOnly accessPath="/irins-sync"><IrinsSync /></ProtectedRoute>} />
+            <Route path="/admin/rag" element={<ProtectedRoute desktopOnly accessPath="/admin/rag"><RagMonitor /></ProtectedRoute>} />
+            <Route path="/admin/holidays" element={<ProtectedRoute desktopOnly accessPath="/admin/holidays"><HolidaysAdmin /></ProtectedRoute>} />
+            <Route path="/admin/access-requests" element={<ProtectedRoute accessPath="/admin/access-requests"><AccessRequests /></ProtectedRoute>} />
+            <Route path="/admin/features" element={<ProtectedRoute desktopOnly accessPath="/admin/features"><FeatureControlsAdmin /></ProtectedRoute>} />
             {/* Project Proposals — specific routes first */}
-            <Route path="/proposals/new" element={<ProtectedRoute allowedRoles={['Scientist']}><ProposalForm /></ProtectedRoute>} />
-            <Route path="/proposals/:id/edit" element={<ProtectedRoute accessPath="/proposals"><ProposalForm /></ProtectedRoute>} />
+            <Route path="/proposals/new" element={<ProtectedRoute desktopOnly allowedRoles={['Scientist']}><ProposalForm /></ProtectedRoute>} />
+            <Route path="/proposals/:id/edit" element={<ProtectedRoute desktopOnly accessPath="/proposals"><ProposalForm /></ProtectedRoute>} />
             <Route path="/proposals/:id" element={<ProtectedRoute accessPath="/proposals"><ProposalDetail /></ProtectedRoute>} />
-            <Route path="/proposals" element={<ProtectedRoute accessPath="/proposals" allowedRoles={ACCESS_MAP['/proposals']}><Proposals /></ProtectedRoute>} />
+            <Route path="/proposals" element={<ProtectedRoute accessPath="/proposals"><Proposals /></ProtectedRoute>} />
             {/* Project Progress Reports — specific routes first */}
-            <Route path="/reports/new" element={<ProtectedRoute accessPath="/reports/new" allowedRoles={ACCESS_MAP['/reports/new']}><ProjectReportForm /></ProtectedRoute>} />
-            <Route path="/reports/:id/edit" element={<ProtectedRoute accessPath="/reports/new" allowedRoles={ACCESS_MAP['/reports/new']}><ProjectReportForm /></ProtectedRoute>} />
-            <Route path="/reports/:id" element={<ProtectedRoute accessPath="/reports" allowedRoles={ACCESS_MAP['/reports']}><ProjectReportDetail /></ProtectedRoute>} />
-            <Route path="/reports" element={<ProtectedRoute accessPath="/reports" allowedRoles={ACCESS_MAP['/reports']}><ProjectReports /></ProtectedRoute>} />
+            <Route path="/reports/new" element={<ProtectedRoute desktopOnly accessPath="/reports/new"><ProjectReportForm /></ProtectedRoute>} />
+            <Route path="/reports/:id/edit" element={<ProtectedRoute desktopOnly accessPath="/reports/new"><ProjectReportForm /></ProtectedRoute>} />
+            <Route path="/reports/:id" element={<ProtectedRoute accessPath="/reports"><ProjectReportDetail /></ProtectedRoute>} />
+            <Route path="/reports" element={<ProtectedRoute accessPath="/reports"><ProjectReports /></ProtectedRoute>} />
             </Route>
           </Route>
         </Route>

@@ -33,6 +33,26 @@ export function featureEnabled(
   return c.enabled && !c.disabled_roles.includes(role);
 }
 
+/**
+ * The one access check for nav and routes: may this user open `path`?
+ * Eligible when ACCESS_MAP lists the role, or MasterAdmin granted the path to
+ * this user (`grants`). Runtime controls then apply — a grant outranks a role
+ * block (it names this person) but never a global switch-off.
+ */
+export function featureAccessible(
+  path: string,
+  role: Role,
+  controls: FeatureControl[],
+  grants: ReadonlySet<string>,
+): boolean {
+  const granted = grants.has(path);
+  const eligible = path in ACCESS_MAP && (ACCESS_MAP[path as AccessPath] as Role[]).includes(role);
+  if (!eligible && !granted) return false;
+  if (role === 'MasterAdmin' || !isControllable(path)) return true;
+  if (granted) return controls.find((x) => x.feature_key === path)?.enabled ?? true;
+  return featureEnabled(path, role, controls);
+}
+
 // Grouping used by the Feature Controls admin panels — mirrors the sidebar
 // sections, with workflow sub-paths listed under their parent area.
 export const FEATURE_GROUPS: { label: string; paths: AccessPath[] }[] = [
@@ -62,6 +82,22 @@ export function featuresForRole(
 ): { label: string; paths: AccessPath[] }[] {
   return groups
     .map((g) => ({ label: g.label, paths: g.paths.filter((p) => (ACCESS_MAP[p] as Role[]).includes(role)) }))
+    .filter((g) => g.paths.length > 0);
+}
+
+/** Features MasterAdmin may grant a user: controllable, not already given by
+ * any role the user holds, and not already granted. Grouped like the panels. */
+export function grantableFeatures(
+  roles: Role[],
+  groups: { label: string; paths: AccessPath[] }[],
+  granted: ReadonlySet<string>,
+): { label: string; paths: AccessPath[] }[] {
+  return groups
+    .map((g) => ({
+      label: g.label,
+      paths: g.paths.filter((p) =>
+        isControllable(p) && !granted.has(p) && !roles.some((r) => (ACCESS_MAP[p] as Role[]).includes(r))),
+    }))
     .filter((g) => g.paths.length > 0);
 }
 

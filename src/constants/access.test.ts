@@ -5,7 +5,8 @@ import { ACCESS_MAP, ALL_ROLES } from './access';
 
 // Guards against ACCESS_MAP/App.tsx drift — the "triple source of truth" problem
 // the overhaul's T0 collapsed. Every ACCESS_MAP path must be a registered route,
-// and role-restricted paths must guard with their own ACCESS_MAP entry.
+// and role-restricted paths must guard with their own key — ProtectedRoute's
+// accessPath runs canAccess(), which checks ACCESS_MAP (plus MasterAdmin grants).
 const appSource = readFileSync(resolve(__dirname, '../App.tsx'), 'utf-8');
 
 describe('ACCESS_MAP ↔ App.tsx route consistency', () => {
@@ -15,12 +16,30 @@ describe('ACCESS_MAP ↔ App.tsx route consistency', () => {
     });
 
     if (roles.length < ALL_ROLES.length) {
-      it(`${path} guards with ACCESS_MAP['${path}']`, () => {
+      it(`${path} guards with accessPath="${path}"`, () => {
         const line = appSource.split('\n').find((l) => l.includes(`path="${path}"`)) ?? '';
-        expect(line).toContain(`ACCESS_MAP['${path}']`);
+        expect(line).toContain(`accessPath="${path}"`);
       });
     }
   }
+
+  it('authoring and admin pages are desktop-only; review pages stay on phones', () => {
+    const line = (p: string) => appSource.split('\n').find((l) => l.includes(`path="${p}"`)) ?? '';
+    for (const p of ['/data', '/pms/reports/:id/edit', '/proposals/new', '/reports/new', '/explore', '/irins-sync']) {
+      expect(line(p)).toContain('desktopOnly');
+    }
+    for (const p of ['/pms/reports/:id', '/proposals/:id', '/reports/:id', '/pms/evaluate/:evaluationId', '/admin/access-requests']) {
+      expect(line(p)).not.toContain('desktopOnly');
+    }
+  });
+
+  it('every page route has a guard, except the public auth pages', () => {
+    const PUBLIC = ['/login', '/setup', '/change-password'];
+    const open = appSource.split('\n')
+      .filter((l) => /<Route path="\/[^"]+" element=\{<(?!ProtectedRoute|Navigate|Suspense)/.test(l))
+      .filter((l) => !PUBLIC.some((p) => l.includes(`path="${p}"`)));
+    expect(open.map((l) => l.trim())).toEqual([]);
+  });
 });
 
 describe('ACCESS_MAP role scoping decisions', () => {
@@ -33,10 +52,14 @@ describe('ACCESS_MAP role scoping decisions', () => {
     expect(can('/ask', 'Scientist')).toBe(true);
   });
 
-  it('unverified users keep the safe commons', () => {
-    for (const path of ['/', '/calendar', '/committees', '/helpdesk'] as const) {
+  it('unverified users keep only their dashboard and helpdesk', () => {
+    for (const path of ['/', '/helpdesk'] as const) {
       expect(can(path, 'DefaultUser')).toBe(true);
       expect(can(path, 'Guest')).toBe(true);
+    }
+    for (const path of ['/calendar', '/committees'] as const) {
+      expect(can(path, 'DefaultUser')).toBe(false);
+      expect(can(path, 'Guest')).toBe(false);
     }
   });
 

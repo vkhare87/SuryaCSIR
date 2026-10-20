@@ -8,7 +8,8 @@ import { useProposals } from '../contexts/ProposalsContext';
 import { useProjectReports } from '../contexts/ProjectReportsContext';
 import { Card, Badge } from './ui/Cards';
 import { deriveMyActions } from '../lib/dashboard/myActions';
-import { ACCESS_MAP, type AccessPath } from '../constants/access';
+import { useFeatureControls } from '../contexts/FeatureControlContext';
+import type { AccessPath } from '../constants/access';
 
 const KIND_BADGE: Record<string, { label: string; variant: 'info' | 'warning' | 'success' | 'neutral' }> = {
   'pms-draft':      { label: 'PMS',       variant: 'warning' },
@@ -42,6 +43,7 @@ export function MyActions() {
   const { reports, evaluations } = usePMS();
   const { proposals } = useProposals();
   const { reports: progressReports } = useProjectReports();
+  const { canAccess } = useFeatureControls();
 
   const staffName = useMemo(
     () => staff.find(s => s.Email === user?.email)?.Name ?? '',
@@ -68,8 +70,8 @@ export function MyActions() {
   const areas = useMemo(() => {
     if (!user) return [];
     return (Object.entries(AREA_LABELS) as [AccessPath, string][])
-      .filter(([path]) => ACCESS_MAP[path].includes(user.activeRole));
-  }, [user]);
+      .filter(([path]) => canAccess(path));
+  }, [user, canAccess]);
 
   if (!user) return null;
 

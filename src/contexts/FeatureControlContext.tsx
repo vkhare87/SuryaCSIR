@@ -3,13 +3,17 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { ReactNode } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import { useAuth } from './AuthContext';
-import { featureEnabled } from '../lib/access/featureControls';
+import { featureAccessible, featureEnabled } from '../lib/access/featureControls';
 import type { FeatureControl } from '../types';
 
 interface FeatureControlContextType {
   controls: FeatureControl[];
+  /** Feature paths MasterAdmin granted to the current user beyond their role. */
+  grants: string[];
   /** Runtime control check for the CURRENT user's active role. Default-open. */
   isEnabled: (path: string) => boolean;
+  /** Full access check: role (ACCESS_MAP) or personal grant, then controls. */
+  canAccess: (path: string) => boolean;
   refresh: () => Promise<void>;
 }
 
@@ -24,6 +28,8 @@ export function useFeatureControls() {
 export function FeatureControlProvider({ children }: { children: ReactNode }) {
   const { user, isAuthenticated } = useAuth();
   const [controls, setControls] = useState<FeatureControl[]>([]);
+  const [grants, setGrants] = useState<string[]>([]);
+  const userId = user?.id;
 
   const refresh = useCallback(async () => {
     // Any failure (table not yet migrated, network) falls back to default-open:
@@ -43,17 +49,37 @@ export function FeatureControlProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Grants fail closed: no rows (or no table yet) means role access only.
+  const refreshGrants = useCallback(async () => {
+    if (!supabase || !userId) { setGrants([]); return; }
+    const { data, error } = await supabase
+      .from('feature_grants').select('feature_key').eq('user_id', userId);
+    if (error) console.error('[feature-grants] load failed — role access only', error);
+    setGrants(error ? [] : (data ?? []).map((g: { feature_key: string }) => g.feature_key));
+  }, [userId]);
+
   useEffect(() => {
     if (isAuthenticated) void refresh();
     else setControls([]);
   }, [isAuthenticated, refresh]);
 
-  const value = useMemo<FeatureControlContextType>(() => ({
-    controls,
-    isEnabled: (path: string) =>
-      user ? featureEnabled(path, user.activeRole, controls) : true,
-    refresh,
-  }), [controls, user, refresh]);
+  useEffect(() => {
+    if (isAuthenticated) void refreshGrants();
+    else setGrants([]);
+  }, [isAuthenticated, refreshGrants]);
+
+  const value = useMemo<FeatureControlContextType>(() => {
+    const grantSet = new Set(grants);
+    return {
+      controls,
+      grants,
+      isEnabled: (path: string) =>
+        user ? featureEnabled(path, user.activeRole, controls) : true,
+      canAccess: (path: string) =>
+        user ? featureAccessible(path, user.activeRole, controls, grantSet) : false,
+      refresh: async () => { await Promise.all([refresh(), refreshGrants()]); },
+    };
+  }, [controls, grants, user, refresh, refreshGrants]);
 
   return (
     <FeatureControlContext.Provider value={value}>

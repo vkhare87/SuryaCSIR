@@ -64,6 +64,7 @@ import {
 } from '../utils/dataMapper';
 import { useAuth } from './AuthContext';
 import { useToast } from './ToastContext';
+import { useFeatureControls } from './FeatureControlContext';
 import { logger } from '../utils/logger';
 import { fetchAll } from '../lib/data/fetchAll';
 
@@ -144,7 +145,15 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 export function DataProvider({ children }: { children: ReactNode }) {
   const { role, divisionCode } = useAuth();
   const { push: pushToast } = useToast();
+  const { canAccess } = useFeatureControls();
   const provisioned = isProvisioned();
+
+  // Tables only HR / data-ops pages read: no request at all for a user who
+  // cannot open those pages. ProjectStaff keeps contract_staff (RLS: own row)
+  // for the "your engagement ends" action.
+  const loadRecruitment = canAccess('/recruitment');
+  const loadDataOps = canAccess('/data');
+  const loadContracts = loadDataOps || role === 'ProjectStaff';
 
   const [divisions, setDivisions] = useState<DivisionInfo[]>([]);
   const [staff, setStaff] = useState<StaffMember[]>([]);
@@ -218,6 +227,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      const skipped = Promise.resolve({ data: [], error: null });
       const [
         divRes, staffRes, projRes, psRes, phdRes, equipRes, labsRes, soRes, ipRes, csRes,
         vaRes, vpRes,
@@ -241,9 +251,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
         fetchAll(supabase.from('labs').select('*').order('id')),
         fetchAll(supabase.from('scientific_outputs').select('*').order('id')),
         fetchAll(supabase.from('ip_intelligence').select('*').order('id')),
-        fetchAll(supabase.from('contract_staff').select('*').order('Name')),
-        fetchAll(supabase.from('vacancy_advertisements').select('*').order('created_at', { ascending: false }).order('id')),
-        fetchAll(supabase.from('vacancy_posts').select('*').order('id')),
+        loadContracts ? fetchAll(supabase.from('contract_staff').select('*').order('Name')) : skipped,
+        loadRecruitment ? fetchAll(supabase.from('vacancy_advertisements').select('*').order('created_at', { ascending: false }).order('id')) : skipped,
+        loadRecruitment ? fetchAll(supabase.from('vacancy_posts').select('*').order('id')) : skipped,
         fetchAll(supabase.from('committees').select('*').order('id')),
         fetchAll(supabase.from('committee_members').select('*').order('id')),
         fetchAll(supabase.from('meetings').select('*').order('id')),
@@ -259,7 +269,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         fetchAll(supabase.from('mous').select('*').order('id')),
         fetchAll(supabase.from('tech_transfers').select('*').order('id')),
         fetchAll(supabase.from('phd_milestones').select('*').order('id')),
-        fetchAll(supabase.from('import_events').select('*').order('uploaded_at', { ascending: false }).order('id')),
+        loadDataOps ? fetchAll(supabase.from('import_events').select('*').order('uploaded_at', { ascending: false }).order('id')) : skipped,
       ]);
 
       // Surface per-table errors — Promise.all hides them as empty data
@@ -346,7 +356,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     loadData();
-  }, [provisioned, role, divisionCode]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [provisioned, role, divisionCode, loadRecruitment, loadDataOps, loadContracts]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const refreshCalendar = async () => {
     if (!supabase) return;

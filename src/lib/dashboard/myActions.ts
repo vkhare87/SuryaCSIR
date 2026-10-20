@@ -15,13 +15,13 @@ export interface MyAction {
   link: string;
 }
 
-const PROPOSAL_REVIEWERS: Role[] = ['HRAdmin', 'SystemAdmin', 'MasterAdmin'];
-const PROGRESS_REVIEWERS: Role[] = ['HOD', 'DivisionHead', 'Director', 'HRAdmin', 'SystemAdmin', 'MasterAdmin'];
+const PROPOSAL_REVIEWERS: Role[] = ['HRAdmin', 'MasterAdmin'];
+const PROGRESS_REVIEWERS: Role[] = ['HOD', 'DivisionHead', 'Director', 'HRAdmin', 'MasterAdmin'];
 // Roles that steward workforce continuity. Their `staff` list is already
 // division-scoped by RLS, so a DivisionHead only sees their own division's
 // retirees — no extra client filter needed here.
-const RETIREMENT_WATCHERS: Role[] = ['Director', 'DivisionHead', 'HOD', 'HRAdmin', 'SystemAdmin', 'MasterAdmin'];
-const CONTRACT_WATCHERS: Role[] = ['HRAdmin', 'SystemAdmin', 'MasterAdmin'];
+const RETIREMENT_WATCHERS: Role[] = ['Director', 'DivisionHead', 'HOD', 'HRAdmin', 'MasterAdmin'];
+const CONTRACT_WATCHERS: Role[] = ['HRAdmin', 'MasterAdmin'];
 
 const RETIREMENT_HORIZON_YEARS = 0.5; // alert when superannuation is within 6 months
 const CONTRACT_HORIZON_DAYS = 60;

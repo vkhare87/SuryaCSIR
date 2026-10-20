@@ -20,6 +20,7 @@ The verified reference. If code and one of these disagree, that is a bug in the 
 | [coding_standards.md](engineering/coding_standards.md) | TypeScript, React, Python and SQL conventions; naming; exception design; DI patterns; logging |
 | [STACK.md](engineering/STACK.md) | Versions and dependencies |
 | [FEATURES.md](engineering/FEATURES.md) | Every feature — who can use it, which route, what steps |
+| [access_matrix.md](engineering/access_matrix.md) | Which role sees which feature (least privilege), and MasterAdmin per-user grants |
 
 Read alongside [../CLAUDE.md](../CLAUDE.md) (condensed rules, loaded by every Claude
 session) and [../DESIGN.md](../DESIGN.md) (**read before any visual change**).

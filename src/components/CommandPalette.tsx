@@ -12,6 +12,7 @@ import {
   X,
 } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
+import { useFeatureControls } from '../contexts/FeatureControlContext';
 import type { StaffMember, Project, PhDStudent, ScientificOutput, IPIntelligence, Equipment } from '../types';
 
 // ---------------------------------------------------------------------------
@@ -99,9 +100,18 @@ function totalHits(results: SearchResults): number {
 export default function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const [query, setQuery] = useState('');
   const { staff, projects, phDStudents, scientificOutputs, ipIntelligence, equipment } = useData();
+  const { canAccess } = useFeatureControls();
   const navigate = useNavigate();
 
-  const results = searchAll(query, { staff, projects, phDStudents, scientificOutputs, ipIntelligence, equipment });
+  // Search only the record types whose feature this user may open.
+  const results = searchAll(query, {
+    staff: canAccess('/staff') ? staff : [],
+    projects: canAccess('/projects') ? projects : [],
+    phDStudents: canAccess('/phd') ? phDStudents : [],
+    scientificOutputs: canAccess('/intelligence') ? scientificOutputs : [],
+    ipIntelligence: canAccess('/intelligence') ? ipIntelligence : [],
+    equipment: canAccess('/facilities') ? equipment : [],
+  });
   const hasResults = totalHits(results) > 0;
 
   const handleClose = useCallback(() => {
@@ -269,12 +279,12 @@ export default function CommandPalette({ isOpen, onClose }: { isOpen: boolean; o
             /* Quick-navigate grid */
             <div className="p-8 text-center text-text-muted">
               <div className="flex flex-wrap justify-center gap-6 mb-6">
-                <QuickLink icon={<Users />} label="Staff"     iconBg="#141413" iconFg="#faf9f5" onClick={() => go('/staff')} />
-                <QuickLink icon={<BookOpen />} label="PhD"     iconBg="#e8e6dc" iconFg="#4d4c48" onClick={() => go('/phd')} />
-                <QuickLink icon={<Briefcase />} label="Projects" iconBg="#c96442" iconFg="#faf9f5" onClick={() => go('/projects')} />
-                <QuickLink icon={<Microscope />} label="Outputs" iconBg="#f0eee6" iconFg="#5e5d59" onClick={() => go('/intelligence')} />
-                <QuickLink icon={<Lightbulb />} label="IP"      iconBg="#f0eee6" iconFg="#8b6f47" onClick={() => go('/intelligence')} />
-                <QuickLink icon={<Building2 />} label="Equipment" iconBg="#f0eee6" iconFg="#5e5d59" onClick={() => go('/facilities')} />
+                {canAccess('/staff') && <QuickLink icon={<Users />} label="Staff"     iconBg="#141413" iconFg="#faf9f5" onClick={() => go('/staff')} />}
+                {canAccess('/phd') && <QuickLink icon={<BookOpen />} label="PhD"     iconBg="#e8e6dc" iconFg="#4d4c48" onClick={() => go('/phd')} />}
+                {canAccess('/projects') && <QuickLink icon={<Briefcase />} label="Projects" iconBg="#c96442" iconFg="#faf9f5" onClick={() => go('/projects')} />}
+                {canAccess('/intelligence') && <QuickLink icon={<Microscope />} label="Outputs" iconBg="#f0eee6" iconFg="#5e5d59" onClick={() => go('/intelligence')} />}
+                {canAccess('/intelligence') && <QuickLink icon={<Lightbulb />} label="IP"      iconBg="#f0eee6" iconFg="#8b6f47" onClick={() => go('/intelligence')} />}
+                {canAccess('/facilities') && <QuickLink icon={<Building2 />} label="Equipment" iconBg="#f0eee6" iconFg="#5e5d59" onClick={() => go('/facilities')} />}
               </div>
               <p className="text-sm">Type to search across all institute records...</p>
             </div>

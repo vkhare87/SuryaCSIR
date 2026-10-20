@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
-import { Search, Menu, AlertCircle, ChevronDown } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { Search, Menu, AlertCircle, ChevronDown, LayoutDashboard, Sparkles, Calendar as CalendarIcon } from 'lucide-react';
+import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
 import CommandPalette from '../CommandPalette';
 import SettingsModal from '../SettingsModal';
@@ -9,7 +10,18 @@ import { useAuth } from '../../contexts/AuthContext';
 import { NotificationBell } from '../layout/NotificationBell';
 import { useUI } from '../../contexts/UIContext';
 import { useData } from '../../contexts/DataContext';
+import { useToast } from '../../contexts/ToastContext';
+import { useFeatureControls } from '../../contexts/FeatureControlContext';
 import { ROLE_ROUTES } from '../../constants/roleRoutes';
+import { ROLE_LABELS } from '../../constants/access';
+
+// UserAccount carries no display name, so derive from the email local part:
+// "khare.vivek87@…" → "KV", "vkhare@…" → "VK".
+function emailInitials(email = '') {
+  const parts = email.split('@')[0].split(/[._-]+/).filter(Boolean);
+  const letters = parts.length > 1 ? parts[0][0] + parts[1][0] : (parts[0] ?? '').slice(0, 2);
+  return letters.toUpperCase() || 'U';
+}
 
 export function Layout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -21,6 +33,19 @@ export function Layout() {
   const navigate = useNavigate();
   const { isMobile, deviceType } = useUI();
   const { error } = useData();
+  const toast = useToast();
+  const { canAccess } = useFeatureControls();
+  const lastRole = useRef(role);
+
+  // Toast on the role actually changing, not on the click: setActiveRole
+  // switches optimistically and silently rolls back if the save fails, so
+  // a failed switch shows a second toast naming the role you are still in.
+  useEffect(() => {
+    if (lastRole.current && role && role !== lastRole.current) {
+      toast.push(`Now acting as ${ROLE_LABELS[role]}`);
+    }
+    lastRole.current = role;
+  }, [role, toast]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -60,7 +85,7 @@ export function Layout() {
               </button>
             )}
             <div className="text-sm md:text-xl font-medium md:font-normal text-text truncate uppercase tracking-tight md:tracking-normal font-serif">
-              {isMobile ? 'SURYA Platform' : 'CSIR-AMPRI Executive Terminal'}
+              {isMobile ? 'SURYA Platform' : role ? ROLE_LABELS[role] : 'SURYA'}
             </div>
           </div>
 
@@ -68,9 +93,9 @@ export function Layout() {
               {/* Command Palette Trigger */}
               <button
                 onClick={() => setCommandPaletteOpen(true)}
-                className="flex items-center gap-2 px-2 md:px-3 py-2 bg-surface-hover text-text-muted rounded-lg border border-border text-sm hover:border-[#c96442] hover:shadow-[var(--shadow-e1)] transition-all group md:min-w-[240px]"
+                className="flex items-center gap-2 px-2 md:px-3 py-2 bg-surface-hover text-text-muted rounded-lg border border-border text-sm hover:border-terracotta hover:shadow-[var(--shadow-e1)] transition-all group md:min-w-[240px]"
               >
-                <Search size={16} className="group-hover:text-[#c96442] transition-colors shrink-0" />
+                <Search size={16} className="group-hover:text-terracotta transition-colors shrink-0" />
                 <span className="hidden md:inline flex-1 text-left">Search or jump to…</span>
                 <kbd className="hidden lg:inline-block bg-background border border-border rounded px-1.5 text-xs font-mono">⌘K</kbd>
               </button>
@@ -82,10 +107,10 @@ export function Layout() {
                 <div className="relative">
                   <button
                     onClick={() => setRoleSwitcherOpen(v => !v)}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 bg-surface-hover border border-border rounded-[8px] text-xs font-semibold text-text-muted hover:border-[#c96442] hover:text-text transition-colors"
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 bg-surface-hover border border-border rounded-[8px] text-xs font-semibold text-text-muted hover:border-terracotta hover:text-text transition-colors"
                     aria-label="Switch role"
                   >
-                    <span className="hidden sm:inline">{role}</span>
+                    <span className="hidden sm:inline">{role && ROLE_LABELS[role]}</span>
                     <ChevronDown size={13} className={`transition-transform ${roleSwitcherOpen ? 'rotate-180' : ''}`} />
                   </button>
                   {roleSwitcherOpen && (
@@ -100,11 +125,11 @@ export function Layout() {
                           }}
                           className={`w-full text-left px-4 py-2 text-xs font-medium transition-colors ${
                             r === role
-                              ? 'text-[#c96442] bg-[#fdf0e8]'
+                              ? 'text-terracotta bg-terracotta/10'
                               : 'text-text-muted hover:text-text hover:bg-surface-hover'
                           }`}
                         >
-                          {r}
+                          {ROLE_LABELS[r]}
                           {r === role && <span className="ml-2 text-[10px] opacity-60">active</span>}
                         </button>
                       ))}
@@ -114,22 +139,25 @@ export function Layout() {
               )}
 
               {/* User Avatar */}
-              <div className="h-8 w-8 rounded-full bg-[#c96442] text-[#faf9f5] flex items-center justify-center font-bold text-sm shadow-[0px_0px_0px_1px_#b5593b] uppercase shrink-0">
-                {user?.activeRole?.charAt(0) || 'U'}
+              <div
+                className="h-8 w-8 rounded-full bg-terracotta text-ivory flex items-center justify-center font-bold text-xs ring-1 ring-terracotta-hover shrink-0"
+                title={user?.email}
+              >
+                {emailInitials(user?.email)}
               </div>
           </div>
         </header>
 
         {/* Error Banner */}
         {error && (
-          <div className="px-4 py-2 bg-rose-50 dark:bg-rose-950/30 border-b border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-400 text-sm flex items-center gap-2">
-            <AlertCircle size={14} />
+          <div className="px-4 py-2 bg-danger/10 border-b border-danger/30 text-text text-sm flex items-center gap-2">
+            <AlertCircle size={14} className="text-danger shrink-0" />
             <span>Data load failed: {error}</span>
           </div>
         )}
 
         {/* Scrollable Content Viewport */}
-        <main className="flex-1 overflow-auto p-4 md:p-8 bg-background relative">
+        <main className={clsx('flex-1 overflow-auto p-4 md:p-8 bg-background relative', isMobile && 'pb-24')}>
            <div className="mx-auto max-w-7xl w-full">
              <AnimatePresence mode="wait">
                <motion.div
@@ -144,6 +172,40 @@ export function Layout() {
              </AnimatePresence>
            </div>
         </main>
+
+        {/* Phone: check-and-approve bar — home inbox, Ask, calendar, full menu */}
+        {isMobile && role && (
+          <nav
+            aria-label="Quick navigation"
+            className="fixed inset-x-0 bottom-0 z-30 bg-surface border-t border-border grid grid-flow-col auto-cols-fr pb-[env(safe-area-inset-bottom)]"
+          >
+            {[
+              { to: ROLE_ROUTES[role], label: 'Home', icon: LayoutDashboard, show: true },
+              { to: '/ask', label: 'Ask', icon: Sparkles, show: canAccess('/ask') },
+              { to: '/calendar', label: 'Calendar', icon: CalendarIcon, show: canAccess('/calendar') },
+            ].filter(i => i.show).map(({ to, label, icon: Icon }) => (
+              <NavLink
+                key={to}
+                to={to}
+                end
+                className={({ isActive }) => clsx(
+                  'flex flex-col items-center justify-center gap-0.5 py-2 min-h-14 text-[11px] font-medium',
+                  isActive ? 'text-terracotta' : 'text-text-muted',
+                )}
+              >
+                <Icon size={20} />
+                {label}
+              </NavLink>
+            ))}
+            <button
+              onClick={() => setMobileMenuOpen(true)}
+              className="flex flex-col items-center justify-center gap-0.5 py-2 min-h-14 text-[11px] font-medium text-text-muted"
+            >
+              <Menu size={20} />
+              Menu
+            </button>
+          </nav>
+        )}
       </div>
 
       <CommandPalette

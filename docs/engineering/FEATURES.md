@@ -7,7 +7,9 @@ registry, and an AI query layer (Ask SURYA) grounded in institute documents and 
 
 Every feature below lists **who** can use it (roles) and **how** (route + steps).
 Role gating is enforced three ways: navigation, route guards (`src/constants/access.ts`
-`ACCESS_MAP`), and Postgres Row-Level Security — RLS is the hard gate.
+`ACCESS_MAP`), and Postgres Row-Level Security — RLS is the hard gate. The full
+role-by-feature table and the MasterAdmin per-user grants are in [access_matrix.md](access_matrix.md);
+where a **Who** line below disagrees, the matrix wins.
 
 Related docs: [app.md](app.md) (product spec), [database_design.md](database_design.md) (schema),
 [architecture_addendum.md](architecture_addendum.md) (architecture),
@@ -58,7 +60,7 @@ Related docs: [app.md](app.md) (product spec), [database_design.md](database_des
 ## 3. HR Analytics & Data Operations
 
 ### Human Capital
-- **Who:** Director, DivisionHead, HR/System/Master admins. **Routes:** `/staff`, `/staff/:id`, `/staff/analytics`.
+- **Who:** Director, DivisionHead, HOD, HRAdmin, MasterAdmin. **Routes:** `/staff`, `/staff/:id`, `/staff/analytics`.
 - Staff roster with per-person detail (division, designation, expertise, reporting
   line) and analytics (headcount by division/category/gender, age & tenure profiles).
 
@@ -190,7 +192,7 @@ Related docs: [app.md](app.md) (product spec), [database_design.md](database_des
 
 ## 7. Ask SURYA — the AI query layer
 
-- **Who:** any authenticated role; answers are scoped by RLS to what the caller may
+- **Who:** any verified role (not Guest / DefaultUser); answers are scoped by RLS to what the caller may
   see. **Route:** `/ask`. Backend: `rag/` FastAPI service (`/query`, `/similar`).
 - **How:** type a natural-language question → the router classifies it and picks one
   of three answer paths, shown as a badge on the answer:

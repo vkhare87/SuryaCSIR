@@ -6,7 +6,12 @@ export const ALL_ROLES: Role[] = [
   'Student', 'ProjectStaff', 'Guest', 'DefaultUser', 'EmpoweredCommittee',
 ];
 
-const ADMINS: Role[] = ['SystemAdmin', 'MasterAdmin'];
+// MasterAdmin is the institute superuser and appears on every business page.
+const MASTER: Role[] = ['MasterAdmin'];
+// SystemAdmin runs the platform (accounts, imports, sync, ingestion). It holds
+// no HR / PMS / research pages — MasterAdmin grants those per user if needed.
+const PLATFORM: Role[] = ['SystemAdmin', 'MasterAdmin'];
+const HR: Role[] = ['HRAdmin', 'MasterAdmin'];
 const DATA_ADMINS: Role[] = ['HRAdmin', 'SystemAdmin', 'MasterAdmin'];
 const PMS_AUTHORS: Role[] = ['Scientist', 'HOD', 'DivisionHead', 'Director'];
 // Division-scoped managers. Same page access; RLS scopes their rows to their
@@ -16,46 +21,51 @@ const DIV_MANAGERS: Role[] = ['DivisionHead', 'HOD'];
 // institute knowledge (Ask SURYA / RAG) until an admin approves a real role.
 const PENDING: Role[] = ['Guest', 'DefaultUser'];
 // Everyone holding a real, approved role.
-const VERIFIED: Role[] = ALL_ROLES.filter(r => !PENDING.includes(r));
+export const VERIFIED: Role[] = ALL_ROLES.filter(r => !PENDING.includes(r));
+// Approved institute staff — students and project hires excluded.
+const STAFF: Role[] = VERIFIED.filter(r => r !== 'Student' && r !== 'ProjectStaff');
 
 // Single source of truth for page access. Drives both sidebar nav (Layout)
 // and route guards (App). RLS is the hard gate on data (read + write).
-// Detail routes reachable from ALL_ROLES pages (e.g. /staff/:id via
-// committees) are intentionally absent — they stay open, RLS scopes data.
+// Least privilege: each role lists only the pages its profile needs. Anything
+// more is a per-user grant by MasterAdmin (feature_grants — see
+// lib/access/featureControls.ts featureAccessible). Detail routes
+// (/staff/:id, /projects/:id, …) are absent: any VERIFIED role may open them
+// and RLS scopes the row. Full matrix: docs/engineering/access_matrix.md.
 export const ACCESS_MAP = {
   '/':                        ALL_ROLES,
   '/ask':                     VERIFIED,
-  '/calendar':                ALL_ROLES,
-  '/intelligence':            ['Director', ...DIV_MANAGERS, 'Scientist', ...ADMINS] as Role[],
-  '/explore':                 ['Director', ...DIV_MANAGERS, 'Scientist', ...ADMINS] as Role[],
-  '/staff':                   ['Director', ...DIV_MANAGERS, 'HRAdmin', ...ADMINS] as Role[],
-  '/staff/analytics':         ['Director', ...DIV_MANAGERS, 'HRAdmin', ...ADMINS] as Role[],
-  '/staff/project':           ['Director', ...DIV_MANAGERS, 'HRAdmin', ...ADMINS] as Role[],
-  '/phd':                     ['Director', ...DIV_MANAGERS, 'Scientist', ...ADMINS] as Role[],
-  '/divisions':               ['Director', ...DIV_MANAGERS, ...ADMINS] as Role[],
-  '/recruitment':             DATA_ADMINS,
-  '/projects':                ['Director', ...DIV_MANAGERS, 'Scientist', 'FinanceAdmin', ...ADMINS] as Role[],
-  '/proposals':               [...PMS_AUTHORS, 'FinanceAdmin', ...DATA_ADMINS] as Role[],
-  '/reports':                 [...PMS_AUTHORS, ...DATA_ADMINS] as Role[],
+  '/calendar':                VERIFIED,
+  '/intelligence':            ['Director', ...DIV_MANAGERS, ...MASTER] as Role[],
+  '/explore':                 ['Director', ...DIV_MANAGERS, ...MASTER] as Role[],
+  '/staff':                   ['Director', ...DIV_MANAGERS, ...HR] as Role[],
+  '/staff/analytics':         ['Director', ...DIV_MANAGERS, ...HR] as Role[],
+  '/staff/project':           ['Director', ...DIV_MANAGERS, ...HR] as Role[],
+  '/phd':                     ['Director', ...DIV_MANAGERS, 'Scientist', ...MASTER] as Role[],
+  '/divisions':               ['Director', ...DIV_MANAGERS, ...MASTER] as Role[],
+  '/recruitment':             HR,
+  '/projects':                ['Director', ...DIV_MANAGERS, 'Scientist', 'FinanceAdmin', ...MASTER] as Role[],
+  '/proposals':               [...PMS_AUTHORS, 'FinanceAdmin', ...HR] as Role[],
+  '/reports':                 [...PMS_AUTHORS, ...HR] as Role[],
   '/reports/new':             PMS_AUTHORS,
-  '/facilities':              ['Director', ...DIV_MANAGERS, 'Technician', ...ADMINS] as Role[],
-  '/partnerships':            ['Director', ...DIV_MANAGERS, 'Scientist', 'FinanceAdmin', ...ADMINS] as Role[],
-  '/rnd-monitor':             ['Director', ...DIV_MANAGERS, 'Scientist', 'FinanceAdmin', ...ADMINS] as Role[],
-  '/committees':              ALL_ROLES,
+  '/facilities':              ['Director', ...DIV_MANAGERS, 'Technician', ...MASTER] as Role[],
+  '/partnerships':            ['Director', ...DIV_MANAGERS, 'FinanceAdmin', ...MASTER] as Role[],
+  '/rnd-monitor':             ['Director', ...DIV_MANAGERS, 'FinanceAdmin', ...MASTER] as Role[],
+  '/committees':              STAFF,
   '/helpdesk':                ALL_ROLES,
-  '/pms':                     [...PMS_AUTHORS, 'EmpoweredCommittee', ...DATA_ADMINS] as Role[],
-  '/pms/cycles':              DATA_ADMINS,
-  '/pms/evaluation-committees': DATA_ADMINS,
+  '/pms':                     [...PMS_AUTHORS, 'EmpoweredCommittee', ...HR] as Role[],
+  '/pms/cycles':              HR,
+  '/pms/evaluation-committees': HR,
   '/pms/reports/new':         PMS_AUTHORS,
-  '/pms/assign':              DATA_ADMINS,
+  '/pms/assign':              HR,
   '/pms/committee':           ['EmpoweredCommittee'] as Role[],
-  '/pms/audit':               DATA_ADMINS,
-  '/admin/access-requests':   ADMINS,
-  '/admin/features':          ['MasterAdmin'] as Role[],
+  '/pms/audit':               HR,
+  '/admin/access-requests':   PLATFORM,
+  '/admin/features':          MASTER,
   '/data':                    DATA_ADMINS,
-  '/irins-sync':              ADMINS,
-  '/admin/rag':               ADMINS,
-  '/admin/holidays':          ADMINS,
+  '/irins-sync':              PLATFORM,
+  '/admin/rag':               PLATFORM,
+  '/admin/holidays':          PLATFORM,
 } as const satisfies Record<string, Role[]>;
 
 export type AccessPath = keyof typeof ACCESS_MAP;
@@ -96,4 +106,46 @@ export const FEATURE_LABELS: Record<AccessPath, string> = {
   '/irins-sync':              'IRINS Sync',
   '/admin/rag':               'RAG Ingestion',
   '/admin/holidays':          'Holidays',
+};
+
+// What each role sees first in the sidebar ("For you"). Order only — never
+// access: the Sidebar still filters every entry through canAccess
+// (ACCESS_MAP / grants + Feature Controls).
+const RESEARCHER_NAV: AccessPath[] = ['/', '/pms', '/projects', '/reports', '/ask', '/calendar'];
+const MANAGER_NAV: AccessPath[] = ['/', '/staff', '/reports', '/pms', '/ask', '/calendar'];
+const LEADERSHIP_NAV: AccessPath[] = ['/', '/pms', '/intelligence', '/projects', '/ask'];
+const ADMIN_NAV: AccessPath[] = ['/', '/data', '/admin/access-requests', '/staff', '/admin/rag'];
+
+export const PRIMARY_NAV: Record<Role, AccessPath[]> = {
+  Scientist:          RESEARCHER_NAV,
+  ProjectStaff:       RESEARCHER_NAV,
+  Student:            RESEARCHER_NAV,
+  HOD:                MANAGER_NAV,
+  DivisionHead:       MANAGER_NAV,
+  Director:           LEADERSHIP_NAV,
+  EmpoweredCommittee: LEADERSHIP_NAV,
+  HRAdmin:            ADMIN_NAV,
+  FinanceAdmin:       ADMIN_NAV,
+  SystemAdmin:        ADMIN_NAV,
+  MasterAdmin:        ADMIN_NAV,
+  Technician:         ['/'],
+  Guest:              ['/'],
+  DefaultUser:        ['/'],
+};
+
+export const ROLE_LABELS: Record<Role, string> = {
+  Director:           'Director',
+  DivisionHead:       'Division Head',
+  HOD:                'HOD',
+  Scientist:          'Scientist',
+  Technician:         'Technician',
+  HRAdmin:            'HR Admin',
+  FinanceAdmin:       'Finance Admin',
+  SystemAdmin:        'System Admin',
+  MasterAdmin:        'Master Admin',
+  Student:            'Student',
+  ProjectStaff:       'Project Staff',
+  Guest:              'Guest',
+  DefaultUser:        'Pending access',
+  EmpoweredCommittee: 'Empowered Committee',
 };
