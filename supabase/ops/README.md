@@ -158,6 +158,14 @@ app.
 Other `mock/` files are unaffected — only the helpdesk fixture wrote to
 columns whose type changed.
 
+`ops/remove_mock_helpdesk_20261020.sql` removes the **uuid-form** re-seed
+(ids `aaaa1111-aaaa-aaaa-aaaa-…` plus a fixture token, both required) and the
+`notifications` rows that point at them. Run its `.preview.sql` twin first; the
+script aborts unless the expected count matches. Used on 2026-10-20 after the
+first notifications sweep sent 7 real users "ticket assigned to you" notices for
+fixture tickets. Re-seed with `mock/10` to get the fixture back — the next daily
+sweep will then notify the assignees again.
+
 ## Wipe + reseed cycle (dev only)
 
 ```sh
