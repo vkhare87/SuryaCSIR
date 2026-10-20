@@ -28,41 +28,7 @@ any code that doesn't match DESIGN.md.
 
 ---
 
-## Stack
-
-- **React 19** + **TypeScript 5.9** (strict, `verbatimModuleSyntax`)
-- **Vite 8** bundler, **Tailwind CSS 4** (via `@tailwindcss/vite` — no `tailwind.config.js`)
-- **React Router 7** with `HashRouter` (static-host friendly)
-- **Supabase** (`@supabase/supabase-js`) — PostgreSQL + Auth + RLS
-- **ReCharts** (charts), **framer-motion** (transitions), **lucide-react** (icons), **clsx** + **tailwind-merge** (class composition)
-- **@react-pdf/renderer** (PDF export), **xlsx** + **papaparse** (file parsing), **zod** (validation)
-- **ESLint 9** flat config (typescript-eslint + react-hooks). No Prettier.
-
----
-
 ## Folder Map
-
-```
-/
-├── CLAUDE.md, README.md, DESIGN.md
-├── .env.example, .gitignore
-├── package.json, vite.config.ts, tsconfig*.json, eslint.config.js, index.html
-├── src/                  SPA source (see "Where things live")
-├── rag/                  Ask SURYA query API + ingestion worker (Python 3.12)
-├── ingest/               Optional watched-folder / mail-in capture worker
-├── scripts/              check_security_definer.py, IRINS sync, data importers
-├── deploy/               Windows Server runbook, nginx.conf, env examples
-├── supabase/
-│   ├── migrations/       Schema — 8-file domain baseline; append new timestamped files, never edit shipped ones
-│   ├── migrations_archive/  Pre-2026-07-12 history — reference only, not applied anywhere
-│   ├── seed/             Bootstrap data the app needs to function (runs on every env)
-│   ├── mock/             CSIR-AMPRI demo fixture (dev only — NEVER in prod)
-│   ├── ops/              wipe_data.sql + README on apply order
-│   ├── tests/            RLS positive/negative policy suites (CI `db` job)
-│   └── bundles/          Auto-generated rollups (gitignored)
-├── docs/                 Engineering doc suite (see below) + roadmaps + academic artifacts
-└── .claude/              Project-scoped agents, commands, skills
-```
 
 **`docs/` is foldered by purpose** — index at `docs/README.md`:
 
@@ -201,15 +167,12 @@ No path aliases. Always relative imports.
 - **Bootstrap data**: run `supabase/seed/*.sql` after the schema — creates helpdesk routing defaults + an OPEN appraisal cycle. First SystemAdmin is created via Dashboard → Authentication → Users, then promoted (see `supabase/ops/README.md`).
 - **Add new migration**: new timestamped file after stage 08. Never edit a shipped baseline file.
 - **RLS is mandatory** on every table. New tables ship with RLS enabled and an explicit policy block.
-- **Every `SECURITY DEFINER` function opens with an authorization block.** No exceptions, and "the UI gates it" is not one — these run as the owner, so RLS does not apply and the function *is* the boundary. Three helpdesk RPCs shipped without one while a fourth in the same file had it right; any authenticated user could drive any ticket and forge the audit actor. Enforced by `scripts/check_security_definer.py` (CI `db` job). A function that genuinely needs no check — a trigger, a caller-identity resolver, or an internal helper with `EXECUTE` revoked — goes in that script's `EXEMPT` map **with a stated reason**.
-- **Client-supplied actor ids are not identity.** If an RPC takes `p_actor_id` / `p_submitted_by` / `p_author_id`, it must assert it equals `auth.uid()::text`.
-- **Wrap `IF NOT (...)` authorization guards in `COALESCE(..., false)`** when any operand is a nullable column. `assigned_to = auth.uid()` on an unassigned ticket is NULL, the OR-chain collapses to NULL, `NOT NULL` is NULL, and `IF NULL THEN` never fires — the guard reads correctly and authorizes everyone. This shipped in `helpdesk_add_response` and only the RLS suite caught it. RLS `USING` clauses are safe (NULL is treated as false there); it is plpgsql `IF` that bites.
-- **Grants are part of the schema.** RLS is consulted only *after* the role holds table privileges, so a policy without a `GRANT` is dead code. `20260726000002_baseline_grants.sql` owns this and asserts its own outcome — do not add a blanket `GRANT ALL` elsewhere, it will silently undo the column-level narrowings on `user_roles` / `user_profiles`.
+- **Every `SECURITY DEFINER` function opens with an authorization block**, client-supplied actor ids must equal `auth.uid()::text`, and never add a blanket `GRANT ALL`. Details and the incidents behind them: `supabase/CLAUDE.md`.
 - **Auth source of truth**: Supabase Auth. App roles live in `user_roles` (composite PK `(user_id, role)`). Active role + flags live in `user_profiles`.
 - **Auto-register**: on every `auth.users` INSERT, trigger creates `DefaultUser` row in `user_roles` and `user_profiles` row.
 - **HR tables**: quoted CamelCase columns (`"divCode"`, `"StaffName"`) — mirrors Excel.
 - **PMS tables**: snake_case (`scientist_id`, `cycle_id`).
-- **PMS state machine** (in `pms_reports.status`, 2026 guidelines): `DRAFT → SUBMITTED → UNDER_EVALUATION_COMMITTEE_REVIEW → EMPOWERED_COMMITTEE_REVIEW → FINALIZED`, plus terminal `NOT_ASSESSED` (duty days < 90) and `FINALIZED ⇄ UNDER_GRIEVANCE_REVIEW` (representation within 15 days). Transitions are atomic via SECURITY DEFINER RPCs (`pms_submit_report`, `pms_assign_evaluators`, `pms_finalize_report`, `pms_mark_not_assessed`, `pms_record_non_submission`, `pms_submit_representation`, `pms_resolve_representation`). Scores are integers 0–100; absolute cycle lock after Nov 30. Never patch `status` directly from the client. See `.claude/skills/pms-data-model.md`.
+- **PMS state machine** (in `pms_reports.status`, 2026 guidelines): `DRAFT → SUBMITTED → UNDER_EVALUATION_COMMITTEE_REVIEW → EMPOWERED_COMMITTEE_REVIEW → FINALIZED`, plus terminal `NOT_ASSESSED` (duty days < 90) and `FINALIZED ⇄ UNDER_GRIEVANCE_REVIEW` (representation within 15 days). Transitions are atomic via SECURITY DEFINER RPCs (`pms_submit_report`, `pms_assign_evaluators`, `pms_finalize_report`, `pms_mark_not_assessed`, `pms_record_non_submission`, `pms_submit_representation`, `pms_resolve_representation`). Scores are integers 0–100; absolute cycle lock after Nov 30. Never patch `status` directly from the client. See `.claude/skills/pms-data-model/SKILL.md`.
 
 ---
 
@@ -233,26 +196,9 @@ No path aliases. Always relative imports.
 
 ---
 
-## Scripts
-
-```bash
-npm install        # one-time + after dep changes
-npm run dev        # Vite dev server with HMR
-npm run lint       # eslint
-npm run build      # tsc -b && vite build → dist/
-npm run preview    # preview prod build
-```
-
----
-
 ## Environment
 
-```
-VITE_SUPABASE_URL=
-VITE_SUPABASE_ANON_KEY=
-```
-
-Set in `.env` at repo root. The Setup Wizard fallback writes them to `localStorage` (`surya_supabase_url`, `surya_supabase_anon_key`) — acceptable for dev, deprecated for prod.
+`VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` in `.env` at repo root. The Setup Wizard fallback writes them to `localStorage` (`surya_supabase_url`, `surya_supabase_anon_key`) — acceptable for dev, deprecated for prod.
 
 ---
 
@@ -286,32 +232,6 @@ Read the relevant `.claude/skills/*` before working on PMS, RLS, or new UI primi
 - **RAG production host not yet stood up.** The full loop *is* proven E2E — document row → worker → parse → PageIndex tree → `indexed` → Ask SURYA answers with a page-level citation, on real institute data (2026-08-05, `docs/project/VIVA-PLAN.md`). What remains is host provisioning: migrations applied, `SUPABASE_SERVICE_KEY`, native DLLs allowed past WDAC, and **a GPU** — CPU-only Ollama measured 3–4 min/question. Runbook: `deploy/README.md`.
 - **M4b duplication precision below target** — 0.38–0.41 vs a 0.60 target (`rag/eval/eval_report.md`). Recall (0.90) and citation hit-rate (0.93–1.00) are met.
 
-**Resolved (2026-07-10):**
-- ~~Citation deep-links~~ — `storage_path` threaded through `/query` citations; `src/lib/ask/citations.ts` (`citationHref`) opens signed URLs from AskSurya + SimilarWorkPanel.
-
-**Resolved (2026-07-03, second pass):**
-- ~~`dataMigration.ts` tests~~ — `validateRows`/`detectColumnMappings`/`resolveImportDivisions`/`formatData` remap covered in `dataMigration.test.ts`.
-- ~~DataContext error surfacing~~ — `EmptyState` gained an `error` variant (role=alert); Projects/HumanCapital/PhDTracker render it when load fails with no rows. Extend to more pages as touched.
-- ~~Audit merged-timeline~~ — AuditLog "All" tab merges both tables by time with a source badge; mappers lifted to `src/lib/audit/mappers.ts` (tested).
-- **Grounding hardened** — `llm.answer(question, context)` with context-only system prompt; refusal invariant in `traverse()` (empty picks / blank context / NOT_FOUND → "Not found in institute documents.", zero citations); pick no longer force-selects section 0.
-- **`rag/query_service.py`** — fastapi-free query composition split out of `api.py` (testable under WDAC).
-- **CI** — `.github/workflows/ci.yml`: SPA (lint/test/build) + rag (full pytest incl. native parse/worker tests on ubuntu).
-- **Missing color tokens** — `--color-danger`/`--color-brand-blue` defined; `text-danger`/`bg-brand-blue` were silently no-ops in 8 files.
-- **Deployment runbook** — `deploy/` (Windows Server: NSSM services, nginx same-origin `/rag/` proxy, split env files, Ollama).
-
-**Resolved (2026-07-03):**
-- ~~Bundle size ~3.3 MB / 993 KB gz, no code-splitting~~ — routes lazy-loaded via `React.lazy()`; prod index chunk now ~359 KB / ~95 KB gz.
-- ~~Green build~~ — fixed React 19 types drift (`ImportFlow` drag handlers, `fileFinalized` @react-pdf cast). `npm run build` passes.
-- **RAG stack (T4–T6) shipped** — server-side Python worker in `rag/` (parse → PageIndex tree → `doc_indexes`, OCR/LLM behind adapters), Ask SURYA `/query` (FastAPI, caller-JWT end-to-end so RLS is the only doc gate; whitelisted analytics only), `/ask` + `/admin/rag` SPA pages, query log + feedback, collection indexes, eval harness. Specs/plans in `docs/superpowers/`. *(The four migrations this entry originally named — `20260702*`/`20260703*` — no longer exist as separate files; the 2026-07-12 restructure folded that schema into `20260712000008_rag_documents.sql`. E2E proven 2026-08-05; see Open above.)*
-
-**Resolved (2026-05-16):**
-- ~~`scientificOutputs` / `ipIntelligence` Supabase wire-up~~ — loaded in `DataContext`.
-- ~~Calendar / Recruitment hardcoded data~~ — both consume `useData()` (meetings/actionItems and vacancyAdvertisements/vacancyPosts).
-- ~~No tests~~ — vitest infrastructure with `@testing-library/react` + jsdom. *(Counts in this entry are the 2026-05-16 snapshot: 5 files / 127 tests. Current: **66 files / 652 tests**, plus the `rag/` and `ingest/` pytest suites and the `supabase/tests/` RLS suites in CI.)*
-- ~~No error boundary~~ — `src/components/ErrorBoundary.tsx` wraps `<App />` in `main.tsx`.
-- ~~Hardcoded auth fallback~~ — `admin@dev.local` bypass gated behind `import.meta.env.DEV`; absent from production bundle.
-- ~~`dist/` artifacts tracked~~ — cleaned.
-
 **Deferred:**
 - Error-variant `<EmptyState>` rollout beyond Projects/HumanCapital/PhDTracker — apply per page as touched.
 - Code-split admin-only routes (`/data`, `/pms/audit`, `/audit`) so non-admin sessions don't ship those bundles.
@@ -326,20 +246,6 @@ Read the relevant `.claude/skills/*` before working on PMS, RLS, or new UI primi
 
 Use /browse for all web browsing  
 Never use mcp__claude-in-chrome__ tools  
-
-Available skills:
-- /office-hours
-- /plan-ceo-review
-- /plan-eng-review
-- /plan-design-review
-- /review
-- /qa
-- /ship
-- /browse
-- /design-review
-- /retro
-- /investigate
-- /learn
 
 ---
 
