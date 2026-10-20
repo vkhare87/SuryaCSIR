@@ -65,9 +65,9 @@ describe('featureAccessible with grants and controls', () => {
     expect(featureAccessible('/intelligence', 'Director', [control({ disabled_roles: ['Director'] })], none)).toBe(false);
   });
 
-  it('MasterAdmin ignores controls but not role eligibility', () => {
+  it('MasterAdmin reaches every feature, whatever the switches', () => {
     expect(featureAccessible('/intelligence', 'MasterAdmin', [control({ enabled: false })], none)).toBe(true);
-    expect(featureAccessible('/pms/committee', 'MasterAdmin', [], none)).toBe(false);
+    expect(paths('MasterAdmin').length).toBe(Object.keys(ACCESS_MAP).length);
   });
 
   it('unknown paths are never accessible', () => {

@@ -34,7 +34,7 @@ Source of truth: `ACCESS_MAP` in `src/constants/access.ts`. This table is genera
 | HRAdmin | HR office | Staff, recruitment, data, PMS administration, proposal/report review |
 | FinanceAdmin | Finance office | Projects, proposals, partnerships, R&D monitor |
 | SystemAdmin | Platform operator | Accounts, access requests, data imports, IRINS sync, RAG, holidays |
-| MasterAdmin | Superuser | Everything except authoring/committee-only queues; Feature Controls |
+| MasterAdmin | Superuser | Every feature (33 of 33), whatever the switches; Feature Controls |
 | Student / ProjectStaff | Scholar / project hire | Own dashboard, Ask, calendar, helpdesk |
 | EmpoweredCommittee | PMS final scoring | PMS + committee queue |
 | Guest / DefaultUser | Not yet approved | Dashboard (pending view) and helpdesk only |

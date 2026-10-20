@@ -45,10 +45,12 @@ export function featureAccessible(
   controls: FeatureControl[],
   grants: ReadonlySet<string>,
 ): boolean {
+  // MasterAdmin is the one all-features profile: every known page, no switches.
+  if (role === 'MasterAdmin') return path in ACCESS_MAP;
   const granted = grants.has(path);
   const eligible = path in ACCESS_MAP && (ACCESS_MAP[path as AccessPath] as Role[]).includes(role);
   if (!eligible && !granted) return false;
-  if (role === 'MasterAdmin' || !isControllable(path)) return true;
+  if (!isControllable(path)) return true;
   if (granted) return controls.find((x) => x.feature_key === path)?.enabled ?? true;
   return featureEnabled(path, role, controls);
 }

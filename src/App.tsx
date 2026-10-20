@@ -115,7 +115,8 @@ function ProtectedRoute({ allowedRoles, accessPath, desktopOnly, children }: Pro
     return <Navigate to="/change-password" replace />;
   }
 
-  if (allowedRoles && user && !allowedRoles.includes(user.activeRole)) {
+  // MasterAdmin is the all-features profile and passes every role list.
+  if (allowedRoles && user && user.activeRole !== 'MasterAdmin' && !allowedRoles.includes(user.activeRole)) {
     return <Navigate to={ROLE_ROUTES[user.activeRole]} replace />;
   }
 
