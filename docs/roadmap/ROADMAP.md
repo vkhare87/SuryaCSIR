@@ -20,6 +20,7 @@ and the frame, they carry the implementation detail):
 | [sources/IMPLEMENTATION-PLAN-IMPROVEMENTS.md](sources/IMPLEMENTATION-PLAN-IMPROVEMENTS.md) | Phase 0–10 breakdown with acceptance criteria for the grok items |
 | [sources/AHEAD-INTELLIGENCE-MASTER.md](sources/AHEAD-INTELLIGENCE-MASTER.md) | Semantic-layer architecture, IDs `R1`–`R5`, guardrails |
 | [sources/INTELLIGENCE-PHASES.md](sources/INTELLIGENCE-PHASES.md) | Executable phase breakdown for `R1`–`R5` |
+| [sources/REVIEW-2026-10-20.md](sources/REVIEW-2026-10-20.md) | Whole-codebase review: AI-agent readiness `G1`–`G7`, role UI `R1`–`R5`, mobile `M1`–`M7` |
 | [../history/ARCHITECTURE-REMEDIATION.md](../history/ARCHITECTURE-REMEDIATION.md) | The three audit items still open |
 | [../../TODOS.md](../../TODOS.md), [../../CLAUDE.md](../../CLAUDE.md) | Open hardening and deferred debt |
 
