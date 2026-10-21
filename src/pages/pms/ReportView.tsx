@@ -5,6 +5,7 @@ import { Download } from 'lucide-react';
 import { usePMS } from '../../contexts/PMSContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { getGrade } from '../../lib/pms/scoring';
+import { canAdmin } from '../../lib/pms/permissions';
 import { representationWindowOpen } from '../../lib/pms/deadlines';
 import { StatusBadge } from '../../components/pms/StatusBadge';
 import { Button } from '../../components/ui/Button';
@@ -17,7 +18,7 @@ type FullReport = PMSReport & { sections: PMSReportSection[]; annexures: PMSAnne
 
 export default function ReportView() {
   const { id } = useParams<{ id: string }>();
-  const { getReport, getCommitteeDecision, submitRepresentation } = usePMS();
+  const { getReport, getCommitteeDecision, submitRepresentation, refileFinalizedReport } = usePMS();
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -25,6 +26,8 @@ export default function ReportView() {
   const [loading, setLoading] = useState(true);
   const [committeeDecision, setCommitteeDecision] = useState<PMSCommitteeDecision | null>(null);
   const [exportLoading, setExportLoading] = useState(false);
+  const [refiling, setRefiling] = useState(false);
+  const [refileResult, setRefileResult] = useState<string | null>(null);
   const [showRepresent, setShowRepresent] = useState(false);
   const [grounds, setGrounds] = useState('');
   const [representError, setRepresentError] = useState<string | null>(null);
@@ -69,6 +72,14 @@ export default function ReportView() {
     }
   };
 
+  const handleRefile = async () => {
+    if (!report) return;
+    setRefiling(true);
+    const ok = await refileFinalizedReport(report.id);
+    setRefileResult(ok ? 'Final record filed.' : 'Filing failed. Try again.');
+    setRefiling(false);
+  };
+
   const handleRepresent = async () => {
     if (!report) return;
     if (grounds.trim().length < 20) {
@@ -107,6 +118,12 @@ export default function ReportView() {
           {heading}
         </h1>
         <StatusBadge status={report.status} />
+        {user && canAdmin(user) && report.status === 'FINALIZED' && (
+          <Button variant="secondary" size="sm" onClick={handleRefile} isLoading={refiling}>
+            File final record
+          </Button>
+        )}
+        {refileResult && <span className="text-xs text-text-muted">{refileResult}</span>}
         <Button variant="secondary" size="sm" onClick={handleExportPDF} isLoading={exportLoading}>
           <Download size={14} className="mr-1.5" /> Export PDF
         </Button>

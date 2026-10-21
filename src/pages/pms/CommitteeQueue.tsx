@@ -42,6 +42,7 @@ export default function CommitteeQueue() {
   const [suggestions, setSuggestions] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pdfWarning, setPdfWarning] = useState<string | null>(null);
 
   const statusCounts = useMemo(
     () => STATUS_ORDER
@@ -140,13 +141,15 @@ export default function CommitteeQueue() {
     setSaving(true);
     setError(null);
     try {
-      await finalizeReport(selectedReportId, {
+      const filed = await finalizeReport(selectedReportId, {
         finalScore: parsedScore,
         justification,
         reasonsForOutstanding: reasonsOutstanding || undefined,
         reasonsBelowThreshold: reasonsBelow || undefined,
         suggestionsForImprovement: suggestions || undefined,
       });
+      setPdfWarning(filed ? null
+        : 'Report finalized, but the final PDF record was not filed. A PMS admin must open the report and press "File final record".');
       setSelectedReportId(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Finalization failed');
@@ -161,6 +164,7 @@ export default function CommitteeQueue() {
       <p className="text-sm text-text-muted">
         {committeeReports.length} report{committeeReports.length !== 1 ? 's' : ''} awaiting final decision
       </p>
+      {pdfWarning && <p className="text-sm text-rose-600">{pdfWarning}</p>}
 
       {statusCounts.length > 0 && (
         <div className="flex flex-wrap gap-3">

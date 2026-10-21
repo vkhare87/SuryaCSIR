@@ -112,6 +112,7 @@ interface PMSContextType {
   setDutyDays: (reportId: string, dutyDays: number) => Promise<void>;
   markNotAssessed: (reportId: string, remark?: string) => Promise<void>;
   recordNonSubmission: (reportId: string, certificate: File) => Promise<void>;
+  condoneDelay: (reportId: string, condonedUntil: string, reason: string) => Promise<void>;
 
   // Evaluation flow
   assignEvaluators: (reportId: string, committeeId: string) => Promise<void>;
@@ -120,7 +121,9 @@ interface PMSContextType {
   savePenPicture: (evaluationId: string, penPicture: PenPicture, complete: boolean) => Promise<void>;
   getReportEvaluations: (reportId: string) => Promise<PMSEvaluation[]>;
   getCommitteeDecision: (reportId: string) => Promise<PMSCommitteeDecision | null>;
-  finalizeReport: (reportId: string, decision: FinalDecisionPayload) => Promise<void>;
+  /** Resolves true when the finalized PDF was also filed; false means retry with refileFinalizedReport. */
+  finalizeReport: (reportId: string, decision: FinalDecisionPayload) => Promise<boolean>;
+  refileFinalizedReport: (reportId: string) => Promise<boolean>;
   finalizeSeniorReport: (reportId: string, remarks: string) => Promise<void>;
 
   // Representation / grievance
@@ -504,6 +507,18 @@ export function PMSProvider({ children }: { children: ReactNode }) {
     await loadData();
   }
 
+  async function condoneDelay(reportId: string, condonedUntil: string, reason: string): Promise<void> {
+    if (!supabase) throw new Error('Supabase not provisioned');
+    ensureUser(user);
+    const { error: err } = await supabase.rpc('pms_condone_delay', {
+      p_report_id: reportId,
+      p_condoned_until: condonedUntil,
+      p_reason: reason,
+    });
+    if (err) throw err;
+    await loadData();
+  }
+
   // --- Evaluation flow ---
 
   async function assignEvaluators(reportId: string, committeeId: string): Promise<void> {
@@ -596,7 +611,7 @@ export function PMSProvider({ children }: { children: ReactNode }) {
     return data ? mapCommitteeDecisionRow(data as Record<string, unknown>) : null;
   }
 
-  async function finalizeReport(reportId: string, decision: FinalDecisionPayload): Promise<void> {
+  async function finalizeReport(reportId: string, decision: FinalDecisionPayload): Promise<boolean> {
     if (!supabase) throw new Error('Supabase not provisioned');
     ensureUser(user);
     assertScoreInRange(decision.finalScore, 'Final score');
@@ -619,18 +634,23 @@ export function PMSProvider({ children }: { children: ReactNode }) {
       r.id === reportId ? { ...r, status: 'FINALIZED' as const } : r
     ));
 
-    // File the finalized report PDF into the documents registry for RAG (T2). Non-fatal.
+    return refileFinalizedReport(reportId);
+  }
+
+  // File the finalized report PDF (permanent record + RAG registry, T2).
+  async function refileFinalizedReport(reportId: string): Promise<boolean> {
     try {
-      const full = await getReport(reportId);
-      void fileFinalizedReport({
+      const [full, decision] = await Promise.all([getReport(reportId), getCommitteeDecision(reportId)]);
+      return await fileFinalizedReport({
         report: full,
         sections: full.sections,
         annexures: full.annexures,
-        finalScore: decision.finalScore,
-        justification: decision.justification,
+        finalScore: decision?.finalScore ?? null,
+        justification: decision?.justification ?? full.systemRemark ?? null,
       });
     } catch (e) {
-      console.error('[pms] finalized filing skipped', e);
+      console.error('[pms] finalized filing failed', e);
+      return false;
     }
   }
 
@@ -706,10 +726,10 @@ export function PMSProvider({ children }: { children: ReactNode }) {
       createReport, getReport, saveSection, saveBasicInfo, saveAWPActivities,
       uploadSignature, uploadAnnexure, deleteAnnexure,
       submitReport, getSignedUrl,
-      setDutyDays, markNotAssessed, recordNonSubmission,
+      setDutyDays, markNotAssessed, recordNonSubmission, condoneDelay,
       assignEvaluators, saveEvaluationScores, completeEvaluation, savePenPicture,
       getReportEvaluations,
-      getCommitteeDecision, finalizeReport, finalizeSeniorReport,
+      getCommitteeDecision, finalizeReport, refileFinalizedReport, finalizeSeniorReport,
       submitRepresentation, resolveRepresentation,
       markNotificationRead, setAppNotificationStatus,
       refreshData: loadData,

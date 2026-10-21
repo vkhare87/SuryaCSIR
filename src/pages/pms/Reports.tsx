@@ -12,12 +12,14 @@ import { Skeleton } from '../../components/ui/Skeleton';
 
 export default function Reports() {
   const { user } = useAuth();
-  const { cycles, reports, isLoading, setDutyDays, markNotAssessed, recordNonSubmission } = usePMS();
+  const { cycles, reports, isLoading, setDutyDays, markNotAssessed, recordNonSubmission, condoneDelay } = usePMS();
   const navigate = useNavigate();
   const isAdmin = user ? canAdmin(user) : false;
 
   const [manageReportId, setManageReportId] = useState<string | null>(null);
   const [dutyDaysInput, setDutyDaysInput] = useState('');
+  const [condoneUntil, setCondoneUntil] = useState('');
+  const [condoneReason, setCondoneReason] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const certInputRef = useRef<HTMLInputElement>(null);
@@ -44,6 +46,8 @@ export default function Reports() {
     const r = reports.find(x => x.id === reportId);
     setManageReportId(reportId);
     setDutyDaysInput(r?.dutyDays != null ? String(r.dutyDays) : '');
+    setCondoneUntil('');
+    setCondoneReason('');
     setError(null);
   };
 
@@ -224,6 +228,40 @@ export default function Reports() {
               />
               <Button size="sm" variant="secondary" isLoading={saving} onClick={() => certInputRef.current?.click()}>
                 Upload Non-Submission Certificate
+              </Button>
+            </div>
+          )}
+
+          {manageReport?.status === 'DRAFT' && pastDeadline && (
+            <div className="p-4 bg-surface border border-border rounded-xl space-y-2">
+              <p className="text-sm text-text">
+                Or, on the Director's order, condone the delay (circumstances beyond the scientist's
+                control) and let the scientist submit late.
+              </p>
+              <input
+                type="date"
+                value={condoneUntil}
+                onChange={e => setCondoneUntil(e.target.value)}
+                className="px-3 py-2 border border-border rounded-xl text-sm bg-background text-text focus:outline-none focus:border-terracotta"
+              />
+              <textarea
+                rows={2}
+                value={condoneReason}
+                onChange={e => setCondoneReason(e.target.value)}
+                placeholder="Reason recorded by the Director (at least 20 characters)"
+                className="w-full px-3 py-2 border border-border rounded-xl text-sm bg-background text-text focus:outline-none focus:border-terracotta resize-none"
+              />
+              <Button
+                size="sm"
+                variant="secondary"
+                isLoading={saving}
+                disabled={!condoneUntil || condoneReason.trim().length < 20}
+                onClick={() => void run(async () => {
+                  await condoneDelay(manageReport.id, condoneUntil, condoneReason.trim());
+                  setManageReportId(null);
+                })}
+              >
+                Condone Delay
               </Button>
             </div>
           )}
