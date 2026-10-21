@@ -1,4 +1,29 @@
-import type { AWPActivityRow, AWPContent, AWPStatus, PMSAWP } from '../../types/pms';
+import type {
+  AWPActivityRow, AWPContent, AWPDevelopment, AWPObjectives, AWPProjectKind, AWPStatus, PMSAWP,
+} from '../../types/pms';
+
+export const AWP_PROJECT_LABELS: Record<AWPProjectKind, string> = {
+  CSIR: 'CSIR Projects',
+  EXTERNAL: 'Externally funded Projects (Govt. / Industry)',
+  LAB_MANDATE: 'Lab-mandate specific Projects (assigned by Director or DG, CSIR)',
+  OTHER: 'Any other',
+};
+
+export const AWP_OBJECTIVE_LABELS: [keyof AWPObjectives, string][] = [
+  ['projectDetails', '(a) Project details'],
+  ['hrd', '(b) Human Resource Development (AcSIR / skill development / training interns etc.)'],
+  ['processes', '(c) Processes / Technology / Design'],
+  ['patents', '(d) Patents'],
+  ['publications', '(e) Publications'],
+  ['other', '(f) Any other'],
+];
+
+export const AWP_DEVELOPMENT_LABELS: [keyof AWPDevelopment, string][] = [
+  ['fellowships', '(a) Fellowships / Joint Exchange Programmes'],
+  ['training', '(b) Training Courses'],
+  ['academic', '(c) Academic work (AcSIR / PhD supervision / guiding interns / proposal writing etc.)'],
+  ['other', '(d) Any other'],
+];
 
 /** Part V activity rows, in notification order. Labs may add more rows. */
 export const AWP_ACTIVITY_LABELS = [
