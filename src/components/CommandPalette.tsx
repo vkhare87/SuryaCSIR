@@ -346,8 +346,8 @@ function ResultRow({ icon, iconBg, iconColor, primary, secondary, onClick }: Res
         {icon}
       </div>
       <div className="min-w-0">
-        <div className="text-sm font-semibold text-text truncate">{primary}</div>
-        {secondary && <div className="text-xs text-text-muted truncate">{secondary}</div>}
+        <div className="text-sm font-semibold text-text truncate" title={primary}>{primary}</div>
+        {secondary && <div className="text-xs text-text-muted truncate" title={secondary}>{secondary}</div>}
       </div>
     </button>
   );

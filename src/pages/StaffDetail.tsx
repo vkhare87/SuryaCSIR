@@ -339,8 +339,8 @@ export default function StaffDetail() {
                       {reportsTo.Name.charAt(0)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="font-bold text-text group-hover:text-[#c96442] transition-colors truncate">{reportsTo.Name}</div>
-                      <div className="text-xs text-text-muted truncate">{reportsTo.Designation}</div>
+                      <div className="font-bold text-text group-hover:text-[#c96442] transition-colors truncate" title={reportsTo.Name}>{reportsTo.Name}</div>
+                      <div className="text-xs text-text-muted truncate" title={reportsTo.Designation}>{reportsTo.Designation}</div>
                     </div>
                     <ChevronRight size={16} className="text-text-muted group-hover:text-[#c96442] transition-all group-hover:translate-x-1 shrink-0" />
                   </Link>
@@ -366,8 +366,8 @@ export default function StaffDetail() {
                           {s.Name.charAt(0)}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="text-sm font-bold text-text group-hover:text-[#c96442] transition-colors truncate">{s.Name}</div>
-                          <div className="text-xs text-text-muted truncate">{s.Designation}</div>
+                          <div className="text-sm font-bold text-text group-hover:text-[#c96442] transition-colors truncate" title={s.Name}>{s.Name}</div>
+                          <div className="text-xs text-text-muted truncate" title={s.Designation}>{s.Designation}</div>
                         </div>
                         <Badge variant={s.Group === 'Scientific' ? 'success' : 'neutral'} className="shrink-0">{s.Group}</Badge>
                       </Link>
@@ -396,7 +396,7 @@ export default function StaffDetail() {
                   >
                     <div>
                       <p className="font-semibold text-sm text-text group-hover:text-[#c96442] transition-colors">{proj.ProjectNo}</p>
-                      <p className="text-text-muted text-xs mt-1 truncate max-w-md">{proj.ProjectName}</p>
+                      <p className="text-text-muted text-xs mt-1 truncate max-w-md" title={proj.ProjectName}>{proj.ProjectName}</p>
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
                       <Badge variant={proj.ProjectStatus === 'Active' ? 'success' : 'neutral'}>{proj.ProjectStatus}</Badge>

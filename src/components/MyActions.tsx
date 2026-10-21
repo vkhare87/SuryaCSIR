@@ -107,8 +107,8 @@ export function MyActions() {
                   {KIND_BADGE[a.kind]?.label ?? a.kind}
                 </Badge>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate group-hover:text-brand-blue transition-colors">{a.label}</p>
-                  <p className="text-xs text-text-muted truncate">{a.detail}</p>
+                  <p className="text-sm font-medium truncate group-hover:text-brand-blue transition-colors" title={a.label}>{a.label}</p>
+                  <p className="text-xs text-text-muted truncate" title={a.detail}>{a.detail}</p>
                 </div>
                 {a.due && <span className="text-xs text-text-muted shrink-0">due {a.due}</span>}
                 <ChevronRight size={14} className="text-text-muted shrink-0" />

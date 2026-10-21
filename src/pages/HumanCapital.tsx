@@ -171,7 +171,7 @@ export default function HumanCapital() {
             <select
               value={selectedDivision}
               onChange={(e) => setSelectedDivision(e.target.value)}
-              className="pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm appearance-none cursor-pointer"
+              className="w-full sm:w-auto sm:max-w-xs max-w-full pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm appearance-none cursor-pointer"
             >
               <option value="ALL">All Divisions</option>
               {divisions.map(d => (

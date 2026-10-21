@@ -55,8 +55,8 @@ export function DataHealthDigest() {
                 {SEVERITY_BADGE[item.severity].label}
               </Badge>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate group-hover:text-brand-blue transition-colors">{item.title}</p>
-                <p className="text-xs text-text-muted truncate">{item.detail}</p>
+                <p className="text-sm font-medium truncate group-hover:text-brand-blue transition-colors" title={item.title}>{item.title}</p>
+                <p className="text-xs text-text-muted truncate" title={item.detail}>{item.detail}</p>
               </div>
               <ChevronRight size={14} className="text-text-muted shrink-0" />
             </Link>

@@ -117,7 +117,7 @@ export default function Projects() {
           <div className="font-semibold text-text truncate" title={p.ProjectName}>{p.ProjectName}</div>
           <div className="text-xs text-text-muted mt-1 flex gap-2">
             <span className="bg-surface border border-border px-1.5 rounded">{p.FundType}</span>
-            <span className="truncate">{p.SponsorerName}</span>
+            <span className="truncate" title={p.SponsorerName}>{p.SponsorerName}</span>
           </div>
         </div>
       ),
@@ -215,13 +215,13 @@ export default function Projects() {
       </h3>
       <div className="text-xs text-text-muted mb-4 flex gap-2">
         <span className="bg-surface border border-border px-1.5 rounded">{p.FundType}</span>
-        <span className="truncate">{p.SponsorerName}</span>
+        <span className="truncate" title={p.SponsorerName}>{p.SponsorerName}</span>
       </div>
       
       <div className="mt-auto space-y-3 pt-4 border-t border-border/50">
         <div>
           <div className="text-[10px] uppercase tracking-wider text-text-muted mb-0.5">Principal Investigator</div>
-          <div className="text-sm font-medium text-text truncate">{p.PrincipalInvestigator}</div>
+          <div className="text-sm font-medium text-text truncate" title={p.PrincipalInvestigator}>{p.PrincipalInvestigator}</div>
         </div>
         <div className="flex justify-between items-end">
           <div>
@@ -303,7 +303,7 @@ export default function Projects() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm appearance-none cursor-pointer"
+              className="w-full sm:w-auto sm:max-w-xs max-w-full pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm appearance-none cursor-pointer"
             >
               <option value="ALL">All Statuses</option>
               <option value="Active">Active</option>

@@ -155,7 +155,7 @@ export default function CommitteeList() {
           <select
             value={typeFilter}
             onChange={e => setTypeFilter(e.target.value)}
-            className="pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm appearance-none cursor-pointer"
+            className="w-full sm:w-auto sm:max-w-xs max-w-full pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm appearance-none cursor-pointer"
           >
             <option value="All">All Types</option>
             <option value="Standing">Standing</option>
@@ -169,7 +169,7 @@ export default function CommitteeList() {
           <select
             value={statusFilter}
             onChange={e => setStatusFilter(e.target.value)}
-            className="pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm appearance-none cursor-pointer"
+            className="w-full sm:w-auto sm:max-w-xs max-w-full pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm appearance-none cursor-pointer"
           >
             <option value="All">All Status</option>
             <option value="Active">Active</option>

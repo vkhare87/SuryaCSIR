@@ -228,7 +228,7 @@ export default function Facilities() {
         <div className="flex items-start justify-between gap-3 mb-3">
           <div className="min-w-0">
             <h3 className="font-bold text-text truncate" title={e.Name}>{e.Name}</h3>
-            <div className="text-xs text-text-muted mt-0.5 font-mono truncate">{e.instrument_code ?? e.UInsID}</div>
+            <div className="text-xs text-text-muted mt-0.5 font-mono truncate" title={e.instrument_code ?? e.UInsID}>{e.instrument_code ?? e.UInsID}</div>
           </div>
           <Badge variant={variant}>{e.WorkingStatus}</Badge>
         </div>
@@ -327,7 +327,7 @@ export default function Facilities() {
           <select
             value={statusFilter}
             onChange={e => setStatusFilter(e.target.value)}
-            className="pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm appearance-none cursor-pointer"
+            className="w-full sm:w-auto sm:max-w-xs max-w-full pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm appearance-none cursor-pointer"
           >
             <option value="ALL">All Status</option>
             <option value="Working">Working</option>
@@ -340,7 +340,7 @@ export default function Facilities() {
           <select
             value={divisionFilter}
             onChange={e => setDivisionFilter(e.target.value)}
-            className="pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm appearance-none cursor-pointer"
+            className="w-full sm:w-auto sm:max-w-xs max-w-full pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm appearance-none cursor-pointer"
           >
             <option value="ALL">All Divisions</option>
             {divisions.map(d => <option key={d} value={d}>{d}</option>)}
@@ -351,7 +351,7 @@ export default function Facilities() {
           <select
             value={amcFilter}
             onChange={e => setAmcFilter(e.target.value)}
-            className="pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm appearance-none cursor-pointer"
+            className="w-full sm:w-auto sm:max-w-xs max-w-full pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm appearance-none cursor-pointer"
           >
             <option value="ALL">All AMC</option>
             <option value="expired">Expired</option>

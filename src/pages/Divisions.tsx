@@ -183,10 +183,10 @@ export default function Divisions() {
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <h3 className="font-bold text-text truncate">{s.Name}</h3>
+              <h3 className="font-bold text-text truncate" title={s.Name}>{s.Name}</h3>
               {isHoD && <Badge variant="warning" className="text-[9px] py-0 h-4">HOD</Badge>}
             </div>
-            <div className="text-sm text-[#c96442] font-medium mt-0.5 truncate">{s.Designation}</div>
+            <div className="text-sm text-[#c96442] font-medium mt-0.5 truncate" title={s.Designation}>{s.Designation}</div>
           </div>
         </div>
         <div className="space-y-3 mt-auto mb-4">
@@ -219,10 +219,10 @@ export default function Divisions() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-theme(spacing.16)-theme(spacing.16))] -m-8 overflow-hidden">
+    <div className="flex flex-col md:flex-row md:h-[calc(100vh-theme(spacing.16)-theme(spacing.16))] -m-4 md:-m-8 md:overflow-hidden">
 
       {/* Sidebar */}
-      <div className="w-80 border-r border-border bg-surface flex flex-col h-full shrink-0">
+      <div className="w-full md:w-80 max-h-80 md:max-h-none border-b md:border-b-0 md:border-r border-border bg-surface flex flex-col md:h-full shrink-0">
         <div className="p-4 border-b border-border space-y-2">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted w-4 h-4" />
@@ -288,7 +288,7 @@ export default function Divisions() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 overflow-y-auto bg-background/50 p-8 space-y-8 stylish-scrollbar">
+      <div className="flex-1 min-w-0 md:overflow-y-auto bg-background/50 p-4 md:p-8 space-y-8 stylish-scrollbar">
 
         {/* View toggle */}
         <div className="flex items-center gap-1 rounded-[10px] bg-surface border border-border p-1 w-fit">
@@ -577,7 +577,7 @@ export default function Divisions() {
                         {proj.ProjectStatus}
                       </Badge>
                     </div>
-                    <p className="text-sm font-bold text-text truncate group-hover:text-[#c96442] transition-colors">{proj.ProjectName}</p>
+                    <p className="text-sm font-bold text-text truncate group-hover:text-[#c96442] transition-colors" title={proj.ProjectName}>{proj.ProjectName}</p>
                     <p className="text-xs text-text-muted mt-1">{proj.PrincipalInvestigator} • {proj.SponsorerName}</p>
                   </div>
                   <ChevronRight size={16} className="text-text-muted group-hover:text-[#c96442] group-hover:translate-x-1 transition-all shrink-0 mt-1" />
@@ -610,7 +610,7 @@ export default function Divisions() {
                   <div key={eq.UInsID} className="p-4 rounded-2xl border border-border bg-surface hover:bg-surface-hover transition-colors">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
-                        <p className="font-bold text-sm text-text truncate">{eq.Name}</p>
+                        <p className="font-bold text-sm text-text truncate" title={eq.Name}>{eq.Name}</p>
                         <p className="text-xs text-text-muted font-mono mt-0.5">{eq.UInsID}</p>
                         <p className="text-xs text-text-muted mt-1">{eq.Location}</p>
                       </div>

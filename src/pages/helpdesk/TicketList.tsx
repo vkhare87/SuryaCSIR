@@ -196,7 +196,7 @@ export default function TicketList() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as TicketStatus | 'All')}
-            className="pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm appearance-none cursor-pointer"
+            className="w-full sm:w-auto sm:max-w-xs max-w-full pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm appearance-none cursor-pointer"
           >
             <option value="All">All Status</option>
             {STATUS_SORT_ORDER.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -207,7 +207,7 @@ export default function TicketList() {
           <select
             value={urgencyFilter}
             onChange={(e) => setUrgencyFilter(e.target.value as TicketUrgency | 'All')}
-            className="pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm appearance-none cursor-pointer"
+            className="w-full sm:w-auto sm:max-w-xs max-w-full pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm appearance-none cursor-pointer"
           >
             <option value="All">All Urgency</option>
             {URGENCY_SORT_ORDER.map((u) => <option key={u} value={u}>{u}</option>)}
@@ -218,7 +218,7 @@ export default function TicketList() {
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value as TicketCategory | 'All')}
-            className="pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm appearance-none cursor-pointer"
+            className="w-full sm:w-auto sm:max-w-xs max-w-full pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm appearance-none cursor-pointer"
           >
             <option value="All">All Categories</option>
             {CATEGORY_CONFIG.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}

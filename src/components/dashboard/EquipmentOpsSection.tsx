@@ -44,7 +44,7 @@ export function EquipmentOpsSection() {
                   className="flex justify-between py-2 cursor-pointer hover:bg-surface-hover px-1"
                   onClick={() => navigate(`/facilities/${e.UInsID}`)}
                 >
-                  <span className="truncate text-text">{e.Name}</span>
+                  <span className="truncate text-text" title={e.Name}>{e.Name}</span>
                   <span className="text-text-muted tabular-nums">{formatDate(parseDate(e.amc_end_date))}</span>
                 </li>
               ))}
@@ -62,7 +62,7 @@ export function EquipmentOpsSection() {
                   className="flex justify-between py-2 cursor-pointer hover:bg-surface-hover px-1"
                   onClick={() => navigate('/committees')}
                 >
-                  <span className="truncate text-text">{a.task}</span>
+                  <span className="truncate text-text" title={a.task}>{a.task}</span>
                   <span className="text-text-muted tabular-nums">{formatDate(parseDate(a.deadline))}</span>
                 </li>
               ))}
