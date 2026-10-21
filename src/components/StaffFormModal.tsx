@@ -116,7 +116,7 @@ export function StaffFormModal({ isOpen, onClose, staffMember }: Props) {
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={isEdit ? 'Edit Staff Member' : 'Create Staff Member'}>
       <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-2">
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Field label="ID" error={errors.ID}>
             <input
               type="text"
@@ -164,7 +164,7 @@ export function StaffFormModal({ isOpen, onClose, staffMember }: Props) {
           </Field>
         </div>
 
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Field label="Date of Joining">
             <input type="date" value={form.DOJ} onChange={(e) => update('DOJ', e.target.value)} className={inputCls} />
           </Field>
@@ -176,7 +176,7 @@ export function StaffFormModal({ isOpen, onClose, staffMember }: Props) {
           </Field>
         </div>
 
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Field label="Category">
             <input type="text" value={form.Cat} onChange={(e) => update('Cat', e.target.value)} placeholder="GEN / OBC / SC / ST" className={inputCls} />
           </Field>

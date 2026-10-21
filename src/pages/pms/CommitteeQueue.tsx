@@ -50,7 +50,9 @@ export default function CommitteeQueue() {
     [reports],
   );
 
-  if (!user || !canCommitteeDecide(user)) return <Navigate to="/pms" replace />;
+  // MasterAdmin may watch the queue; only the Empowered Committee decides.
+  if (!user || !(canCommitteeDecide(user) || user.activeRole === 'MasterAdmin')) return <Navigate to="/pms" replace />;
+  const canDecide = canCommitteeDecide(user);
 
   if (isLoading) {
     return (
@@ -190,7 +192,7 @@ export default function CommitteeQueue() {
               </div>
               <div className="flex items-center gap-3">
                 <StatusBadge status={r.status} />
-                <Button size="sm" onClick={() => openModal(r.id)}>Decide</Button>
+                {canDecide && <Button size="sm" onClick={() => openModal(r.id)}>Decide</Button>}
               </div>
             </div>
           ))}

@@ -214,6 +214,7 @@ export default function HolidaysAdmin() {
             </button>
           </div>
 
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="text-xs text-text-muted uppercase border-b border-border">
               <tr>
@@ -254,6 +255,7 @@ export default function HolidaysAdmin() {
               )}
             </tbody>
           </table>
+          </div>
         </Card>
 
         {/* RIGHT — bulk import */}
@@ -269,6 +271,7 @@ export default function HolidaysAdmin() {
           {importRows.length > 0 && (
             <>
               <div className="mt-4 max-h-80 overflow-y-auto">
+                <div className="overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead className="text-text-muted uppercase border-b border-border">
                     <tr>
@@ -289,6 +292,7 @@ export default function HolidaysAdmin() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </div>
               <button
                 onClick={commitImport}

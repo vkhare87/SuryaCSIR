@@ -180,6 +180,7 @@ export default function Partnerships() {
           {mous.length === 0 ? (
             <p className="text-sm text-text-muted">No MOUs recorded yet.</p>
           ) : (
+            <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs uppercase tracking-wide text-text-muted">
@@ -220,6 +221,7 @@ export default function Partnerships() {
                 })}
               </tbody>
             </table>
+            </div>
           )}
         </Card>
       ) : (
@@ -231,6 +233,7 @@ export default function Partnerships() {
             {techTransfers.length === 0 ? (
               <p className="text-sm text-text-muted">No technology transfers recorded yet.</p>
             ) : (
+              <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-xs uppercase tracking-wide text-text-muted">
@@ -255,6 +258,7 @@ export default function Partnerships() {
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
           </Card>
         </div>

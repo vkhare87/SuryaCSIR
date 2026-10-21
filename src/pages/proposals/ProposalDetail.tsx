@@ -115,6 +115,7 @@ export default function ProposalDetail() {
         {comparables.length === 0 ? (
           <p className="text-sm text-text-muted">No comparable past projects found.</p>
         ) : (
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-xs uppercase tracking-wide text-text-muted">
@@ -139,6 +140,7 @@ export default function ProposalDetail() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </Card>
 
@@ -152,6 +154,7 @@ export default function ProposalDetail() {
               {' '}{trackRecord.extendedCount} extended.
             </p>
           </div>
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-xs uppercase tracking-wide text-text-muted">
@@ -174,6 +177,7 @@ export default function ProposalDetail() {
               ))}
             </tbody>
           </table>
+          </div>
         </Card>
       )}
 

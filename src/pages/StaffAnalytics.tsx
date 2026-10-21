@@ -245,6 +245,7 @@ export default function StaffAnalytics() {
             subtitle="retiring within 3 years — CoreArea no staying colleague covers (exact match; verify synonyms manually)"
             className="lg:col-span-2"
           >
+            <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-left text-text-muted">
                 <tr>
@@ -267,6 +268,7 @@ export default function StaffAnalytics() {
                 ))}
               </tbody>
             </table>
+            </div>
           </ChartCard>
         )}
 

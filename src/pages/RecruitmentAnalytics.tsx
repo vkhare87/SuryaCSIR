@@ -105,6 +105,7 @@ export default function RecruitmentAnalytics() {
         {agingDrives.length === 0 ? (
           <p className="text-sm text-text-muted">No open drives with a recorded issue date.</p>
         ) : (
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-xs uppercase tracking-wide text-text-muted">
@@ -129,10 +130,12 @@ export default function RecruitmentAnalytics() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </ChartCard>
 
       <ChartCard title="Drive progress" subtitle="drives per stage — permanent vs project staff" className="lg:col-span-2">
+        <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-xs uppercase tracking-wide text-text-muted">
@@ -151,6 +154,7 @@ export default function RecruitmentAnalytics() {
             ))}
           </tbody>
         </table>
+        </div>
       </ChartCard>
 
       {canManageDrives && (

@@ -233,9 +233,9 @@ export function MasterAdminView() {
 
   return (
     <div className="space-y-8 pb-12">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-3xl font-[500] text-text uppercase tracking-tight font-serif">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl md:text-3xl font-[500] text-text uppercase tracking-tight font-serif break-words">
             Master Administration
           </h1>
           <p className="text-text-muted mt-1 text-sm font-medium">
@@ -244,7 +244,7 @@ export function MasterAdminView() {
         </div>
         <button
           onClick={fetchUsers}
-          className="flex items-center gap-2 px-4 py-2 border border-border rounded-[8px] text-xs font-semibold text-text-muted hover:bg-surface-hover transition-colors"
+          className="flex shrink-0 items-center gap-2 px-3 md:px-4 py-2 border border-border rounded-[8px] text-xs font-semibold text-text-muted hover:bg-surface-hover transition-colors"
         >
           <RefreshCw size={14} />
           Refresh
