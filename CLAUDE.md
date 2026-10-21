@@ -207,7 +207,7 @@ No path aliases. Always relative imports.
 - typecheck: `npm run build` — **`npx tsc --noEmit` passes vacuously** under the
   project-references layout, so it proves nothing. `npm run build` runs `tsc -b`.
 - lint: `npm run lint` (`eslint .` — covers `scripts/` and configs too, not just `src/`)
-- test: `npm test` — 66 files, 652 tests (as of 2026-08-08)
+- test: `npm test` — 77 files, 722 tests (as of 2026-10-21)
 - python: `python -m pytest` in `rag/` and in `ingest/`
 - policy audit: `python scripts/check_security_definer.py`
 

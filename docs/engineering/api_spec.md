@@ -234,6 +234,22 @@ const { error } = await supabase.rpc('admin_set_user_roles', {
 | `pms_record_non_submission` | `p_report_id uuid, p_cert_path text` | `void` | Admin. Records the non-submission certificate |
 | `pms_submit_representation` | `p_report_id uuid, p_grounds text` | `void` | Owner, report `FINALIZED`, within 15 days of `score_communicated_at`. `grounds` ≥ 20 chars. → `UNDER_GRIEVANCE_REVIEW` |
 | `pms_resolve_representation` | `p_report_id uuid, p_resolution text, p_revised_score integer = NULL, p_reasons_outstanding text = NULL, p_reasons_below text = NULL, p_suggestions text = NULL` | `void` | Grievance committee member for that cycle. → `FINALIZED` |
+| `pms_condone_delay` | `p_report_id uuid, p_condoned_until date, p_reason text` | `void` | Director or admin. `DRAFT` only, date ≤ June 30, reason ≥ 20 chars. Lets `pms_submit_report` accept after May 15 |
+
+### Annual Work Plan (`20261021000002_pms_awp.sql`)
+
+| Function | Parameters | Returns | Authorization + effect |
+|---|---|---|---|
+| `pms_awp_save_draft` | `p_staff_id text, p_year text, p_payload jsonb` | `uuid` | Owner (`staff.user_id = auth.uid()`), status `DRAFT`/`RETURNED`. Creates or updates content |
+| `pms_awp_submit` | `p_awp_id uuid` | `void` | Owner. Activity total must be 100. → `WITH_RO`, or `WITH_DIRECTOR` when the RO is the Director |
+| `pms_awp_ro_review` | `p_awp_id uuid, p_verdict text, p_reasons text` | `void` | Reporting Officer. `NOT_REASONABLE` needs reasons ≥ 20. → `WITH_RVO`, or `WITH_DIRECTOR` when the RvO is the Director |
+| `pms_awp_rvo_review` | `p_awp_id uuid, p_remarks text` | `void` | Reviewing Officer. → `WITH_DIRECTOR` |
+| `pms_awp_director_decide` | `p_awp_id uuid, p_decision text, p_remarks text, p_payload jsonb = NULL` | `void` | Director or admin. `ACCEPTED`, or `MODIFIED` with payload + remarks ≥ 20. → `APPROVED`, sets `communicated_at` |
+| `pms_awp_return` | `p_awp_id uuid, p_reasons text` | `void` | The current reviewer (or admin). → `RETURNED` |
+| `pms_awp_forward_blank` | `p_staff_id text, p_year text` | `uuid` | Admin. §5.E.a.iii — blank AWP to the RO, `source='BLANK_FORWARDED'` |
+| `pms_awp_import` | `p_staff_id text, p_year text, p_payload jsonb, p_status text, p_pdf_path text, p_ro_verdict text, p_ro_date date, p_approved_date date` | `uuid` | Admin. Status `APPROVED`/`WITH_DIRECTOR`/`WITH_RO`; rejects a duplicate staff+year |
+| `pms_awp_request_revision` | `p_awp_id uuid, p_reasons text, p_after jsonb` | `uuid` | Owner, RO, RvO, Director or admin. `APPROVED` only, until 30 Sep of the first year |
+| `pms_awp_decide_revision` | `p_revision_id uuid, p_approve boolean, p_remarks text` | `void` | Director or admin. Approve replaces the content |
 
 **Read-only helpers** (usable from the client for UI state, and used inside RLS policies):
 `pms_is_admin()`, `pms_is_evaluation_committee_member(p_cycle_id)`,

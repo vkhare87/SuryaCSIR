@@ -150,6 +150,14 @@ Related docs: [app.md](app.md) (product spec), [database_design.md](database_des
   `/pms/committee`; grievances at `/pms/grievance`. Admins manage cycles
   (`/pms/cycles`), evaluation committees (`/pms/evaluation-committees`), evaluator
   assignment (`/pms/assign`), and the audit log (`/pms/audit`).
+- **Annual Work Plan (Part V):** scientists fill and download their AWP at
+  `/pms/awp` (one per reporting year, due 15 May); it goes HoD/Reporting Officer →
+  Reviewing Officer → Director at `/pms/awp/inbox` (one Director action when the
+  Director is also RO/RvO). Revisions until 30 Sep with Director approval. Admins import
+  existing AWP PDFs at `/pms/awp/import` — the PDF is read in the browser (text layer, or
+  OCR for scans; no internet needed), Part V is pre-filled, and a human checks and saves.
+  `/pms/awp/register` shows who has submitted. Committees see the approved AWP next to
+  each standard-track report.
 
 ### Committees
 - **Route:** `/committees`. Meetings, agendas, minutes (lockable), document uploads,

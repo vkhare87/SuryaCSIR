@@ -33,10 +33,10 @@ Legend: ✅ done · ⚠️ partly · ❌ missing · 🐞 bug (breaks a rule toda
 | Part IV | Concur / upgrade to / downgrade to, with reasons; general comments; critical assessment | ⚠️ only final score + justification. No concur/up/down record vs EC score |
 | Part IV | Reasons if ≥ 90 | ✅ |
 | Part V | AWP: Part B activity/role/time % | ✅ |
-| Part V | AWP sections (1)–(5): projects, objectives, development, other work | ❌ |
-| Part V | RO/HoD review "reasonable / not reasonable" + reasons, Director approval, communicated to scientist | ❌ no review or approval flow |
-| Part V | AWP revision within first 6 months, with reasons | ❌ |
-| Part V | Blank AWP forwarded to RO if scientist does not submit | ❌ |
+| Part V | AWP sections (1)–(5): projects, objectives, development, other work | ✅ `pms_awps` (2026-10-21) |
+| Part V | RO/HoD review "reasonable / not reasonable" + reasons, Director approval, communicated to scientist | ✅ `/pms/awp/inbox` |
+| Part V | AWP revision within first 6 months, with reasons | ✅ |
+| Part V | Blank AWP forwarded to RO if scientist does not submit | ✅ admin button on `/pms/awp/register` |
 
 ## P1 — committees
 
