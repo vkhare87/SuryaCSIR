@@ -73,6 +73,11 @@ export function reportingYearFor(date: Date): string {
   return `${start}-${String((start + 1) % 100).padStart(2, '0')}`;
 }
 
+/** '2026-27' → '2027-28'. */
+export function nextReportingYear(year: string): string {
+  return reportingYearFor(new Date(parseInt(year.slice(0, 4), 10) + 1, 3, 1));
+}
+
 /** §5.E.a.vii — revisions allowed through 30 Sep of the first year. */
 export function revisionWindowOpen(year: string, now: Date = new Date()): boolean {
   const start = parseInt(year.slice(0, 4), 10);

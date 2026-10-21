@@ -4,6 +4,7 @@ import {
   activityTotal,
   awpActionFor,
   emptyAWPContent,
+  nextReportingYear,
   reportingYearFor,
   revisionWindowOpen,
 } from './awp';
@@ -34,6 +35,13 @@ describe('reportingYearFor', () => {
     expect(reportingYearFor(new Date(2026, 9, 21))).toBe('2026-27');
     expect(reportingYearFor(new Date(2027, 1, 1))).toBe('2026-27');
     expect(reportingYearFor(new Date(2027, 3, 1))).toBe('2027-28');
+  });
+});
+
+describe('nextReportingYear', () => {
+  it('steps to the following April–March year', () => {
+    expect(nextReportingYear('2026-27')).toBe('2027-28');
+    expect(nextReportingYear('2099-00')).toBe('2100-01');
   });
 });
 

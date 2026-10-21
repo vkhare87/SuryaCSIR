@@ -19,9 +19,9 @@ import {
   SectionVShortfallForm,
   SectionVINationalForm, SectionVIInternationalForm,
 } from './SectionForms';
-import { AWPForm, type AWPDraft } from './AWPForm';
 import { SignatureUpload } from './SignatureUpload';
 import { AnnexureUpload } from './AnnexureUpload';
+import { AWPNextYearLink } from './AWPNextYearLink';
 import type { PMSReport, PMSReportSection, PMSAnnexure, PMSAWPActivity, SectionKey } from '../../types/pms';
 
 type FullReport = PMSReport & { sections: PMSReportSection[]; annexures: PMSAnnexure[]; awpActivities: PMSAWPActivity[] };
@@ -52,7 +52,7 @@ const FORM_MAP: Partial<Record<SectionKey, FormComponent>> = {
 
 export function ReportWizard({ report: initialReport, cycleOpen }: Props) {
   const { user } = useAuth();
-  const { saveSection, saveBasicInfo, saveAWPActivities, uploadSignature, uploadAnnexure, deleteAnnexure, submitReport } = usePMS();
+  const { saveSection, saveBasicInfo, uploadSignature, uploadAnnexure, deleteAnnexure, submitReport } = usePMS();
   const navigate = useNavigate();
 
   const steps = useMemo(() => wizardStepsFor(initialReport.track), [initialReport.track]);
@@ -66,14 +66,6 @@ export function ReportWizard({ report: initialReport, cycleOpen }: Props) {
     previousPmsSubmittedOnTime: initialReport.previousPmsSubmittedOnTime,
     previousPmsSubmissionDate: initialReport.previousPmsSubmissionDate,
   });
-  const [awpActivities, setAwpActivities] = useState<AWPDraft[]>(() =>
-    initialReport.awpActivities.map(a => ({
-      natureOfActivity: a.natureOfActivity,
-      role: a.role,
-      timeCommittedPercentage: a.timeCommittedPercentage,
-      milestones: a.milestones,
-    }))
-  );
 
   const [sectionData, setSectionData] = useState<Record<string, Record<string, unknown>>>(() =>
     Object.fromEntries(report.sections.map(s => [s.sectionKey, s.data]))
@@ -91,19 +83,15 @@ export function ReportWizard({ report: initialReport, cycleOpen }: Props) {
   const saveCurrent = useCallback(async (currentSectionData: Record<string, Record<string, unknown>>) => {
     const currentStep = steps[step];
     if (!currentStep) return;
-    if (currentStep.keys.length === 0 && !currentStep.awp) return;
+    if (currentStep.keys.length === 0) return;
     setSaving(true);
     setError(null);
     try {
-      if (currentStep.awp) {
-        await saveAWPActivities(report.id, awpActivities.filter(a => a.natureOfActivity.trim()));
-      } else {
-        await Promise.all(
-          currentStep.keys.map(key =>
-            saveSection(report.id, key, currentSectionData[key] ?? {})
-          )
-        );
-      }
+      await Promise.all(
+        currentStep.keys.map(key =>
+          saveSection(report.id, key, currentSectionData[key] ?? {})
+        )
+      );
       // Each track carries period_from / period_to on its own first section.
       const periodKey = currentStep.keys.find(k => PERIOD_SECTION_KEYS.includes(k));
       if (periodKey) {
@@ -117,7 +105,7 @@ export function ReportWizard({ report: initialReport, cycleOpen }: Props) {
     } finally {
       setSaving(false);
     }
-  }, [step, steps, report.id, saveSection, saveBasicInfo, saveAWPActivities, basicInfo, awpActivities]);
+  }, [step, steps, report.id, saveSection, saveBasicInfo, basicInfo]);
 
   const goNext = async () => {
     try {
@@ -204,7 +192,8 @@ export function ReportWizard({ report: initialReport, cycleOpen }: Props) {
         <h2 className="text-lg font-serif font-medium text-text mb-4">{currentStepDef.label}</h2>
 
         {currentStepIsAWP ? (
-          <AWPForm activities={awpActivities} onChange={setAwpActivities} />
+          // Part V lives on its own record and approval chain (/pms/awp).
+          <AWPNextYearLink periodFrom={report.periodFrom} />
         ) : isLastStep ? (
           <div className="space-y-6">
             <div className="bg-background border border-border rounded-xl p-4 space-y-2 text-sm">

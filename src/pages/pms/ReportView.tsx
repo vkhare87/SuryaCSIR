@@ -12,6 +12,7 @@ import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { ReportPDF } from '../../components/pms/ReportPDF';
+import { ReportAWPSection } from '../../components/pms/ReportAWPSection';
 import type { PMSReport, PMSReportSection, PMSAnnexure, PMSAWPActivity, PMSCommitteeDecision } from '../../types/pms';
 
 type FullReport = PMSReport & { sections: PMSReportSection[]; annexures: PMSAnnexure[]; awpActivities: PMSAWPActivity[] };
@@ -220,6 +221,8 @@ export default function ReportView() {
           </div>
         </div>
       )}
+
+      {report.track === 'STANDARD' && <ReportAWPSection report={report} />}
 
       {report.sections.length > 0 && (
         <div className="space-y-3">

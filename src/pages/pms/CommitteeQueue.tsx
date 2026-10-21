@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { usePMS } from '../../contexts/PMSContext';
+import { ReportAWPSection } from '../../components/pms/ReportAWPSection';
 import { useAuth } from '../../contexts/AuthContext';
 import { canCommitteeDecide } from '../../lib/pms/permissions';
 import { SCORE_RANGE } from '../../lib/pms/constants';
@@ -233,6 +234,8 @@ export default function CommitteeQueue() {
                   <p className="text-xs text-text-muted">No completed evaluations on record.</p>
                 )}
               </div>
+
+              {reportDetail && !isSenior && <ReportAWPSection report={reportDetail} />}
 
               {/* Institutional evidence — claim corroboration + trajectory */}
               {reportDetail && (
