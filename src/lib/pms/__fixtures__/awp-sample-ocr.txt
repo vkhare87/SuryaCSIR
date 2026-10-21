@@ -1,0 +1,201 @@
+=== PAGE 1
+—
+! HICERTTERR- STA TTY TUT Noh STEHT Her
+I . (eh oN
+H{ of CSI'R- Advanced Materials and Processes Research Institute / DAT
+Sel 9
+wn (AMPRI) : la P/ ,
+RNR A Fe 8 5) RZ
+sti iL wn SEER Padn or AY
+JU Hi. (Council of Scientific and Industrial Research) Seance 9
+Ti tin tg f
+ekargor OE, Eeeter AT 3 0, sar-462026 (7.5) iS ord
+Narmadapuram Road, Near Habibganj Naka, Bhopal-462026 (MP)
+COUNCIL OF SCIENTIFIC & INDUSTRIAL RESEARCH
+Performance Mapping of Scientists (PMS) Guidelines, 2026
+PART V — ANNUAL WORK PLAN (AWP)
+Reporting Period: 1 April 2026 — 31 March 2027
+PART A — PERSONAL DETAILS
+Name of Employee Test Scientist Employee ID 99999
+Group / Grade Group IV Date of Birth 01/01/1990 |
+Current Designation Scientist-E Division / Department IMD, Division
+Date of Joining CSIR 07/03/2016 Date of Joining Present 47/03/2025
+Category (SG/ST/OBC, if General : Email ID ltest.sci@csir.res.in
+applicable)
+Mobile No. 9000000000 Reporting Officer Dr. Test Officer
+Reviewing Officer Dr. Test Director |
+Previous year's PMS submitted on time? VYes ONo If yes, date of submission:24/04/2026
+PART B — PROPOSED PLAN / PERFORMANCE INDICATORS FOR THE REPORTING YEAR
+Indicate your role and the percentage of time committed against each applicable activity. Time committed should total 100%
+5 Time
+1.CSIR_CLAIM-MMP015203
+Role:Work package Leader:
+Control algorithm and system design, associated
+Al/ML/RL design, associated data analysis, grasp
+stability experimental setup design |
+2. ICMR project GAP-162
+R&D — Fundamental Research IRole:Work package Leader: 25
+Control algorithm and system design, mechanism
+| design exploration, artificial finger experimental
+setup design
+3. ULIP MLP-002602:
+Design & development of
+analytical/measurement/smart equipment and
+CSIR PMS Guidelines 2026 — Part V- Annual Work Plan | Page 1
+
+=== PAGE 2
+Time
+f Activi
+samba | idle GREE me (%)
+devices,Role: Activity Leader: Explore hybrid
+actuation
+1.CSIR-CLAIM-MMP015203
+Role:Work package Leader:
+SMA actuator refinements, Soft Gripper
+refinements, FSR tactile sensor development and
+integration, Associated electronics development,
+Control system development, Data collection for
+grasp stability and associated setup development,
+R&D — Translational Research Robotic Manipulator setup 50
+2.1CMR project GAP-162 Role:Work package Leader:
+SMA actuator development, artificial hand setup
+development, associated electronics development,
+loading condition testing
+3. ULIP MLP-002602,Role:Activity Leader:
+Experimental setup development, associated
+oo electronics development
+R&D Allied Services (Central Testing Maintain, na and Operate COMZOL software, 5
+Facility, Instrumentation, etc.) ro otic manipu ator, prototyping equipme
+other divisional equipment
+R&D — Management Services (PPBD, Assist in preparation of project presentation, 2
+TTBD, IT, etc.) report preparation etc.
+Work - | 3 AP-162
+Leadership / HoD ork package leader-MMP-015203 and G. :
+Activity Leader- ULIP MLP-002602
+Outreach activities Assist in institutional outreach activities as assigned 2
+i Discussion with industries with regard to developed
+Industry Projects technologies 1
+Projects Submission Projects proposal submission will be done 5
+n Indenting & procurement, institutional committees
+Any other and other assigned activities 5
+1. Research Projects for the Upcoming Reporting Year (RY)
+0 3 Resources (availability,
+be Addressed in the RY 4
+Project Details Objective(s) to requirements, constraints)
+Project Title:  Al-Driven Smart Material-Actuated
+(SMA) Soft-Robotic Gripper with Integrated Tactile
+Sensor Array for Precise Gripping Control ® Electronics and
+(CSIR_CLAIM-MMP015203) mechanical workbenches
+1. Design and development of SMA actuated soft and associated ]
+CSIR Project gripper with associated electronics equipment are available
+rojects 2. Design and development of control system and * Robotic manipulator for
+low level control for SMA actuated soft gripper gripper testing available
+3. Design and development of tactile based sensing GPU based workstations
+system for SMA actuated soft gripper available
+4. Design and development of Al based algorithms «3D printers are available
+for intelligent gripping of objects
+CSIR PMS Guidelines 2026 — Part V- Annual Work Plan | Page 2
+
+=== PAGE 3
+Project title: Centre of Advanced Research and |
+Innovations in Assistive and Rehabilitative |
+Technologies for the elderly and Disabled Individuals * Electronics and
+(ICMR project GAP-162) mechanical workbenches
+and associated
+Externally funded  : Objective 3 (CSIR-AMPRI): Active Exoskeletons, equipment are available
+Projects (Govt. / Robotic Rehabilitation and Smart material actuators « GPU based workstations
+Industry) (SMA): « 3D printers are available
+1. Development of SMA actuator for hand
+exoskeleton/orthosis components
+2. Development associated of electronics and |
+control system | |
+e Electronics and
+ULIP: mechanical workbenches
+Lab-mandate specific Design & development of and associated
+Projects (assigned by analytical/measurement/smart equipment and equipment are available
+Director or DG, CSIR) devices « GPU based workstations |
+e 3D printers are available
+Any other - - |
+2. Research Objectives and Planned Activities
+Emr TT ee
+1. Project Title:  Al-Driven Smart Material-Actuated (SMA) Soft-
+Robotic Gripper with Integrated Tactile
+Sensor Array for Precise Gripping Control
+(CSIR_CLAIM-MMP015203)
+Activities to be taken up as Leader:
+1. Low level control development and Reinforcement Learning
+based control design, development and implementation
+2. FSR (Force sensing resistor) based tactile system development
+associated Al/ML algorithms & implementation
+3. Setting up experiments for assessing grasp stability and
+associated data generation for gripping control with Robotic
+. . manipulator setup
+(a) Project details
+4. Refinements in SMA actuator for SMA gripper
+2. Project title: Centre of Advanced Research and Innovations in
+Assistive and Rehabilitative Technologies for the elderly and Disabled
+Individuals
+(ICMR project GAP-162)
+Activities to be taken up as Leader:
+1. Setting up an experimental setup for an artificial hand and
+Integration of actuator with connectors for single finger
+2. Associated electronics development
+3. Testing with loading conditions and planning expansion of
+actuator for multiple fingers
+CSIR PMS Guidelines 2026 — Part V: Annual Work Plan | Page 3
+
+=== PAGE 4
+3. Project title: ULIP- Design & development of
+analytical/measurement/smart equipment and devices: Work
+element/Activity
+Activities to be taken up as Leader:
+1. Basic study and design for actuator hybridization and setting
+up experimental setup
+4. Simulation setup development for SMA actuators for aid in control
+system design and prediction-Take lead in this
+(b) Human Resource Development e PhD supervision: Co-guide to two students
+(AcSIR / skill development / training i )
+interns, etc.) * Interns will be guided as per allotment
+® Reinforcement Learning based control system for SMA
+actuated gripper
+(c) Processes / Technology / Design * SMA actuated Soft robotic gripper with integrated FSR tactile
+sensing system
+* SMA Actuator for single finger motion for exoskeleton
+(d) Patents ® 0-1 patents to be submitted
+(e) Publications ® 1-2 publications will be communicated/submitted
+® Active contribution in report preparation for CSIR- oo
+(f) Reports for Govt. / Pvt. / strategic CLAIM(MMP-015203), ICMR(GAP-162) and other project
+establishments / Annual Report progress
+* Inputs to Annual report of division
+3. Professional & Personal Development
+il . .
+(a) Fellowships / Joint Exchange Programmes *  Wilitake up such programmes if opportunity
+provided
+= * Training associated with the PhD program
+(b) Training Courses carried out from IIT Roorkee
+¢ PhD supervision: Co-guide to two students
+(c) Academic work (AcSIR / PhD supervision / guiding ® Interns will be guided as per allotment
+interns / proposal writing, etc.) ® Project proposal writing: New projects will be
+submitted
+(d) Any other ® Carrying out PhD from IIT Roorkee
+4. Any Other Institutional Work to be Undertaken in the Upcoming RY
+Define the work, your role, etc.
+Part of institutional committees- Safety & Waste Management Committee-Member, Knowledge Resource
+Advisory Committee-Member, Publication & Patent Committee-Reviewer and other activities as assigned by
+institute
+CSIR PMS Guidelines 2026 — Part V: Annual Work Plan | Page 4
+
+=== PAGE 5
+5. Any Other Matter Not Covered in the Sections Above
+NA
+Place: _ Bhool EE A
+Ne
+Date: _{ R [a Qlzol § Signature of the Scientist
+REVIEW & ENDORSEMENT
+| have reviewed the Annual Performance Plan of Mr. Test Scientist and am satisfied with it. In comparison to
+Ce the same level in the division / institution, the proposed plan / performance:
+Appears reasonable 0 Does not appear reasonable
+If ‘Does not appear reasonable ', provide specific reasons below.
+Date & Place: | Elo Ww Y V ) 5% Signature Pe <4 Division / Reporting Officer
+Date &Place: ____ Signature of the Director
+CSIR PMS Guidelines 2026 — Part V. Annual Work Plan | Page 5
