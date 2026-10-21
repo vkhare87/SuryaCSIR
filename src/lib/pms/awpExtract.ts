@@ -120,9 +120,19 @@ function parseActivities(lines: string[]): { rows: AWPActivityRow[]; confidence:
     if (known) {
       if (!anchors.some(a => a.label === known[0])) anchors.push({ label: known[0], at, pct, re: known[1] });
     } else if (pct !== null) {
-      // A lab-added row: its label is the leading capitalised words.
-      const words = /^\W*((?:[A-Z][\w&/-]*\s+){0,1}[A-Z][\w&/-]*)/.exec(line);
-      if (words) anchors.push({ label: words[1], at, pct, re: new RegExp('^\\W*' + words[1].replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) });
+      // A lab-added row: its label is the leading capitalised words — on this
+      // line, or on the line above when OCR split the label from the % cell.
+      const labelOf = (l: string) => /^\W*((?:[A-Z][\w&/-]*\s+){0,1}[A-Z][\w&/-]*)/.exec(l)?.[1];
+      const prevFree = at > 0 && !anchors.some(a => a.at === at - 1) && !ACTIVITY_PATTERNS.some(([, re]) => re.test(lines[at - 1]));
+      const here = labelOf(line);
+      const above = !here && prevFree ? labelOf(lines[at - 1]) : undefined;
+      const label = here ?? above;
+      if (label) {
+        anchors.push({
+          label, at: here ? at : at - 1, pct,
+          re: new RegExp('^\\W*' + label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
+        });
+      }
     }
   });
   if (anchors.length === 0) return { rows: emptyAWPContent().activitySplit, confidence: 'empty' };
@@ -157,7 +167,8 @@ function parseVerdict(lines: string[]): AWPVerdict | null {
   const blank = (c: string) => /^[0Oo☐□]$/.test(c);
   if (ticked(no)) return 'NOT_REASONABLE';
   if (ticked(yes)) return 'REASONABLE';
-  if (blank(no) && text.includes('Appears reasonable')) return 'REASONABLE';
+  // Two boxes, one blank: the tick (often pen ink that garbles the label) is on the other.
+  if (blank(no)) return 'REASONABLE';
   return null;
 }
 

@@ -3,6 +3,7 @@ import { parseAWPText } from './awpExtract';
 import { activityTotal, emptyAWPContent } from './awp';
 // Real tesseract output of a scanned CSIR-AMPRI AWP, personal data replaced.
 import sample from './__fixtures__/awp-sample-ocr.txt?raw';
+import browserSample from './__fixtures__/awp-sample-ocr-browser.txt?raw';
 
 describe('parseAWPText on a scanned AMPRI AWP', () => {
   const r = parseAWPText(sample);
@@ -54,6 +55,20 @@ describe('parseAWPText on a scanned AMPRI AWP', () => {
   });
 
   it('reads the HoD verdict from the endorsement block', () => {
+    expect(r.roVerdict).toBe('REASONABLE');
+  });
+});
+
+// Same PDF read by pdf.js + tesseract.js in the browser: noisier.
+describe('parseAWPText on the browser OCR of the same AWP', () => {
+  const r = parseAWPText(browserSample);
+
+  it('keeps a lab-added row whose label and % landed on different lines', () => {
+    const row = r.content.activitySplit.find(a => a.label.startsWith('Industry Project'));
+    expect(row?.timePct).toBe(1);
+  });
+
+  it('reads "reasonable" when the HoD tick garbled the label but the other box is blank', () => {
     expect(r.roVerdict).toBe('REASONABLE');
   });
 });
