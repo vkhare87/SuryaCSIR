@@ -264,3 +264,106 @@ export type AnnexureIISectionKey =
 export type SeniorSectionKey = AnnexureISectionKey | AnnexureIISectionKey;
 
 export type SectionKey = StandardSectionKey | SeniorSectionKey;
+
+// --- Part V — Annual Work Plan (pms_awps) ---
+
+export type AWPStatus = 'DRAFT' | 'WITH_RO' | 'WITH_RVO' | 'WITH_DIRECTOR' | 'RETURNED' | 'APPROVED';
+export type AWPProjectKind = 'CSIR' | 'EXTERNAL' | 'LAB_MANDATE' | 'OTHER';
+export type AWPVerdict = 'REASONABLE' | 'NOT_REASONABLE';
+
+export interface AWPActivityRow {
+  label: string;
+  role: string;
+  timePct: number;
+}
+
+export interface AWPProject {
+  kind: AWPProjectKind;
+  details: string;
+  objectives: string;
+  resources: string;
+  confidential: boolean;
+}
+
+export interface AWPPartA {
+  name: string;
+  employeeId: string;
+  group: string;
+  designation: string;
+  division: string;
+  dob: string;
+  dojCsir: string;
+  dojGrade: string;
+  category: string;
+  email: string;
+  mobile: string;
+  reportingOfficer: string;
+  reviewingOfficer: string;
+  prevPmsOnTime: boolean | null;
+  prevPmsDate: string;
+}
+
+export interface AWPObjectives {
+  projectDetails: string;
+  hrd: string;
+  processes: string;
+  patents: string;
+  publications: string;
+  other: string;
+}
+
+export interface AWPDevelopment {
+  fellowships: string;
+  training: string;
+  academic: string;
+  other: string;
+}
+
+export interface AWPContent {
+  partA: AWPPartA;
+  activitySplit: AWPActivityRow[];
+  projects: AWPProject[];
+  objectives: AWPObjectives;
+  development: AWPDevelopment;
+  institutionalWork: string;
+  other: string;
+}
+
+export interface PMSAWP extends AWPContent {
+  id: string;
+  staffId: string;
+  scientistUserId: string | null;
+  reportingYear: string;
+  status: AWPStatus;
+  reportingOfficerId: string | null;
+  reviewingOfficerId: string | null;
+  roVerdict: AWPVerdict | null;
+  roReasons: string | null;
+  roAt: string | null;
+  rvoRemarks: string | null;
+  rvoAt: string | null;
+  directorDecision: 'ACCEPTED' | 'MODIFIED' | null;
+  directorRemarks: string | null;
+  approvedAt: string | null;
+  communicatedAt: string | null;
+  returnReasons: string | null;
+  source: 'ONLINE' | 'IMPORTED' | 'BLANK_FORWARDED';
+  sourcePdfPath: string | null;
+  submittedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PMSAWPRevision {
+  id: string;
+  awpId: string;
+  initiatedBy: string;
+  reasons: string;
+  before: AWPContent;
+  after: AWPContent;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  decidedBy: string | null;
+  decidedAt: string | null;
+  decisionRemarks: string | null;
+  createdAt: string;
+}
