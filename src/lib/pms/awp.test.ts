@@ -3,6 +3,7 @@ import {
   AWP_ACTIVITY_LABELS,
   activityTotal,
   awpActionFor,
+  awpYearOptions,
   emptyAWPContent,
   nextReportingYear,
   reportingYearFor,
@@ -21,7 +22,7 @@ const awp = (status: AWPStatus, over: Partial<PMSAWP> = {}): PMSAWP => ({
   ...over,
 });
 
-const none = { isDirector: false, isAdmin: false };
+const none = { isDirector: false };
 
 describe('activityTotal', () => {
   it('sums the sample AWP split to 100', () => {
@@ -35,6 +36,18 @@ describe('reportingYearFor', () => {
     expect(reportingYearFor(new Date(2026, 9, 21))).toBe('2026-27');
     expect(reportingYearFor(new Date(2027, 1, 1))).toBe('2026-27');
     expect(reportingYearFor(new Date(2027, 3, 1))).toBe('2027-28');
+  });
+});
+
+describe('awpYearOptions', () => {
+  it('offers this year and next year in the April–December part of the year', () => {
+    expect(awpYearOptions(new Date(2026, 9, 22), [])).toEqual(['2026-27', '2027-28']);
+  });
+  it('still offers the following year in January–March (reviewer finding)', () => {
+    expect(awpYearOptions(new Date(2027, 1, 10), [])).toEqual(['2026-27', '2027-28']);
+  });
+  it('keeps older years the scientist already has, sorted, without duplicates', () => {
+    expect(awpYearOptions(new Date(2026, 9, 22), ['2025-26', '2026-27'])).toEqual(['2025-26', '2026-27', '2027-28']);
   });
 });
 
@@ -60,7 +73,13 @@ describe('awpActionFor', () => {
     expect(awpActionFor(awp('WITH_RO'), { staffId: 'RO', ...none })).toBe('RO_REVIEW');
   });
   it('gives the Director the decision on WITH_DIRECTOR', () => {
-    expect(awpActionFor(awp('WITH_DIRECTOR'), { staffId: 'D', isDirector: true, isAdmin: false })).toBe('DIRECTOR_DECIDE');
+    expect(awpActionFor(awp('WITH_DIRECTOR'), { staffId: 'D', isDirector: true })).toBe('DIRECTOR_DECIDE');
+  });
+  it('does not give a non-Director (e.g. an admin) the Director decision (§5.E.a.iv)', () => {
+    expect(awpActionFor(awp('WITH_DIRECTOR'), { staffId: 'H', isDirector: false })).toBeNull();
+  });
+  it('gives the RO the review of a blank-forwarded AWP', () => {
+    expect(awpActionFor(awp('WITH_RO', { source: 'BLANK_FORWARDED' }), { staffId: 'RO', ...none })).toBe('RO_REVIEW');
   });
   it('gives a stranger nothing', () => {
     expect(awpActionFor(awp('WITH_RO'), { staffId: 'X', ...none })).toBeNull();

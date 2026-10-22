@@ -78,6 +78,12 @@ export function nextReportingYear(year: string): string {
   return reportingYearFor(new Date(parseInt(year.slice(0, 4), 10) + 1, 3, 1));
 }
 
+/** Years offered on "My AWP": the current one, the next one, and any the scientist already has. */
+export function awpYearOptions(now: Date, existing: string[]): string[] {
+  const current = reportingYearFor(now);
+  return Array.from(new Set([current, nextReportingYear(current), ...existing])).sort();
+}
+
 /** §5.E.a.vii — revisions allowed through 30 Sep of the first year. */
 export function revisionWindowOpen(year: string, now: Date = new Date()): boolean {
   const start = parseInt(year.slice(0, 4), 10);
@@ -89,7 +95,7 @@ export type AWPAction = 'EDIT' | 'RO_REVIEW' | 'RVO_REVIEW' | 'DIRECTOR_DECIDE';
 /** What the viewer may do with this AWP right now. Mirrors the RPC guards. */
 export function awpActionFor(
   awp: PMSAWP,
-  ctx: { staffId: string | null; isDirector: boolean; isAdmin: boolean },
+  ctx: { staffId: string | null; isDirector: boolean },
 ): AWPAction | null {
   const me = ctx.staffId;
   switch (awp.status) {
@@ -101,7 +107,7 @@ export function awpActionFor(
     case 'WITH_RVO':
       return me != null && me === awp.reviewingOfficerId ? 'RVO_REVIEW' : null;
     case 'WITH_DIRECTOR':
-      return ctx.isDirector || ctx.isAdmin ? 'DIRECTOR_DECIDE' : null;
+      return ctx.isDirector ? 'DIRECTOR_DECIDE' : null;
     default:
       return null;
   }

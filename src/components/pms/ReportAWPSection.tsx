@@ -1,31 +1,40 @@
-import { useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { useAWP } from '../../contexts/AWPContext';
-import { useData } from '../../contexts/DataContext';
 import { AWPPanel } from './AWPPanel';
 import { AWP_STATUS_LABEL, reportingYearFor } from '../../lib/pms/awp';
-import type { PMSReport } from '../../types/pms';
+import type { PMSAWP, PMSReport } from '../../types/pms';
 
 interface Props {
-  report: Pick<PMSReport, 'scientistId' | 'periodFrom' | 'periodTo'>;
+  report: Pick<PMSReport, 'id' | 'periodFrom'>;
 }
 
 /**
  * The approved Part V plan for the report's reporting year — what the
- * committees compare the year's work against (§5.E). Confidential projects
- * stay hidden.
+ * committees compare the year's work against (§5.E). Fetched through
+ * pms_awp_for_report, which strips confidential projects server-side and
+ * works for reviewers who cannot see the scientist's staff row.
  */
 export function ReportAWPSection({ report }: Props) {
-  const { awpFor } = useAWP();
-  const { staff } = useData();
-
-  const staffId = useMemo(() => staff.find(s => s.user_id === report.scientistId)?.ID ?? null, [staff, report.scientistId]);
+  const { awpForReport } = useAWP();
+  const [awp, setAwp] = useState<PMSAWP | null>(null);
+  const [loaded, setLoaded] = useState(false);
   const year = report.periodFrom ? reportingYearFor(new Date(report.periodFrom)) : null;
-  const awp = staffId && year ? awpFor(staffId, year) : undefined;
+
+  useEffect(() => {
+    let live = true;
+    awpForReport(report.id)
+      .then(a => { if (live) setAwp(a); })
+      .catch(e => console.error('[awp] committee view failed', e))
+      .finally(() => { if (live) setLoaded(true); });
+    return () => { live = false; };
+  }, [report.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <section className="space-y-2">
       <h2 className="text-lg font-medium text-text">Approved Annual Work Plan</h2>
-      {awp?.status === 'APPROVED' ? (
+      {!loaded ? (
+        <p className="text-sm text-text-muted">Loading…</p>
+      ) : awp?.status === 'APPROVED' ? (
         <AWPPanel awp={awp} hideConfidential />
       ) : (
         <p className="text-sm text-text-muted">

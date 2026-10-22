@@ -207,7 +207,9 @@ No path aliases. Always relative imports.
 - typecheck: `npm run build` — **`npx tsc --noEmit` passes vacuously** under the
   project-references layout, so it proves nothing. `npm run build` runs `tsc -b`.
 - lint: `npm run lint` (`eslint .` — covers `scripts/` and configs too, not just `src/`)
-- test: `npm test` — 77 files, 722 tests (as of 2026-10-21)
+- test: `npm test` — 79 files, 755 tests (as of 2026-10-22). Includes `scripts/db/*.test.ts`: every
+  migration applied to an in-process Postgres (PGlite + Supabase shims, `scripts/db/pgliteHarness.ts`),
+  then RLS/RPC tests and `supabase/tests/*.sql` — no Docker or Supabase CLI needed
 - python: `python -m pytest` in `rag/` and in `ingest/`
 - policy audit: `python scripts/check_security_definer.py`
 

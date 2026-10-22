@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { pdf } from '@react-pdf/renderer';
 import { Download } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 import { useAWP } from '../../contexts/AWPContext';
 import { useData } from '../../contexts/DataContext';
 import { AWPPartVForm } from '../../components/pms/AWPPartVForm';
@@ -10,20 +11,20 @@ import { AWPPDF } from '../../components/pms/AWPPDF';
 import { Button } from '../../components/ui/Button';
 import { Skeleton } from '../../components/ui/Skeleton';
 import {
-  AWP_STATUS_LABEL, activityTotal, awpActionFor, emptyAWPContent, reportingYearFor, revisionWindowOpen,
+  AWP_STATUS_LABEL, activityTotal, awpActionFor, awpYearOptions, emptyAWPContent, reportingYearFor, revisionWindowOpen,
 } from '../../lib/pms/awp';
 import type { AWPContent, PMSAWP } from '../../types/pms';
 
 export default function AWPMine() {
   const { awps, revisions, myStaffId, isLoading, awpFor, saveDraft, submit, requestRevision } = useAWP();
   const { staff } = useData();
+  const { user } = useAuth();
   const [params, setParams] = useSearchParams();
 
-  const years = useMemo(() => {
-    const now = reportingYearFor(new Date());
-    const next = reportingYearFor(new Date(new Date().getFullYear() + 1, 3, 1));
-    return Array.from(new Set([now, next, ...awps.filter(a => a.staffId === myStaffId).map(a => a.reportingYear)])).sort();
-  }, [awps, myStaffId]);
+  const years = useMemo(
+    () => awpYearOptions(new Date(), awps.filter(a => a.staffId === myStaffId).map(a => a.reportingYear)),
+    [awps, myStaffId],
+  );
   const year = params.get('year') ?? reportingYearFor(new Date());
 
   const me = useMemo(() => staff.find(s => s.ID === myStaffId), [staff, myStaffId]);
@@ -57,7 +58,9 @@ export default function AWPMine() {
 
   if (isLoading) return <Skeleton className="h-64 w-full" />;
 
-  if (!myStaffId) {
+  // caller_staff_id() falls back to a matching e-mail, but saving needs a real
+  // staff.user_id link — say so up front instead of failing on Save.
+  if (!myStaffId || (me && me.user_id !== user?.id)) {
     return (
       <div className="p-6 bg-surface border border-border rounded-2xl text-sm text-text-muted">
         Your login is not linked to a staff record, so you cannot file an Annual Work Plan. Ask HR to link your account.
@@ -65,7 +68,7 @@ export default function AWPMine() {
     );
   }
 
-  const editable = !awp || awpActionFor(awp, { staffId: myStaffId, isDirector: false, isAdmin: false }) === 'EDIT';
+  const editable = !awp || awpActionFor(awp, { staffId: myStaffId, isDirector: false }) === 'EDIT';
   const total = activityTotal(content.activitySplit);
 
   const run = async (fn: () => Promise<void>, done: string) => {

@@ -107,9 +107,11 @@ RETURNS void LANGUAGE sql AS $$
       FROM public.staff s WHERE s."ID" = p_staff_id AND s.user_id IS NOT NULL;
 $$;
 
--- Read gate for an AWP row. SECURITY DEFINER because it consults staff,
--- pms_reports and committee tables the caller may not see directly; it
--- returns only a yes/no about the caller.
+-- Read gate for the full AWP row: the scientist, their Reporting and
+-- Reviewing Officers, the Director and PMS admins. Committees do NOT read
+-- the table — they get a copy with confidential projects stripped through
+-- pms_awp_for_report() below, so the redaction is enforced server-side.
+-- SECURITY DEFINER because it consults staff rows the caller may not see.
 CREATE OR REPLACE FUNCTION public.pms_awp_can_read(p_staff_id text, p_ro text, p_rvo text)
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
     SELECT auth.uid() IS NOT NULL AND (
@@ -117,19 +119,18 @@ RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS
         OR public.user_has_role('Director')
         OR EXISTS (SELECT 1 FROM public.staff s WHERE s."ID" = p_staff_id AND s.user_id = auth.uid())
         OR public.caller_staff_id() IN (p_ro, p_rvo)
-        OR EXISTS (
-            SELECT 1
-              FROM public.pms_reports r
-              JOIN public.staff s ON s.user_id = r.scientist_id AND s."ID" = p_staff_id
-             WHERE EXISTS (SELECT 1 FROM public.pms_evaluations e
-                            WHERE e.report_id = r.id AND e.evaluator_id = auth.uid())
-                OR public.pms_is_evaluation_committee_member(r.cycle_id)
-                OR EXISTS (SELECT 1 FROM public.pms_empowered_committee_members m
-                            WHERE m.cycle_id = r.cycle_id AND m.user_id = auth.uid())
-                OR public.user_has_role('EmpoweredCommittee')
-                OR public.pms_is_grievance_member(r.cycle_id)
-        )
     );
+$$;
+
+-- Projects with confidential=true lose everything but their kind.
+CREATE OR REPLACE FUNCTION public.pms_awp_redact_projects(p_projects jsonb)
+RETURNS jsonb LANGUAGE sql IMMUTABLE AS $$
+    SELECT coalesce(jsonb_agg(
+        CASE WHEN coalesce((p->>'confidential')::boolean, false)
+             THEN jsonb_build_object('kind', p->'kind', 'details', '', 'objectives', '',
+                                     'resources', '', 'confidential', true)
+             ELSE p END), '[]'::jsonb)
+      FROM jsonb_array_elements(coalesce(p_projects, '[]'::jsonb)) p;
 $$;
 
 -- ── 3. RLS + grants ───────────────────────────────────────────────────────
@@ -149,6 +150,48 @@ REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.pms_awps, public.pms_awp_revis
 GRANT SELECT ON public.pms_awps, public.pms_awp_revisions TO authenticated;
 
 -- ── 4. RPCs ───────────────────────────────────────────────────────────────
+
+-- Committee view: the AWP for the reporting year of a report the caller may
+-- read (same readers as reports_select), confidential projects redacted.
+-- Looks the scientist up through staff.user_id OR the AWP's own copy, so a
+-- reviewer from another division (who cannot see the staff row) still gets it.
+CREATE OR REPLACE FUNCTION public.pms_awp_for_report(p_report_id uuid)
+RETURNS SETOF public.pms_awps LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+    v_report public.pms_reports%ROWTYPE;
+    v_awp    public.pms_awps%ROWTYPE;
+    v_year   text;
+BEGIN
+    SELECT * INTO v_report FROM public.pms_reports WHERE id = p_report_id;
+    IF NOT FOUND THEN RETURN; END IF;
+    IF NOT COALESCE(
+           v_report.scientist_id = auth.uid()
+        OR public.pms_is_admin()
+        OR public.user_has_role('Director')
+        OR public.user_has_role('EmpoweredCommittee')
+        OR public.pms_is_evaluation_committee_member(v_report.cycle_id)
+        OR public.pms_is_grievance_member(v_report.cycle_id)
+        OR EXISTS (SELECT 1 FROM public.pms_evaluations e
+                    WHERE e.report_id = p_report_id AND e.evaluator_id = auth.uid())
+        OR EXISTS (SELECT 1 FROM public.pms_empowered_committee_members m
+                    WHERE m.cycle_id = v_report.cycle_id AND m.user_id = auth.uid()), false) THEN
+        RETURN;
+    END IF;
+
+    v_year := to_char(coalesce(v_report.period_from,
+                               (SELECT start_date FROM public.appraisal_cycles WHERE id = v_report.cycle_id)), 'YYYY');
+    v_year := v_year || '-' || lpad(((v_year::int + 1) % 100)::text, 2, '0');
+
+    SELECT * INTO v_awp FROM public.pms_awps a
+     WHERE a.reporting_year = v_year
+       AND (a.scientist_user_id = v_report.scientist_id
+            OR a.staff_id IN (SELECT s."ID" FROM public.staff s WHERE s.user_id = v_report.scientist_id))
+     LIMIT 1;
+    IF NOT FOUND THEN RETURN; END IF;
+    v_awp.projects := public.pms_awp_redact_projects(v_awp.projects);
+    RETURN NEXT v_awp;
+END;
+$$;
 
 -- Scientist creates or edits their own AWP while DRAFT / RETURNED.
 CREATE OR REPLACE FUNCTION public.pms_awp_save_draft(p_staff_id text, p_year text, p_payload jsonb)
@@ -208,9 +251,11 @@ BEGIN
     IF public.pms_awp_total(v_awp.activity_split) <> 100 THEN
         RAISE EXCEPTION 'Time committed must total 100%%';
     END IF;
+    IF v_awp.reporting_officer_id IS NULL THEN
+        RAISE EXCEPTION 'No Reporting Officer on record; ask HR to set one';
+    END IF;
 
-    v_next := CASE WHEN v_awp.reporting_officer_id IS NOT NULL
-                    AND v_awp.reporting_officer_id = public.pms_awp_director_staff_id()
+    v_next := CASE WHEN v_awp.reporting_officer_id = public.pms_awp_director_staff_id()
                    THEN 'WITH_DIRECTOR' ELSE 'WITH_RO' END;
 
     UPDATE public.pms_awps SET status = v_next, submitted_at = now(), return_reasons = NULL
@@ -226,8 +271,11 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION public.pms_awp_ro_review(p_awp_id uuid, p_verdict text, p_reasons text)
-RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+-- p_payload: only for a BLANK_FORWARDED AWP, where the RO fills the plan in
+-- on the scientist's behalf (§5.E.a.iii).
+CREATE OR REPLACE FUNCTION public.pms_awp_ro_review(
+    p_awp_id uuid, p_verdict text, p_reasons text, p_payload jsonb DEFAULT NULL
+) RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
     v_awp public.pms_awps%ROWTYPE;
     v_director text := public.pms_awp_director_staff_id();
@@ -242,6 +290,26 @@ BEGIN
     IF p_verdict NOT IN ('REASONABLE','NOT_REASONABLE') THEN RAISE EXCEPTION 'Invalid verdict'; END IF;
     IF p_verdict = 'NOT_REASONABLE' AND length(trim(coalesce(p_reasons, ''))) < 20 THEN
         RAISE EXCEPTION 'Reasons (at least 20 characters) are required when the plan does not appear reasonable';
+    END IF;
+
+    IF p_payload IS NOT NULL THEN
+        IF v_awp.source <> 'BLANK_FORWARDED' THEN
+            RAISE EXCEPTION 'Only a blank-forwarded AWP can be filled in by the Reporting Officer';
+        END IF;
+        IF public.pms_awp_total(p_payload->'activitySplit') <> 100 THEN
+            RAISE EXCEPTION 'Time committed must total 100%%';
+        END IF;
+        UPDATE public.pms_awps SET
+            part_a             = coalesce(p_payload->'partA', '{}'),
+            activity_split     = coalesce(p_payload->'activitySplit', '[]'),
+            projects           = coalesce(p_payload->'projects', '[]'),
+            objectives         = coalesce(p_payload->'objectives', '{}'),
+            development        = coalesce(p_payload->'development', '{}'),
+            institutional_work = coalesce(p_payload->>'institutionalWork', ''),
+            other              = coalesce(p_payload->>'other', '')
+         WHERE id = p_awp_id;
+    ELSIF v_awp.source = 'BLANK_FORWARDED' AND public.pms_awp_total(v_awp.activity_split) <> 100 THEN
+        RAISE EXCEPTION 'Fill in the blank-forwarded plan before reviewing it';
     END IF;
 
     v_next := CASE WHEN v_awp.reviewing_officer_id IS NULL OR v_awp.reviewing_officer_id = v_director
@@ -291,7 +359,9 @@ CREATE OR REPLACE FUNCTION public.pms_awp_director_decide(
 DECLARE
     v_awp public.pms_awps%ROWTYPE;
 BEGIN
-    IF NOT COALESCE(public.user_has_role('Director') OR public.pms_is_admin(), false) THEN
+    -- §5.E.a.iv: the Director's decision, not an administrator's. Paper
+    -- approvals already given are recorded through pms_awp_import instead.
+    IF NOT public.user_has_role('Director') THEN
         RAISE EXCEPTION 'Only the Director can approve an Annual Work Plan';
     END IF;
     SELECT * INTO v_awp FROM public.pms_awps WHERE id = p_awp_id FOR UPDATE;
@@ -300,6 +370,9 @@ BEGIN
     IF p_decision NOT IN ('ACCEPTED','MODIFIED') THEN RAISE EXCEPTION 'Invalid decision'; END IF;
     IF p_decision = 'MODIFIED' AND (p_payload IS NULL OR length(trim(coalesce(p_remarks, ''))) < 20) THEN
         RAISE EXCEPTION 'A modification needs the revised plan and remarks (at least 20 characters)';
+    END IF;
+    IF p_decision = 'MODIFIED' AND public.pms_awp_total(p_payload->'activitySplit') <> 100 THEN
+        RAISE EXCEPTION 'Time committed must total 100%%';
     END IF;
 
     IF p_decision = 'MODIFIED' THEN
@@ -347,7 +420,7 @@ BEGIN
     SELECT * INTO v_awp FROM public.pms_awps WHERE id = p_awp_id FOR UPDATE;
     IF NOT FOUND THEN RAISE EXCEPTION 'AWP not found'; END IF;
     IF NOT COALESCE(
-           public.pms_is_admin()
+           (public.pms_is_admin() AND v_awp.status <> 'WITH_DIRECTOR')
         OR (v_awp.status = 'WITH_RO'       AND v_me = v_awp.reporting_officer_id)
         OR (v_awp.status = 'WITH_RVO'      AND v_me = v_awp.reviewing_officer_id)
         OR (v_awp.status = 'WITH_DIRECTOR' AND public.user_has_role('Director')), false) THEN
@@ -389,6 +462,9 @@ BEGIN
 
     SELECT * INTO v_awp FROM public.pms_awps
      WHERE staff_id = p_staff_id AND reporting_year = p_year FOR UPDATE;
+    IF coalesce(v_awp.reporting_officer_id, v_ro) IS NULL THEN
+        RAISE EXCEPTION 'No Reporting Officer on record; ask HR to set one';
+    END IF;
     IF FOUND AND v_awp.status NOT IN ('DRAFT','RETURNED') THEN
         RAISE EXCEPTION 'AWP has already been submitted';
     END IF;
@@ -444,6 +520,9 @@ BEGIN
 
     v_ro := coalesce(v_staff."ReportingID",
                      (SELECT d."divHoDID" FROM public.divisions d WHERE d."divCode" = v_staff."Division"));
+    IF v_status = 'WITH_RO' AND v_ro IS NULL THEN
+        RAISE EXCEPTION 'No Reporting Officer on record; ask HR to set one';
+    END IF;
     IF v_status = 'WITH_RO' AND v_ro = v_director THEN v_status := 'WITH_DIRECTOR'; END IF;
 
     INSERT INTO public.pms_awps (
@@ -492,11 +571,15 @@ BEGIN
         RAISE EXCEPTION 'Not allowed to revise this AWP';
     END IF;
     IF v_awp.status <> 'APPROVED' THEN RAISE EXCEPTION 'Only an approved AWP can be revised'; END IF;
-    IF now()::date > make_date(left(v_awp.reporting_year, 4)::int, 9, 30) THEN
+    -- Lab time (IST), not UTC: 00:00–05:30 IST on 1 Oct is already closed.
+    IF (now() AT TIME ZONE 'Asia/Kolkata')::date > make_date(left(v_awp.reporting_year, 4)::int, 9, 30) THEN
         RAISE EXCEPTION 'Revision window (first six months) has closed';
     END IF;
     IF length(trim(coalesce(p_reasons, ''))) < 20 THEN
         RAISE EXCEPTION 'Reasons must be at least 20 characters';
+    END IF;
+    IF public.pms_awp_total(p_after->'activitySplit') <> 100 THEN
+        RAISE EXCEPTION 'Time committed must total 100%%';
     END IF;
     IF EXISTS (SELECT 1 FROM public.pms_awp_revisions WHERE awp_id = p_awp_id AND status = 'PENDING') THEN
         RAISE EXCEPTION 'A revision is already pending';
@@ -522,7 +605,7 @@ DECLARE
     v_rev public.pms_awp_revisions%ROWTYPE;
     v_awp public.pms_awps%ROWTYPE;
 BEGIN
-    IF NOT COALESCE(public.user_has_role('Director') OR public.pms_is_admin(), false) THEN
+    IF NOT public.user_has_role('Director') THEN
         RAISE EXCEPTION 'Only the Director can decide an AWP revision';
     END IF;
     SELECT * INTO v_rev FROM public.pms_awp_revisions WHERE id = p_revision_id FOR UPDATE;
@@ -558,6 +641,49 @@ BEGIN
 END;
 $$;
 
+-- Admin override of the Reviewing Officer (defaults to the Director).
+CREATE OR REPLACE FUNCTION public.pms_awp_set_reviewing_officer(p_awp_id uuid, p_staff_id text)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+    v_awp public.pms_awps%ROWTYPE;
+BEGIN
+    IF NOT public.pms_is_admin() THEN
+        RAISE EXCEPTION 'Only PMS administrators can change the Reviewing Officer';
+    END IF;
+    SELECT * INTO v_awp FROM public.pms_awps WHERE id = p_awp_id FOR UPDATE;
+    IF NOT FOUND THEN RAISE EXCEPTION 'AWP not found'; END IF;
+    IF v_awp.status NOT IN ('DRAFT','RETURNED','WITH_RO') THEN
+        RAISE EXCEPTION 'The Reviewing Officer can only change before the Reporting Officer has reviewed';
+    END IF;
+    IF p_staff_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM public.staff WHERE "ID" = p_staff_id) THEN
+        RAISE EXCEPTION 'Staff member not found';
+    END IF;
+
+    UPDATE public.pms_awps SET reviewing_officer_id = p_staff_id WHERE id = p_awp_id;
+
+    INSERT INTO public.pms_audit_logs (user_id, action, entity_type, entity_id, details)
+    VALUES (auth.uid(), 'AWP_RVO_SET', 'pms_awps', p_awp_id, jsonb_build_object('reviewing_officer', p_staff_id));
+END;
+$$;
+
+-- Keep pms_awps.scientist_user_id in step when HR links (or relinks) a
+-- staff row to a login, so an AWP imported before the scientist had an
+-- account becomes theirs. Runs as owner: the staff write itself was already
+-- authorized by staff RLS, and clients have no UPDATE on pms_awps.
+CREATE OR REPLACE FUNCTION public.pms_awp_sync_staff_user()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+    UPDATE public.pms_awps SET scientist_user_id = NEW.user_id
+     WHERE staff_id = NEW."ID" AND scientist_user_id IS DISTINCT FROM NEW.user_id;
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_pms_awp_sync_staff_user
+    AFTER UPDATE OF user_id ON public.staff
+    FOR EACH ROW WHEN (NEW.user_id IS DISTINCT FROM OLD.user_id)
+    EXECUTE FUNCTION public.pms_awp_sync_staff_user();
+
 -- ── 5. Storage — source PDFs ──────────────────────────────────────────────
 -- Admins upload (import/<uuid>.pdf); anyone who can read the AWP that
 -- references a file can read it.
@@ -577,32 +703,41 @@ CREATE POLICY "awp_pdfs_delete" ON storage.objects FOR DELETE TO authenticated
     USING (bucket_id = 'awp-pdfs' AND public.pms_is_admin());
 
 -- ── 6. Function grants ────────────────────────────────────────────────────
+-- Default privileges (20260718000007) hand authenticated EXECUTE on every
+-- new function, so internal helpers must be revoked from it explicitly.
 REVOKE EXECUTE ON FUNCTION
     public.pms_awp_notify(text, text, text, text),
+    public.pms_awp_sync_staff_user()
+FROM PUBLIC, anon, authenticated;
+
+REVOKE EXECUTE ON FUNCTION
     public.pms_awp_can_read(text, text, text),
+    public.pms_awp_for_report(uuid),
     public.pms_awp_save_draft(text, text, jsonb),
     public.pms_awp_submit(uuid),
-    public.pms_awp_ro_review(uuid, text, text),
+    public.pms_awp_ro_review(uuid, text, text, jsonb),
     public.pms_awp_rvo_review(uuid, text),
     public.pms_awp_director_decide(uuid, text, text, jsonb),
     public.pms_awp_return(uuid, text),
     public.pms_awp_forward_blank(text, text),
     public.pms_awp_import(text, text, jsonb, text, text, text, date, date),
     public.pms_awp_request_revision(uuid, text, jsonb),
-    public.pms_awp_decide_revision(uuid, boolean, text)
+    public.pms_awp_decide_revision(uuid, boolean, text),
+    public.pms_awp_set_reviewing_officer(uuid, text)
 FROM PUBLIC, anon;
 
--- pms_awp_notify inserts notifications: internal only.
 GRANT EXECUTE ON FUNCTION
     public.pms_awp_can_read(text, text, text),
+    public.pms_awp_for_report(uuid),
     public.pms_awp_save_draft(text, text, jsonb),
     public.pms_awp_submit(uuid),
-    public.pms_awp_ro_review(uuid, text, text),
+    public.pms_awp_ro_review(uuid, text, text, jsonb),
     public.pms_awp_rvo_review(uuid, text),
     public.pms_awp_director_decide(uuid, text, text, jsonb),
     public.pms_awp_return(uuid, text),
     public.pms_awp_forward_blank(text, text),
     public.pms_awp_import(text, text, jsonb, text, text, text, date, date),
     public.pms_awp_request_revision(uuid, text, jsonb),
-    public.pms_awp_decide_revision(uuid, boolean, text)
+    public.pms_awp_decide_revision(uuid, boolean, text),
+    public.pms_awp_set_reviewing_officer(uuid, text)
 TO authenticated;

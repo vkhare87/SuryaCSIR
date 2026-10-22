@@ -91,7 +91,10 @@ export default function AWPImport() {
     })();
   }, [next, reading, staff]);
 
-  useEffect(() => () => items.forEach(it => URL.revokeObjectURL(it.url)), []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Revoke previews on leave; a ref because the cleanup would otherwise see the first (empty) list.
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
+  useEffect(() => () => itemsRef.current.forEach(it => URL.revokeObjectURL(it.url)), []);
 
   const sel = items.find(it => it.key === selectedKey);
 

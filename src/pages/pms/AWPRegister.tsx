@@ -20,7 +20,7 @@ function isStandardScientist(designation: string | null | undefined): boolean {
 
 export default function AWPRegister() {
   const { user } = useAuth();
-  const { awps, isLoading, forwardBlank, getSignedPdfUrl } = useAWP();
+  const { awps, isLoading, forwardBlank, getSignedPdfUrl, setReviewingOfficer } = useAWP();
   const { staff } = useData();
   const isAdmin = user ? canAdmin(user) : false;
 
@@ -29,6 +29,7 @@ export default function AWPRegister() {
   const [viewId, setViewId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [rvoPick, setRvoPick] = useState('');
 
   const nameOf = useMemo(() => new Map(staff.map(s => [s.ID, s.Name])), [staff]);
   const rows = useMemo(() => {
@@ -125,6 +126,32 @@ export default function AWPRegister() {
                 onClick={() => void getSignedPdfUrl(viewing.sourcePdfPath!).then(u => window.open(u, '_blank', 'noopener')).catch(e => setError(String(e)))}>
                 Open submitted PDF
               </Button>
+            )}
+            {isAdmin && ['DRAFT', 'RETURNED', 'WITH_RO'].includes(viewing.status) && (
+              <div className="flex flex-wrap items-center gap-2 text-sm">
+                <span className="text-text-muted">
+                  Reviewing Officer: {viewing.reviewingOfficerId ? nameOf.get(viewing.reviewingOfficerId) ?? viewing.reviewingOfficerId : '—'}
+                </span>
+                <select
+                  aria-label="New Reviewing Officer"
+                  value={rvoPick}
+                  onChange={e => setRvoPick(e.target.value)}
+                  className="px-3 py-1.5 border border-border rounded-xl text-sm bg-background text-text"
+                >
+                  <option value="">— change to —</option>
+                  {staff.map(s => <option key={s.ID} value={s.ID}>{s.Name} ({s.Designation})</option>)}
+                </select>
+                <Button size="sm" variant="secondary" disabled={!rvoPick} isLoading={busyId === viewing.id}
+                  onClick={() => {
+                    setBusyId(viewing.id); setError(null);
+                    setReviewingOfficer(viewing.id, rvoPick)
+                      .then(() => setRvoPick(''))
+                      .catch(e => setError(e instanceof Error ? e.message : 'Could not change'))
+                      .finally(() => setBusyId(null));
+                  }}>
+                  Save
+                </Button>
+              </div>
             )}
             <AWPPanel awp={viewing} />
           </div>

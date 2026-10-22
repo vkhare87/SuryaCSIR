@@ -6,7 +6,8 @@ import type { AWPStatus, PMSAWP } from '../../types/pms';
 
 const awp = (status: AWPStatus, year: string): PMSAWP => {
   const c = emptyAWPContent();
-  c.projects[0] = { ...c.projects[0], details: 'Confidential gripper', confidential: true };
+  // What the server returns to committees: confidential details already stripped.
+  c.projects[0] = { ...c.projects[0], details: '', objectives: '', resources: '', confidential: true };
   c.institutionalWork = 'Safety committee member';
   return {
     ...c, id: `a-${year}`, staffId: 'S1', scientistUserId: 'u1', reportingYear: year, status,
@@ -17,29 +18,32 @@ const awp = (status: AWPStatus, year: string): PMSAWP => {
   };
 };
 
-let awps: PMSAWP[] = [];
-vi.mock('../../contexts/AWPContext', () => ({
-  useAWP: () => ({ awpFor: (s: string, y: string) => awps.find(a => a.staffId === s && a.reportingYear === y) }),
-}));
-vi.mock('../../contexts/DataContext', () => ({
-  useData: () => ({ staff: [{ ID: 'S1', user_id: 'u1', Name: 'Test Scientist' }] }),
-}));
+let server: PMSAWP | null = null;
+const awpForReport = vi.fn(async () => server);
+vi.mock('../../contexts/AWPContext', () => ({ useAWP: () => ({ awpForReport }) }));
 
-const report = { scientistId: 'u1', periodFrom: '2026-04-01', periodTo: '2027-03-31' };
+const report = { id: 'r1', periodFrom: '2026-04-01' };
 
 describe('ReportAWPSection', () => {
-  it('shows the approved AWP of the report year, hiding confidential projects', () => {
-    awps = [awp('APPROVED', '2026-27'), awp('APPROVED', '2025-26')];
+  it('asks the server for the report\'s AWP — works without the scientist\'s staff row (other-division reviewer)', async () => {
+    server = awp('APPROVED', '2026-27');
     render(<ReportAWPSection report={report} />);
-    expect(screen.getByText('Annual Work Plan 2026-27')).toBeInTheDocument();
+    expect(await screen.findByText('Annual Work Plan 2026-27')).toBeInTheDocument();
+    expect(awpForReport).toHaveBeenCalledWith('r1');
     expect(screen.getByText('Safety committee member')).toBeInTheDocument();
-    expect(screen.queryByText('Confidential gripper')).not.toBeInTheDocument();
+    expect(screen.getByText('Confidential — details withheld')).toBeInTheDocument();
   });
 
-  it('says when no approved AWP is on record', () => {
-    awps = [awp('WITH_DIRECTOR', '2026-27')];
+  it('says when no approved AWP is on record', async () => {
+    server = awp('WITH_DIRECTOR', '2026-27');
     render(<ReportAWPSection report={report} />);
-    expect(screen.getByText(/No approved Annual Work Plan on record for 2026-27/)).toBeInTheDocument();
+    expect(await screen.findByText(/No approved Annual Work Plan on record for 2026-27/)).toBeInTheDocument();
     expect(screen.getByText(/With Director/)).toBeInTheDocument();
+  });
+
+  it('copes with no AWP at all', async () => {
+    server = null;
+    render(<ReportAWPSection report={report} />);
+    expect(await screen.findByText(/No approved Annual Work Plan on record for 2026-27/)).toBeInTheDocument();
   });
 });

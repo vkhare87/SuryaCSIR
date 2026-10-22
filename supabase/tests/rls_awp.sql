@@ -167,12 +167,15 @@ DO $$ DECLARE v_id uuid; BEGIN
     RESET ROLE;
 END $$;
 
--- ── T8 — evaluator on B's report can read B's AWP ──────────────────────
-DO $$ DECLARE n int; BEGIN
+-- ── T8 — evaluator on B's report gets B's AWP through the redacting RPC,
+--         and cannot read the raw table ──────────────────────────────────
+DO $$ DECLARE n int; m int; BEGIN
     CALL pg_temp.become('f1f1f1f1-0000-0000-0000-000000000001', 'e1@test.local');
-    SELECT count(*) INTO n FROM public.pms_awps WHERE staff_id = 'T-B1';
+    SELECT count(*) INTO n FROM public.pms_awp_for_report('99999999-0000-0000-0000-000000000002');
+    SELECT count(*) INTO m FROM public.pms_awps WHERE staff_id = 'T-B1';
     RESET ROLE;
-    IF n <> 1 THEN RAISE EXCEPTION 'T8 FAILED: evaluator sees % AWP rows for B', n; END IF;
+    IF n <> 1 THEN RAISE EXCEPTION 'T8 FAILED: evaluator got % AWP rows for B''s report', n; END IF;
+    IF m <> 0 THEN RAISE EXCEPTION 'T8 FAILED: evaluator read % raw AWP rows', m; END IF;
 END $$;
 
 DO $$ BEGIN RAISE NOTICE 'ALL RLS AWP TESTS PASSED'; END $$;

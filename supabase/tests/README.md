@@ -53,3 +53,12 @@ to be refused, then `RESET ROLE` and verify the *state* — not just that the
 statement errored. Several of the original bugs failed silently by updating
 zero rows rather than raising, so asserting on the exception alone would have
 passed against the vulnerable schema.
+
+## Running without a database server
+
+`npm test` also runs these SQL files: `scripts/db/pgliteHarness.ts` applies every
+migration to an in-process Postgres (PGlite, WebAssembly — no Docker, no Supabase CLI,
+no native DLLs) with small stand-ins for `auth`, `storage`, the Supabase roles and
+`pg_cron`. `scripts/db/awp.db.test.ts` runs `rls_awp.sql` that way and walks one full
+Annual Work Plan cycle plus edge cases. Still run the files on a real scratch database
+before `supabase db push` — the stand-ins are not Supabase.

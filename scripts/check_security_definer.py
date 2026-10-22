@@ -71,6 +71,10 @@ EXEMPT: dict[str, str] = {
         "Whether the write happens at all is decided by the table's RLS "
         "(HRAdmin/SystemAdmin/MasterAdmin) before this runs."
     ),
+    "pms_awp_sync_staff_user": (
+        "trigger on staff UPDATE OF user_id; mirrors the link onto pms_awps. "
+        "The staff write is authorized by staff RLS; EXECUTE revoked from clients."
+    ),
     "pms_check_evaluation_complete": (
         "trigger on pms_evaluations; the entry point is an RLS-gated write "
         "(evaluations_update: evaluator_id = auth.uid())."

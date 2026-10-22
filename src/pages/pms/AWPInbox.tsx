@@ -6,8 +6,7 @@ import { AWPPanel } from '../../components/pms/AWPPanel';
 import { AWPPartVForm } from '../../components/pms/AWPPartVForm';
 import { Button } from '../../components/ui/Button';
 import { Skeleton } from '../../components/ui/Skeleton';
-import { canAdmin } from '../../lib/pms/permissions';
-import { AWP_STATUS_LABEL, awpActionFor, type AWPAction } from '../../lib/pms/awp';
+import { AWP_STATUS_LABEL, activityTotal, awpActionFor, type AWPAction } from '../../lib/pms/awp';
 import type { AWPContent, AWPVerdict, PMSAWP } from '../../types/pms';
 
 const ACTION_LABEL: Record<Exclude<AWPAction, 'EDIT'>, string> = {
@@ -27,18 +26,17 @@ export default function AWPInbox() {
   const { staff } = useData();
 
   const isDirector = !!user?.roles.includes('Director');
-  const isAdmin = user ? canAdmin(user) : false;
   const nameOf = useMemo(() => new Map(staff.map(s => [s.ID, s.Name])), [staff]);
 
   const queue = useMemo(
     () => awps
-      .map(a => ({ awp: a, action: awpActionFor(a, { staffId: myStaffId, isDirector, isAdmin }) }))
+      .map(a => ({ awp: a, action: awpActionFor(a, { staffId: myStaffId, isDirector }) }))
       .filter((x): x is { awp: PMSAWP; action: Exclude<AWPAction, 'EDIT'> } => x.action != null && x.action !== 'EDIT'),
-    [awps, myStaffId, isDirector, isAdmin],
+    [awps, myStaffId, isDirector],
   );
   const pendingRevisions = useMemo(
-    () => (isDirector || isAdmin ? revisions.filter(r => r.status === 'PENDING') : []),
-    [revisions, isDirector, isAdmin],
+    () => (isDirector ? revisions.filter(r => r.status === 'PENDING') : []),
+    [revisions, isDirector],
   );
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -51,7 +49,12 @@ export default function AWPInbox() {
   if (isLoading) return <Skeleton className="h-64 w-full" />;
 
   const selected = queue.find(q => q.awp.id === selectedId);
-  const open = (id: string) => { setSelectedId(id); setText(''); setVerdict('REASONABLE'); setModifying(null); setError(null); };
+  const open = (id: string) => {
+    const pick = queue.find(q => q.awp.id === id);
+    setSelectedId(id); setText(''); setVerdict('REASONABLE'); setError(null);
+    // A blank-forwarded AWP is filled in by the RO on the scientist's behalf (§5.E.a.iii).
+    setModifying(pick?.action === 'RO_REVIEW' && pick.awp.source === 'BLANK_FORWARDED' ? pick.awp : null);
+  };
 
   const run = async (fn: () => Promise<void>) => {
     setBusy(true); setError(null);
@@ -99,6 +102,11 @@ export default function AWPInbox() {
 
           <div className="p-4 bg-surface border border-border rounded-2xl space-y-3">
             <h2 className="text-sm font-semibold text-text">{ACTION_LABEL[selected.action]}</h2>
+            {selected.action === 'RO_REVIEW' && modifying && (
+              <p className="text-xs text-text-muted">
+                The scientist did not submit this plan. Fill it in above on their behalf (time must total 100%), then record your verdict.
+              </p>
+            )}
 
             {selected.action === 'RO_REVIEW' && (
               <div className="flex gap-4 text-sm text-text">
@@ -125,8 +133,12 @@ export default function AWPInbox() {
 
             <div className="flex flex-wrap gap-2">
               {selected.action === 'RO_REVIEW' && (
-                <Button isLoading={busy} onClick={() => void run(() => roReview(selected.awp.id, verdict, text.trim()))}>
-                  Record verdict and forward
+                <Button
+                  isLoading={busy}
+                  disabled={!!modifying && activityTotal(modifying.activitySplit) !== 100}
+                  onClick={() => void run(() => roReview(selected.awp.id, verdict, text.trim(), modifying ?? undefined))}
+                >
+                  {modifying ? 'Save the plan and forward' : 'Record verdict and forward'}
                 </Button>
               )}
               {selected.action === 'RVO_REVIEW' && (
@@ -142,7 +154,7 @@ export default function AWPInbox() {
                   <Button variant="secondary" onClick={() => setModifying(selected.awp)}>Modify…</Button>
                 </>
               )}
-              {modifying && (
+              {selected.action === 'DIRECTOR_DECIDE' && modifying && (
                 <Button isLoading={busy} disabled={text.trim().length < 20}
                   onClick={() => void run(() => directorDecide(selected.awp.id, 'MODIFIED', text.trim(), modifying))}>
                   Approve with modifications

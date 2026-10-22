@@ -27,7 +27,8 @@ interface AWPContextType {
   awpFor: (staffId: string, year: string) => PMSAWP | undefined;
   saveDraft: (staffId: string, year: string, content: AWPContent) => Promise<string>;
   submit: (id: string) => Promise<void>;
-  roReview: (id: string, verdict: AWPVerdict, reasons: string) => Promise<void>;
+  /** `content` only for a blank-forwarded AWP the RO fills in (§5.E.a.iii). */
+  roReview: (id: string, verdict: AWPVerdict, reasons: string, content?: AWPContent) => Promise<void>;
   rvoReview: (id: string, remarks: string) => Promise<void>;
   directorDecide: (id: string, decision: 'ACCEPTED' | 'MODIFIED', remarks: string, content?: AWPContent) => Promise<void>;
   returnAWP: (id: string, reasons: string) => Promise<void>;
@@ -36,6 +37,9 @@ interface AWPContextType {
   requestRevision: (id: string, reasons: string, after: AWPContent) => Promise<void>;
   decideRevision: (revisionId: string, approve: boolean, remarks: string) => Promise<void>;
   getSignedPdfUrl: (path: string) => Promise<string>;
+  /** Committee view: the report's AWP with confidential projects removed by the server. */
+  awpForReport: (reportId: string) => Promise<PMSAWP | null>;
+  setReviewingOfficer: (id: string, staffId: string | null) => Promise<void>;
 }
 
 const AWPContext = createContext<AWPContextType | undefined>(undefined);
@@ -108,8 +112,8 @@ export function AWPProvider({ children }: { children: ReactNode }) {
 
   const submit = (id: string) => call('pms_awp_submit', { p_awp_id: id });
 
-  const roReview = (id: string, verdict: AWPVerdict, reasons: string) =>
-    call('pms_awp_ro_review', { p_awp_id: id, p_verdict: verdict, p_reasons: reasons || null });
+  const roReview = (id: string, verdict: AWPVerdict, reasons: string, content?: AWPContent) =>
+    call('pms_awp_ro_review', { p_awp_id: id, p_verdict: verdict, p_reasons: reasons || null, p_payload: content ?? null });
 
   const rvoReview = (id: string, remarks: string) =>
     call('pms_awp_rvo_review', { p_awp_id: id, p_remarks: remarks });
@@ -128,6 +132,8 @@ export function AWPProvider({ children }: { children: ReactNode }) {
 
   async function importAWP(input: AWPImportInput): Promise<string> {
     const sb = client();
+    // Fail before uploading: a retry must not leave another orphan PDF.
+    if (awpFor(input.staffId, input.year)) throw new Error('AWP already exists for this scientist and year');
     // Upload first so the RPC can record the path; an RPC failure leaves an
     // orphan admin-only file, which is cheaper than an AWP without its proof.
     const path = `import/${crypto.randomUUID()}.pdf`;
@@ -160,11 +166,21 @@ export function AWPProvider({ children }: { children: ReactNode }) {
     return data.signedUrl;
   }
 
+  async function awpForReport(reportId: string): Promise<PMSAWP | null> {
+    const { data, error: err } = await client().rpc('pms_awp_for_report', { p_report_id: reportId });
+    if (err) throw new Error(err.message);
+    const row = (data as Record<string, unknown>[] | null)?.[0];
+    return row ? mapAWPRow(row) : null;
+  }
+
+  const setReviewingOfficer = (id: string, staffId: string | null) =>
+    call('pms_awp_set_reviewing_officer', { p_awp_id: id, p_staff_id: staffId });
+
   return (
     <AWPContext.Provider value={{
       awps, revisions, myStaffId, isLoading, error, refresh, awpFor,
       saveDraft, submit, roReview, rvoReview, directorDecide, returnAWP, forwardBlank,
-      importAWP, requestRevision, decideRevision, getSignedPdfUrl,
+      importAWP, requestRevision, decideRevision, getSignedPdfUrl, awpForReport, setReviewingOfficer,
     }}>
       {children}
     </AWPContext.Provider>

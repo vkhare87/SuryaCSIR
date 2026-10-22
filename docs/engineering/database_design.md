@@ -374,8 +374,10 @@ Part V Annual Work Plan, one row per scientist per reporting year:
 staff without a login have a home. `status` ∈ `DRAFT` \| `WITH_RO` \| `WITH_RVO` \|
 `WITH_DIRECTOR` \| `RETURNED` \| `APPROVED`; `source` ∈ `ONLINE` \| `IMPORTED` \|
 `BLANK_FORWARDED`. RO defaults to `staff."ReportingID"` (fallback division `divHoDID`), RvO
-to the Director's staff row. Read via `pms_awp_can_read()` (owner, RO/RvO, Director, admin,
-and committee readers of the scientist's reports); writes only through the `pms_awp_*` RPCs.
+to the Director's staff row (admin override). Full rows are read via `pms_awp_can_read()` (owner,
+RO/RvO, Director, admin); committees get `pms_awp_for_report()`, which strips confidential
+projects server-side. `scientist_user_id` follows `staff.user_id` (trigger). Writes only through
+the `pms_awp_*` RPCs.
 Not under the Nov 30 lock. Source PDFs in private bucket `awp-pdfs`.
 
 #### `pms_awp_revisions`
