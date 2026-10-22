@@ -54,6 +54,10 @@ const EvaluateReport    = lazy(() => import('./pages/pms/EvaluateReport'));
 const PMSGrievance      = lazy(() => import('./pages/pms/Grievance'));
 const CommitteeQueue    = lazy(() => import('./pages/pms/CommitteeQueue'));
 const PmsAuditLog       = lazy(() => import('./pages/pms/AuditLog'));
+const AWPMine           = lazy(() => import('./pages/pms/AWPMine'));
+const AWPInbox          = lazy(() => import('./pages/pms/AWPInbox'));
+const AWPImport         = lazy(() => import('./pages/pms/AWPImport'));
+const AWPRegister       = lazy(() => import('./pages/pms/AWPRegister'));
 const TicketList        = lazy(() => import('./pages/helpdesk/TicketList'));
 const TicketDetail      = lazy(() => import('./pages/helpdesk/TicketDetail'));
 const TicketForm        = lazy(() => import('./pages/helpdesk/TicketForm'));
@@ -208,6 +212,10 @@ function App() {
             <Route path="/pms/grievance" element={<ProtectedRoute accessPath="/pms"><PMSGrievance /></ProtectedRoute>} />
             <Route path="/pms/committee" element={<ProtectedRoute accessPath="/pms/committee"><CommitteeQueue /></ProtectedRoute>} />
             <Route path="/pms/audit" element={<ProtectedRoute accessPath="/pms/audit"><PmsAuditLog /></ProtectedRoute>} />
+            <Route path="/pms/awp" element={<ProtectedRoute desktopOnly accessPath="/pms/awp"><AWPMine /></ProtectedRoute>} />
+            <Route path="/pms/awp/inbox" element={<ProtectedRoute accessPath="/pms/awp/inbox"><AWPInbox /></ProtectedRoute>} />
+            <Route path="/pms/awp/import" element={<ProtectedRoute desktopOnly accessPath="/pms/awp/import"><AWPImport /></ProtectedRoute>} />
+            <Route path="/pms/awp/register" element={<ProtectedRoute accessPath="/pms/awp/register"><AWPRegister /></ProtectedRoute>} />
             <Route path="/db-wizard" element={<Navigate to="/data" replace />} />
             <Route path="/irins-sync" element={<ProtectedRoute desktopOnly accessPath="/irins-sync"><IrinsSync /></ProtectedRoute>} />
             <Route path="/admin/rag" element={<ProtectedRoute desktopOnly accessPath="/admin/rag"><RagMonitor /></ProtectedRoute>} />

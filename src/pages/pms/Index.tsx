@@ -57,6 +57,18 @@ export default function PMSIndex() {
             <h2 className="font-semibold text-text mb-1">Audit Log</h2>
             <p className="text-sm text-text-muted">View all system events</p>
           </Link>
+          <Link to="/pms/awp/import" className="block p-6 bg-surface border border-border rounded-2xl hover:border-terracotta transition-colors">
+            <h2 className="font-semibold text-text mb-1">Import Annual Work Plans</h2>
+            <p className="text-sm text-text-muted">Read AWP PDFs into SURYA</p>
+          </Link>
+          <Link to="/pms/awp/register" className="block p-6 bg-surface border border-border rounded-2xl hover:border-terracotta transition-colors">
+            <h2 className="font-semibold text-text mb-1">AWP Register</h2>
+            <p className="text-sm text-text-muted">Who has submitted, who is late</p>
+          </Link>
+          <Link to="/pms/awp/inbox" className="block p-6 bg-surface border border-border rounded-2xl hover:border-terracotta transition-colors">
+            <h2 className="font-semibold text-text mb-1">AWP Inbox</h2>
+            <p className="text-sm text-text-muted">Plans waiting for a decision</p>
+          </Link>
         </div>
       </div>
     );
@@ -103,6 +115,14 @@ export default function PMSIndex() {
               <p className="text-sm text-text-muted">Review representations against finalized scores</p>
             </Link>
           )}
+          <Link to="/pms/awp" className="block p-6 bg-surface border border-border rounded-2xl hover:border-terracotta transition-colors">
+            <h2 className="font-semibold text-text mb-1">My Annual Work Plan</h2>
+            <p className="text-sm text-text-muted">Part V — the plan you are assessed against</p>
+          </Link>
+          <Link to="/pms/awp/inbox" className="block p-6 bg-surface border border-border rounded-2xl hover:border-terracotta transition-colors">
+            <h2 className="font-semibold text-text mb-1">AWP Inbox</h2>
+            <p className="text-sm text-text-muted">Plans waiting for your review</p>
+          </Link>
         </div>
       </div>
     );
@@ -117,6 +137,22 @@ export default function PMSIndex() {
         <h1 className="text-2xl font-serif font-medium text-text">My Appraisal Reports</h1>
         {openCycle && (
           <Button onClick={() => navigate('/pms/reports/new')}>New Report</Button>
+        )}
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Link to="/pms/awp" className="block p-4 bg-surface border border-border rounded-2xl hover:border-terracotta transition-colors">
+          <h2 className="font-semibold text-text mb-1">My Annual Work Plan</h2>
+          <p className="text-sm text-text-muted">Part V — the plan you are assessed against</p>
+        </Link>
+        <Link to="/pms/awp/inbox" className="block p-4 bg-surface border border-border rounded-2xl hover:border-terracotta transition-colors">
+          <h2 className="font-semibold text-text mb-1">AWP Inbox</h2>
+          <p className="text-sm text-text-muted">Plans waiting for your review</p>
+        </Link>
+        {role === 'Director' && (
+          <Link to="/pms/awp/register" className="block p-4 bg-surface border border-border rounded-2xl hover:border-terracotta transition-colors">
+            <h2 className="font-semibold text-text mb-1">AWP Register</h2>
+            <p className="text-sm text-text-muted">All scientists' plans this year</p>
+          </Link>
         )}
       </div>
 

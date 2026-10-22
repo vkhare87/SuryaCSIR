@@ -27,7 +27,7 @@ const DESIGN_TOKEN_RULES = [
 
 export default tseslint.config(
   {
-    ignores: ['dist/**', 'node_modules/**', 'rag/.venv/**', 'ingest/.venv/**'],
+    ignores: ['dist/**', 'node_modules/**', 'rag/.venv/**', 'ingest/.venv/**', 'public/tesseract/**'],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

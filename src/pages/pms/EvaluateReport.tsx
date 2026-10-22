@@ -9,6 +9,7 @@ import { Button } from '../../components/ui/Button';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { EvidencePanel } from '../../components/pms/EvidencePanel';
 import { PenPictureForm } from '../../components/pms/PenPictureForm';
+import { ReportAWPSection } from '../../components/pms/ReportAWPSection';
 import type { PenPicture, PMSReportSection, PMSAnnexure, PMSReport } from '../../types/pms';
 
 type ReportDetail = PMSReport & { sections: PMSReportSection[]; annexures: PMSAnnexure[] };
@@ -198,6 +199,9 @@ export default function EvaluateReport() {
           )}
         </div>
       )}
+
+      {/* The approved plan this year's work is judged against (§5.E) */}
+      {reportDetail && !isSenior && <ReportAWPSection report={reportDetail} />}
 
       {/* Institutional evidence — claim corroboration + trajectory */}
       {reportDetail && (

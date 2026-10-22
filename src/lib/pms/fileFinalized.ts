@@ -15,11 +15,12 @@ interface FileFinalizedInput {
 /**
  * Render the finalized PMS report to PDF and file it in the annexures bucket +
  * documents registry (confidential tier) so the RAG layer can index it.
- * Non-fatal: a failure here must not block finalization. @react-pdf and the
+ * Never throws (finalization is already committed); returns false on failure
+ * so the caller can tell the user and offer a retry. @react-pdf and the
  * PDF component are dynamically imported to stay out of the context bundle.
  */
-export async function fileFinalizedReport(input: FileFinalizedInput): Promise<void> {
-  if (!supabase) return;
+export async function fileFinalizedReport(input: FileFinalizedInput): Promise<boolean> {
+  if (!supabase) return false;
   try {
     const [{ pdf }, { ReportPDF }] = await Promise.all([
       import('@react-pdf/renderer'),
@@ -42,9 +43,9 @@ export async function fileFinalizedReport(input: FileFinalizedInput): Promise<vo
     const { error: upErr } = await supabase.storage.from('annexures').upload(path, blob, {
       contentType: 'application/pdf', upsert: true,
     });
-    if (upErr) { logger.error('[pms] finalized upload failed', upErr); return; }
+    if (upErr) { logger.error('[pms] finalized upload failed', upErr); return false; }
 
-    await registerDocument({
+    const docId = await registerDocument({
       entityType: 'pms_report',
       entityId: input.report.id,
       docType: 'finalized_report',
@@ -56,7 +57,9 @@ export async function fileFinalizedReport(input: FileFinalizedInput): Promise<vo
       mimeType: 'application/pdf',
       accessTier: 'confidential',
     });
+    return docId != null;
   } catch (e) {
     logger.error('[pms] fileFinalizedReport failed', e);
+    return false;
   }
 }

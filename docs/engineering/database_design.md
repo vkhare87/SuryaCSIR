@@ -364,7 +364,25 @@ reports, which have no numeric score.
 
 #### `pms_awp_activities`
 `(id uuid PK, report_id FK CASCADE, nature_of_activity text, role text, time_committed_percentage numeric(5,2) CHECK 0–100, milestones jsonb, created_at, updated_at)`.
-Part V Annual Work Plan; standard track only. **Index:** `(report_id)`.
+Legacy in-report Part V list; standard track only. **Index:** `(report_id)`. Superseded
+by `pms_awps` (no longer written by the wizard; kept so earlier reports still display).
+
+#### `pms_awps` — `20261021000002_pms_awp.sql`
+Part V Annual Work Plan, one row per scientist per reporting year:
+`(id uuid PK, staff_id text FK staff."ID" RESTRICT, scientist_user_id uuid?, reporting_year text CHECK '^\d{4}-\d{2}$', status text, part_a jsonb, activity_split jsonb, projects jsonb, objectives jsonb, development jsonb, institutional_work text, other text, reporting_officer_id text?, reviewing_officer_id text?, ro_verdict?, ro_reasons?, ro_at?, rvo_remarks?, rvo_at?, director_decision?, director_remarks?, approved_at?, approved_by?, communicated_at?, return_reasons?, source text, source_pdf_path?, submitted_at?, created_at, updated_at)`,
+**UNIQUE** `(staff_id, reporting_year)`. Keyed on staff, not auth user, so imported AWPs of
+staff without a login have a home. `status` ∈ `DRAFT` \| `WITH_RO` \| `WITH_RVO` \|
+`WITH_DIRECTOR` \| `RETURNED` \| `APPROVED`; `source` ∈ `ONLINE` \| `IMPORTED` \|
+`BLANK_FORWARDED`. RO defaults to `staff."ReportingID"` (fallback division `divHoDID`), RvO
+to the Director's staff row (admin override). Full rows are read via `pms_awp_can_read()` (owner,
+RO/RvO, Director, admin); committees get `pms_awp_for_report()`, which strips confidential
+projects server-side. `scientist_user_id` follows `staff.user_id` (trigger). Writes only through
+the `pms_awp_*` RPCs.
+Not under the Nov 30 lock. Source PDFs in private bucket `awp-pdfs`.
+
+#### `pms_awp_revisions`
+`(id uuid PK, awp_id FK CASCADE, initiated_by uuid, reasons text CHECK length ≥ 20, before jsonb, after jsonb, status text, decided_by?, decided_at?, decision_remarks?, created_at)`.
+§5.E.a.vii revisions (first six months, Director approves). RPC-written only.
 
 #### `pms_representations`
 `(id uuid PK, report_id FK CASCADE **U**, scientist_id uuid, grounds text CHECK length ≥ 20, submitted_at, status text, resolution text?, resolved_by uuid?, resolved_at?)`.

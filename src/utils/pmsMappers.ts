@@ -12,6 +12,9 @@ import type {
   PMSEvaluation,
   PMSCommitteeDecision,
   PMSAWPActivity,
+  PMSAWP,
+  PMSAWPRevision,
+  AWPContent,
   PMSRepresentation,
   PMSNotification,
 } from '../types/pms';
@@ -182,5 +185,64 @@ export function mapNotificationRow(row: Record<string, unknown>): PMSNotificatio
     reportId:  (row.report_id as string) ?? null,
     read:      Boolean(row.read),
     createdAt: row.created_at as string,
+  };
+}
+
+// AWP content lives in row columns (part_a, …) but revision snapshots use the
+// RPC payload keys (partA, …). Both shapes map through here.
+function mapAWPContent(o: Record<string, unknown>, rowKeys: boolean): AWPContent {
+  const k = (row: string, payload: string) => (rowKeys ? o[row] : o[payload]);
+  return {
+    partA:             (k('part_a', 'partA') ?? {}) as AWPContent['partA'],
+    activitySplit:     (k('activity_split', 'activitySplit') ?? []) as AWPContent['activitySplit'],
+    projects:          (k('projects', 'projects') ?? []) as AWPContent['projects'],
+    objectives:        (k('objectives', 'objectives') ?? {}) as AWPContent['objectives'],
+    development:       (k('development', 'development') ?? {}) as AWPContent['development'],
+    institutionalWork: (k('institutional_work', 'institutionalWork') as string) ?? '',
+    other:             (k('other', 'other') as string) ?? '',
+  };
+}
+
+export function mapAWPRow(row: Record<string, unknown>): PMSAWP {
+  return {
+    ...mapAWPContent(row, true),
+    id:                 row.id as string,
+    staffId:            row.staff_id as string,
+    scientistUserId:    (row.scientist_user_id as string) ?? null,
+    reportingYear:      row.reporting_year as string,
+    status:             row.status as PMSAWP['status'],
+    reportingOfficerId: (row.reporting_officer_id as string) ?? null,
+    reviewingOfficerId: (row.reviewing_officer_id as string) ?? null,
+    roVerdict:          (row.ro_verdict as PMSAWP['roVerdict']) ?? null,
+    roReasons:          (row.ro_reasons as string) ?? null,
+    roAt:               (row.ro_at as string) ?? null,
+    rvoRemarks:         (row.rvo_remarks as string) ?? null,
+    rvoAt:              (row.rvo_at as string) ?? null,
+    directorDecision:   (row.director_decision as PMSAWP['directorDecision']) ?? null,
+    directorRemarks:    (row.director_remarks as string) ?? null,
+    approvedAt:         (row.approved_at as string) ?? null,
+    communicatedAt:     (row.communicated_at as string) ?? null,
+    returnReasons:      (row.return_reasons as string) ?? null,
+    source:             row.source as PMSAWP['source'],
+    sourcePdfPath:      (row.source_pdf_path as string) ?? null,
+    submittedAt:        (row.submitted_at as string) ?? null,
+    createdAt:          row.created_at as string,
+    updatedAt:          row.updated_at as string,
+  };
+}
+
+export function mapAWPRevisionRow(row: Record<string, unknown>): PMSAWPRevision {
+  return {
+    id:              row.id as string,
+    awpId:           row.awp_id as string,
+    initiatedBy:     row.initiated_by as string,
+    reasons:         row.reasons as string,
+    before:          mapAWPContent((row.before ?? {}) as Record<string, unknown>, false),
+    after:           mapAWPContent((row.after ?? {}) as Record<string, unknown>, false),
+    status:          row.status as PMSAWPRevision['status'],
+    decidedBy:       (row.decided_by as string) ?? null,
+    decidedAt:       (row.decided_at as string) ?? null,
+    decisionRemarks: (row.decision_remarks as string) ?? null,
+    createdAt:       row.created_at as string,
   };
 }

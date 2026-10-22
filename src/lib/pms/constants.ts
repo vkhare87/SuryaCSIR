@@ -14,7 +14,7 @@ export const SECTION_KEYS: StandardSectionKey[] = [
 export interface WizardStep {
   label: string;
   keys: SectionKey[];
-  /** Part V — Annual Work Plan. Standard track only; saved to pms_awp_activities. */
+  /** Part V — Annual Work Plan. Standard track only; links to the pms_awps record (/pms/awp). */
   awp?: boolean;
 }
 
@@ -35,7 +35,7 @@ export const WIZARD_STEPS: WizardStep[] = [
   { label: 'Appendix-A: Contributions',    keys: ['section_v_curriculum', 'section_v_extension', 'section_v_other'] },
   { label: 'Appendix-A: Shortfall Tracking', keys: ['section_v_shortfall'] },
   { label: 'Appendix-A: Recognition',      keys: ['section_vi_national', 'section_vi_international'] },
-  { label: 'Part V: Annual Work Plan',     keys: [], awp: true },
+  { label: 'Part V: Annual Work Plan (next year)', keys: [], awp: true },
   { label: 'Review & Submit',              keys: [] },
 ];
 
