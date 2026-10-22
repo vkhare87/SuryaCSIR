@@ -35,9 +35,19 @@ INSERT INTO public.staff ("ID", "Name", "Designation", "Division", "ReportingID"
   ('T-B1', 'Test Sci B',     'Senior Scientist',  'IMD', 'T-R1', 'b1@test.local', 'b1b1b1b1-0000-0000-0000-000000000001'),
   ('T-C1', 'Test Sci C',     'Principal Scientist','DIR','T-D1', NULL,            NULL);
 
+-- Next reporting year, relative to today (IST), so the 15 May submission
+-- deadline is always ahead and the suite does not age out.
+CREATE OR REPLACE FUNCTION pg_temp.ny_start() RETURNS int LANGUAGE sql AS $$
+    SELECT extract(year FROM (now() AT TIME ZONE 'Asia/Kolkata')::date - interval '3 months')::int + 1;
+$$;
+CREATE OR REPLACE FUNCTION pg_temp.ny() RETURNS text LANGUAGE sql AS $$
+    SELECT pg_temp.ny_start() || '-' || lpad(((pg_temp.ny_start() + 1) % 100)::text, 2, '0');
+$$;
+
 -- B has a report under evaluation by e1 (for T8).
 INSERT INTO public.appraisal_cycles (id, name, start_date, end_date, status)
-VALUES ('99999999-0000-0000-0000-000000000001', 'Test 2026-27', '2026-04-01', '2027-03-31', 'OPEN');
+VALUES ('99999999-0000-0000-0000-000000000001', 'Test cycle', make_date(pg_temp.ny_start(), 4, 1),
+        make_date(pg_temp.ny_start() + 1, 3, 31), 'OPEN');
 INSERT INTO public.pms_reports (id, cycle_id, scientist_id, status)
 VALUES ('99999999-0000-0000-0000-000000000002', '99999999-0000-0000-0000-000000000001',
         'b1b1b1b1-0000-0000-0000-000000000001', 'UNDER_EVALUATION_COMMITTEE_REVIEW');
@@ -67,10 +77,10 @@ $$;
 -- Drafts for A and B, created by their owners.
 DO $$ BEGIN
     CALL pg_temp.become('a1a1a1a1-0000-0000-0000-000000000001', 'a1@test.local');
-    PERFORM public.pms_awp_save_draft('T-A1', '2026-27', pg_temp.payload(100));
+    PERFORM public.pms_awp_save_draft('T-A1', pg_temp.ny(), pg_temp.payload(100));
     RESET ROLE;
     CALL pg_temp.become('b1b1b1b1-0000-0000-0000-000000000001', 'b1@test.local');
-    PERFORM public.pms_awp_save_draft('T-B1', '2026-27', pg_temp.payload(100));
+    PERFORM public.pms_awp_save_draft('T-B1', pg_temp.ny(), pg_temp.payload(100));
     RESET ROLE;
 END $$;
 
@@ -97,7 +107,7 @@ END $$;
 -- ── T4 — submit needs a 100% activity total ────────────────────────────
 DO $$ DECLARE v_id uuid; BEGIN
     CALL pg_temp.become('a1a1a1a1-0000-0000-0000-000000000001', 'a1@test.local');
-    v_id := public.pms_awp_save_draft('T-A1', '2026-27', pg_temp.payload(90));
+    v_id := public.pms_awp_save_draft('T-A1', pg_temp.ny(), pg_temp.payload(90));
     BEGIN
         PERFORM public.pms_awp_submit(v_id);
         RAISE EXCEPTION 'T4 FAILED: submit accepted a 90%% total';
@@ -134,7 +144,7 @@ END $$;
 -- ── T5 — RO is the Director → submit lands in WITH_DIRECTOR ────────────
 DO $$ DECLARE v_id uuid; v text; BEGIN
     CALL pg_temp.become('e1e1e1e1-0000-0000-0000-000000000001', 'h1@test.local');
-    v_id := public.pms_awp_import('T-C1', '2026-27', pg_temp.payload(100), 'WITH_RO', NULL, NULL, NULL, NULL);
+    v_id := public.pms_awp_import('T-C1', pg_temp.ny(), pg_temp.payload(100), 'WITH_RO', NULL, NULL, NULL, NULL);
     RESET ROLE;
     SELECT status INTO v FROM public.pms_awps WHERE id = v_id;
     IF v <> 'WITH_DIRECTOR' THEN RAISE EXCEPTION 'T5 FAILED: RO=Director AWP is %', v; END IF;
@@ -144,7 +154,7 @@ END $$;
 DO $$ BEGIN
     CALL pg_temp.become('e1e1e1e1-0000-0000-0000-000000000001', 'h1@test.local');
     BEGIN
-        PERFORM public.pms_awp_import('T-C1', '2026-27', pg_temp.payload(100), 'APPROVED', NULL, NULL, NULL, NULL);
+        PERFORM public.pms_awp_import('T-C1', pg_temp.ny(), pg_temp.payload(100), 'APPROVED', NULL, NULL, NULL, NULL);
         RAISE EXCEPTION 'T6 FAILED: duplicate import accepted';
     EXCEPTION WHEN raise_exception THEN
         IF SQLERRM <> 'AWP already exists for this scientist and year' THEN RAISE; END IF;

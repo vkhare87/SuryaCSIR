@@ -254,6 +254,12 @@ BEGIN
     IF v_awp.reporting_officer_id IS NULL THEN
         RAISE EXCEPTION 'No Reporting Officer on record; ask HR to set one';
     END IF;
+    -- §5.E.a.i: due 15 May (IST) of the plan's first year, with the
+    -- self-appraisal. Late plans go to the RO via pms_awp_forward_blank (§5.E.a.iii).
+    IF (now() AT TIME ZONE 'Asia/Kolkata')::date > make_date(left(v_awp.reporting_year, 4)::int, 5, 15) THEN
+        RAISE EXCEPTION 'AWP submission deadline (15 May %) has passed; HR can forward it to your Reporting Officer',
+            left(v_awp.reporting_year, 4);
+    END IF;
 
     v_next := CASE WHEN v_awp.reporting_officer_id = public.pms_awp_director_staff_id()
                    THEN 'WITH_DIRECTOR' ELSE 'WITH_RO' END;
@@ -481,6 +487,7 @@ BEGIN
 
     UPDATE public.pms_awps SET
         status = CASE WHEN v_ro = public.pms_awp_director_staff_id() THEN 'WITH_DIRECTOR' ELSE 'WITH_RO' END,
+        reporting_officer_id = v_ro,
         source = 'BLANK_FORWARDED',
         submitted_at = now()
      WHERE id = v_id;
@@ -516,6 +523,10 @@ BEGIN
     IF NOT FOUND THEN RAISE EXCEPTION 'Staff member not found'; END IF;
     IF EXISTS (SELECT 1 FROM public.pms_awps WHERE staff_id = p_staff_id AND reporting_year = p_year) THEN
         RAISE EXCEPTION 'AWP already exists for this scientist and year';
+    END IF;
+    -- OCR / manual-entry mistakes must not land as an approved plan.
+    IF public.pms_awp_total(p_payload->'activitySplit') <> 100 THEN
+        RAISE EXCEPTION 'Time committed must total 100%%';
     END IF;
 
     v_ro := coalesce(v_staff."ReportingID",

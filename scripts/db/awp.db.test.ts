@@ -4,6 +4,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { PGlite } from '@electric-sql/pglite';
 import { as, migratedDb, sqlFile, type Tx } from './pgliteHarness';
+import { nextReportingYear, reportingYearFor } from '../../src/lib/pms/awp';
 
 const U = {
   sci: '10000000-0000-0000-0000-000000000001',
@@ -14,9 +15,15 @@ const U = {
   evalr: '10000000-0000-0000-0000-000000000006', // evaluator from another division
   stranger: '10000000-0000-0000-0000-000000000007',
   late: '10000000-0000-0000-0000-000000000008', // staff linked to a login after import
+  noro: '10000000-0000-0000-0000-000000000009', // has a login but no Reporting Officer yet
 } as const;
 
-const YEAR = '2027-28'; // revision window (to 30 Sep 2027) is open "today"
+// Dates relative to today so the suite never ages out: next year's AWP is
+// always before its 15 May deadline and inside its 30 Sep revision window.
+const YEAR = nextReportingYear(reportingYearFor(new Date()));
+const Y0 = Number(YEAR.slice(0, 4));
+const LATER = nextReportingYear(YEAR);
+const PAST = reportingYearFor(new Date(Y0 - 3, 5, 1));
 
 function payload(total = 100, confidential = false) {
   return {
@@ -48,7 +55,7 @@ beforeAll(async () => {
     INSERT INTO auth.users (id, email) VALUES
       ('${U.sci}', 'sci@t.local'), ('${U.ro}', 'ro@t.local'), ('${U.rvo}', 'rvo@t.local'),
       ('${U.dir}', 'dir@t.local'), ('${U.hr}', 'hr@t.local'), ('${U.evalr}', 'ev@t.local'),
-      ('${U.stranger}', 'x@t.local'), ('${U.late}', 'late@t.local');
+      ('${U.stranger}', 'x@t.local'), ('${U.late}', 'late@t.local'), ('${U.noro}', 'noro@t.local');
     INSERT INTO public.user_roles (user_id, role) VALUES ('${U.dir}', 'Director'), ('${U.hr}', 'HRAdmin');
     INSERT INTO public.divisions ("divCode", "divHoDID") VALUES ('IMD', 'T-RO'), ('NOHOD', NULL), ('OTH', NULL);
     INSERT INTO public.staff ("ID", "Name", "Designation", "Division", "ReportingID", "Email", user_id) VALUES
@@ -59,12 +66,13 @@ beforeAll(async () => {
       ('T-EV',  'Eval',     'Chief Scientist',   'OTH',   NULL,    'ev@t.local',  '${U.evalr}'),
       ('T-X',   'Stranger', 'Scientist',         'OTH',   NULL,    'x@t.local',   '${U.stranger}'),
       ('T-NORO','No RO',    'Scientist',         'NOHOD', NULL,    NULL,          NULL),
-      ('T-LATE','Late',     'Scientist',         'IMD',   'T-RO',  'late2@t.local', NULL);
+      ('T-LATE','Late',     'Scientist',         'IMD',   'T-RO',  'late2@t.local', NULL),
+      ('T-NORO2','No RO 2', 'Scientist',         'NOHOD', NULL,    'noro@t.local', '${U.noro}');
     INSERT INTO public.appraisal_cycles (id, name, start_date, end_date, status)
-      VALUES ('20000000-0000-0000-0000-000000000001', '2027-28', '2027-04-01', '2028-03-31', 'OPEN');
+      VALUES ('20000000-0000-0000-0000-000000000001', '${YEAR}', '${Y0}-04-01', '${Y0 + 1}-03-31', 'OPEN');
     INSERT INTO public.pms_reports (id, cycle_id, scientist_id, status, period_from, period_to)
       VALUES ('20000000-0000-0000-0000-000000000002', '20000000-0000-0000-0000-000000000001', '${U.sci}',
-              'UNDER_EVALUATION_COMMITTEE_REVIEW', '2027-04-01', '2028-03-31');
+              'UNDER_EVALUATION_COMMITTEE_REVIEW', '${Y0}-04-01', '${Y0 + 1}-03-31');
     INSERT INTO public.pms_evaluations (report_id, evaluator_id)
       VALUES ('20000000-0000-0000-0000-000000000002', '${U.evalr}');
   `);
@@ -197,6 +205,30 @@ describe('edge cases', () => {
     expect(n.n).toBe(1);
   });
 
+  it('an AWP cannot be submitted after its 15 May deadline (late ones go via forward-blank)', async () => {
+    const id = (await as(db, U.sci, tx => rpc(tx, 'pms_awp_save_draft', ['T-SCI', PAST, JSON.stringify(payload())])))[0].pms_awp_save_draft as string;
+    await expect(as(db, U.sci, tx => rpc(tx, 'pms_awp_submit', [id])))
+      .rejects.toThrow(`AWP submission deadline (15 May ${PAST.slice(0, 4)}) has passed`);
+  });
+
+  it('an imported plan must total 100% whatever its status', async () => {
+    for (const status of ['APPROVED', 'WITH_DIRECTOR', 'WITH_RO']) {
+      await expect(as(db, U.hr, tx => rpc(tx, 'pms_awp_import',
+        ['T-X', PAST, JSON.stringify(payload(95)), status, null, null, null, null])))
+        .rejects.toThrow(/100%/);
+    }
+  });
+
+  it('forward-blank records a Reporting Officer assigned after the draft was saved', async () => {
+    const id = (await as(db, U.noro, tx => rpc(tx, 'pms_awp_save_draft', ['T-NORO2', YEAR, JSON.stringify(payload())])))[0].pms_awp_save_draft as string;
+    expect((await one(db as unknown as Tx, `SELECT reporting_officer_id FROM pms_awps WHERE id = $1`, [id])).reporting_officer_id).toBeNull();
+    await db.exec(`UPDATE public.staff SET "ReportingID" = 'T-RO' WHERE "ID" = 'T-NORO2'`);
+    await as(db, U.hr, tx => rpc(tx, 'pms_awp_forward_blank', ['T-NORO2', YEAR]));
+    const row = await one(db as unknown as Tx, `SELECT status, reporting_officer_id FROM pms_awps WHERE id = $1`, [id]);
+    expect(row).toEqual({ status: 'WITH_RO', reporting_officer_id: 'T-RO' });
+    await as(db, U.ro, tx => rpc(tx, 'pms_awp_ro_review', [id, 'REASONABLE', null]));
+  });
+
   it('a duplicate import for the same scientist and year is rejected', async () => {
     await expect(as(db, U.hr, tx => rpc(tx, 'pms_awp_import',
       ['T-SCI', YEAR, JSON.stringify(payload()), 'APPROVED', null, null, null, null])))
@@ -204,7 +236,7 @@ describe('edge cases', () => {
   });
 
   it('only the owner can save their draft', async () => {
-    await expect(as(db, U.stranger, tx => rpc(tx, 'pms_awp_save_draft', ['T-SCI', '2028-29', JSON.stringify(payload())])))
+    await expect(as(db, U.stranger, tx => rpc(tx, 'pms_awp_save_draft', ['T-SCI', LATER, JSON.stringify(payload())])))
       .rejects.toThrow('Not your Annual Work Plan');
   });
 
@@ -214,7 +246,7 @@ describe('edge cases', () => {
   });
 
   it('a revision of a non-approved AWP is rejected', async () => {
-    const id = (await as(db, U.sci, tx => rpc(tx, 'pms_awp_save_draft', ['T-SCI', '2028-29', JSON.stringify(payload())])))[0].pms_awp_save_draft as string;
+    const id = (await as(db, U.sci, tx => rpc(tx, 'pms_awp_save_draft', ['T-SCI', LATER, JSON.stringify(payload())])))[0].pms_awp_save_draft as string;
     await expect(as(db, U.sci, tx => rpc(tx, 'pms_awp_request_revision', [id, 'Change of project scope entirely', JSON.stringify(payload())])))
       .rejects.toThrow('Only an approved AWP can be revised');
   });
@@ -225,7 +257,7 @@ describe('edge cases', () => {
   });
 
   it('only admins may change the Reviewing Officer', async () => {
-    const id = (await one(db as unknown as Tx, `SELECT id FROM pms_awps WHERE staff_id = 'T-SCI' AND reporting_year = '2028-29'`)).id;
+    const id = (await one(db as unknown as Tx, `SELECT id FROM pms_awps WHERE staff_id = 'T-SCI' AND reporting_year = $1`, [LATER])).id;
     await expect(as(db, U.sci, tx => rpc(tx, 'pms_awp_set_reviewing_officer', [id, 'T-X'])))
       .rejects.toThrow(/administrators/);
   });

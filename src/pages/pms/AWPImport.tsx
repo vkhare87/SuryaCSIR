@@ -6,7 +6,7 @@ import { useAWP } from '../../contexts/AWPContext';
 import { useData } from '../../contexts/DataContext';
 import { AWPPartVForm, type AWPFormSection } from '../../components/pms/AWPPartVForm';
 import { Button } from '../../components/ui/Button';
-import { emptyAWPContent, reportingYearFor } from '../../lib/pms/awp';
+import { activityTotal, emptyAWPContent, reportingYearFor } from '../../lib/pms/awp';
 import { parseAWPText } from '../../lib/pms/awpExtract';
 import type { AWPContent, AWPVerdict } from '../../types/pms';
 
@@ -211,7 +211,7 @@ export default function AWPImport() {
                     {sel.error.includes('already exists') && <> — <Link to="/pms/awp/register" className="underline">open the register</Link></>}
                   </p>
                 )}
-                <Button isLoading={busy} disabled={!sel.staffId || !/^\d{4}-\d{2}$/.test(sel.year)} onClick={() => void save(sel)}>
+                <Button isLoading={busy} disabled={!sel.staffId || !/^\d{4}-\d{2}$/.test(sel.year) || activityTotal(sel.content.activitySplit) !== 100} onClick={() => void save(sel)}>
                   Save AWP
                 </Button>
               </>
