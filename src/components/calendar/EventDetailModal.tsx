@@ -7,6 +7,7 @@ import { EVENT_COLOR, EVENT_LABEL, type CalEvent } from '../../lib/calendar/type
 import { canEditEvent } from '../../lib/calendar/permissions';
 import { formatDate } from '../../utils/dateUtils';
 import type { DivisionInfo, Role } from '../../types';
+import { useDialog } from '../../utils/useDialog';
 
 interface EventDetailModalProps {
   event: CalEvent | null;
@@ -29,6 +30,7 @@ export function EventDetailModal({
   onUpdate,
   onDelete,
 }: EventDetailModalProps) {
+  const panelRef = useDialog<HTMLDivElement>(open && !!event, onClose);
   const [mode, setMode] = useState<'view' | 'edit'>('view');
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
@@ -79,7 +81,7 @@ export function EventDetailModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+    <div ref={panelRef} role="dialog" aria-modal="true" aria-label="Event details" tabIndex={-1} className="outline-none fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="bg-surface border border-border rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-4 border-b border-border">
           <div className="flex items-center gap-2">

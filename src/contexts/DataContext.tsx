@@ -441,3 +441,8 @@ export function useData() {
   }
   return context;
 }
+
+/** Non-throwing loading flag for UI primitives that may render outside a DataProvider. */
+export function useDataLoading() {
+  return useContext(DataContext)?.isLoading ?? false;
+}

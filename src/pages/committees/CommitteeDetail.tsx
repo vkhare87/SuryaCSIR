@@ -27,6 +27,7 @@ import {
   canManageMembers,
 } from '../../lib/committees/permissions';
 import type { Committee } from '../../types';
+import { useBack } from '../../utils/useBack';
 
 // --- Helper ---
 
@@ -44,6 +45,7 @@ function InfoRow({ label, value }: { label: string; value?: string | number | nu
 export default function CommitteeDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const goBack = useBack('/committees');
   const [showEditModal, setShowEditModal] = useState(false);
   const [showMeetingModal, setShowMeetingModal] = useState(false);
   const location = useLocation();
@@ -429,7 +431,8 @@ export default function CommitteeDetail() {
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <button
-            onClick={() => navigate('/committees')}
+            onClick={goBack}
+            aria-label="Back"
             className="p-2 hover:bg-surface-hover rounded-full transition-colors text-text-muted hover:text-text"
           >
             <ArrowLeft size={20} />

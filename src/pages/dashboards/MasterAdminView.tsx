@@ -2,13 +2,14 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Users, Shield, RefreshCw, Trash2, Plus, Database, Activity,
   Briefcase, Microscope, FileText, Wrench, Lightbulb, BookOpen,
-  Ticket as TicketIcon, ClipboardList, AlertTriangle, Bell, KeyRound,
+  Ticket as TicketIcon, ClipboardList, AlertTriangle, Bell, KeyRound, ChevronDown,
 } from 'lucide-react';
 import {
   Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis,
   Pie, PieChart, Cell, Legend,
 } from 'recharts';
 import { supabase, isProvisioned } from '../../utils/supabaseClient';
+import { isEquipmentDown } from '../../utils/equipmentStatus';
 import { useData } from '../../contexts/DataContext';
 import { usePMS } from '../../contexts/PMSContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -120,7 +121,7 @@ export function MasterAdminView() {
 
   // ── Derived metrics ───────────────────────────────────────────────
   const activeProjects   = useMemo(() => projects.filter(p => p.ProjectStatus === 'Active').length, [projects]);
-  const equipmentDown    = useMemo(() => equipment.filter(e => e.WorkingStatus !== 'Working').length, [equipment]);
+  const equipmentDown    = useMemo(() => equipment.filter(e => isEquipmentDown(e.WorkingStatus)).length, [equipment]);
   const openTickets      = useMemo(() => tickets.filter(t => t.status === 'Open' || t.status === 'InProgress').length, [tickets]);
   const criticalTickets  = useMemo(() => tickets.filter(t => t.urgency === 'Critical' && t.status !== 'Closed').length, [tickets]);
   const overdueActions   = useMemo(() => {
@@ -265,30 +266,30 @@ export function MasterAdminView() {
 
       {/* ── Row 1: institutional KPIs ─────────────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <KpiCard label="Total Staff"      value={staff.length}             icon={<Users size={18} />}      sublabel={`${contractStaff.length} contract`} />
-        <KpiCard label="Active Projects"  value={activeProjects}           icon={<Briefcase size={18} />}  sublabel={`of ${projects.length} total`} />
-        <KpiCard label="Publications"     value={scientificOutputs.length} icon={<Microscope size={18} />} sublabel={`${totalCitations} citations`} />
-        <KpiCard label="IP Portfolio"     value={ipIntelligence.length}    icon={<Lightbulb size={18} />}  sublabel={`${grantedIP} granted`} />
-        <KpiCard label="PhD Students"     value={phDStudents.length}       icon={<BookOpen size={18} />}   sublabel="Enrolled scholars" />
-        <KpiCard label="Equipment"        value={equipment.length}         icon={<Wrench size={18} />}     sublabel={`${equipmentDown} down`} />
+        <KpiCard to="/staff" label="Total Staff"      value={staff.length}             icon={<Users size={18} />}      sublabel={`${contractStaff.length} contract`} />
+        <KpiCard to="/projects" label="Active Projects"  value={activeProjects}           icon={<Briefcase size={18} />}  sublabel={`of ${projects.length} total`} />
+        <KpiCard to="/intelligence" label="Publications"     value={scientificOutputs.length} icon={<Microscope size={18} />} sublabel={`${totalCitations} citations`} />
+        <KpiCard to="/intelligence" label="IP Portfolio"     value={ipIntelligence.length}    icon={<Lightbulb size={18} />}  sublabel={`${grantedIP} granted`} />
+        <KpiCard to="/phd" label="PhD Students"     value={phDStudents.length}       icon={<BookOpen size={18} />}   sublabel="Enrolled scholars" />
+        <KpiCard to="/facilities" label="Equipment"        value={equipment.length}         icon={<Wrench size={18} />}     sublabel={`${equipmentDown} down`} />
       </div>
 
       {/* ── Row 2: operational health ─────────────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <KpiCard label="Open Tickets"     value={openTickets}              icon={<TicketIcon size={18} />}    sublabel={`${criticalTickets} critical`} />
-        <KpiCard label="Overdue Actions"  value={overdueActions}           icon={<AlertTriangle size={18} />} sublabel="Past deadline" />
-        <KpiCard label="Open Vacancies"   value={openVacancies}            icon={<ClipboardList size={18} />} sublabel={`${vacancyPosts.length} applicants`} />
-        <KpiCard label="Committees"       value={committees.filter(c => c.status === 'Active').length} icon={<Shield size={18} />} sublabel={`${meetings.length} meetings`} />
+        <KpiCard to="/helpdesk" label="Open Tickets"     value={openTickets}              icon={<TicketIcon size={18} />}    sublabel={`${criticalTickets} critical`} />
+        <KpiCard to="/committees" label="Overdue Actions"  value={overdueActions}           icon={<AlertTriangle size={18} />} sublabel="Past deadline" />
+        <KpiCard to="/recruitment" label="Open Vacancies"   value={openVacancies}            icon={<ClipboardList size={18} />} sublabel={`${vacancyPosts.length} applicants`} />
+        <KpiCard to="/committees" label="Committees"       value={committees.filter(c => c.status === 'Active').length} icon={<Shield size={18} />} sublabel={`${meetings.length} meetings`} />
         <KpiCard label="Notifications"    value={unreadNotifications}      icon={<Bell size={18} />}       sublabel="Unread" />
         <KpiCard label="Avg IF"           value={avgImpactFactor.toFixed(2)} icon={<Microscope size={18} />} sublabel="Publications" />
       </div>
 
       {/* ── Row 3: user lifecycle ─────────────────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <KpiCard label="Total Users"      value={users.length}             icon={<Users size={18} />}      sublabel="Registered accounts" />
-        <KpiCard label="Pending Access"   value={pendingUsers}             icon={<Shield size={18} />}     sublabel="DefaultUser only" />
-        <KpiCard label="Password Resets"  value={passwordPending}          icon={<KeyRound size={18} />}   sublabel="Forced on next login" />
-        <KpiCard label="PMS Reports"      value={reports.length}           icon={<FileText size={18} />}   sublabel={`${reports.filter(r => r.status === 'FINALIZED').length} finalized`} />
+        <KpiCard loading={loading} label="Total Users"      value={users.length}             icon={<Users size={18} />}      sublabel="Registered accounts" />
+        <KpiCard to="/admin/access-requests" loading={loading} label="Pending Access"   value={pendingUsers}             icon={<Shield size={18} />}     sublabel="DefaultUser only" />
+        <KpiCard loading={loading} label="Password Resets"  value={passwordPending}          icon={<KeyRound size={18} />}   sublabel="Forced on next login" />
+        <KpiCard to="/pms/reports" label="PMS Reports"      value={reports.length}           icon={<FileText size={18} />}   sublabel={`${reports.filter(r => r.status === 'FINALIZED').length} finalized`} />
       </div>
 
       {/* ── Charts ───────────────────────────────────────────────── */}
@@ -371,10 +372,14 @@ export function MasterAdminView() {
 
       {/* ── User management table ────────────────────────────────── */}
       <Card className="p-0 overflow-hidden">
-        <div className="px-6 py-4 border-b border-[#f0eee6] flex items-center justify-between">
+        <details className="group/users">
+        <summary className="px-6 py-4 flex items-center justify-between gap-3 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden group-open/users:border-b group-open/users:border-border">
           <h2 className="text-base font-semibold text-[#4d4c48] uppercase tracking-wide">Users &amp; Roles</h2>
-          <span className="text-xs text-text-muted">{users.length} accounts</span>
-        </div>
+          <span className="flex items-center gap-2 text-xs text-text-muted">
+            {users.length} accounts
+            <ChevronDown size={16} className="transition-transform group-open/users:rotate-180" />
+          </span>
+        </summary>
 
         {loading ? (
           <div className="px-6 py-8 text-center text-text-muted text-xs">Loading users…</div>
@@ -471,13 +476,19 @@ export function MasterAdminView() {
             ))}
           </div>
         )}
+        </details>
       </Card>
 
       {/* ── Division strength ────────────────────────────────────── */}
       <Card className="p-0 overflow-hidden">
-        <div className="px-6 py-4 border-b border-[#f0eee6]">
+        <details className="group/divs">
+        <summary className="px-6 py-4 flex items-center justify-between gap-3 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden group-open/divs:border-b group-open/divs:border-border">
           <h2 className="text-base font-semibold text-[#4d4c48] uppercase tracking-wide">Division Strength</h2>
-        </div>
+          <span className="flex items-center gap-2 text-xs text-text-muted">
+            {divisions.length} divisions
+            <ChevronDown size={16} className="transition-transform group-open/divs:rotate-180" />
+          </span>
+        </summary>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -513,6 +524,7 @@ export function MasterAdminView() {
             </tbody>
           </table>
         </div>
+        </details>
       </Card>
     </div>
   );

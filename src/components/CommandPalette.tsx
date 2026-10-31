@@ -9,11 +9,16 @@ import {
   Building2,
   Lightbulb,
   FlaskConical,
+  FileText,
+  Network,
+  Sparkles,
   X,
 } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { useFeatureControls } from '../contexts/FeatureControlContext';
-import type { StaffMember, Project, PhDStudent, ScientificOutput, IPIntelligence, Equipment } from '../types';
+import { ENTITY_META } from '../lib/entities';
+import { searchDocuments, getDocumentUrl, openDocumentUrl, type DocumentHit } from '../lib/documents/registry';
+import type { StaffMember, Project, PhDStudent, ScientificOutput, IPIntelligence, Equipment, DivisionInfo, Meeting } from '../types';
 
 // ---------------------------------------------------------------------------
 // Result-set type
@@ -26,10 +31,26 @@ interface SearchResults {
   outputs: ScientificOutput[];
   ip: IPIntelligence[];
   equipment: Equipment[];
+  divisions: DivisionInfo[];
 }
 
 function emptyResults(): SearchResults {
-  return { staff: [], projects: [], phd: [], outputs: [], ip: [], equipment: [] };
+  return { staff: [], projects: [], phd: [], outputs: [], ip: [], equipment: [], divisions: [] };
+}
+
+/** Canonical page for a document's parent record; null → open the file itself. */
+function documentRoute(d: DocumentHit, meetings: Meeting[]): string | null {
+  const id = encodeURIComponent(d.entity_id);
+  switch (d.entity_type) {
+    case 'proposal':       return `/proposals/${id}`;
+    case 'project_report': return `/reports/${id}`;
+    case 'pms_report':     return `/pms/reports/${id}`;
+    case 'meeting': {
+      const m = meetings.find(x => x.id === d.entity_id);
+      return m ? `/committees/${m.committee_id}/meetings/${m.id}` : null;
+    }
+    default: return null;
+  }
 }
 
 const RESULT_LIMIT = 3;
@@ -47,6 +68,7 @@ function searchAll(
     scientificOutputs: ScientificOutput[];
     ipIntelligence: IPIntelligence[];
     equipment: Equipment[];
+    divisions: DivisionInfo[];
   }
 ): SearchResults {
   const q = query.toLowerCase().trim();
@@ -57,11 +79,11 @@ function searchAll(
 
   return {
     staff: data.staff
-      .filter(s => match(s.Name) || match(s.Designation) || match(s.Division) || match(s.CoreArea) || match(s.Expertise))
+      .filter(s => match(s.ID) || match(s.Name) || match(s.Designation) || match(s.Division) || match(s.CoreArea) || match(s.Expertise))
       .slice(0, RESULT_LIMIT),
 
     projects: data.projects
-      .filter(p => match(p.ProjectName) || match(p.ProjectNo) || match(p.SponsorerName) || match(p.PrincipalInvestigator))
+      .filter(p => match(p.ProjectID) || match(p.ProjectName) || match(p.ProjectNo) || match(p.SponsorerName) || match(p.PrincipalInvestigator))
       .slice(0, RESULT_LIMIT),
 
     phd: data.phDStudents
@@ -77,7 +99,11 @@ function searchAll(
       .slice(0, RESULT_LIMIT),
 
     equipment: data.equipment
-      .filter(e => match(e.Name) || match(e.EndUse) || match(e.Division) || match(e.IndenterName) || match(e.OperatorName))
+      .filter(e => match(e.UInsID) || match(e.instrument_code) || match(e.Name) || match(e.manufacturer) || match(e.EndUse) || match(e.Division) || match(e.IndenterName) || match(e.OperatorName))
+      .slice(0, RESULT_LIMIT),
+
+    divisions: data.divisions
+      .filter(d => match(d.divCode) || match(d.divName))
       .slice(0, RESULT_LIMIT),
   };
 }
@@ -89,7 +115,8 @@ function totalHits(results: SearchResults): number {
     results.phd.length +
     results.outputs.length +
     results.ip.length +
-    results.equipment.length
+    results.equipment.length +
+    results.divisions.length
   );
 }
 
@@ -99,9 +126,21 @@ function totalHits(results: SearchResults): number {
 
 export default function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const [query, setQuery] = useState('');
-  const { staff, projects, phDStudents, scientificOutputs, ipIntelligence, equipment } = useData();
+  const { staff, projects, phDStudents, scientificOutputs, ipIntelligence, equipment, divisions, meetings } = useData();
   const { canAccess } = useFeatureControls();
   const navigate = useNavigate();
+  const [docs, setDocs] = useState<{ query: string; hits: DocumentHit[] }>({ query: '', hits: [] });
+
+  // Documents live server-side; debounce, and drop responses for stale queries.
+  useEffect(() => {
+    if (!isOpen || query.trim().length < 2) return;
+    let cancelled = false;
+    const t = setTimeout(() => {
+      void searchDocuments(query).then(hits => { if (!cancelled) setDocs({ query, hits }); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [query, isOpen]);
+  const docHits = docs.query === query ? docs.hits : [];
 
   // Search only the record types whose feature this user may open.
   const results = searchAll(query, {
@@ -111,8 +150,9 @@ export default function CommandPalette({ isOpen, onClose }: { isOpen: boolean; o
     scientificOutputs: canAccess('/intelligence') ? scientificOutputs : [],
     ipIntelligence: canAccess('/intelligence') ? ipIntelligence : [],
     equipment: canAccess('/facilities') ? equipment : [],
+    divisions: canAccess('/divisions') ? divisions : [],
   });
-  const hasResults = totalHits(results) > 0;
+  const hasResults = totalHits(results) + docHits.length > 0;
 
   const handleClose = useCallback(() => {
     setQuery('');
@@ -142,7 +182,7 @@ export default function CommandPalette({ isOpen, onClose }: { isOpen: boolean; o
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
+    <div role="dialog" aria-modal="true" aria-label="Search" className="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="w-full max-w-2xl bg-surface border border-border rounded-[12px] shadow-[0px_0px_0px_1px_#f0eee6] dark:shadow-[0px_0px_0px_1px_#30302e] overflow-hidden scale-in duration-200">
 
         {/* Search input */}
@@ -151,12 +191,13 @@ export default function CommandPalette({ isOpen, onClose }: { isOpen: boolean; o
           <input
             autoFocus
             type="text"
-            placeholder="Search staff, projects, PhD, outputs, IP, equipment... (Esc to close)"
+            aria-label="Search records"
+            placeholder="Search by name or ID: staff, projects, equipment, documents… (Esc to close)"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="flex-1 bg-transparent border-none outline-none text-text text-base placeholder:text-text-muted/50"
           />
-          <button onClick={handleClose} className="p-1 hover:bg-surface rounded-lg text-text-muted shrink-0">
+          <button onClick={handleClose} aria-label="Close search" className="p-1 hover:bg-surface rounded-lg text-text-muted shrink-0">
             <X size={20} />
           </button>
         </div>
@@ -193,7 +234,7 @@ export default function CommandPalette({ isOpen, onClose }: { isOpen: boolean; o
                       iconColor="#5e5d59"
                       primary={p.ProjectName}
                       secondary={[p.ProjectNo, p.SponsorerName].filter(Boolean).join(' • ')}
-                      onClick={() => go(`/projects/${p.ProjectID}`)}
+                      onClick={() => go(ENTITY_META.project.route(p.ProjectID))}
                     />
                   ))}
                 </ResultSection>
@@ -261,9 +302,49 @@ export default function CommandPalette({ isOpen, onClose }: { isOpen: boolean; o
                       iconColor="#5e5d59"
                       primary={e.Name}
                       secondary={[e.Division, e.WorkingStatus].filter(Boolean).join(' • ')}
-                      onClick={() => go('/facilities')}
+                      onClick={() => go(`/facilities/${encodeURIComponent(e.UInsID)}`)}
                     />
                   ))}
+                </ResultSection>
+              )}
+
+              {/* --- Divisions --- */}
+              {results.divisions.length > 0 && (
+                <ResultSection label="Divisions">
+                  {results.divisions.map((d) => (
+                    <ResultRow
+                      key={d.divCode}
+                      icon={<Network size={15} />}
+                      iconBg="#f0eee6"
+                      iconColor="#7a4a1e"
+                      primary={d.divName}
+                      secondary={d.divCode}
+                      onClick={() => go(`/divisions?div=${encodeURIComponent(d.divCode)}`)}
+                    />
+                  ))}
+                </ResultSection>
+              )}
+
+              {/* --- Documents (title match, RLS-scoped) --- */}
+              {docHits.length > 0 && (
+                <ResultSection label="Documents · title match">
+                  {docHits.map((d) => {
+                    const route = documentRoute(d, meetings);
+                    return (
+                      <ResultRow
+                        key={d.id}
+                        icon={<FileText size={15} />}
+                        iconBg="#f0eee6"
+                        iconColor="#5e5d59"
+                        primary={d.title}
+                        secondary={[d.entity_type.replace(/_/g, ' '), d.doc_type.replace(/_/g, ' '), d.created_at.slice(0, 10)].join(' • ')}
+                        onClick={() => {
+                          if (route) go(route);
+                          else { void openDocumentUrl(() => getDocumentUrl(d.storage_path)); handleClose(); }
+                        }}
+                      />
+                    );
+                  })}
                 </ResultSection>
               )}
 
@@ -271,8 +352,22 @@ export default function CommandPalette({ isOpen, onClose }: { isOpen: boolean; o
               {!hasResults && (
                 <div className="p-12 text-center">
                   <p className="text-text-muted italic">No records found for &ldquo;{query}&rdquo;</p>
-                  <p className="text-xs text-text-muted/60 mt-1">Searched staff, projects, PhD, outputs, IP, and equipment</p>
+                  <p className="text-xs text-text-muted/60 mt-1">Searched names and IDs you have access to, and document titles</p>
                 </div>
+              )}
+
+              {/* Full-text questions go to Ask SURYA, which cites its sources */}
+              {canAccess('/ask') && query.trim().length >= 2 && (
+                <ResultSection label="Search inside documents">
+                  <ResultRow
+                    icon={<Sparkles size={15} />}
+                    iconBg="#f0eee6"
+                    iconColor="#c96442"
+                    primary={`Ask SURYA about “${query.trim()}”`}
+                    secondary="Answers from indexed documents, with page citations"
+                    onClick={() => go(`/ask?q=${encodeURIComponent(query.trim())}`)}
+                  />
+                </ResultSection>
               )}
             </>
           ) : (

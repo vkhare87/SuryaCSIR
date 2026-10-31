@@ -194,6 +194,34 @@ export async function listDocuments(entityType: string, entityId: string) {
   return data ?? [];
 }
 
+export interface DocumentHit {
+  id: string;
+  entity_type: string;
+  entity_id: string;
+  doc_type: string;
+  title: string;
+  storage_path: string;
+  created_at: string;
+}
+
+/**
+ * Title search over the registry for global search. RLS (documents_can_read)
+ * returns only rows the caller may read, so hits and counts never reveal
+ * restricted documents. Full-text search inside files is Ask SURYA's job.
+ */
+export async function searchDocuments(query: string, limit = 5): Promise<DocumentHit[]> {
+  const q = query.trim().replace(/[%_\\]/g, ' ');
+  if (!supabase || q.length < 2) return [];
+  const { data, error } = await supabase
+    .from('documents')
+    .select('id, entity_type, entity_id, doc_type, title, storage_path, created_at')
+    .ilike('title', `%${q}%`)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) { logger.error('[documents] search failed', error); return []; }
+  return data ?? [];
+}
+
 /** Remove the registry row for a deleted file. Non-fatal, mirrors registerDocument. */
 export async function unregisterDocument(storageBucket: string, storagePath: string): Promise<void> {
   if (!supabase) return;

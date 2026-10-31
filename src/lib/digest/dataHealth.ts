@@ -1,6 +1,8 @@
 import type { Role } from '../../types';
 import type { DivisionFreshness } from '../divisions/freshness';
 import type { DomainUpload } from '../divisions/uploadFreshness';
+import type { FileType } from '../../utils/dataMigration';
+import { ACCESS_MAP } from '../../constants/access';
 
 export type DigestSeverity = 'urgent' | 'warning' | 'info';
 
@@ -15,7 +17,7 @@ export interface DigestItem {
 // Roles that steward institute-wide data quality.
 const STEWARD_ROLES: Role[] = ['Director', 'HRAdmin', 'SystemAdmin', 'MasterAdmin'];
 
-const HREF = '/divisions-analytics';
+const HREF = '/divisions?view=analytics';
 const plural = (n: number) => (n === 1 ? '' : 's');
 
 function gapSummary(f: DivisionFreshness): string {
@@ -88,23 +90,37 @@ function daysAgoText(days: number): string {
 /**
  * Upload-recency alerts — the "who hasn't uploaded" half of Phase A, distinct
  * from buildDataHealthDigest's content-recency signal above. Institute-wide
- * only (import_events isn't per-division yet — see TODOS.md), so scoped to
- * the same steward roles as the institute rollup, not division heads.
+ * only (import_events isn't per-division yet — see TODOS.md). Scoped to roles
+ * that can open Data Management: only they load import_events, so for anyone
+ * else every domain would read as never uploaded. A domain with records but no
+ * import event was filled another way (seed, form, sync) — reported as
+ * untracked, not as never uploaded.
  */
-export function buildUploadRecencyDigest(role: Role, ledger: DomainUpload[]): DigestItem[] {
-  if (!STEWARD_ROLES.includes(role)) return [];
+export function buildUploadRecencyDigest(
+  role: Role,
+  ledger: DomainUpload[],
+  recordCounts: Partial<Record<FileType, number>> = {},
+): DigestItem[] {
+  if (!(ACCESS_MAP['/data'] as readonly Role[]).includes(role)) return [];
 
   return ledger
     .filter((d) => d.status !== 'fresh')
-    .map((d) => ({
-      id: `upload-${d.domain}`,
-      severity: d.status === 'urgent' ? 'urgent' : 'warning',
-      title: d.daysSinceUpload === null
-        ? `${d.label} has never been uploaded`
-        : `${d.label} last uploaded ${daysAgoText(d.daysSinceUpload)}`,
-      detail: 'Upload the latest file on Data Management.',
-      href: '/data',
-    }));
+    .map((d) => {
+      const untracked = d.daysSinceUpload === null && (recordCounts[d.domain] ?? 0) > 0;
+      return {
+        id: `upload-${d.domain}`,
+        severity: untracked ? 'info' : d.status === 'urgent' ? 'urgent' : 'warning',
+        title: untracked
+          ? `${d.label} has records but no import on file`
+          : d.daysSinceUpload === null
+            ? `${d.label} has never been uploaded`
+            : `${d.label} last uploaded ${daysAgoText(d.daysSinceUpload)}`,
+        detail: untracked
+          ? 'Records came from another source. Import the latest file to start tracking.'
+          : 'Upload the latest file on Data Management.',
+        href: '/data',
+      };
+    });
 }
 
 const SEVERITY_RANK: Record<DigestSeverity, number> = { urgent: 0, warning: 1, info: 2 };

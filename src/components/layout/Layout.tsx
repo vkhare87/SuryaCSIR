@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { Search, Menu, AlertCircle, ChevronDown, LayoutDashboard, Sparkles, Calendar as CalendarIcon } from 'lucide-react';
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Search, Menu, AlertCircle, ChevronDown, ChevronRight, LayoutDashboard, Sparkles, Calendar as CalendarIcon } from 'lucide-react';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
 import CommandPalette from '../CommandPalette';
@@ -14,6 +14,8 @@ import { useToast } from '../../contexts/ToastContext';
 import { useFeatureControls } from '../../contexts/FeatureControlContext';
 import { ROLE_ROUTES } from '../../constants/roleRoutes';
 import { ROLE_LABELS } from '../../constants/access';
+import { pageTrail } from '../../utils/pageTrail';
+import { useDialog } from '../../utils/useDialog';
 
 // UserAccount carries no display name, so derive from the email local part:
 // "khare.vivek87@…" → "KV", "vkhare@…" → "VK".
@@ -28,9 +30,12 @@ export function Layout() {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [roleSwitcherOpen, setRoleSwitcherOpen] = useState(false);
+  const roleMenuRef = useDialog<HTMLDivElement>(roleSwitcherOpen, () => setRoleSwitcherOpen(false));
 
   const { user, role, roles, setActiveRole } = useAuth();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const trail = pageTrail(pathname);
   const { isMobile, deviceType } = useUI();
   const { error } = useData();
   const toast = useToast();
@@ -74,7 +79,7 @@ export function Layout() {
 
         {/* TopBar */}
         <header className="h-16 bg-surface border-b border-border flex items-center justify-between px-4 md:px-6 z-10">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 min-w-0">
             {isMobile && (
               <button
                 onClick={() => setMobileMenuOpen(true)}
@@ -84,9 +89,23 @@ export function Layout() {
                 <Menu size={24} />
               </button>
             )}
-            <div className="text-sm md:text-xl font-medium md:font-normal text-text truncate uppercase tracking-tight md:tracking-normal font-serif">
-              {isMobile ? 'SURYA Platform' : role ? ROLE_LABELS[role] : 'SURYA'}
-            </div>
+            <nav aria-label="Breadcrumb" className="min-w-0">
+              <ol className="flex items-center gap-1.5 min-w-0">
+                {trail.map((c, i) => {
+                  const last = i === trail.length - 1;
+                  return (
+                    <li key={i} className={clsx('flex items-center gap-1.5 min-w-0', !last && 'hidden md:flex')}>
+                      {c.to ? (
+                        <Link to={c.to} className="text-sm text-text-muted hover:text-text truncate">{c.label}</Link>
+                      ) : (
+                        <span aria-current="page" className="text-base md:text-xl text-text font-serif truncate">{c.label}</span>
+                      )}
+                      {!last && <ChevronRight size={14} className="text-text-muted shrink-0" aria-hidden="true" />}
+                    </li>
+                  );
+                })}
+              </ol>
+            </nav>
           </div>
 
           <div className="flex items-center gap-2 md:gap-4">
@@ -102,19 +121,26 @@ export function Layout() {
 
               <NotificationBell />
 
-              {/* Role Switcher — only visible when user has 2+ roles */}
+              {/* Role: a switcher for 2+ roles, a plain label otherwise */}
+              {roles.length === 1 && role && (
+                <span className="hidden sm:inline px-2.5 py-1.5 text-xs font-semibold text-text-muted">{ROLE_LABELS[role]}</span>
+              )}
               {roles.length > 1 && (
-                <div className="relative">
+                <div
+                  className="relative"
+                  onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setRoleSwitcherOpen(false); }}
+                >
                   <button
                     onClick={() => setRoleSwitcherOpen(v => !v)}
                     className="flex items-center gap-1.5 px-2.5 py-1.5 bg-surface-hover border border-border rounded-[8px] text-xs font-semibold text-text-muted hover:border-terracotta hover:text-text transition-colors"
-                    aria-label="Switch role"
+                    aria-label={role ? `Acting as ${ROLE_LABELS[role]}. Switch role` : 'Switch role'}
+                    aria-expanded={roleSwitcherOpen}
                   >
                     <span className="hidden sm:inline">{role && ROLE_LABELS[role]}</span>
                     <ChevronDown size={13} className={`transition-transform ${roleSwitcherOpen ? 'rotate-180' : ''}`} />
                   </button>
                   {roleSwitcherOpen && (
-                    <div className="absolute right-0 top-full mt-1 bg-surface border border-border rounded-[10px] shadow-lg z-50 py-1 min-w-[160px]">
+                    <div ref={roleMenuRef} tabIndex={-1} className="absolute right-0 top-full mt-1 bg-surface border border-border rounded-[10px] shadow-lg z-50 py-1 min-w-[160px] outline-none">
                       {roles.map(r => (
                         <button
                           key={r}

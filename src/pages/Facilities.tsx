@@ -13,6 +13,7 @@ import { FilterChip } from '../components/viz/FilterChip';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/Tabs';
 import { useChartFilter } from '../utils/useChartFilter';
 import { applyChartFilter } from '../utils/applyChartFilter';
+import { equipmentStatusClass } from '../utils/equipmentStatus';
 
 const FacilitiesAnalytics = lazy(() => import('./FacilitiesAnalytics'));
 
@@ -97,13 +98,13 @@ export default function Facilities() {
         (e.manufacturer ?? '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         (e.Location ?? '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         e.IndenterName.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesStatus = statusFilter === 'ALL' || e.WorkingStatus === statusFilter;
+      const matchesStatus = statusFilter === 'ALL' || equipmentStatusClass(e.WorkingStatus) === statusFilter;
       const matchesDivision = divisionFilter === 'ALL' || e.Division === divisionFilter;
       const matchesAmc = amcFilter === 'ALL' || amcStatus(e.amc_end_date) === amcFilter;
       return matchesSearch && matchesStatus && matchesDivision && matchesAmc;
     });
     return applyChartFilter(base, filter, {
-      status: (e) => e.WorkingStatus,
+      status: (e) => equipmentStatusClass(e.WorkingStatus),
       division: (e) => e.Division,
       lab: (e) => e.lab_id,
     });
@@ -111,20 +112,21 @@ export default function Facilities() {
 
   const kpis = useMemo(() => ({
     total:    equipment.length,
-    working:  equipment.filter(e => e.WorkingStatus === 'Working').length,
-    maintenance: equipment.filter(e => e.WorkingStatus === 'Under Maintenance').length,
+    working:  equipment.filter(e => equipmentStatusClass(e.WorkingStatus) === 'Working').length,
+    maintenance: equipment.filter(e => equipmentStatusClass(e.WorkingStatus) === 'Under Maintenance').length,
+    down:     equipment.filter(e => equipmentStatusClass(e.WorkingStatus) === 'Not Working').length,
     amcExpired:  equipment.filter(e => amcStatus(e.amc_end_date) === 'expired').length,
     amcExpiring: equipment.filter(e => amcStatus(e.amc_end_date) === 'expiring').length,
   }), [equipment]);
 
   const statusMix = useMemo(() => {
-    const notWorking = equipment.length - kpis.working - kpis.maintenance;
     return [
       { label: 'Working', value: kpis.working },
       { label: 'Maintenance', value: kpis.maintenance },
-      { label: 'Down', value: Math.max(0, notWorking) },
+      { label: 'Down', value: kpis.down },
+      { label: 'Unknown', value: equipment.length - kpis.working - kpis.maintenance - kpis.down },
     ];
-  }, [equipment.length, kpis.working, kpis.maintenance]);
+  }, [equipment.length, kpis.working, kpis.maintenance, kpis.down]);
 
   const findStaffId = (name: string) => {
     if (!name) return null;
@@ -200,9 +202,11 @@ export default function Facilities() {
       cell: (e: Equipment) => {
         let variant: 'success' | 'warning' | 'danger' | 'neutral' = 'neutral';
         let Icon = CheckCircle2;
-        if (e.WorkingStatus === 'Working') { variant = 'success'; }
-        else if (e.WorkingStatus === 'Under Maintenance') { variant = 'warning'; Icon = Clock; }
-        else { Icon = AlertTriangle; variant = 'danger'; }
+        const cls = equipmentStatusClass(e.WorkingStatus);
+        if (cls === 'Working') { variant = 'success'; }
+        else if (cls === 'Under Maintenance') { variant = 'warning'; Icon = Clock; }
+        else if (cls === 'Not Working') { Icon = AlertTriangle; variant = 'danger'; }
+        else { Icon = AlertTriangle; }
         return (
           <Badge variant={variant} className="flex items-center gap-1.5 whitespace-nowrap">
             <Icon size={12} />
@@ -220,9 +224,10 @@ export default function Facilities() {
 
   const renderEquipmentCard = (e: Equipment) => {
     let variant: 'success' | 'warning' | 'danger' | 'neutral' = 'neutral';
-    if (e.WorkingStatus === 'Working') variant = 'success';
-    else if (e.WorkingStatus === 'Under Maintenance') variant = 'warning';
-    else variant = 'danger';
+    const cls = equipmentStatusClass(e.WorkingStatus);
+    if (cls === 'Working') variant = 'success';
+    else if (cls === 'Under Maintenance') variant = 'warning';
+    else if (cls === 'Not Working') variant = 'danger';
     return (
       <Card className="h-full flex flex-col bg-surface hover:bg-surface-hover hover:border-[#c96442]/50 transition-colors">
         <div className="flex items-start justify-between gap-3 mb-3">
@@ -333,6 +338,7 @@ export default function Facilities() {
             <option value="Working">Working</option>
             <option value="Under Maintenance">Under Maintenance</option>
             <option value="Not Working">Not Working</option>
+            <option value="Unknown">Unknown</option>
           </select>
         </div>
         <div className="relative">

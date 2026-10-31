@@ -62,16 +62,16 @@ export function DirectorView() {
           />
         </motion.div>
         <motion.div variants={fadeUp}>
-          <KpiCard label="Total Staff" value={staff.length} icon={<Users size={18} />} sublabel="Permanent personnel" />
+          <KpiCard to="/staff" label="Total Staff" value={staff.length} icon={<Users size={18} />} sublabel="Permanent personnel" />
         </motion.div>
         <motion.div variants={fadeUp}>
-          <KpiCard label="PhD Students" value={phDStudents.length} icon={<BookOpen size={18} />} sublabel="Enrolled scholars" />
+          <KpiCard to="/phd" label="PhD Students" value={phDStudents.length} icon={<BookOpen size={18} />} sublabel="Enrolled scholars" />
         </motion.div>
         <motion.div variants={fadeUp}>
-          <KpiCard label="Equipment" value={equipment.length} icon={<Wrench size={18} />} sublabel="Instruments & facilities" />
+          <KpiCard to="/facilities" label="Equipment" value={equipment.length} icon={<Wrench size={18} />} sublabel="Instruments & facilities" />
         </motion.div>
         <motion.div variants={fadeUp}>
-          <KpiCard label="Scientific Outputs" value={scientificOutputs.length} icon={<Microscope size={18} />} sublabel="Publications & IP" />
+          <KpiCard to="/intelligence" label="Scientific Outputs" value={scientificOutputs.length} icon={<Microscope size={18} />} sublabel="Publications & IP" />
         </motion.div>
       </motion.div>
 

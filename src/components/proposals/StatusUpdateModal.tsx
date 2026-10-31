@@ -10,6 +10,7 @@ import { nextAllowedTransitions } from '../../lib/proposals/permissions';
 import { STATUS_LABELS } from '../../lib/proposals/constants';
 import { useData } from '../../contexts/DataContext';
 import type { Proposal, ProposalStatus } from '../../types/proposal';
+import { useDialog } from '../../utils/useDialog';
 
 interface Props {
   proposal: Proposal;
@@ -20,6 +21,7 @@ interface Props {
 const inputCls = 'w-full px-3 py-2 bg-surface-hover border border-border rounded-lg text-sm text-text';
 
 export default function StatusUpdateModal({ proposal, onClose, onUpdated }: Props) {
+  const panelRef = useDialog<HTMLDivElement>(true, onClose);
   const { projects } = useData();
   const transitions = nextAllowedTransitions(proposal.status);
   const [target, setTarget] = useState<ProposalStatus | ''>(transitions[0] ?? '');
@@ -98,7 +100,7 @@ export default function StatusUpdateModal({ proposal, onClose, onUpdated }: Prop
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+    <div ref={panelRef} role="dialog" aria-modal="true" aria-label="Update status" tabIndex={-1} className="outline-none fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
       <Card className="w-full max-w-lg p-6 space-y-4 bg-surface">
         <h2 className="text-lg font-semibold text-text">Update Status</h2>
 

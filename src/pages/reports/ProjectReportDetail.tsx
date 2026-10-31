@@ -8,6 +8,7 @@ import { Button } from '../../components/ui/Button';
 import { PR_STATUS_LABELS, PR_STATUS_VARIANT, PR_EDITABLE } from '../../lib/projectReports/constants';
 import { uploadDocument, getDocumentUrl, openDocumentUrl, listDocuments } from '../../lib/documents/registry';
 import type { ProjectReport } from '../../types/projectReport';
+import { useBack } from '../../utils/useBack';
 
 const REVIEWER_ROLES = ['HOD', 'DivisionHead', 'Director', 'HRAdmin', 'SystemAdmin', 'MasterAdmin'];
 
@@ -16,6 +17,7 @@ type DocRow = Awaited<ReturnType<typeof listDocuments>>[number];
 export default function ProjectReportDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const goBack = useBack('/reports');
   const { user } = useAuth();
   const { getReport, submitReport, reviewReport } = useProjectReports();
 
@@ -83,7 +85,7 @@ export default function ProjectReportDetail() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6 p-6">
-      <button onClick={() => navigate('/reports')} className="flex items-center gap-1 text-sm text-text-muted hover:text-text">
+      <button onClick={goBack} className="flex items-center gap-1 text-sm text-text-muted hover:text-text">
         <ArrowLeft size={16} /> Back
       </button>
 

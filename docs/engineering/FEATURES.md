@@ -42,6 +42,17 @@ Related docs: [app.md](app.md) (product spec), [database_design.md](database_des
 
 ### Command palette, theme, density
 - `Ctrl+K` opens the command palette (navigate anywhere by name).
+- **Record search** (same box): staff, projects, PhD, outputs, IP, equipment and
+  divisions by name **or stable ID** (staff ID, ProjectID, UInsID, instrument code),
+  matched client-side over the RLS-scoped rows `DataContext` already loaded — so it
+  cannot surface or count records the user can't read. Each type is also gated by
+  `canAccess` for its page.
+- **Document titles** via `searchDocuments` (`lib/documents/registry.ts`) — a
+  PostgREST `ilike` on `documents.title`; `documents_can_read` RLS scopes hits.
+  Results open the parent record's page (proposal, progress report, PMS report,
+  meeting) or the file when it has none. Labelled "title match".
+- **Inside-document search** is delegated: the last row hands the query to Ask SURYA
+  (`/ask?q=…`, prefilled, not auto-sent), which answers with page citations.
 - Light/dark theme and UI density toggles live in the layout header; persisted per user.
 
 ---
@@ -195,6 +206,22 @@ Related docs: [app.md](app.md) (product spec), [database_design.md](database_des
   carry an analytics view (ReCharts) — `/staff/analytics` standalone, the rest as an
   Analytics tab on the entity's own page. For cross-entity questions, use Ask SURYA
   instead — that is the design intent.
+
+### Connected analytics pattern (piloted on Staff and Projects, 2026-10-31)
+Chart → filtered list → record → Back, without losing context:
+- **One filter in the URL** — `useChartFilter` stores `?filter=<dim>:<value>`; tabs
+  use `?tab=`. Back/forward and shared links restore the view.
+- **One matcher per module** — `lib/projects/projectFilter.ts`,
+  `lib/staff/staffFilter.ts`. Charts *and* the list call it, so blank values bucket
+  the same way ("Unspecified") and counts agree. Never re-implement the match inline.
+- **Clicked dimension keeps all categories**; every other widget narrows.
+- **`FilterChip`** shows the active filter with an accessible clear button, plus a
+  "Show N matching …" link to the list (same `?filter=`). The list's export
+  (`DataTable`) writes exactly the filtered, sorted rows.
+- **Record links go through `ENTITY_META[kind].route(id)`** — it URI-encodes IDs
+  (ProjectIDs contain `/`).
+- To adopt on another module: add `lib/<module>/<module>Filter.ts`, use it in the
+  analytics charts and the list, render `FilterChip` + the "Show N" link.
 
 ---
 

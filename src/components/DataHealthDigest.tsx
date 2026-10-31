@@ -21,7 +21,7 @@ const SEVERITY_BADGE: Record<DigestSeverity, { label: string; variant: 'danger' 
  * nothing to flag, so it stays out of the way on healthy dashboards. */
 export function DataHealthDigest() {
   const { user, divisionCode } = useAuth();
-  const { divisions, staff, projects, scientificOutputs, ipIntelligence, mous, techTransfers, phDStudents, phdMilestones, vacancyAdvertisements, importEvents } = useData();
+  const { divisions, staff, projects, scientificOutputs, ipIntelligence, mous, techTransfers, phDStudents, phdMilestones, vacancyAdvertisements, importEvents, equipment, projectStaff, contractStaff } = useData();
   const { evaluations, reports } = usePMS();
 
   const items = useMemo(() => {
@@ -33,10 +33,13 @@ export function DataHealthDigest() {
     return sortAndCap([
       ...buildExecutiveDigest(user.activeRole, divisionCode, { projects, phdMilestones, vacancyAdvertisements }),
       ...buildDataHealthDigest(user.activeRole, divisionCode, freshness),
-      ...buildUploadRecencyDigest(user.activeRole, uploadLedger),
+      ...buildUploadRecencyDigest(user.activeRole, uploadLedger, {
+        staff: staff.length, divisions: divisions.length, projects: projects.length, projectStaff: projectStaff.length,
+        phd: phDStudents.length, equipment: equipment.length, contractStaff: contractStaff.length,
+      }),
       ...buildPmsDigest(user.activeRole, user.id, evaluations, reports),
     ]);
-  }, [user, divisionCode, divisions, staff, projects, scientificOutputs, ipIntelligence, mous, techTransfers, phDStudents, phdMilestones, vacancyAdvertisements, importEvents, evaluations, reports]);
+  }, [user, divisionCode, divisions, staff, projects, scientificOutputs, ipIntelligence, mous, techTransfers, phDStudents, phdMilestones, vacancyAdvertisements, importEvents, equipment, projectStaff, contractStaff, evaluations, reports]);
 
   if (items.length === 0) return null;
 

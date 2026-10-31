@@ -18,9 +18,12 @@ import {
   diffInDays, staffNameMatchesAuthor, amcStatus, AMC_COLORS,
 } from '../utils/dateUtils';
 import { getStaffPortfolio } from '../utils/analytics';
+import { equipmentStatusClass } from '../utils/equipmentStatus';
 import ScientistProfile from '../components/ScientistProfile';
 import { buildScientistDossier } from '../lib/scientist/dossier';
 import { buildScientistBrief } from '../lib/scientist/brief';
+import { ENTITY_META } from '../lib/entities';
+import { useBack } from '../utils/useBack';
 
 const TRAJECTORY_FLAG_LABEL: Record<string, string> = {
   'output-rising': 'Output rising',
@@ -35,6 +38,7 @@ const TRAJECTORY_FLAG_LABEL: Record<string, string> = {
 export default function StaffDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const goBack = useBack('/staff');
   const canEdit = useCanEdit('hr');
   const { user } = useAuth();
   const [editOpen, setEditOpen] = useState(false);
@@ -135,7 +139,8 @@ export default function StaffDetail() {
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <button
-          onClick={() => navigate('/staff')}
+          onClick={goBack}
+          aria-label="Back"
           className="p-2 hover:bg-surface-hover rounded-full transition-colors text-text-muted hover:text-text"
         >
           <ArrowLeft size={20} />
@@ -391,7 +396,7 @@ export default function StaffDetail() {
                 {linkedProjects.map(proj => (
                   <Link
                     key={proj.ProjectID}
-                    to={`/projects/${proj.ProjectID}`}
+                    to={ENTITY_META.project.route(proj.ProjectID)}
                     className="flex justify-between items-center p-4 hover:bg-surface-hover transition-colors group"
                   >
                     <div>
@@ -543,7 +548,7 @@ export default function StaffDetail() {
                   </div>
                   <p className="text-xs text-text-muted mt-0.5">{item.Location || '—'}</p>
                 </div>
-                <Badge variant={item.WorkingStatus === 'Working' ? 'success' : item.WorkingStatus === 'Under Maintenance' ? 'warning' : 'danger'} className="shrink-0">
+                <Badge variant={({ Working: 'success', 'Under Maintenance': 'warning', 'Not Working': 'danger', Unknown: 'neutral' } as const)[equipmentStatusClass(item.WorkingStatus)]} className="shrink-0">
                   {item.WorkingStatus || '—'}
                 </Badge>
               </Link>

@@ -18,6 +18,7 @@ import { updateTicketStatus, addResponse, assignTicket } from '../../lib/helpdes
 import { canRespond, canTransitionStatus, canCloseTicket, canReassign, canForceClose, isAdmin } from '../../lib/helpdesk/permissions';
 import { URGENCY_COLORS, EVENT_ICONS } from '../../lib/helpdesk/constants';
 import type { TicketEvent, StaffMember } from '../../types';
+import { useBack } from '../../utils/useBack';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -75,6 +76,7 @@ const EVENT_ICON_MAP: Record<string, React.ElementType> = {
 export default function TicketDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const goBack = useBack('/helpdesk');
   const data = useData();
   const { user } = useAuth();
 
@@ -259,7 +261,8 @@ export default function TicketDetail() {
       {/* --- 1. Back Navigation + Header --- */}
       <div className="space-y-4">
         <button
-          onClick={() => navigate('/helpdesk')}
+          onClick={goBack}
+          aria-label="Back"
           className="flex items-center gap-1.5 text-sm text-text-muted hover:text-text transition-colors"
         >
           <ArrowLeft size={20} />

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { deriveMyActions, type MyActionsInput } from './myActions';
+import { deriveMyActions, dueUrgency, type MyActionsInput } from './myActions';
 import type { PMSReport, PMSEvaluation } from '../../types/pms';
 import type { Proposal } from '../../types/proposal';
 import type { ProjectReport } from '../../types/projectReport';
@@ -176,5 +176,19 @@ describe('deriveMyActions', () => {
     const self = deriveMyActions({ ...base, role: 'ProjectStaff', staffName: 'Mr B Temp', contractStaff: cs });
     expect(self.map(a => a.id)).toEqual(['contract-cs1']);
     expect(self[0].label).toBe('Your engagement ends soon');
+  });
+});
+
+describe('dueUrgency', () => {
+  const now = new Date('2026-10-31T10:00:00Z');
+  it.each([
+    [null, 'none'],
+    ['2026-06-12', 'overdue'],
+    ['2026-10-30', 'overdue'],
+    ['2026-10-31', 'soon'],
+    ['2026-11-14', 'soon'],
+    ['2026-11-15', 'later'],
+  ] as const)('%s → %s', (due, expected) => {
+    expect(dueUrgency(due, now)).toBe(expected);
   });
 });

@@ -1,13 +1,14 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { ClipboardList, ChevronRight } from 'lucide-react';
+import clsx from 'clsx';
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
 import { usePMS } from '../contexts/PMSContext';
 import { useProposals } from '../contexts/ProposalsContext';
 import { useProjectReports } from '../contexts/ProjectReportsContext';
 import { Card, Badge } from './ui/Cards';
-import { deriveMyActions } from '../lib/dashboard/myActions';
+import { deriveMyActions, dueUrgency, type DueUrgency } from '../lib/dashboard/myActions';
 import { useFeatureControls } from '../contexts/FeatureControlContext';
 import type { AccessPath } from '../constants/access';
 
@@ -20,6 +21,13 @@ const KIND_BADGE: Record<string, { label: string; variant: 'info' | 'warning' | 
   'progress-report': { label: 'Progress', variant: 'info' },
   'retirement':     { label: 'Workforce', variant: 'warning' },
   'contract-end':   { label: 'Contract',  variant: 'warning' },
+};
+
+const DUE_TEXT: Record<DueUrgency, { prefix: string; className: string }> = {
+  overdue: { prefix: 'Overdue', className: 'text-danger font-semibold' },
+  soon:    { prefix: 'Due',     className: 'text-text font-semibold' },
+  later:   { prefix: 'Due',     className: 'text-text-muted' },
+  none:    { prefix: '',        className: '' },
 };
 
 // Discovery chips shown when the inbox is empty — first visit orientation.
@@ -67,6 +75,8 @@ export function MyActions() {
     });
   }, [user, staffName, reports, evaluations, proposals, progressReports, actionItems, tickets, staff, contractStaff]);
 
+  const overdueCount = useMemo(() => actions.filter(a => dueUrgency(a.due) === 'overdue').length, [actions]);
+
   const areas = useMemo(() => {
     if (!user) return [];
     return (Object.entries(AREA_LABELS) as [AccessPath, string][])
@@ -81,6 +91,7 @@ export function MyActions() {
         <ClipboardList size={16} className="text-brand-blue" />
         <h2 className="text-sm font-semibold">My Actions</h2>
         {actions.length > 0 && <Badge variant="warning">{actions.length}</Badge>}
+        {overdueCount > 0 && <Badge variant="danger">{overdueCount} overdue</Badge>}
       </div>
 
       {actions.length === 0 ? (
@@ -100,7 +111,10 @@ export function MyActions() {
         </div>
       ) : (
         <ul className="divide-y divide-border">
-          {actions.slice(0, 8).map(a => (
+          {actions.slice(0, 8).map(a => {
+            const due = DUE_TEXT[dueUrgency(a.due)];
+            const dueLabel = a.due && `${due.prefix} ${a.due}`;
+            return (
             <li key={a.id}>
               <Link to={a.link} className="flex items-center gap-3 py-2.5 group">
                 <Badge variant={KIND_BADGE[a.kind]?.variant ?? 'neutral'}>
@@ -109,12 +123,14 @@ export function MyActions() {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate group-hover:text-brand-blue transition-colors" title={a.label}>{a.label}</p>
                   <p className="text-xs text-text-muted truncate" title={a.detail}>{a.detail}</p>
+                  {dueLabel && <p className={clsx('sm:hidden text-xs', due.className)}>{dueLabel}</p>}
                 </div>
-                {a.due && <span className="text-xs text-text-muted shrink-0">due {a.due}</span>}
+                {dueLabel && <span className={clsx('hidden sm:inline text-xs shrink-0', due.className)}>{dueLabel}</span>}
                 <ChevronRight size={14} className="text-text-muted shrink-0" />
               </Link>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
     </Card>

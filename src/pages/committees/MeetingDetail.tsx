@@ -12,6 +12,7 @@ import { MinutesEditor } from '../../components/committees/MinutesEditor';
 import { DocumentUploader } from '../../components/committees/DocumentUploader';
 import { ActionItemModal } from '../../components/committees/ActionItemModal';
 import type { ActionItem } from '../../types';
+import { useBack } from '../../utils/useBack';
 import {
   ArrowLeft,
   Calendar,
@@ -67,6 +68,7 @@ function SectionHeader({
 export default function MeetingDetail() {
   const { id, meetId } = useParams<{ id: string; meetId: string }>();
   const navigate = useNavigate();
+  const goBack = useBack(`/committees/${id}`);
   const { committees, meetings, agendaItems, actionItems, meetingDocs, staff, isLoading, refreshData } = useData();
   const { user } = useAuth();
   const [showActionModal, setShowActionModal] = useState(false);
@@ -205,7 +207,8 @@ export default function MeetingDetail() {
       {/* --- Back Nav --- */}
       <div className="flex items-center gap-4">
         <button
-          onClick={() => navigate(`/committees/${id}`)}
+          onClick={goBack}
+          aria-label="Back"
           className="p-2 hover:bg-surface-hover rounded-full transition-colors text-text-muted hover:text-text"
         >
           <ArrowLeft size={20} />

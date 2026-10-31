@@ -1,5 +1,5 @@
 import { lazy, Suspense, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
 import { DataTable } from '../components/ui/DataTable';
@@ -10,20 +10,14 @@ import { KpiTile } from '../components/viz/KpiTile';
 import { MiniDonut } from '../components/viz/MiniDonut';
 import { FilterChip } from '../components/viz/FilterChip';
 import { useChartFilter } from '../utils/useChartFilter';
-import { applyChartFilter } from '../utils/applyChartFilter';
-import { Search, Filter, Briefcase, IndianRupee, PieChart, Users, CheckCircle2, BarChart3, Plus } from 'lucide-react';
+import { matchesProjectFilter, PROJECT_DIM_LABELS } from '../lib/projects/projectFilter';
+import { Search, Filter, Briefcase, IndianRupee, PieChart, Users, CheckCircle2, BarChart3, Plus, ArrowRight } from 'lucide-react';
 
 const ProjectsAnalytics = lazy(() => import('./ProjectsAnalytics'));
 
-const PROJECT_DIM_LABELS: Record<string, string> = {
-  fundType: 'Fund Type',
-  status: 'Status',
-  sponsorer: 'Sponsorer',
-  division: 'Division',
-  pi: 'PI',
-};
 import { useCanEdit } from '../lib/permissions/canEdit';
 import { ProjectFormModal } from '../components/ProjectFormModal';
+import { ENTITY_META } from '../lib/entities';
 import type { ProjectInfo, ProjectStaff } from '../types';
 
 export default function Projects() {
@@ -32,7 +26,15 @@ export default function Projects() {
   const canUpload = hasPermission(['HRAdmin', 'SystemAdmin', 'MasterAdmin']);
   const canEdit = useCanEdit('hr');
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'projects' | 'staff' | 'analytics'>('projects');
+  // Tab lives in the URL so Back and shared links return to the same view.
+  const [params, setParams] = useSearchParams();
+  const tabParam = params.get('tab');
+  const activeTab = tabParam === 'staff' || tabParam === 'analytics' ? tabParam : 'projects';
+  const setActiveTab = (t: 'projects' | 'staff' | 'analytics') => setParams(prev => {
+    const next = new URLSearchParams(prev);
+    if (t === 'projects') next.delete('tab'); else next.set('tab', t);
+    return next;
+  });
   const { filter, clearFilter } = useChartFilter();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -50,14 +52,13 @@ export default function Projects() {
 
       return matchesSearch && matchesStatus;
     });
-    return applyChartFilter(base, filter, {
-      fundType: (p) => p.FundType,
-      status: (p) => p.ProjectStatus,
-      sponsorer: (p) => p.SponsorerName,
-      division: (p) => p.DivisionCode,
-      pi: (p) => p.PrincipalInvestigator,
-    });
+    return base.filter(p => matchesProjectFilter(p, filter));
   }, [projects, searchTerm, statusFilter, filter]);
+
+  const chartMatchCount = useMemo(
+    () => projects.filter(p => matchesProjectFilter(p, filter)).length,
+    [projects, filter],
+  );
 
   const filteredStaff = useMemo(() => {
     return projectStaff.filter(s => {
@@ -345,7 +346,18 @@ export default function Projects() {
         </button>
       </div>
 
-      <FilterChip filter={filter} onClear={clearFilter} labelMap={PROJECT_DIM_LABELS} />
+      <div className="flex flex-wrap items-center gap-3">
+        <FilterChip filter={filter} onClear={clearFilter} labelMap={PROJECT_DIM_LABELS} />
+        {filter && activeTab === 'analytics' && (
+          <button
+            type="button"
+            onClick={() => setActiveTab('projects')}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-blue hover:underline"
+          >
+            Show {chartMatchCount} matching project{chartMatchCount === 1 ? '' : 's'} <ArrowRight size={12} />
+          </button>
+        )}
+      </div>
 
       {activeTab === 'analytics' ? (
         <Suspense fallback={<div className="text-sm text-text-muted py-12 text-center">Loading analytics…</div>}>
@@ -407,7 +419,7 @@ export default function Projects() {
                 data={filteredProjects}
                 columns={columns}
                 keyExtractor={(item) => item.ProjectID}
-                onRowClick={(item) => navigate(`/projects/${item.ProjectID}`)}
+                onRowClick={(item) => navigate(ENTITY_META.project.route(item.ProjectID))}
                 itemsPerPage={12}
                 renderGridItem={renderProjectCard}
                 enableColumnVisibility

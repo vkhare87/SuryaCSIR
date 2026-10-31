@@ -13,6 +13,7 @@ import {
   FIELD_META,
   type FileType,
 } from '../utils/dataMigration';
+import { useDialog } from '../utils/useDialog';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -40,8 +41,9 @@ function DeleteConfirmModal({
   onCancel: () => void;
   deleting: boolean;
 }) {
+  const panelRef = useDialog<HTMLDivElement>(true, onCancel);
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+    <div ref={panelRef} role="dialog" aria-modal="true" aria-label="Confirm delete" tabIndex={-1} className="outline-none fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
       <div className="bg-surface border border-border rounded-2xl shadow-xl w-full max-w-sm p-6">
         <div className="flex items-start gap-3 mb-5">
           <div className="w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center shrink-0">

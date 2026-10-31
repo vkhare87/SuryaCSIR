@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useData } from '../contexts/DataContext';
 import { X } from 'lucide-react';
 import type { Equipment } from '../types';
+import { useDialog } from '../utils/useDialog';
 
 interface Props {
   instrument: Equipment | null;
@@ -32,6 +33,7 @@ const EMPTY: Omit<Equipment, 'UInsID'> = {
 };
 
 export function InstrumentForm({ instrument, onClose }: Props) {
+  const panelRef = useDialog<HTMLDivElement>(true, onClose);
   const { labs, staff, divisions, saveEquipment } = useData();
 
   const [form, setForm] = useState<Record<string, string | number | undefined>>(() => {
@@ -113,7 +115,7 @@ export function InstrumentForm({ instrument, onClose }: Props) {
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <div ref={panelRef} role="dialog" aria-modal="true" aria-label="Instrument form" tabIndex={-1} className="outline-none fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="bg-background border border-border rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-border sticky top-0 bg-background z-10">
           <h2 className="text-lg font-[500] text-text font-serif">

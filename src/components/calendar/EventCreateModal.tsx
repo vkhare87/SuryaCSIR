@@ -1,6 +1,7 @@
 import { X } from 'lucide-react';
 import { EventForm, type EventFormValues } from './EventForm';
 import type { DivisionInfo } from '../../types';
+import { useDialog } from '../../utils/useDialog';
 
 interface EventCreateModalProps {
   open: boolean;
@@ -17,9 +18,10 @@ export function EventCreateModal({
   onSubmit,
   onClose,
 }: EventCreateModalProps) {
+  const panelRef = useDialog<HTMLDivElement>(open, onClose);
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+    <div ref={panelRef} role="dialog" aria-modal="true" aria-label="New event" tabIndex={-1} className="outline-none fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="bg-surface border border-border rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-4 border-b border-border">
           <h2 className="font-bold text-text">New Event</h2>

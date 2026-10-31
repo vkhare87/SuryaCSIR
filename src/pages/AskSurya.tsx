@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Sparkles, Send, ThumbsUp, ThumbsDown, FileText, CalendarClock } from 'lucide-react';
 import { Card, Badge } from '../components/ui/Cards';
 import { Sheet } from '../components/ui/Sheet';
@@ -25,7 +26,8 @@ interface SourceView {
 
 export default function AskSurya() {
   const { user } = useAuth();
-  const [question, setQuestion] = useState('');
+  const [searchParams] = useSearchParams();
+  const [question, setQuestion] = useState(() => searchParams.get('q') ?? '');
   const [turns, setTurns] = useState<Turn[]>([]);
   const [loading, setLoading] = useState(false);
   const [streamText, setStreamText] = useState('');

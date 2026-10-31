@@ -7,27 +7,11 @@ import { Treemap } from '../components/viz/Treemap';
 import { Heatmap } from '../components/viz/Heatmap';
 import { Histogram } from '../components/viz/Histogram';
 import { HeatmapCalendar } from '../components/viz/HeatmapCalendar';
-import { useChartFilter, type ChartFilter } from '../utils/useChartFilter';
+import { useChartFilter } from '../utils/useChartFilter';
 import { parseCost } from '../utils/parseCost';
 import { budgetWatch, type BudgetFlag } from '../lib/projects/budgetWatch';
 import { Badge } from '../components/ui/Cards';
-import { FilterChips } from '../components/viz/FilterChips';
-import type { ProjectInfo } from '../types';
-
-const DIM_LABEL: Record<string, string> = {
-  fundType: 'Fund type', status: 'Status', sponsorer: 'Sponsorer', pi: 'PI', division: 'Division',
-};
-
-function matchesProjectFilter(p: ProjectInfo, f: ChartFilter): boolean {
-  switch (f.dim) {
-    case 'fundType':  return (p.FundType || 'Unspecified') === f.value;
-    case 'status':    return p.ProjectStatus === f.value;
-    case 'sponsorer': return (p.SponsorerName || 'Unspecified') === f.value;
-    case 'pi':        return (p.PrincipalInvestigator || 'Unassigned') === f.value;
-    case 'division':  return p.DivisionCode === f.value;
-    default:          return true;
-  }
-}
+import { matchesProjectFilter } from '../lib/projects/projectFilter';
 
 const FLAG_LABEL: Record<BudgetFlag, string> = {
   overrun: 'Overrun', exhaustion: 'Near exhaustion', ahead: 'Ahead of burn', behind: 'Behind burn',
@@ -39,7 +23,7 @@ const FLAG_VARIANT: Record<BudgetFlag, 'danger' | 'warning' | 'info'> = {
 
 export default function ProjectsAnalytics() {
   const { projects } = useData();
-  const { filter, toggleFilter, clearFilter } = useChartFilter();
+  const { filter, toggleFilter } = useChartFilter();
 
   // Cross-filter: the active selection narrows every *other* widget; a widget
   // on the filtered dimension keeps its full categories so it stays selectable.
@@ -132,14 +116,6 @@ export default function ProjectsAnalytics() {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-      {filter && (
-        <div className="lg:col-span-2">
-          <FilterChips
-            chips={[{ label: DIM_LABEL[filter.dim] ?? filter.dim, value: filter.value }]}
-            onClear={clearFilter}
-          />
-        </div>
-      )}
       {watch.length > 0 && (
         <ChartCard
           title="Budget watch"

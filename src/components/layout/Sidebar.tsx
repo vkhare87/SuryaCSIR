@@ -14,6 +14,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useFeatureControls } from '../../contexts/FeatureControlContext';
 import { ROLE_ROUTES } from '../../constants/roleRoutes';
 import { PRIMARY_NAV } from '../../constants/access';
+import { useDialog } from '../../utils/useDialog';
 
 interface NavItem {
   path: string;
@@ -94,6 +95,7 @@ function SidebarLink({ item, expanded, dashboardPath, onNavigate }: SidebarLinkP
       to={item.path}
       end={item.path === dashboardPath}
       title={expanded ? undefined : item.label}
+      aria-label={expanded ? undefined : item.label}
       onClick={onNavigate}
       className={({ isActive }) => clsx(
         'relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all group',
@@ -174,6 +176,7 @@ function SidebarBody({
               onClick={onToggleMore}
               aria-expanded={moreOpen}
               title={expanded ? undefined : 'More'}
+              aria-label={expanded ? undefined : 'More'}
               className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-warm-silver hover:text-ivory hover:bg-dark-surface/60 w-full transition-colors"
             >
               {expanded ? (
@@ -211,6 +214,7 @@ function SidebarBody({
         <button
           onClick={() => { onOpenSettings(); if (isMobileView) onCloseMobile(); }}
           title={expanded ? undefined : 'Settings'}
+              aria-label={expanded ? undefined : 'Settings'}
           className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-warm-silver hover:bg-dark-surface/60 hover:text-ivory w-full transition-colors"
         >
           <SettingsIcon size={20} className={expanded ? 'shrink-0' : 'mx-auto shrink-0'} />
@@ -219,6 +223,7 @@ function SidebarBody({
         <button
           onClick={() => { onLogout(); if (isMobileView) onCloseMobile(); }}
           title={expanded ? undefined : 'Logout'}
+              aria-label={expanded ? undefined : 'Logout'}
           className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-coral hover:bg-dark-surface/60 w-full transition-colors"
         >
           <LogOut size={20} className={expanded ? 'shrink-0' : 'mx-auto shrink-0'} />
@@ -243,6 +248,7 @@ export function Sidebar({ isMobile, deviceType, mobileOpen, onCloseMobile, onOpe
   const { role, logout } = useAuth();
   const { canAccess } = useFeatureControls();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const drawerRef = useDialog<HTMLElement>(isMobile && mobileOpen, onCloseMobile);
   const [moreOpen, setMoreOpen] = useState(() => {
     try { return localStorage.getItem(MORE_OPEN_KEY) === '1'; } catch { return false; }
   });
@@ -304,9 +310,14 @@ export function Sidebar({ isMobile, deviceType, mobileOpen, onCloseMobile, onOpe
               className="fixed inset-0 bg-near-black/50 z-40 backdrop-blur-sm"
             />
             <motion.aside
+              ref={drawerRef}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Main menu"
+              tabIndex={-1}
               initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed inset-y-0 left-0 w-72 bg-near-black text-ivory z-50 shadow-ring-dark"
+              className="fixed inset-y-0 left-0 w-72 bg-near-black text-ivory z-50 shadow-ring-dark outline-none"
             >
               <SidebarBody isMobileView {...bodyProps} />
             </motion.aside>

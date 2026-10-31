@@ -8,6 +8,7 @@ import {
   FILE_TYPE_LABELS,
   type FileType,
 } from '../utils/dataMigration';
+import { useDialog } from '../utils/useDialog';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -43,6 +44,7 @@ interface EntityEditModalProps {
 // ---------------------------------------------------------------------------
 
 export function EntityEditModal({ type, record, onClose, onSaved }: EntityEditModalProps) {
+  const panelRef = useDialog<HTMLDivElement>(true, onClose);
   const isCreate = record === null;
   const fields = FIELD_META[type];
   const pk = PK_FIELD[type];
@@ -118,7 +120,7 @@ export function EntityEditModal({ type, record, onClose, onSaved }: EntityEditMo
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+    <div ref={panelRef} role="dialog" aria-modal="true" aria-label="Edit record" tabIndex={-1} className="outline-none fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
       <div className="bg-surface border border-border rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">

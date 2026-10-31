@@ -49,12 +49,14 @@ export function FinanceAdminView() {
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <KpiCard
+          to="/projects"
           label="Total Projects"
           value={projects.length}
           icon={<Briefcase size={18} />}
           sublabel="All statuses"
         />
         <KpiCard
+          to="/projects"
           label="Active Projects"
           value={activeProjects}
           icon={<TrendingUp size={18} />}

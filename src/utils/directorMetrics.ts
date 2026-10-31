@@ -4,6 +4,7 @@ import type { TrendPoint } from '../components/viz/TrendLine';
 import type { FunnelStage } from '../components/viz/Funnel';
 import { parseDate, diffInDays, isWithinMonths } from './dateUtils';
 import { parseCost } from './parseCost';
+import { equipmentStatusClass, isEquipmentDown } from './equipmentStatus';
 import type { DivisionMetric } from './analytics';
 import type {
   ProjectInfo,
@@ -184,10 +185,8 @@ export function getOutputPerScientist(metrics: DivisionMetric[]): CategoryDatum[
 
 // --- 3. Equipment & Operations ---
 
-const WORKING = 'Working';
-
 export function getEquipmentUptime(equipment: Equipment[]): { working: number; total: number } {
-  return { working: equipment.filter((e) => e.WorkingStatus === WORKING).length, total: equipment.length };
+  return { working: equipment.filter((e) => equipmentStatusClass(e.WorkingStatus) === 'Working').length, total: equipment.length };
 }
 
 export interface EquipmentFlags {
@@ -200,7 +199,7 @@ export function getEquipmentFlags(
   t: DirectorThresholds,
   now: Date = new Date(),
 ): EquipmentFlags {
-  const down = equipment.filter((e) => e.WorkingStatus && e.WorkingStatus !== WORKING);
+  const down = equipment.filter((e) => isEquipmentDown(e.WorkingStatus));
   const amcExpiring = equipment.filter((e) => {
     const d = parseDate(e.amc_end_date);
     if (!d) return false;

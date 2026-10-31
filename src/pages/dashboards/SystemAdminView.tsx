@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
 import {
   Users, Wifi, Database, Shield, Activity, AlertTriangle,
   Briefcase, Microscope, FileText, Wrench, Lightbulb,
@@ -10,6 +9,7 @@ import {
   Pie, PieChart, Cell, Legend,
 } from 'recharts';
 import { supabase, isProvisioned } from '../../utils/supabaseClient';
+import { isEquipmentDown } from '../../utils/equipmentStatus';
 import { useData } from '../../contexts/DataContext';
 import { usePMS } from '../../contexts/PMSContext';
 import { useFeatureControls } from '../../contexts/FeatureControlContext';
@@ -102,7 +102,7 @@ export function SystemAdminView() {
 
   // ── Derived metrics ───────────────────────────────────────────────
   const activeProjects   = useMemo(() => projects.filter(p => p.ProjectStatus === 'Active').length, [projects]);
-  const equipmentDown    = useMemo(() => equipment.filter(e => e.WorkingStatus !== 'Working').length, [equipment]);
+  const equipmentDown    = useMemo(() => equipment.filter(e => isEquipmentDown(e.WorkingStatus)).length, [equipment]);
   const openTickets      = useMemo(() => tickets.filter(t => t.status === 'Open' || t.status === 'InProgress').length, [tickets]);
   const criticalTickets  = useMemo(() => tickets.filter(t => t.urgency === 'Critical' && t.status !== 'Closed').length, [tickets]);
   const overdueActions   = useMemo(() => {
@@ -203,12 +203,10 @@ export function SystemAdminView() {
       <section className="space-y-3">
         <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-text-muted">People</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {canAccess('/staff') && <KpiCard label="Total Staff"   value={staff.length}        icon={<Users size={18} />}         sublabel={`${contractStaff.length} contract`} />}
-          {canAccess('/phd') && <KpiCard label="PhD Students"  value={phDStudents.length}  icon={<BookOpen size={18} />}      sublabel="Enrolled scholars" />}
-          {canAccess('/recruitment') && <KpiCard label="Open Vacancies" value={openVacancies}      icon={<ClipboardList size={18} />} sublabel={`${vacancyPosts.length} applicants`} />}
-          <Link to="/admin/access-requests" className="block">
-            <KpiCard label="Reg. Users"    value={userRoles.length}    icon={<Users size={18} />}         sublabel={`${pendingUsers} pending`} />
-          </Link>
+          {canAccess('/staff') && <KpiCard to="/staff" label="Total Staff"   value={staff.length}        icon={<Users size={18} />}         sublabel={`${contractStaff.length} contract`} />}
+          {canAccess('/phd') && <KpiCard to="/phd" label="PhD Students"  value={phDStudents.length}  icon={<BookOpen size={18} />}      sublabel="Enrolled scholars" />}
+          {canAccess('/recruitment') && <KpiCard to="/recruitment" label="Open Vacancies" value={openVacancies}      icon={<ClipboardList size={18} />} sublabel={`${vacancyPosts.length} applicants`} />}
+          <KpiCard to="/admin/access-requests" label="Reg. Users"    value={userRoles.length}    icon={<Users size={18} />}         sublabel={`${pendingUsers} pending`} />
         </div>
       </section>
 
@@ -216,10 +214,10 @@ export function SystemAdminView() {
       <section className="space-y-3">
         <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-text-muted">Operations &amp; Helpdesk</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {canAccess('/facilities') && <KpiCard label="Equipment"       value={equipment.length}                                       icon={<Wrench size={18} />}        sublabel={`${equipmentDown} down`} />}
-          <KpiCard label="Open Tickets"    value={openTickets}                                            icon={<TicketIcon size={18} />}    sublabel={`${criticalTickets} critical`} />
+          {canAccess('/facilities') && <KpiCard to="/facilities" label="Equipment"       value={equipment.length}                                       icon={<Wrench size={18} />}        sublabel={`${equipmentDown} down`} />}
+          <KpiCard to="/helpdesk" label="Open Tickets"    value={openTickets}                                            icon={<TicketIcon size={18} />}    sublabel={`${criticalTickets} critical`} />
           <KpiCard label="Overdue Actions" value={overdueActions}                                         icon={<AlertTriangle size={18} />} sublabel="Past deadline" />
-          <KpiCard label="Committees"      value={committees.filter(c => c.status === 'Active').length}   icon={<Shield size={18} />}        sublabel={`${meetings.length} meetings`} />
+          <KpiCard to="/committees" label="Committees"      value={committees.filter(c => c.status === 'Active').length}   icon={<Shield size={18} />}        sublabel={`${meetings.length} meetings`} />
         </div>
       </section>
 
@@ -228,7 +226,7 @@ export function SystemAdminView() {
         <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-text-muted">{seesPms ? 'Performance Management' : 'Accounts'}</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {seesPms && <KpiCard label="PMS Cycles"  value={cycles.length}      icon={<FileText size={18} />} sublabel={openCycle ? `Open: ${openCycle.name}` : 'No open cycle'} />}
-          {seesPms && <KpiCard label="PMS Reports" value={reports.length}     icon={<FileText size={18} />} sublabel={`${reports.filter(r => r.status === 'FINALIZED').length} finalized`} />}
+          {seesPms && <KpiCard to="/pms/reports" label="PMS Reports" value={reports.length}     icon={<FileText size={18} />} sublabel={`${reports.filter(r => r.status === 'FINALIZED').length} finalized`} />}
           {seesPms && <KpiCard label="Evaluations" value={evaluations.length} icon={<Activity size={18} />} sublabel={`${evaluations.filter(e => e.status === 'COMPLETED').length} completed`} />}
           <KpiCard label="Pwd Resets"  value={passwordResets}     icon={<Shield size={18} />}   sublabel="Forced on next login" />
         </div>

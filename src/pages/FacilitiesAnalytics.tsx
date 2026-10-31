@@ -6,6 +6,7 @@ import { CategoryBar } from '../components/viz/CategoryBar';
 import { Heatmap } from '../components/viz/Heatmap';
 import { HeatmapCalendar } from '../components/viz/HeatmapCalendar';
 import { useChartFilter } from '../utils/useChartFilter';
+import { equipmentStatusClass } from '../utils/equipmentStatus';
 
 export default function FacilitiesAnalytics() {
   const { equipment, labs } = useData();
@@ -16,7 +17,8 @@ export default function FacilitiesAnalytics() {
   const statusMix = useMemo(() => {
     const counts = new Map<string, number>();
     for (const e of equipment) {
-      counts.set(e.WorkingStatus, (counts.get(e.WorkingStatus) ?? 0) + 1);
+      const cls = equipmentStatusClass(e.WorkingStatus);
+      counts.set(cls, (counts.get(cls) ?? 0) + 1);
     }
     return Array.from(counts, ([label, value]) => ({ label, value }));
   }, [equipment]);

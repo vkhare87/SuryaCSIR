@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { ChartCard } from '../components/viz/ChartCard';
 import { CategoryBar } from '../components/viz/CategoryBar';
@@ -8,27 +8,14 @@ import { CategoryDonut } from '../components/viz/CategoryDonut';
 import { Histogram } from '../components/viz/Histogram';
 import { OrgTree, type OrgNode } from '../components/viz/OrgTree';
 import { NetworkGraph, type GraphLink, type GraphNode } from '../components/viz/NetworkGraph';
-import { useChartFilter, type ChartFilter } from '../utils/useChartFilter';
+import { useChartFilter } from '../utils/useChartFilter';
 import { personNamesMatch } from '../utils/analytics';
 import { coAuthorPairs } from '../lib/intelligence/collaboration';
 import { successionRisk } from '../lib/staff/successionRisk';
 import { yearsUntilRetirement } from '../lib/staff/retirement';
 import { formatDate } from '../utils/dateUtils';
-import { FilterChips } from '../components/viz/FilterChips';
-import type { StaffMember } from '../types';
-
-const STAFF_DIM_LABEL: Record<string, string> = {
-  division: 'Division', designation: 'Designation', group: 'Group',
-};
-
-function matchesStaffFilter(s: StaffMember, f: ChartFilter): boolean {
-  switch (f.dim) {
-    case 'division':    return (s.Division || 'Unspecified') === f.value;
-    case 'designation': return (s.Designation || 'Unspecified') === f.value;
-    case 'group':       return (s.Group || 'Unspecified') === f.value;
-    default:            return true;
-  }
-}
+import { FilterChip } from '../components/viz/FilterChip';
+import { matchesStaffFilter, STAFF_DIM_LABELS } from '../lib/staff/staffFilter';
 
 function yearsBetween(dateStr: string, ref = new Date()): number {
   const t = Date.parse(dateStr);
@@ -40,6 +27,7 @@ export default function StaffAnalytics() {
   const { staff, scientificOutputs } = useData();
   const { filter, toggleFilter, clearFilter } = useChartFilter();
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Cross-filter narrows the categorical charts; the clicked dimension keeps
   // its full categories so it stays selectable. Structural views (org tree,
@@ -185,21 +173,21 @@ export default function StaffAnalytics() {
           <p className="text-text-muted mt-1 text-sm">Institute-wide workforce overview</p>
         </div>
         <Link
-          to="/hr-admin"
+          to="/staff"
           className="inline-flex items-center gap-1.5 px-3 py-2 bg-surface border border-border rounded-lg text-sm text-text hover:bg-surface-hover transition-colors"
         >
           <ArrowLeft size={14} />
-          Back to HR Admin
+          Human Capital
         </Link>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {filter && (
-          <div className="lg:col-span-2">
-            <FilterChips
-              chips={[{ label: STAFF_DIM_LABEL[filter.dim] ?? filter.dim, value: filter.value }]}
-              onClear={clearFilter}
-            />
+          <div className="lg:col-span-2 flex flex-wrap items-center gap-3">
+            <FilterChip filter={filter} onClear={clearFilter} labelMap={STAFF_DIM_LABELS} />
+            <Link to={`/staff${location.search}`} className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-blue hover:underline">
+              Show {filteredStaff.length} matching staff <ArrowRight size={12} />
+            </Link>
           </div>
         )}
         <ChartCard title="Headcount by division" subtitle="click to filter the staff list">

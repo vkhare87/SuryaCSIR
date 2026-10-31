@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
 import { DataTable } from '../components/ui/DataTable';
@@ -7,28 +7,28 @@ import { Card } from '../components/ui/Cards';
 import { Badge } from '../components/ui/Cards';
 import { EmptyState } from '../components/ui/EmptyState';
 import { EntityLink } from '../components/EntityLink';
-import { Search, Filter, Users, Plus } from 'lucide-react';
+import { Search, Filter, Users, Plus, BarChart3 } from 'lucide-react';
+import { useFeatureControls } from '../contexts/FeatureControlContext';
+import { FilterChip } from '../components/viz/FilterChip';
+import { useChartFilter } from '../utils/useChartFilter';
+import { matchesStaffFilter, STAFF_DIM_LABELS } from '../lib/staff/staffFilter';
 import { TableSkeleton } from '../components/ui/Skeleton';
 import { useCanEdit } from '../lib/permissions/canEdit';
 import { StaffFormModal } from '../components/StaffFormModal';
 import type { StaffMember } from '../types';
 
 export default function HumanCapital() {
-  const { staff, divisions, error } = useData();
+  const { staff, divisions, error, isLoading: loading } = useData();
+  const { canAccess } = useFeatureControls();
+  const { filter, clearFilter } = useChartFilter();
   const { hasPermission } = useAuth();
   const canUpload = hasPermission(['HRAdmin', 'SystemAdmin', 'MasterAdmin']);
   const canEdit = useCanEdit('hr');
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDivision, setSelectedDivision] = useState<string>('ALL');
-  const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
 
-  // Simulate data fetch effect for polish demo (only once)
-  useState(() => {
-    const timer = setTimeout(() => setLoading(false), 800);
-    return () => clearTimeout(timer);
-  });
 
   const filteredStaff = useMemo(() => {
     return staff.filter(member => {
@@ -40,9 +40,9 @@ export default function HumanCapital() {
       
       const matchesDivision = selectedDivision === 'ALL' || member.Division === selectedDivision;
       
-      return matchesSearch && matchesDivision;
+      return matchesSearch && matchesDivision && matchesStaffFilter(member, filter);
     });
-  }, [staff, searchTerm, selectedDivision]);
+  }, [staff, searchTerm, selectedDivision, filter]);
 
   const columns = [
     {
@@ -147,6 +147,14 @@ export default function HumanCapital() {
 
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-3">
+          {canAccess('/staff/analytics') && (
+            <Link
+              to="/staff/analytics"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-surface border border-border rounded-lg text-sm font-medium text-text hover:bg-surface-hover transition-colors"
+            >
+              <BarChart3 size={14} /> Analytics
+            </Link>
+          )}
           {canEdit && (
             <button
               onClick={() => setShowCreate(true)}
@@ -181,6 +189,8 @@ export default function HumanCapital() {
           </div>
         </div>
       </div>
+
+      <FilterChip filter={filter} onClear={clearFilter} labelMap={STAFF_DIM_LABELS} />
 
       <Card className="p-0 overflow-hidden">
         {loading ? (

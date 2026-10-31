@@ -1,5 +1,7 @@
 import type React from 'react';
+import { Link } from 'react-router-dom';
 import { ArrowDownRight, ArrowUpRight } from 'lucide-react';
+import { useDataLoading } from '../../contexts/DataContext';
 import { cn } from '../../utils/cn';
 import { useCountUp } from '../../utils/useCountUp';
 
@@ -13,16 +15,23 @@ interface KpiCardProps {
   /** optional right-aligned sparkline / mini-chart slot */
   sparkline?: React.ReactNode;
   className?: string;
+  /** Drill-down destination; makes the whole card a link. */
+  to?: string;
+  /** Defaults to the shared data-load flag; pass explicitly for values from other sources. */
+  loading?: boolean;
 }
 
-export function KpiCard({ label, value, icon, sublabel, delta, sparkline, className }: KpiCardProps) {
+export function KpiCard({ label, value, icon, sublabel, delta, sparkline, className, to, loading }: KpiCardProps) {
+  const dataLoading = useDataLoading();
+  const isLoading = loading ?? dataLoading;
   const numeric = typeof value === 'number' ? value : null;
   const counted = useCountUp(numeric ?? 0, 1200, numeric !== null);
-  const shown = numeric !== null ? counted.toLocaleString() : value;
+  const shown = isLoading ? '—' : numeric !== null ? counted.toLocaleString() : value;
   const up = (delta ?? 0) >= 0;
 
-  return (
+  const card = (
     <div
+      aria-busy={isLoading || undefined}
       className={cn(
         "group relative overflow-hidden bg-surface-raised border border-border rounded-xl p-6 flex flex-col gap-2",
         "shadow-[var(--shadow-e2)] hover:shadow-[var(--shadow-e3)] hover:-translate-y-0.5 transition-all",
@@ -50,8 +59,14 @@ export function KpiCard({ label, value, icon, sublabel, delta, sparkline, classN
             {Math.abs(delta)}%
           </span>
         )}
-        {sublabel && <span className="text-xs text-stone-gray">{sublabel}</span>}
+        {(isLoading || sublabel) && <span className="text-xs text-stone-gray">{isLoading ? 'Loading…' : sublabel}</span>}
       </div>
     </div>
   );
+
+  return to ? (
+    <Link to={to} className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-blue">
+      {card}
+    </Link>
+  ) : card;
 }

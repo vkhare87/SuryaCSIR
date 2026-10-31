@@ -99,7 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         if (event === 'SIGNED_OUT' || !session) {
           setUser(null);
           return;
@@ -110,8 +110,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // the flag had already been cleared and bouncing the user back to
         // the form. Skip it; TOKEN_REFRESHED is likewise a no-op for roles.
         if (event === 'USER_UPDATED' || event === 'TOKEN_REFRESHED') return;
+        // Deferred: gotrue holds its internal auth lock while it awaits this
+        // callback, and resolveUserRoles' queries need that lock for the
+        // access token — awaiting them here froze reloads on the loading screen.
         if (session.user) {
-          await resolveUserRoles(session.user);
+          const authUser = session.user;
+          setTimeout(() => { void resolveUserRoles(authUser); }, 0);
         }
       }
     );

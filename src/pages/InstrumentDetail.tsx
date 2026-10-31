@@ -6,6 +6,8 @@ import { Card, Badge } from '../components/ui/Cards';
 import { InstrumentForm } from '../components/InstrumentForm';
 import { RelatedRail, type RailSection } from '../components/RelatedRail';
 import { amcStatus, AMC_CARD_COLORS, AMC_TEXT_COLORS, findStaffByName } from '../utils/dateUtils';
+import { equipmentStatusClass } from '../utils/equipmentStatus';
+import { useBack } from '../utils/useBack';
 import {
   ArrowLeft, MapPin, Wrench, CalendarClock, AlertTriangle,
   CheckCircle2, Clock, Package, DollarSign, Users, FlaskConical,
@@ -26,6 +28,7 @@ function InfoRow({ label, value }: { label: string; value?: string | number | nu
 export default function InstrumentDetail() {
   const { uInsID } = useParams<{ uInsID: string }>();
   const navigate = useNavigate();
+  const goBack = useBack('/facilities');
   const { equipment, labs, staff, projects } = useData();
   const { user } = useAuth();
 
@@ -66,7 +69,8 @@ export default function InstrumentDetail() {
     );
   }
 
-  const statusVariant = (ws: string): 'success' | 'warning' | 'danger' | 'neutral' => {
+  const statusVariant = (raw: string): 'success' | 'warning' | 'danger' | 'neutral' => {
+    const ws = equipmentStatusClass(raw);
     if (ws === 'Working') return 'success';
     if (ws === 'Under Maintenance') return 'warning';
     if (ws === 'Not Working') return 'danger';
@@ -84,7 +88,8 @@ export default function InstrumentDetail() {
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <button
-            onClick={() => navigate('/facilities')}
+            onClick={goBack}
+            aria-label="Back"
             className="p-2 hover:bg-surface-hover rounded-full transition-colors text-text-muted hover:text-text"
           >
             <ArrowLeft size={20} />
@@ -127,9 +132,9 @@ export default function InstrumentDetail() {
                 )}
                 <div className="mt-2 flex justify-center gap-2 flex-wrap">
                   <Badge variant={statusVariant(instrument.WorkingStatus)}>
-                    {instrument.WorkingStatus === 'Working' && <CheckCircle2 size={11} className="inline mr-1" />}
-                    {instrument.WorkingStatus === 'Under Maintenance' && <Clock size={11} className="inline mr-1" />}
-                    {instrument.WorkingStatus === 'Not Working' && <AlertTriangle size={11} className="inline mr-1" />}
+                    {equipmentStatusClass(instrument.WorkingStatus) === 'Working' && <CheckCircle2 size={11} className="inline mr-1" />}
+                    {equipmentStatusClass(instrument.WorkingStatus) === 'Under Maintenance' && <Clock size={11} className="inline mr-1" />}
+                    {equipmentStatusClass(instrument.WorkingStatus) === 'Not Working' && <AlertTriangle size={11} className="inline mr-1" />}
                     {instrument.WorkingStatus}
                   </Badge>
                   {instrument.Division && <Badge variant="neutral">{instrument.Division}</Badge>}

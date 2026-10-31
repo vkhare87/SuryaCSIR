@@ -1,5 +1,5 @@
 import { lazy, Suspense, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
 import { Card, Badge } from '../components/ui/Cards';
 import { DataTable } from '../components/ui/DataTable';
@@ -20,6 +20,8 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { useCanEdit } from '../lib/permissions/canEdit';
 import { DivisionFormModal } from '../components/DivisionFormModal';
 import { buildDossier } from '../lib/divisions/dossier';
+import { equipmentStatusClass } from '../utils/equipmentStatus';
+import { ENTITY_META } from '../lib/entities';
 import type { DivisionInfo, StaffMember } from '../types';
 
 export default function Divisions() {
@@ -29,13 +31,16 @@ export default function Divisions() {
   } = useData();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchParams] = useSearchParams();
   const [selectedDivCode, setSelectedDivCode] = useState<string | null>(
-    divisions.length > 0 ? divisions[0].divCode : null
+    searchParams.get('div') ?? (divisions.length > 0 ? divisions[0].divCode : null)
   );
   const canEdit = useCanEdit('hr');
   const [editTarget, setEditTarget] = useState<DivisionInfo | null>(null);
   const [showCreate, setShowCreate] = useState(false);
-  const [view, setView] = useState<'detail' | 'analytics'>('detail');
+  const [view, setView] = useState<'detail' | 'analytics'>(
+    searchParams.get('view') === 'analytics' ? 'analytics' : 'detail'
+  );
 
   const filteredDivisions = divisions.filter(div => {
     const s = searchQuery.toLowerCase();
@@ -567,7 +572,7 @@ export default function Divisions() {
               {divProjects.map(proj => (
                 <Link
                   key={proj.ProjectID}
-                  to={`/projects/${proj.ProjectID}`}
+                  to={ENTITY_META.project.route(proj.ProjectID)}
                   className="flex items-start gap-4 p-4 rounded-2xl border border-border bg-surface hover:border-[#c96442]/40 hover:bg-surface-hover transition-all group"
                 >
                   <div className="flex-1 min-w-0">
@@ -601,11 +606,12 @@ export default function Divisions() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {divEquipment.map(eq => {
+                const cls = equipmentStatusClass(eq.WorkingStatus);
                 const statusVariant: 'success' | 'warning' | 'neutral' =
-                  eq.WorkingStatus === 'Working' ? 'success' :
-                    eq.WorkingStatus === 'Under Maintenance' ? 'warning' : 'neutral';
-                const StatusIcon = eq.WorkingStatus === 'Working' ? CheckCircle2 :
-                  eq.WorkingStatus === 'Under Maintenance' ? Clock : AlertTriangle;
+                  cls === 'Working' ? 'success' :
+                    cls === 'Under Maintenance' ? 'warning' : 'neutral';
+                const StatusIcon = cls === 'Working' ? CheckCircle2 :
+                  cls === 'Under Maintenance' ? Clock : AlertTriangle;
                 return (
                   <div key={eq.UInsID} className="p-4 rounded-2xl border border-border bg-surface hover:bg-surface-hover transition-colors">
                     <div className="flex items-start justify-between gap-3">

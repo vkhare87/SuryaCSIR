@@ -41,30 +41,35 @@ export function DivisionHeadView() {
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <KpiCard
+          to="/staff"
           label="Division Staff"
           value={staff.length}
           icon={<Users size={18} />}
           sublabel="Permanent personnel"
         />
         <KpiCard
+          to="/projects"
           label="Active Projects"
           value={activeProjects}
           icon={<Briefcase size={18} />}
           sublabel={`of ${projects.length} total`}
         />
         <KpiCard
+          to="/phd"
           label="PhD Supervisees"
           value={divisionPhDs.length}
           icon={<BookOpen size={18} />}
           sublabel="Scholars in division"
         />
         <KpiCard
+          to="/intelligence"
           label="Outputs"
           value={scientificOutputs.length}
           icon={<Microscope size={18} />}
           sublabel="Division publications & IP"
         />
         <KpiCard
+          to="/facilities"
           label="Equipment"
           value={equipment.length}
           icon={<Wrench size={18} />}

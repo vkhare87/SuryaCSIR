@@ -11,10 +11,12 @@ import { useMemo, useState } from 'react';
 import { parseDate, diffInDays, isWithinMonths } from '../utils/dateUtils';
 import { useCanEdit } from '../lib/permissions/canEdit';
 import { ProjectFormModal } from '../components/ProjectFormModal';
+import { useBack } from '../utils/useBack';
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const goBack = useBack('/projects');
   const { projects, projectStaff, phDStudents, staff, divisions } = useData();
   const canEdit = useCanEdit('hr');
   const [editOpen, setEditOpen] = useState(false);
@@ -83,7 +85,8 @@ export default function ProjectDetail() {
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <button
-          onClick={() => navigate('/projects')}
+          onClick={goBack}
+          aria-label="Back"
           className="p-2 hover:bg-surface-hover rounded-full transition-colors text-text-muted hover:text-text"
         >
           <ArrowLeft size={20} />

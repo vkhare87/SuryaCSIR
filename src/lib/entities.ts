@@ -9,9 +9,10 @@ interface EntityMeta {
 }
 
 /** One registry mapping entity kind → route, icon, accent. Used by EntityLink,
- *  the related-entity rails, and the graph explorer. */
+ *  the related-entity rails, and the graph explorer. IDs are URI-encoded:
+ *  ProjectIDs look like "AMPRI/RD/2021-22/0002" and would not match a route raw. */
 export const ENTITY_META: Record<EntityKind, EntityMeta> = {
-  staff:    { icon: Users,     color: '#c96442', route: id => `/staff/${id}` },
-  project:  { icon: Briefcase, color: '#d97757', route: id => `/projects/${id}` },
+  staff:    { icon: Users,     color: '#c96442', route: id => `/staff/${encodeURIComponent(id)}` },
+  project:  { icon: Briefcase, color: '#d97757', route: id => `/projects/${encodeURIComponent(id)}` },
   division: { icon: Network,   color: '#7a4a1e', route: () => `/divisions` },
 };

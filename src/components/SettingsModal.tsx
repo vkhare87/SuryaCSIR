@@ -1,15 +1,17 @@
 import { X, Sun, Moon, Maximize, List, Layout as LayoutIcon, Network } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useUI } from '../contexts/UIContext';
+import { useDialog } from '../utils/useDialog';
 
 export default function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const panelRef = useDialog<HTMLDivElement>(isOpen, onClose);
   const { theme, setTheme, density, setDensity } = useTheme();
   const { viewMode, setViewMode } = useUI();
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-300">
+    <div ref={panelRef} role="dialog" aria-modal="true" aria-label="Settings" tabIndex={-1} className="outline-none fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-300">
       <div className="w-full max-w-lg bg-surface border border-border rounded-[16px] shadow-[0px_0px_0px_1px_#f0eee6] overflow-hidden scale-in duration-300">
         <div className="flex items-center justify-between p-6 border-b border-border">
           <h2 className="text-xl font-bold text-text flex items-center gap-2">

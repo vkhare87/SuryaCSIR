@@ -29,6 +29,17 @@ const MS_PER_DAY = 86400000;
 
 const isoDate = (d: Date) => d.toISOString().slice(0, 10);
 
+export type DueUrgency = 'overdue' | 'soon' | 'later' | 'none';
+const DUE_SOON_DAYS = 14;
+
+/** Classifies an ISO due date against today: past → overdue, within 14 days → soon. */
+export function dueUrgency(due: string | null, now: Date = new Date()): DueUrgency {
+  if (!due) return 'none';
+  const today = isoDate(now);
+  if (due < today) return 'overdue';
+  return due <= isoDate(new Date(now.getTime() + DUE_SOON_DAYS * MS_PER_DAY)) ? 'soon' : 'later';
+}
+
 export interface MyActionsInput {
   userId: string;
   staffName: string;

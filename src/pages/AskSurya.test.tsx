@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import AskSurya from './AskSurya';
 import { scheduleBrief } from '../lib/ask/client';
 
@@ -35,7 +36,7 @@ describe('AskSurya source citations', () => {
     // never rendered, so a click on a citation updated state and showed nothing —
     // clicking "did not open" from the user's perspective.
     const openSpy = vi.spyOn(window, 'open');
-    render(<AskSurya />);
+    render(<MemoryRouter><AskSurya /></MemoryRouter>);
 
     fireEvent.change(screen.getByPlaceholderText(/2025 progress reports/i), {
       target: { value: 'Was the disinfectant generator licensed?' },
@@ -60,7 +61,7 @@ describe('AskSurya source citations', () => {
 
 describe('AskSurya scheduled briefs', () => {
   it('saves the asked question as a weekly brief for the signed-in user', async () => {
-    render(<AskSurya />);
+    render(<MemoryRouter><AskSurya /></MemoryRouter>);
     fireEvent.change(screen.getByPlaceholderText(/2025 progress reports/i), {
       target: { value: 'Which projects end this year?' },
     });

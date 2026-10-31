@@ -7,14 +7,15 @@ import { Card } from '../../components/ui/Cards';
 import { KpiCard } from '../../components/ui/KpiCard';
 import { formatDate, parseDate } from '../../utils/dateUtils';
 import { getAmcExpiryList } from '../../utils/directorMetrics';
+import { equipmentStatusClass, isEquipmentDown } from '../../utils/equipmentStatus';
 
 export function TechnicianView() {
   const { equipment } = useData();
   const { divisionCode } = useAuth();
   const navigate = useNavigate();
 
-  const working = equipment.filter(e => e.WorkingStatus === 'Working').length;
-  const nonWorking = equipment.filter(e => e.WorkingStatus !== 'Working').length;
+  const working = equipment.filter(e => equipmentStatusClass(e.WorkingStatus) === 'Working').length;
+  const nonWorking = equipment.filter(e => isEquipmentDown(e.WorkingStatus)).length;
   const amcExpiring = useMemo(() => getAmcExpiryList(equipment, 6), [equipment]);
 
   return (
@@ -32,6 +33,7 @@ export function TechnicianView() {
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <KpiCard
+          to="/facilities"
           label="Total Equipment"
           value={equipment.length}
           icon={<Wrench size={18} />}
@@ -98,7 +100,7 @@ export function TechnicianView() {
                   <td className="px-6 py-3">
                     <span
                       className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
-                        e.WorkingStatus === 'Working'
+                        equipmentStatusClass(e.WorkingStatus) === 'Working'
                           ? 'bg-[#f0f8f0] text-[#3a7a3a]'
                           : 'bg-[#fdf5e8] text-[#a06020]'
                       }`}

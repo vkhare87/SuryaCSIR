@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { buildDataHealthDigest, sortAndCap, type DigestItem, type DigestSeverity } from './dataHealth';
+import { buildDataHealthDigest, buildUploadRecencyDigest, sortAndCap, type DigestItem, type DigestSeverity } from './dataHealth';
 import type { DivisionFreshness } from '../divisions/freshness';
+import { domainUploadLedger } from '../divisions/uploadFreshness';
 
 function fresh(over: Partial<DivisionFreshness>): DivisionFreshness {
   return {
@@ -89,5 +90,23 @@ describe('sortAndCap', () => {
     expect(out).toHaveLength(7);
     expect(out.map(i => i.severity)).toEqual(
       ['urgent', 'urgent', 'warning', 'warning', 'info', 'info', 'info']);
+  });
+});
+
+describe('buildUploadRecencyDigest', () => {
+  const ledger = domainUploadLedger([], new Date('2026-07-19'));
+
+  it('is empty for roles that cannot open Data Management', () => {
+    expect(buildUploadRecencyDigest('Director', ledger)).toEqual([]);
+  });
+
+  it('says untracked, not never uploaded, when records exist without an import', () => {
+    const items = buildUploadRecencyDigest('HRAdmin', ledger, { equipment: 12 });
+    const eq = items.find(i => i.id === 'upload-equipment')!;
+    expect(eq.severity).toBe('info');
+    expect(eq.title).toMatch(/no import on file/);
+    const staff = items.find(i => i.id === 'upload-staff')!;
+    expect(staff.severity).toBe('urgent');
+    expect(staff.title).toMatch(/never been uploaded/);
   });
 });
