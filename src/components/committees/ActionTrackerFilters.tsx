@@ -46,7 +46,7 @@ export function ActionTrackerFilters({
       </div>
 
       {/* Committee dropdown */}
-      <select
+      <select aria-label="Filter by committee"
         value={committeeFilter}
         onChange={(e) => onCommitteeChange(e.target.value)}
         className="px-3 py-1.5 text-xs border border-border rounded-lg bg-surface text-text-muted focus:outline-none focus:ring-1 focus:ring-[#c96442]/30"
@@ -65,7 +65,7 @@ export function ActionTrackerFilters({
           size={14}
           className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none"
         />
-        <input
+        <input aria-label="Search assignee"
           type="text"
           placeholder="Search assignee..."
           value={assigneeSearch}

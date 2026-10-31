@@ -1,5 +1,5 @@
 import { lazy, Suspense, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
 import { DataTable } from '../components/ui/DataTable';
@@ -19,6 +19,9 @@ import { useCanEdit } from '../lib/permissions/canEdit';
 import { ProjectFormModal } from '../components/ProjectFormModal';
 import { ENTITY_META } from '../lib/entities';
 import type { ProjectInfo, ProjectStaff } from '../types';
+import { useUrlTab } from '../utils/useUrlTab';
+
+const PROJECT_TABS = ['projects', 'staff', 'analytics'] as const;
 
 export default function Projects() {
   const { projects, projectStaff, isLoading, error } = useData();
@@ -26,15 +29,7 @@ export default function Projects() {
   const canUpload = hasPermission(['HRAdmin', 'SystemAdmin', 'MasterAdmin']);
   const canEdit = useCanEdit('hr');
   const navigate = useNavigate();
-  // Tab lives in the URL so Back and shared links return to the same view.
-  const [params, setParams] = useSearchParams();
-  const tabParam = params.get('tab');
-  const activeTab = tabParam === 'staff' || tabParam === 'analytics' ? tabParam : 'projects';
-  const setActiveTab = (t: 'projects' | 'staff' | 'analytics') => setParams(prev => {
-    const next = new URLSearchParams(prev);
-    if (t === 'projects') next.delete('tab'); else next.set('tab', t);
-    return next;
-  });
+  const [activeTab, setActiveTab] = useUrlTab(PROJECT_TABS);
   const { filter, clearFilter } = useChartFilter();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -290,7 +285,7 @@ export default function Projects() {
           )}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted w-4 h-4" />
-            <input 
+            <input aria-label="Search ID, name, PI" 
               type="text" 
               placeholder="Search ID, name, PI..." 
               value={searchTerm}
@@ -301,7 +296,7 @@ export default function Projects() {
           
           <div className="relative">
             <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted w-4 h-4" />
-            <select
+            <select aria-label="Filter by status"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               className="w-full sm:w-auto sm:max-w-xs max-w-full pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm appearance-none cursor-pointer"

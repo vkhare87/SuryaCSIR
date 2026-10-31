@@ -58,7 +58,7 @@ export default function RnDMonitor() {
             Every R&amp;D thread from proposal conceptualisation through sanction, execution, and reporting.
           </p>
         </div>
-        <select
+        <select aria-label="Filter by division"
           value={division}
           onChange={e => setDivision(e.target.value)}
           className="rounded-md border border-border bg-surface px-3 py-2 text-sm text-text"

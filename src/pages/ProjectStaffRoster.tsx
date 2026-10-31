@@ -6,6 +6,9 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { Search, Filter, UsersRound, X } from 'lucide-react';
 import type { ProjectStaff } from '../types';
 import { ProjectStaffAnalytics, type Facet } from './ProjectStaffAnalytics';
+import { useUrlTab } from '../utils/useUrlTab';
+
+const ROSTER_TABS = ['list', 'analytics'] as const;
 
 const FACET_FIELD: Record<Facet['dim'], keyof ProjectStaff> = {
   project: 'ProjectNo',
@@ -22,7 +25,7 @@ const FACET_LABEL: Record<Facet['dim'], string> = {
 
 export default function ProjectStaffRoster() {
   const { projectStaff, divisions } = useData();
-  const [activeTab, setActiveTab] = useState<'list' | 'analytics'>('list');
+  const [activeTab, setActiveTab] = useUrlTab(ROSTER_TABS);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDivision, setSelectedDivision] = useState<string>('ALL');
   const [facet, setFacet] = useState<Facet | null>(null);
@@ -116,7 +119,7 @@ export default function ProjectStaffRoster() {
           <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted w-4 h-4" />
-              <input
+              <input aria-label="Search name, project, PI"
                 type="text"
                 placeholder="Search name, project, PI..."
                 value={searchTerm}
@@ -126,7 +129,7 @@ export default function ProjectStaffRoster() {
             </div>
             <div className="relative">
               <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted w-4 h-4" />
-              <select
+              <select aria-label="Filter by division"
                 value={selectedDivision}
                 onChange={(e) => setSelectedDivision(e.target.value)}
                 className="w-full sm:w-auto sm:max-w-xs max-w-full pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm appearance-none cursor-pointer"

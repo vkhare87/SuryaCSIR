@@ -1,5 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { MotionConfig } from 'framer-motion'
 import './index.css'
 import App from './App.tsx'
 import { ErrorBoundary } from './components/ErrorBoundary.tsx'
@@ -17,6 +18,8 @@ import { FeatureControlProvider } from './contexts/FeatureControlContext.tsx'
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
+      {/* Honor the OS "reduce motion" setting for every framer-motion animation. */}
+      <MotionConfig reducedMotion="user">
       <ThemeProvider>
         <UIProvider>
           <ToastProvider>
@@ -38,6 +41,7 @@ createRoot(document.getElementById('root')!).render(
           </ToastProvider>
         </UIProvider>
       </ThemeProvider>
+      </MotionConfig>
     </ErrorBoundary>
   </StrictMode>,
 )

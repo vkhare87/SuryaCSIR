@@ -58,7 +58,7 @@ export function MemberPicker({ selected, onChange }: MemberPickerProps) {
       <div className="flex items-center gap-2">
         <div className="relative flex-1">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
-          <input
+          <input aria-label="Search staff by name"
             type="text"
             value={searchTerm}
             onChange={e => { setSearchTerm(e.target.value); setShowDropdown(true); }}

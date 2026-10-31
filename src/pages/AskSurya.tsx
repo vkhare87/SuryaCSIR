@@ -184,6 +184,7 @@ export default function AskSurya() {
         <input
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
+          aria-label="Ask SURYA a question"
           placeholder={turns.length ? 'Ask a follow-up…' : 'e.g. What outcomes did the 2025 progress reports highlight?'}
           className="flex-1 rounded-md border border-border bg-surface px-3 py-2 text-sm text-text placeholder:text-text-muted"
         />

@@ -6,7 +6,9 @@ import { z } from 'zod';
 // FileType
 // ---------------------------------------------------------------------------
 
-export type FileType = 'staff' | 'divisions' | 'projects' | 'projectStaff' | 'phd' | 'equipment' | 'contractStaff';
+import { FILE_TYPE_LABELS, type FileType } from './fileTypes';
+export { FILE_TYPE_LABELS };
+export type { FileType };
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -259,17 +261,6 @@ export const TABLE_NAMES: Record<FileType, string> = {
  * gets imported.
  */
 export const EXAMPLE_SENTINEL = '__EXAMPLE__';
-
-/** Human-facing entity names, shared by the import flow and the builder wizard. */
-export const FILE_TYPE_LABELS: Record<FileType, string> = {
-  staff:         'Human Capital (Staff Directory)',
-  divisions:     'Divisions',
-  projects:      'Research Projects',
-  projectStaff:  'Project Staff',
-  phd:           'PhD Scholars',
-  equipment:     'Facilities / Equipment',
-  contractStaff: 'Contract Staff',
-};
 
 export interface FieldMeta {
   /** Canonical Supabase column. Must be a member of ALLOWED_COLUMNS[type]. */

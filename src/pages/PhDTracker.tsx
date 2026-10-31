@@ -12,9 +12,13 @@ import { FilterChip } from '../components/viz/FilterChip';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/Tabs';
 import { useChartFilter } from '../utils/useChartFilter';
 import { applyChartFilter } from '../utils/applyChartFilter';
+import { useUrlTab } from '../utils/useUrlTab';
+import { PHD_DIMS } from '../lib/analytics/chartDims';
 import { Search, Filter, GraduationCap, Users, FileCheck, Award, BarChart3, Plus, Edit } from 'lucide-react';
 
 const PhDAnalytics = lazy(() => import('./PhDAnalytics'));
+
+const TABS = ['table', 'analytics'] as const;
 
 const PHD_DIM_LABELS: Record<string, string> = {
   status: 'Status',
@@ -57,6 +61,7 @@ export default function PhDTracker() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const { filter, clearFilter } = useChartFilter();
+  const [tab, setTab] = useUrlTab(TABS);
 
   const filteredStudents = useMemo(() => {
     const base = phDStudents.filter(s => {
@@ -69,13 +74,10 @@ export default function PhDTracker() {
 
       return matchesSearch && matchesStatus;
     });
-    return applyChartFilter(base, filter, {
-      status: (s) => s.CurrentStatus,
-      supervisor: (s) => s.SupervisorName,
-      specialization: (s) => s.Specialization,
-      division: (s) => s.DivisionCode,
-    });
+    return applyChartFilter(base, filter, PHD_DIMS);
   }, [phDStudents, searchTerm, statusFilter, filter]);
+
+  const chartMatchCount = useMemo(() => applyChartFilter(phDStudents, filter, PHD_DIMS).length, [phDStudents, filter]);
 
   const ongoingCount = phDStudents.filter(s => s.CurrentStatus === 'Ongoing').length;
   const submittedCount = phDStudents.filter(s => s.CurrentStatus === 'Thesis Submitted').length;
@@ -235,7 +237,7 @@ export default function PhDTracker() {
           )}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted w-4 h-4" />
-            <input 
+            <input aria-label="Search student, supervisor" 
               type="text" 
               placeholder="Search student, supervisor..." 
               value={searchTerm}
@@ -246,7 +248,7 @@ export default function PhDTracker() {
           
           <div className="relative">
             <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted w-4 h-4" />
-            <select
+            <select aria-label="Filter by status"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               className="w-full sm:w-auto sm:max-w-xs max-w-full pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm appearance-none cursor-pointer"
@@ -293,7 +295,7 @@ export default function PhDTracker() {
         />
       </InsightsStrip>
 
-      <Tabs defaultValue="table">
+      <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="table">Table</TabsTrigger>
           <TabsTrigger value="analytics">
@@ -333,7 +335,9 @@ export default function PhDTracker() {
           )}
         </TabsContent>
 
-        <TabsContent value="analytics" className="mt-4">
+        <TabsContent value="analytics" className="mt-4 space-y-3">
+          <FilterChip filter={filter} onClear={clearFilter} labelMap={PHD_DIM_LABELS}
+            showMatches={{ label: `Show ${chartMatchCount} matching scholar${chartMatchCount === 1 ? '' : 's'}`, onClick: () => setTab('table') }} />
           <Suspense fallback={<div className="text-sm text-text-muted py-12 text-center">Loading analytics…</div>}>
             <PhDAnalytics />
           </Suspense>

@@ -6,7 +6,7 @@ import { CategoryBar } from '../components/viz/CategoryBar';
 import { Heatmap } from '../components/viz/Heatmap';
 import { HeatmapCalendar } from '../components/viz/HeatmapCalendar';
 import { useChartFilter } from '../utils/useChartFilter';
-import { equipmentStatusClass } from '../utils/equipmentStatus';
+import { EQUIPMENT_DIMS } from '../lib/analytics/chartDims';
 
 export default function FacilitiesAnalytics() {
   const { equipment, labs } = useData();
@@ -17,7 +17,7 @@ export default function FacilitiesAnalytics() {
   const statusMix = useMemo(() => {
     const counts = new Map<string, number>();
     for (const e of equipment) {
-      const cls = equipmentStatusClass(e.WorkingStatus);
+      const cls = EQUIPMENT_DIMS.status(e) ?? 'Unknown';
       counts.set(cls, (counts.get(cls) ?? 0) + 1);
     }
     return Array.from(counts, ([label, value]) => ({ label, value }));
@@ -37,7 +37,7 @@ export default function FacilitiesAnalytics() {
   const perDivision = useMemo(() => {
     const counts = new Map<string, number>();
     for (const e of equipment) {
-      const k = e.Division || 'Unspecified';
+      const k = EQUIPMENT_DIMS.division(e) ?? 'Unspecified';
       counts.set(k, (counts.get(k) ?? 0) + 1);
     }
     return Array.from(counts, ([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);

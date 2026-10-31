@@ -324,10 +324,10 @@ export default function Calendar() {
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-text text-sm">{MONTH_NAMES[month]} {year}</h3>
               <div className="flex gap-1">
-                <button onClick={prevMonth} className="p-1 hover:bg-surface-hover rounded-md text-text-muted">
+                <button onClick={prevMonth} aria-label="Previous month" className="p-1 hover:bg-surface-hover rounded-md text-text-muted">
                   <ChevronLeft size={16} />
                 </button>
-                <button onClick={nextMonth} className="p-1 hover:bg-surface-hover rounded-md text-text-muted">
+                <button onClick={nextMonth} aria-label="Next month" className="p-1 hover:bg-surface-hover rounded-md text-text-muted">
                   <ChevronRight size={16} />
                 </button>
               </div>

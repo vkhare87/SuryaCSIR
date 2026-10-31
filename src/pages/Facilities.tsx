@@ -13,9 +13,13 @@ import { FilterChip } from '../components/viz/FilterChip';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/Tabs';
 import { useChartFilter } from '../utils/useChartFilter';
 import { applyChartFilter } from '../utils/applyChartFilter';
+import { useUrlTab } from '../utils/useUrlTab';
+import { EQUIPMENT_DIMS } from '../lib/analytics/chartDims';
 import { equipmentStatusClass } from '../utils/equipmentStatus';
 
 const FacilitiesAnalytics = lazy(() => import('./FacilitiesAnalytics'));
+
+const TABS = ['table', 'analytics'] as const;
 
 const EQUIPMENT_DIM_LABELS: Record<string, string> = {
   status: 'Status',
@@ -79,6 +83,7 @@ export default function Facilities() {
   const [formOpen, setFormOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Equipment | null>(null);
   const { filter, clearFilter } = useChartFilter();
+  const [tab, setTab] = useUrlTab(TABS);
 
   const isAdmin = user && (ADMIN_ROLES as readonly string[]).includes(user.activeRole);
 
@@ -103,12 +108,10 @@ export default function Facilities() {
       const matchesAmc = amcFilter === 'ALL' || amcStatus(e.amc_end_date) === amcFilter;
       return matchesSearch && matchesStatus && matchesDivision && matchesAmc;
     });
-    return applyChartFilter(base, filter, {
-      status: (e) => equipmentStatusClass(e.WorkingStatus),
-      division: (e) => e.Division,
-      lab: (e) => e.lab_id,
-    });
+    return applyChartFilter(base, filter, EQUIPMENT_DIMS);
   }, [equipment, searchTerm, statusFilter, divisionFilter, amcFilter, filter]);
+
+  const chartMatchCount = useMemo(() => applyChartFilter(equipment, filter, EQUIPMENT_DIMS).length, [equipment, filter]);
 
   const kpis = useMemo(() => ({
     total:    equipment.length,
@@ -319,7 +322,7 @@ export default function Facilities() {
       <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted w-4 h-4" />
-          <input
+          <input aria-label="Search name, code, manufacturer"
             type="text"
             placeholder="Search name, code, manufacturer..."
             value={searchTerm}
@@ -329,7 +332,7 @@ export default function Facilities() {
         </div>
         <div className="relative">
           <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted w-4 h-4" />
-          <select
+          <select aria-label="Filter by status"
             value={statusFilter}
             onChange={e => setStatusFilter(e.target.value)}
             className="w-full sm:w-auto sm:max-w-xs max-w-full pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm appearance-none cursor-pointer"
@@ -343,7 +346,7 @@ export default function Facilities() {
         </div>
         <div className="relative">
           <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted w-4 h-4" />
-          <select
+          <select aria-label="Filter by division"
             value={divisionFilter}
             onChange={e => setDivisionFilter(e.target.value)}
             className="w-full sm:w-auto sm:max-w-xs max-w-full pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm appearance-none cursor-pointer"
@@ -354,7 +357,7 @@ export default function Facilities() {
         </div>
         <div className="relative">
           <CalendarClock className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted w-4 h-4" />
-          <select
+          <select aria-label="Filter by AMC status"
             value={amcFilter}
             onChange={e => setAmcFilter(e.target.value)}
             className="w-full sm:w-auto sm:max-w-xs max-w-full pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm appearance-none cursor-pointer"
@@ -369,7 +372,7 @@ export default function Facilities() {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="table">
+      <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="table">Table</TabsTrigger>
           <TabsTrigger value="analytics">
@@ -407,7 +410,9 @@ export default function Facilities() {
           )}
         </TabsContent>
 
-        <TabsContent value="analytics" className="mt-4">
+        <TabsContent value="analytics" className="mt-4 space-y-3">
+          <FilterChip filter={filter} onClear={clearFilter} labelMap={EQUIPMENT_DIM_LABELS}
+            showMatches={{ label: `Show ${chartMatchCount} matching instrument${chartMatchCount === 1 ? '' : 's'}`, onClick: () => setTab('table') }} />
           <Suspense fallback={<div className="text-sm text-text-muted py-12 text-center">Loading analytics…</div>}>
             <FacilitiesAnalytics />
           </Suspense>

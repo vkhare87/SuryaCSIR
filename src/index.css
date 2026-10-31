@@ -221,3 +221,12 @@
     gap: var(--density-gap-base);
   }
 }
+
+/* Keyboard focus is always visible on interactive elements. Unlayered on
+   purpose: it must win over `outline-none` / `focus:outline-none` utilities,
+   which removed the outline with no replacement in ~40 places. Inputs keep
+   their own focus rings; tabIndex=-1 panels (dialogs) are excluded. */
+:where(a[href], button, summary, [role="button"], [tabindex]:not([tabindex="-1"])):focus-visible {
+  outline: 2px solid var(--color-focus-blue);
+  outline-offset: 2px;
+}

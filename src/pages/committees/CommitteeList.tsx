@@ -142,7 +142,7 @@ export default function CommitteeList() {
       <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted w-4 h-4" />
-          <input
+          <input aria-label="Search committees"
             type="text"
             placeholder="Search committees..."
             value={searchTerm}
@@ -152,7 +152,7 @@ export default function CommitteeList() {
         </div>
         <div className="relative">
           <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted w-4 h-4" />
-          <select
+          <select aria-label="Filter by type"
             value={typeFilter}
             onChange={e => setTypeFilter(e.target.value)}
             className="w-full sm:w-auto sm:max-w-xs max-w-full pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm appearance-none cursor-pointer"
@@ -166,7 +166,7 @@ export default function CommitteeList() {
         </div>
         <div className="relative">
           <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted w-4 h-4" />
-          <select
+          <select aria-label="Filter by status"
             value={statusFilter}
             onChange={e => setStatusFilter(e.target.value)}
             className="w-full sm:w-auto sm:max-w-xs max-w-full pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm appearance-none cursor-pointer"

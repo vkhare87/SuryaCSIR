@@ -40,6 +40,18 @@ Related docs: [app.md](app.md) (product spec), [database_design.md](database_des
 - First-run Supabase credential wizard (dev convenience; `.env` is the production path).
 - Admin-created accounts are forced through `/change-password` on first login.
 
+### Accessibility & performance baseline (2026-11-01)
+- Keyboard focus is always visible: an unlayered `:focus-visible` rule in
+  `index.css` overrides `outline-none` on links, buttons and focusable elements.
+- `MotionConfig reducedMotion="user"` (in `main.tsx`) makes every framer-motion
+  animation honor the OS "reduce motion" setting.
+- Overlays use `useDialog` (Escape, focus in/return, `role="dialog"`); search and
+  filter controls carry `aria-label`s. Form fields with visible labels should link
+  them with `htmlFor`/`id` rather than relying on placeholders.
+- Startup bundle stays free of xlsx/papaparse/zod: dashboard code imports upload
+  domain names from `utils/fileTypes.ts`, never from `utils/dataMigration.ts`.
+  Startup JS is ~402 kB gzip (was ~558 kB).
+
 ### Command palette, theme, density
 - `Ctrl+K` opens the command palette (navigate anywhere by name).
 - **Record search** (same box): staff, projects, PhD, outputs, IP, equipment and
@@ -207,21 +219,27 @@ Related docs: [app.md](app.md) (product spec), [database_design.md](database_des
   Analytics tab on the entity's own page. For cross-entity questions, use Ask SURYA
   instead — that is the design intent.
 
-### Connected analytics pattern (piloted on Staff and Projects, 2026-10-31)
+### Connected analytics pattern (Staff, Projects, PhD, Instruments, Recruitment, Divisions)
 Chart → filtered list → record → Back, without losing context:
 - **One filter in the URL** — `useChartFilter` stores `?filter=<dim>:<value>`; tabs
-  use `?tab=`. Back/forward and shared links restore the view.
-- **One matcher per module** — `lib/projects/projectFilter.ts`,
-  `lib/staff/staffFilter.ts`. Charts *and* the list call it, so blank values bucket
-  the same way ("Unspecified") and counts agree. Never re-implement the match inline.
+  use `useUrlTab` (`?tab=`, first tab omitted). Back/forward and shared links
+  restore the view.
+- **One bucketing rule per dimension** — `lib/analytics/chartDims.ts` (PhD,
+  equipment, vacancies; pass straight to `applyChartFilter`), plus
+  `lib/projects/projectFilter.ts` and `lib/staff/staffFilter.ts`. Charts *and* the
+  list call the same function, so blank values bucket the same way ("Unspecified")
+  and counts agree. Never re-implement the bucketing inline.
 - **Clicked dimension keeps all categories**; every other widget narrows.
-- **`FilterChip`** shows the active filter with an accessible clear button, plus a
+- **`FilterChip`** shows the active filter with an accessible clear button; on analytics
+  tabs pass `showMatches` for the
   "Show N matching …" link to the list (same `?filter=`). The list's export
   (`DataTable`) writes exactly the filtered, sorted rows.
 - **Record links go through `ENTITY_META[kind].route(id)`** — it URI-encodes IDs
   (ProjectIDs contain `/`).
-- To adopt on another module: add `lib/<module>/<module>Filter.ts`, use it in the
-  analytics charts and the list, render `FilterChip` + the "Show N" link.
+- To adopt on another module: add its dims to `chartDims.ts`, use them in the
+  analytics charts and the list, drive `Tabs` with `useUrlTab`, render `FilterChip`
+  with `showMatches`. Chart widgets do not cross-filter each other yet outside
+  Staff and Projects.
 
 ---
 

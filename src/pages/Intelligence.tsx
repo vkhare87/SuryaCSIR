@@ -335,7 +335,7 @@ export default function Intelligence() {
         <div className="p-4 border-b border-border flex flex-col sm:flex-row justify-between items-center gap-4 bg-surface-hover">
           <div className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted w-4 h-4" />
-            <input
+            <input aria-label="Search publications and IP"
               type="text"
               placeholder="Search..."
               value={searchTerm}

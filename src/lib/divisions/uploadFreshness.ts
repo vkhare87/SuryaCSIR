@@ -1,5 +1,5 @@
 import type { ImportEvent } from '../../types';
-import { FILE_TYPE_LABELS, type FileType } from '../../utils/dataMigration';
+import { FILE_TYPE_LABELS, type FileType } from '../../utils/fileTypes';
 
 export type UploadStatus = 'fresh' | 'stale' | 'urgent';
 

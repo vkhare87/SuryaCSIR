@@ -1,7 +1,7 @@
 import type { Role } from '../../types';
 import type { DivisionFreshness } from '../divisions/freshness';
 import type { DomainUpload } from '../divisions/uploadFreshness';
-import type { FileType } from '../../utils/dataMigration';
+import type { FileType } from '../../utils/fileTypes';
 import { ACCESS_MAP } from '../../constants/access';
 
 export type DigestSeverity = 'urgent' | 'warning' | 'info';
@@ -17,7 +17,7 @@ export interface DigestItem {
 // Roles that steward institute-wide data quality.
 const STEWARD_ROLES: Role[] = ['Director', 'HRAdmin', 'SystemAdmin', 'MasterAdmin'];
 
-const HREF = '/divisions?view=analytics';
+const HREF = '/divisions?tab=analytics';
 const plural = (n: number) => (n === 1 ? '' : 's');
 
 function gapSummary(f: DivisionFreshness): string {

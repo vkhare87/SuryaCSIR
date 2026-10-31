@@ -23,6 +23,9 @@ import { buildDossier } from '../lib/divisions/dossier';
 import { equipmentStatusClass } from '../utils/equipmentStatus';
 import { ENTITY_META } from '../lib/entities';
 import type { DivisionInfo, StaffMember } from '../types';
+import { useUrlTab } from '../utils/useUrlTab';
+
+const DIVISION_TABS = ['detail', 'analytics'] as const;
 
 export default function Divisions() {
   const {
@@ -38,9 +41,7 @@ export default function Divisions() {
   const canEdit = useCanEdit('hr');
   const [editTarget, setEditTarget] = useState<DivisionInfo | null>(null);
   const [showCreate, setShowCreate] = useState(false);
-  const [view, setView] = useState<'detail' | 'analytics'>(
-    searchParams.get('view') === 'analytics' ? 'analytics' : 'detail'
-  );
+  const [view, setView] = useUrlTab(DIVISION_TABS);
 
   const filteredDivisions = divisions.filter(div => {
     const s = searchQuery.toLowerCase();
@@ -231,7 +232,7 @@ export default function Divisions() {
         <div className="p-4 border-b border-border space-y-2">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted w-4 h-4" />
-            <input
+            <input aria-label="Filter Divisions"
               type="text"
               placeholder="Filter Divisions..."
               value={searchQuery}

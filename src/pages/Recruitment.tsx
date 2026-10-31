@@ -9,8 +9,13 @@ import { MiniBar } from '../components/viz/MiniBar';
 import { FilterChip } from '../components/viz/FilterChip';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/Tabs';
 import { useChartFilter } from '../utils/useChartFilter';
+import { applyChartFilter } from '../utils/applyChartFilter';
+import { useUrlTab } from '../utils/useUrlTab';
+import { VACANCY_DIMS } from '../lib/analytics/chartDims';
 
 const RecruitmentAnalytics = lazy(() => import('./RecruitmentAnalytics'));
+
+const TABS = ['table', 'analytics'] as const;
 
 const RECRUITMENT_DIM_LABELS: Record<string, string> = {
   status: 'Status',
@@ -20,7 +25,6 @@ const RECRUITMENT_DIM_LABELS: Record<string, string> = {
 import {
   UserPlus,
   Search,
-  Filter,
   ChevronRight,
   ClipboardList,
   Users2,
@@ -45,6 +49,7 @@ export default function Recruitment() {
   const canManage = hasPermission(['HRAdmin', 'SystemAdmin', 'MasterAdmin']);
   const [searchTerm, setSearchTerm] = useState('');
   const { filter, clearFilter } = useChartFilter();
+  const [tab, setTab] = useUrlTab(TABS);
 
   // Per-vacancy applicant count and shortlisted/interviewed split.
   const stats = useMemo(() => {
@@ -62,7 +67,8 @@ export default function Recruitment() {
     p.status !== 'Rejected' && openVacancies.some(v => v.id === p.vacancyId)
   );
 
-  const filtered = vacancyAdvertisements.filter(v => {
+  const chartFiltered = applyChartFilter(vacancyAdvertisements, filter, VACANCY_DIMS);
+  const filtered = chartFiltered.filter(v => {
     const q = searchTerm.toLowerCase();
     return !q ||
       v.title.toLowerCase().includes(q) ||
@@ -141,7 +147,7 @@ export default function Recruitment() {
         />
       </InsightsStrip>
 
-      <Tabs defaultValue="table">
+      <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="table">Vacancies</TabsTrigger>
           <TabsTrigger value="analytics">
@@ -159,7 +165,7 @@ export default function Recruitment() {
             <div className="flex gap-2">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted w-3.5 h-3.5" />
-                <input
+                <input aria-label="Search vacancies"
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -167,9 +173,6 @@ export default function Recruitment() {
                   className="pl-8 pr-3 py-1.5 bg-surface border border-border rounded-md text-xs outline-none focus:ring-1 focus:ring-[#3898ec]"
                 />
               </div>
-              <button className="p-1.5 border border-border rounded-md hover:bg-surface text-text-muted">
-                <Filter size={14} />
-              </button>
             </div>
           </div>
 
@@ -255,7 +258,9 @@ export default function Recruitment() {
           </div>
         </TabsContent>
 
-        <TabsContent value="analytics" className="mt-4">
+        <TabsContent value="analytics" className="mt-4 space-y-3">
+          <FilterChip filter={filter} onClear={clearFilter} labelMap={RECRUITMENT_DIM_LABELS}
+            showMatches={{ label: `Show ${chartFiltered.length} matching vacanc${chartFiltered.length === 1 ? 'y' : 'ies'}`, onClick: () => setTab('table') }} />
           <Suspense fallback={<div className="text-sm text-text-muted py-12 text-center">Loading analytics…</div>}>
             <RecruitmentAnalytics />
           </Suspense>

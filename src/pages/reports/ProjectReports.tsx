@@ -64,14 +64,14 @@ export default function ProjectReports() {
         <div className="flex flex-wrap gap-3 items-center">
           <div className="relative flex-1 min-w-[240px]">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
-            <input
+            <input aria-label="Search by project, number, period"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by project, number, period"
               className="w-full pl-10 pr-3 py-2 bg-surface-hover border border-border rounded-lg text-sm text-text"
             />
           </div>
-          <select
+          <select aria-label="Filter by status"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as 'ALL' | ProjectReportStatus)}
             className="px-3 py-2 bg-surface-hover border border-border rounded-lg text-sm text-text"

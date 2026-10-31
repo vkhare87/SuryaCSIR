@@ -5,6 +5,7 @@ import { CategoryBar } from '../components/viz/CategoryBar';
 import { CategoryDonut } from '../components/viz/CategoryDonut';
 import { Treemap } from '../components/viz/Treemap';
 import { useChartFilter } from '../utils/useChartFilter';
+import { PHD_DIMS } from '../lib/analytics/chartDims';
 
 export default function PhDAnalytics() {
   const { phDStudents } = useData();
@@ -13,7 +14,8 @@ export default function PhDAnalytics() {
   const statusMix = useMemo(() => {
     const counts = new Map<string, number>();
     for (const s of phDStudents) {
-      counts.set(s.CurrentStatus, (counts.get(s.CurrentStatus) ?? 0) + 1);
+      const k = PHD_DIMS.status(s) ?? 'Unspecified';
+      counts.set(k, (counts.get(k) ?? 0) + 1);
     }
     return Array.from(counts, ([label, value]) => ({ label, value }));
   }, [phDStudents]);
@@ -21,7 +23,7 @@ export default function PhDAnalytics() {
   const specializationMix = useMemo(() => {
     const counts = new Map<string, number>();
     for (const s of phDStudents) {
-      const k = s.Specialization || 'Unspecified';
+      const k = PHD_DIMS.specialization(s) ?? 'Unspecified';
       counts.set(k, (counts.get(k) ?? 0) + 1);
     }
     return Array.from(counts, ([name, size]) => ({ name, size })).sort((a, b) => b.size - a.size);
@@ -30,7 +32,7 @@ export default function PhDAnalytics() {
   const supervisorWorkload = useMemo(() => {
     const counts = new Map<string, number>();
     for (const s of phDStudents) {
-      const k = s.SupervisorName || 'Unassigned';
+      const k = PHD_DIMS.supervisor(s) ?? 'Unassigned';
       counts.set(k, (counts.get(k) ?? 0) + 1);
     }
     return Array.from(counts, ([label, value]) => ({ label, value }))
@@ -41,7 +43,7 @@ export default function PhDAnalytics() {
   const divisionLoad = useMemo(() => {
     const counts = new Map<string, number>();
     for (const s of phDStudents) {
-      const k = s.DivisionCode || 'Unspecified';
+      const k = PHD_DIMS.division(s) ?? 'Unspecified';
       counts.set(k, (counts.get(k) ?? 0) + 1);
     }
     return Array.from(counts, ([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);

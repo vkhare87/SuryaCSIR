@@ -196,7 +196,7 @@ export default function IrinsSync() {
       {/* Search + Scientist List */}
       <div className="relative">
         <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
-        <input
+        <input aria-label="Search scientists"
           type="text"
           placeholder="Search scientists..."
           value={search}
