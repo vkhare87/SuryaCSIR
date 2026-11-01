@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import * as XLSX from 'xlsx';
 import {
   FIELD_META,
@@ -10,6 +10,9 @@ import {
   detectColumnMappings,
   resolveImportDivisions,
   applyColumnMapping,
+  parseFileRaw,
+  MAX_UPLOAD_BYTES,
+  MAX_UPLOAD_ROWS,
   type FileType,
 } from './dataMigration';
 
@@ -190,5 +193,31 @@ describe('formatData header remapping', () => {
     );
     expect(out[0].ID).toBe('E9');
     expect(out[0].Division).toBe('CSE');
+  });
+});
+
+describe('upload limits (SEC-03)', () => {
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  const csv = (rows: number) =>
+    new File(['Name\n' + 'a\n'.repeat(rows)], 'staff.csv', { type: 'text/csv' });
+  const sized = (bytes: number, name = 'big.xlsx') =>
+    Object.defineProperty(new File(['Name\na\n'], name), 'size', { value: bytes });
+
+  it('refuses a file one byte over the cap without reading it', async () => {
+    const reader = vi.spyOn(globalThis, 'FileReader');
+    expect(await parseFileRaw(sized(MAX_UPLOAD_BYTES + 1)))
+      .toEqual({ success: false, error: 'File too large (max 25 MB).' });
+    expect(reader).not.toHaveBeenCalled();
+  });
+
+  it('reads a file exactly at the cap', async () => {
+    expect((await parseFileRaw(sized(MAX_UPLOAD_BYTES, 'ok.csv'))).success).toBe(true);
+  });
+
+  it('accepts exactly the row cap and refuses one more', async () => {
+    expect((await parseFileRaw(csv(MAX_UPLOAD_ROWS))).rowCount).toBe(MAX_UPLOAD_ROWS);
+    expect(await parseFileRaw(csv(MAX_UPLOAD_ROWS + 1)))
+      .toEqual({ success: false, error: 'Too many rows (max 50,000).' });
   });
 });
