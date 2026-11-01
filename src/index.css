@@ -87,6 +87,7 @@
 
   --density-padding-base: 1rem;
   --density-gap-base: 1rem;
+  --density-row-y: 1rem;
 
   --color-archive-green: #3F5C46;
   --color-turmeric: #D9A441;
@@ -129,14 +130,17 @@
 }
 
 /* Density Variants */
-.density-compact {
+/* Set by ThemeContext on <html data-density>. */
+:root[data-density="compact"] {
   --density-padding-base: 0.5rem;
   --density-gap-base: 0.5rem;
+  --density-row-y: 0.5rem;
 }
 
-.density-relaxed {
+:root[data-density="relaxed"] {
   --density-padding-base: 1.5rem;
   --density-gap-base: 1.5rem;
+  --density-row-y: 1.5rem;
 }
 
 @layer base {

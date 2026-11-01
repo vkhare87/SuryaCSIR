@@ -25,6 +25,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('surya_theme', theme);
   }, [theme]);
 
+  useEffect(() => {
+    document.documentElement.dataset.density = density;
+  }, [density]);
+
   const setDensity = useCallback((d: Density) => {
     setDensityState(d);
     localStorage.setItem('surya_density', d);
