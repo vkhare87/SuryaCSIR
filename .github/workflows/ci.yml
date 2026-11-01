@@ -21,6 +21,19 @@ jobs:
       - run: node scripts/update-design-debt.mjs
       - run: npm test
       - run: npm run build # runs tsc -b + vite build
+      # Runtime dependencies only: a high advisory in what ships fails the build.
+      # The dev toolchain stays advisory (SEC-14).
+      - run: npm audit --audit-level=high --omit=dev
+
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # gitleaks scans the commits a push or PR adds
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   rag:
     runs-on: ubuntu-latest

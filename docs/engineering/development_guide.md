@@ -70,7 +70,12 @@ supabase db reset         # rebuild from migrations + seed
 ```
 
 Demo data (`supabase/mock/*.sql`) is **development only**. A mock helpdesk fixture once
-reached production and had to be removed by hand.
+reached production and had to be removed by hand. Each file now refuses to run unless the
+session opts in, and stops psql at that refusal. Load one into a **local** database only:
+
+```bash
+PGOPTIONS='-c surya.allow_mock=on' psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -f supabase/mock/01_divisions.sql
+```
 
 ### 1.4 RAG service
 
