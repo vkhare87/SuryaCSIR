@@ -23,6 +23,14 @@ describe('ACCESS_MAP ↔ App.tsx route consistency', () => {
     }
   }
 
+  // A typo'd accessPath locks that page for everyone, MasterAdmin included
+  // (featureAccessible returns `path in ACCESS_MAP` for MasterAdmin).
+  it('every accessPath in App.tsx is an ACCESS_MAP key', () => {
+    const used = [...appSource.matchAll(/accessPath="([^"]+)"/g)].map((m) => m[1]);
+    expect(used.length).toBeGreaterThan(0);
+    expect(used.filter((p) => !(p in ACCESS_MAP))).toEqual([]);
+  });
+
   it('authoring and admin pages are desktop-only; review pages stay on phones', () => {
     const line = (p: string) => appSource.split('\n').find((l) => l.includes(`path="${p}"`)) ?? '';
     for (const p of ['/data', '/pms/reports/:id/edit', '/proposals/new', '/reports/new', '/explore', '/irins-sync']) {

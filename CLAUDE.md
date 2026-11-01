@@ -67,7 +67,7 @@ top-level plan document.
 
 | Need | Path |
 |------|------|
-| New page/route | `src/pages/<Page>.tsx`, register in `src/App.tsx`, add nav in `src/components/layout/Layout.tsx` `NAV_ITEMS` |
+| New page/route | `src/pages/<Page>.tsx`, register in `src/App.tsx`, add nav in `src/components/layout/Sidebar.tsx` `NAV_SECTIONS` |
 | PMS page | `src/pages/pms/<Page>.tsx` |
 | Role dashboard | `src/pages/dashboards/<Role>View.tsx` |
 | Shared UI primitive | `src/components/ui/<Name>.tsx` |
@@ -80,9 +80,8 @@ top-level plan document.
 | Page access roles | `src/constants/access.ts` `ACCESS_MAP` — single source for nav + route guards |
 | Domain types | `src/types/index.ts` (single barrel) |
 | Pure utility | `src/utils/<name>.ts` (camelCase) |
-| Mock data | `src/utils/mockData.ts` |
 | Supabase client | `src/utils/supabaseClient.ts` (module-level singleton) |
-| New Supabase entity | type → `src/types/index.ts`; mock → `mockData.ts`; mapper → `dataMapper.ts`; load → `DataContext.tsx`; upload → `dataMigration.ts` |
+| New Supabase entity | type → `src/types/index.ts`; mapper → `dataMapper.ts`; load → `DataContext.tsx`; upload → `dataMigration.ts` |
 | New migration | `supabase/migrations/<TS>_<name>.sql` (timestamp `YYYYMMDDHHMMSS`, after the 8-file baseline) — never edit a shipped baseline file |
 | Bootstrap data (app needs it to run) | `supabase/seed/<NN>_<name>.sql` |
 | Demo / sample data (dev only) | `supabase/mock/<NN>_<name>.sql` |
@@ -149,7 +148,7 @@ No path aliases. Always relative imports.
 - Async data loading: `try / catch` with `console.error`, fall back to empty arrays. (Note: surfacing errors to UI is open tech debt — see Tech Debt below.)
 - File parsing (`parseFile`): never reject; resolve `{ success: false, error: string }`.
 - Detail pages: not-found inline UI + back button when route param doesn't match.
-- Form errors: `useState('')` + render in JSX. No global error boundary exists.
+- Form errors: `useState('')` + render in JSX. A single `ErrorBoundary` wraps the app in `src/main.tsx`; there are no per-page boundaries.
 
 ### Comments
 
@@ -182,7 +181,7 @@ No path aliases. Always relative imports.
 - Use `useData()` from pages, never Supabase directly.
 - Wrap all derived data in `useMemo`.
 - Use semantic Tailwind tokens, not raw colors.
-- Add new entities through the 5-file dance: type → mock → mapper → context → migration uploader.
+- Add new entities through the 4-file dance: type → mapper → context → migration uploader. Demo rows go in `supabase/mock/`, not in `src/`.
 - Validate session via `supabase.auth.getSession()` — not `localStorage`.
 - Enable RLS on every new table from the first migration.
 

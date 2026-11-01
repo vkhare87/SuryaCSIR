@@ -27,7 +27,8 @@ const DESIGN_TOKEN_RULES = [
 
 export default tseslint.config(
   {
-    ignores: ['dist/**', 'node_modules/**', 'rag/.venv/**', 'ingest/.venv/**', 'public/tesseract/**'],
+    // Python trees are not JS; their caches are unreadable on Windows (EPERM).
+    ignores: ['dist/**', 'node_modules/**', 'rag/**', 'ingest/**', '**/__pycache__/**', '**/.pytest_cache/**', 'public/tesseract/**'],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
