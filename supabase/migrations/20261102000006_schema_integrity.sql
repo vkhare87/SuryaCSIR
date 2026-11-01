@@ -1,8 +1,8 @@
 -- ============================================================
 -- 20261102000006_schema_integrity
 -- BUG-32 / BUG-33 / WO-6:
---   6a. projects."ProjectNo" is the join key for project_staff, phd_students,
---       proposals, project_reports and projects_select, but was not unique.
+--   6a. Dropped: projects."ProjectNo" is shared by work packages of one
+--       umbrella project, so it cannot be unique.
 --   6b. Only one appraisal cycle may be OPEN; a cycle ends after it starts,
 --       in March (the derived deadlines assume it).
 --   6c. Indexes on RLS predicates and the client's .order() columns.
@@ -16,24 +16,9 @@
 -- ============================================================
 BEGIN;
 
--- ── 6a. ProjectNo is unique ──────────────────────────────────────────────
--- ponytail: no FKs from project_staff / phd_students / mous / tech_transfers
--- yet. Those rows come from Excel uploads that can name a project before the
--- projects sheet is loaded; an FK would turn that into a failed upload.
-DO $$
-DECLARE v_dupes text;
-BEGIN
-    SELECT string_agg(DISTINCT "ProjectNo", ', ') INTO v_dupes
-      FROM (SELECT "ProjectNo" FROM public.projects
-             WHERE "ProjectNo" IS NOT NULL
-             GROUP BY "ProjectNo" HAVING count(*) > 1) d;
-    IF v_dupes IS NOT NULL THEN
-        RAISE EXCEPTION 'Duplicate projects."ProjectNo" must be merged before this migration: %', v_dupes;
-    END IF;
-END $$;
-
-CREATE UNIQUE INDEX IF NOT EXISTS projects_project_no_key
-    ON public.projects ("ProjectNo") WHERE "ProjectNo" IS NOT NULL;
+-- ── 6a. (dropped) ───────────────────────────────────────────────────────
+-- ProjectNo is NOT unique: one umbrella number covers several work packages
+-- (live: HCP0054 = 4 rows, distinct ProjectIDs). ProjectID is the key.
 
 -- ── 6b. One OPEN cycle; dates in order ───────────────────────────────────
 DO $$
