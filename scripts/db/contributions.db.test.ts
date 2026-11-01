@@ -75,7 +75,7 @@ describe('creating requests', () => {
   });
 
   it('link must be a relative app path', async () => {
-    for (const link of ['https://x', '//x', '/\\x']) {
+    for (const link of ['https://x', '//x', '/\\x', '/\t/x', '/\n/x']) {
       const a = amc(); a[5] = link;
       await expect(create(U.hod, a)).rejects.toThrow(/invalid_link/);
     }

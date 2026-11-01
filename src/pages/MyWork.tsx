@@ -23,7 +23,8 @@ import type { ContributionAction, ContributionEvent, ContributionRequest, Contri
 type Bucket = 'todo' | 'review' | 'unowned' | 'done';
 
 // Same rule as the contribution_requests.link CHECK; kept here in case a row predates it.
-const safeLink = (l: string | null) => (l && /^\/([^/\\]|$)/.test(l) ? l : null);
+// eslint-disable-next-line no-control-regex -- browsers strip TAB/LF/CR, so '/\t/evil' would open '//evil'
+const safeLink = (l: string | null) => (l && /^\/([^/\\]|$)/.test(l) && !/[\x00-\x1f\x7f]/.test(l) ? l : null);
 
 const ACTION_LABEL: Record<ContributionAction, string> = {
   delegate: 'Delegate',

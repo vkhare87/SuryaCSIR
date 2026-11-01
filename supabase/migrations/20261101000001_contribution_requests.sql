@@ -44,7 +44,8 @@ CREATE TABLE IF NOT EXISTS public.contribution_requests (
     title         text NOT NULL CHECK (btrim(title) <> ''),
     reason        text NOT NULL DEFAULT '',
     -- Relative app path only: '/x' yes; '//x', '/\x', 'https://x' no.
-    link          text CHECK (link IS NULL OR link ~ '^/([^/\\]|$)'),
+    -- Control characters are rejected because browsers strip TAB/LF/CR: '/\t/evil' would open '//evil'.
+    link          text CHECK (link IS NULL OR (link ~ '^/([^/\\]|$)' AND link !~ '[[:cntrl:]]')),
     requested_by  uuid REFERENCES auth.users(id) ON DELETE SET NULL,  -- NULL = raised by the sweep
     assignee_id   uuid REFERENCES auth.users(id) ON DELETE SET NULL,  -- NULL = unowned
     delegate_id   uuid REFERENCES auth.users(id) ON DELETE SET NULL,
@@ -185,7 +186,7 @@ BEGIN
     IF btrim(coalesce(p_title, '')) = '' THEN
         RAISE EXCEPTION 'title_required';
     END IF;
-    IF p_link IS NOT NULL AND p_link !~ '^/([^/\\]|$)' THEN
+    IF p_link IS NOT NULL AND (p_link !~ '^/([^/\\]|$)' OR p_link ~ '[[:cntrl:]]') THEN
         RAISE EXCEPTION 'invalid_link';
     END IF;
     IF p_prefill IS NOT NULL AND jsonb_typeof(p_prefill) <> 'object' THEN
