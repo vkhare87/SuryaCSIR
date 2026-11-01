@@ -99,3 +99,21 @@ describe('DataTable v2 features', () => {
     expect(screen.getByText('detail-Charlie')).toBeInTheDocument();
   });
 });
+
+describe('DataTable paging (BUG-17)', () => {
+  const make = (prefix: string) =>
+    Array.from({ length: 30 }, (_, i) => ({ id: i, name: `${prefix}-${String(i).padStart(2, '0')}` }));
+  const cols: Column<{ id: number; name: string }>[] = [{ header: 'Name', accessorKey: 'name' }];
+
+  it('returns to page 1 when a filter yields a different result set of the same size', () => {
+    uiState.isMobile = false; uiState.isTablet = false; uiState.isDesktop = true;
+    const { rerender } = render(<DataTable data={make('A')} columns={cols} keyExtractor={(r) => r.id} />);
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+    expect(screen.getByText('3 / 3')).toBeInTheDocument();
+
+    rerender(<DataTable data={make('B')} columns={cols} keyExtractor={(r) => r.id} />);
+    expect(screen.getByText('1 / 3')).toBeInTheDocument();
+    expect(screen.getByText('B-00')).toBeInTheDocument();
+  });
+});

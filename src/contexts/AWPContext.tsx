@@ -4,6 +4,7 @@ import { supabase, isProvisioned } from '../utils/supabaseClient';
 import { useAuth } from './AuthContext';
 import { mapAWPRow, mapAWPRevisionRow } from '../utils/pmsMappers';
 import type { AWPContent, AWPVerdict, PMSAWP, PMSAWPRevision } from '../types/pms';
+import { fetchAll } from '../lib/data/fetchAll';
 
 export interface AWPImportInput {
   staffId: string;
@@ -76,8 +77,8 @@ export function AWPProvider({ children }: { children: ReactNode }) {
         return;
       }
       const [awpRes, revRes, staffRes] = await Promise.all([
-        supabase.from('pms_awps').select('*').order('updated_at', { ascending: false }),
-        supabase.from('pms_awp_revisions').select('*').order('created_at', { ascending: false }),
+        fetchAll(supabase.from('pms_awps').select('*').order('updated_at', { ascending: false }).order('id')),
+        fetchAll(supabase.from('pms_awp_revisions').select('*').order('created_at', { ascending: false }).order('id')),
         supabase.rpc('caller_staff_id'),
       ]);
       if (awpRes.error) throw awpRes.error;

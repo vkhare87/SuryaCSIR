@@ -8,6 +8,7 @@ import {
   mapProposalRow, mapCoPIRow, mapDocumentRow, mapHistoryRow,
 } from '../utils/proposalMappers';
 import type { Proposal, ProposalCoPI } from '../types/proposal';
+import { fetchAll } from '../lib/data/fetchAll';
 
 interface ProposalsContextType {
   proposals: Proposal[];
@@ -43,10 +44,11 @@ export function ProposalsProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     setError(null);
     try {
-      const { data, error: err } = await supabase
+      const { data, error: err } = await fetchAll(supabase
         .from('proposals')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .order('id'));
       if (err) throw err;
       setProposals((data ?? []).map(mapProposalRow));
     } catch (e) {

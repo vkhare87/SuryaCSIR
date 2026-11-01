@@ -61,7 +61,7 @@ export function SystemAdminView() {
   const {
     staff, projects, phDStudents, equipment, divisions,
     scientificOutputs, ipIntelligence, contractStaff, vacancyAdvertisements,
-    vacancyPosts, committees, meetings, actionItems, tickets,
+    vacancyApplications, committees, meetings, actionItems, tickets,
     isBackendProvisioned, error: dataError,
   } = useData();
   const { cycles, reports, evaluations, notifications } = usePMS();
@@ -110,7 +110,7 @@ export function SystemAdminView() {
     return actionItems.filter(a => a.status !== 'Completed' && new Date(a.deadline) < now).length;
   }, [actionItems]);
   const grantedIP        = useMemo(() => ipIntelligence.filter(i => i.status === 'Granted').length, [ipIntelligence]);
-  const openVacancies    = useMemo(() => vacancyAdvertisements.filter(v => v.status === 'Open').length, [vacancyAdvertisements]);
+  const openVacancies    = useMemo(() => vacancyAdvertisements.filter(v => v.status === 'Open' || v.status === 'Published').length, [vacancyAdvertisements]);
   const pendingUsers     = useMemo(() => userRoles.filter(r => r.role === 'DefaultUser').length, [userRoles]);
   const totalCitations   = useMemo(() => scientificOutputs.reduce((sum, p) => sum + (p.citationCount ?? 0), 0), [scientificOutputs]);
   const avgImpactFactor  = useMemo(() => {
@@ -205,7 +205,7 @@ export function SystemAdminView() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {canAccess('/staff') && <KpiCard to="/staff" label="Total Staff"   value={staff.length}        icon={<Users size={18} />}         sublabel={`${contractStaff.length} contract`} />}
           {canAccess('/phd') && <KpiCard to="/phd" label="PhD Students"  value={phDStudents.length}  icon={<BookOpen size={18} />}      sublabel="Enrolled scholars" />}
-          {canAccess('/recruitment') && <KpiCard to="/recruitment" label="Open Vacancies" value={openVacancies}      icon={<ClipboardList size={18} />} sublabel={`${vacancyPosts.length} applicants`} />}
+          {canAccess('/recruitment') && <KpiCard to="/recruitment" label="Open Vacancies" value={openVacancies}      icon={<ClipboardList size={18} />} sublabel={`${vacancyApplications.length} applicants`} />}
           <KpiCard to="/admin/access-requests" label="Reg. Users"    value={userRoles.length}    icon={<Users size={18} />}         sublabel={`${pendingUsers} pending`} />
         </div>
       </section>

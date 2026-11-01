@@ -7,12 +7,12 @@ import { CategoryDonut } from '../components/viz/CategoryDonut';
 import { CategoryBar } from '../components/viz/CategoryBar';
 import { Funnel } from '../components/viz/Funnel';
 import { useChartFilter } from '../utils/useChartFilter';
-import type { VacancyPost } from '../types';
+import type { VacancyApplication } from '../types';
 
-const FUNNEL_ORDER: VacancyPost['status'][] = ['Received', 'Shortlisted', 'Interviewed', 'Selected', 'Rejected'];
+const FUNNEL_ORDER: VacancyApplication['status'][] = ['Received', 'Shortlisted', 'Interviewed', 'Selected', 'Rejected'];
 
 export default function RecruitmentAnalytics() {
-  const { vacancyAdvertisements, vacancyPosts, refreshData } = useData();
+  const { vacancyAdvertisements, vacancyApplications, refreshData } = useData();
   const { hasPermission } = useAuth();
   const canManageDrives = hasPermission(['HRAdmin', 'SystemAdmin', 'MasterAdmin']);
   const [stageError, setStageError] = useState('');
@@ -44,9 +44,9 @@ export default function RecruitmentAnalytics() {
   const hiringFunnel = useMemo(() => {
     return FUNNEL_ORDER.map((s) => ({
       name: s,
-      value: vacancyPosts.filter((p) => p.status === s).length,
+      value: vacancyApplications.filter((p) => p.status === s).length,
     }));
-  }, [vacancyPosts]);
+  }, [vacancyApplications]);
 
   const vacancyStatus = useMemo(() => {
     const counts = new Map<string, number>();
@@ -60,19 +60,19 @@ export default function RecruitmentAnalytics() {
     return vacancyAdvertisements
       .map((v) => ({
         label: v.id,
-        value: vacancyPosts.filter((p) => p.vacancyId === v.id).length,
+        value: vacancyApplications.filter((p) => p.vacancyId === v.id).length,
       }))
       .sort((a, b) => b.value - a.value)
       .slice(0, 10);
-  }, [vacancyAdvertisements, vacancyPosts]);
+  }, [vacancyAdvertisements, vacancyApplications]);
 
   const applicantStatusMix = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const p of vacancyPosts) {
+    for (const p of vacancyApplications) {
       counts.set(p.status, (counts.get(p.status) ?? 0) + 1);
     }
     return Array.from(counts, ([label, value]) => ({ label, value }));
-  }, [vacancyPosts]);
+  }, [vacancyApplications]);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

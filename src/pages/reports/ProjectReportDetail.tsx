@@ -64,7 +64,9 @@ export default function ProjectReportDetail() {
     setBusy(true); setError('');
     const res = await uploadDocument(file, {
       entityType: 'project_report', entityId: id, docType: 'progress_report',
-      accessTier: 'division', divisionCode: report!.divisionCode,
+      // Non-admins may self-register only owner/confidential (documents_insert);
+      // sharing wider is an admin promotion via documents_set_access_tier.
+      accessTier: 'owner', divisionCode: report!.divisionCode,
     });
     if (!res.ok) setError(res.error);
     else setDocs(await listDocuments('project_report', id));

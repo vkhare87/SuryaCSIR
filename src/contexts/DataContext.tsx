@@ -15,7 +15,7 @@ import type {
   TechTransfer,
   ContractStaff,
   VacancyAdvertisement,
-  VacancyPost,
+  VacancyApplication,
   Role,
   Committee,
   CommitteeMember,
@@ -49,7 +49,7 @@ import {
   mapTechTransferRow,
   mapContractStaffRow,
   mapVacancyAdvertisementRow,
-  mapVacancyPostRow,
+  mapVacancyApplicationRow,
   mapCommitteeRow,
   mapCommitteeMemberRow,
   mapMeetingRow,
@@ -71,6 +71,7 @@ import { useToast } from './ToastContext';
 import { useFeatureControls } from './FeatureControlContext';
 import { logger } from '../utils/logger';
 import { fetchAll, isMissingTable } from '../lib/data/fetchAll';
+import { withPostTotals } from '../lib/recruitment/posts';
 
 // ---------------------------------------------------------------------------
 // Client-side division scoping helpers (applied after data load)
@@ -117,7 +118,7 @@ interface DataContextType {
   equipment: Equipment[];
   labs: Lab[];
   vacancyAdvertisements: VacancyAdvertisement[];
-  vacancyPosts: VacancyPost[];
+  vacancyApplications: VacancyApplication[];
   committees: Committee[];
   committeeMembers: CommitteeMember[];
   meetings: Meeting[];
@@ -150,7 +151,7 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 // ---------------------------------------------------------------------------
 
 export function DataProvider({ children }: { children: ReactNode }) {
-  const { role, divisionCode } = useAuth();
+  const { isAuthenticated, role, divisionCode } = useAuth();
   const { push: pushToast } = useToast();
   const { canAccess } = useFeatureControls();
   const provisioned = isProvisioned();
@@ -176,7 +177,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [labs, setLabs] = useState<Lab[]>([]);
   const [vacancyAdvertisements, setVacancyAdvertisements] = useState<VacancyAdvertisement[]>([]);
-  const [vacancyPosts, setVacancyPosts] = useState<VacancyPost[]>([]);
+  const [vacancyApplications, setVacancyApplications] = useState<VacancyApplication[]>([]);
   const [committees, setCommittees] = useState<Committee[]>([]);
   const [committeeMembers, setCommitteeMembers] = useState<CommitteeMember[]>([]);
   const [meetings, setMeetings] = useState<Meeting[]>([]);
@@ -210,7 +211,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setMous([]);
     setTechTransfers([]);
     setVacancyAdvertisements([]);
-    setVacancyPosts([]);
+    setVacancyApplications([]);
     setCommittees([]);
     setCommitteeMembers([]);
     setMeetings([]);
@@ -237,11 +238,17 @@ export function DataProvider({ children }: { children: ReactNode }) {
         resetAll();
         return;
       }
+      // Before auth resolves every table answers empty under RLS: a wasted
+      // round of requests and an empty-data flash.
+      if (!isAuthenticated) {
+        resetAll();
+        return;
+      }
 
       const skipped = Promise.resolve({ data: [], error: null });
       const [
         divRes, staffRes, projRes, psRes, phdRes, equipRes, labsRes, soRes, ipRes, csRes,
-        vaRes, vpRes,
+        vaRes, vpRes, vappRes,
         cmtRes, cmmRes, mtgRes, agiRes, actRes, mdcRes, tktRes, trsRes, tevRes, hrtRes,
         ceRes, holRes, mouRes, ttRes, phmRes, ieRes, crRes, dsRes,
       ] = await Promise.all([
@@ -265,6 +272,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         loadContracts ? fetchAll(supabase.from('contract_staff').select('*').order('Name')) : skipped,
         loadRecruitment ? fetchAll(supabase.from('vacancy_advertisements').select('*').order('created_at', { ascending: false }).order('id')) : skipped,
         loadRecruitment ? fetchAll(supabase.from('vacancy_posts').select('*').order('id')) : skipped,
+        loadRecruitment ? fetchAll(supabase.from('vacancy_applications').select('*').order('applied_on', { ascending: false }).order('id')) : skipped,
         fetchAll(supabase.from('committees').select('*').order('id')),
         fetchAll(supabase.from('committee_members').select('*').order('id')),
         fetchAll(supabase.from('meetings').select('*').order('id')),
@@ -302,6 +310,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       checkTable('contract_staff', csRes);
       checkTable('vacancy_advertisements', vaRes);
       checkTable('vacancy_posts', vpRes);
+      checkTable('vacancy_applications', vappRes);
       checkTable('committees', cmtRes);
       checkTable('committee_members', cmmRes);
       checkTable('meetings', mtgRes);
@@ -344,8 +353,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setMous(mouRes.data ? mouRes.data.map(mapMoURow) : []);
       setTechTransfers(ttRes.data ? ttRes.data.map(mapTechTransferRow) : []);
       setPhdMilestones(phmRes.data ? phmRes.data.map(mapPhDMilestoneRow) : []);
-      setVacancyAdvertisements(vaRes.data ? vaRes.data.map(mapVacancyAdvertisementRow) : []);
-      setVacancyPosts(vpRes.data ? vpRes.data.map(mapVacancyPostRow) : []);
+      setVacancyAdvertisements(withPostTotals(vaRes.data ? vaRes.data.map(mapVacancyAdvertisementRow) : [], vpRes.data ?? []));
+      setVacancyApplications(vappRes.data ? vappRes.data.map(mapVacancyApplicationRow) : []);
       setCommittees(cmtRes.data ? cmtRes.data.map(mapCommitteeRow) : []);
       setCommitteeMembers(cmmRes.data ? cmmRes.data.map(mapCommitteeMemberRow) : []);
       setMeetings(mtgRes.data ? mtgRes.data.map(mapMeetingRow) : []);
@@ -374,7 +383,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     loadData();
-  }, [provisioned, role, divisionCode, loadRecruitment, loadDataOps, loadContracts]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [provisioned, isAuthenticated, role, divisionCode, loadRecruitment, loadDataOps, loadContracts]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const refreshContributions = async () => {
     if (!supabase) return;
@@ -394,10 +403,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const refreshCalendar = async () => {
     if (!supabase) return;
-    const { data, error: err } = await supabase
+    const { data, error: err } = await fetchAll(supabase
       .from('calendar_events')
       .select('*')
-      .order('event_date', { ascending: true });
+      .order('event_date', { ascending: true })
+      .order('id'));
     if (err) {
       logger.error('refresh_calendar_failed', err);
       pushToast(`Calendar refresh failed: ${err.message}`, 'error');
@@ -408,10 +418,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const refreshHolidays = async () => {
     if (!supabase) return;
-    const { data, error: err } = await supabase
+    const { data, error: err } = await fetchAll(supabase
       .from('holidays')
       .select('*')
-      .order('holiday_date', { ascending: true });
+      .order('holiday_date', { ascending: true })
+      .order('id'));
     if (err) {
       logger.error('refresh_holidays_failed', err);
       pushToast(`Holidays refresh failed: ${err.message}`, 'error');
@@ -436,7 +447,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       equipment,
       labs,
       vacancyAdvertisements,
-      vacancyPosts,
+      vacancyApplications,
       committees,
       committeeMembers,
       meetings,
@@ -460,9 +471,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
       refreshData: loadData,
       saveEquipment: async (payload) => {
         if (!supabase) throw new Error('Supabase not configured');
-        const { error: sbErr } = await supabase.from('equipment').upsert(payload);
+        const { data, error: sbErr } = await supabase.from('equipment').upsert(payload).select().single();
         if (sbErr) throw sbErr;
-        await loadData();
+        const saved = mapEquipmentRow(data);
+        setEquipment(prev => [saved, ...prev.filter(e => e.UInsID !== saved.UInsID)]);
       },
       error,
     }}>

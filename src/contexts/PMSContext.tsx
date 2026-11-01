@@ -23,6 +23,7 @@ import {
   mapEvaluationRow, mapCommitteeDecisionRow, mapAWPActivityRow,
   mapRepresentationRow, mapNotificationRow,
 } from '../utils/pmsMappers';
+import { fetchAll } from '../lib/data/fetchAll';
 
 function ensureUser<T>(user: T | null | undefined): asserts user is T {
   if (!user) throw new Error('Not authenticated');
@@ -171,14 +172,14 @@ export function PMSProvider({ children }: { children: ReactNode }) {
       }
       const [cycleRes, reportRes, committeeRes, empoweredRes, grievanceRes, evalRes, reprRes, notifRes, appNotifRes] = await Promise.all([
         supabase.from('appraisal_cycles').select('*').order('created_at', { ascending: false }),
-        supabase.from('pms_reports').select('*, appraisal_cycles(*)').order('created_at', { ascending: false }),
+        fetchAll(supabase.from('pms_reports').select('*, appraisal_cycles(*)').order('created_at', { ascending: false }).order('id')),
         supabase.from('pms_evaluation_committees').select('*, pms_evaluation_committee_members(*)').order('created_at', { ascending: false }),
         supabase.from('pms_empowered_committee_members').select('*'),
         supabase.from('pms_grievance_members').select('*'),
-        supabase.from('pms_evaluations').select('*').order('created_at', { ascending: false }),
-        supabase.from('pms_representations').select('*').order('submitted_at', { ascending: false }),
-        supabase.from('pms_notifications').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
-        supabase.from('notifications').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
+        fetchAll(supabase.from('pms_evaluations').select('*').order('created_at', { ascending: false }).order('id')),
+        fetchAll(supabase.from('pms_representations').select('*').order('submitted_at', { ascending: false }).order('id')),
+        fetchAll(supabase.from('pms_notifications').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).order('id')),
+        fetchAll(supabase.from('notifications').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).order('id')),
       ]);
 
       setCycles(cycleRes.data ? cycleRes.data.map(mapCycleRow) : []);
@@ -337,7 +338,8 @@ export function PMSProvider({ children }: { children: ReactNode }) {
     return report;
   }
 
-  async function getReport(reportId: string): Promise<PMSReport & { sections: PMSReportSection[]; annexures: PMSAnnexure[]; awpActivities: PMSAWPActivity[] }> {
+  // Stable identity: EvaluateReport refetches whenever this changes.
+  const getReport = useCallback(async (reportId: string): Promise<PMSReport & { sections: PMSReportSection[]; annexures: PMSAnnexure[]; awpActivities: PMSAWPActivity[] }> => {
     if (!supabase) throw new Error('Supabase not provisioned');
     const [reportRes, sectionsRes, annexuresRes, awpRes] = await Promise.all([
       supabase.from('pms_reports').select('*, appraisal_cycles(*)').eq('id', reportId).single(),
@@ -358,7 +360,7 @@ export function PMSProvider({ children }: { children: ReactNode }) {
       annexures: annexuresRes.data ? annexuresRes.data.map(r => mapAnnexureRow(r as Record<string, unknown>)) : [],
       awpActivities: awpRes.data ? awpRes.data.map(r => mapAWPActivityRow(r as Record<string, unknown>)) : [],
     };
-  }
+  }, []);
 
   async function saveSection(reportId: string, sectionKey: string, data: Record<string, unknown>): Promise<void> {
     if (!supabase) throw new Error('Supabase not provisioned');

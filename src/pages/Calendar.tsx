@@ -25,6 +25,7 @@ import {
 } from '../lib/calendar/deriveEvents';
 import {
   EVENT_COLOR,
+  EVENT_BORDER,
   EVENT_LABEL,
   type CalEvent,
   type CalEventKind,
@@ -163,8 +164,12 @@ export default function Calendar() {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const isCurrentMonth = year === today.getFullYear() && month === today.getMonth();
 
-  const prevMonth = () => setCalDate(new Date(year, month - 1, 1));
-  const nextMonth = () => setCalDate(new Date(year, month + 1, 1));
+  const goToMonth = (m: number) => {
+    setCalDate(new Date(year, m, 1));
+    setSelectedDay(d => Math.min(d, new Date(year, m + 1, 0).getDate()));
+  };
+  const prevMonth = () => goToMonth(month - 1);
+  const nextMonth = () => goToMonth(month + 1);
 
   const calendarCells = useMemo(() => {
     const cells: (number | null)[] = [];
@@ -379,7 +384,7 @@ export default function Calendar() {
                     onClick={() => setDetailEvent(e)}
                     className={clsx(
                       'w-full text-left border-l-2 pl-3 hover:bg-surface-hover rounded-md py-1',
-                      EVENT_COLOR[e.kind].replace('bg-', 'border-')
+                      EVENT_BORDER[e.kind]
                     )}
                   >
                     <p className="text-xs font-bold text-text truncate" title={e.title}>{e.title}</p>

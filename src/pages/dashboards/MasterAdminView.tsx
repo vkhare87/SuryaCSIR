@@ -15,6 +15,7 @@ import { usePMS } from '../../contexts/PMSContext';
 import { useToast } from '../../contexts/ToastContext';
 import { Card } from '../../components/ui/Cards';
 import { KpiCard } from '../../components/ui/KpiCard';
+import { averageImpactFactor } from '../../lib/intelligence/impact';
 import type { Role } from '../../types';
 import type { ReportStatus } from '../../types/pms';
 
@@ -73,7 +74,7 @@ export function MasterAdminView() {
   const {
     staff, projects, phDStudents, equipment, divisions,
     scientificOutputs, ipIntelligence, contractStaff, vacancyAdvertisements,
-    vacancyPosts, committees, meetings, actionItems, tickets,
+    vacancyApplications, committees, meetings, actionItems, tickets,
     isBackendProvisioned, error: dataError,
   } = useData();
   const { cycles, reports, evaluations, notifications } = usePMS();
@@ -93,28 +94,37 @@ export function MasterAdminView() {
       return;
     }
     setLoading(true);
-    const [{ data: rosters }, { data: profiles }] = await Promise.all([
-      supabase.rpc('admin_list_users'),
-      supabase.from('user_profiles').select('user_id, must_change_password, last_seen_at'),
-    ]);
-    if (!rosters) { setLoading(false); return; }
-    const profileByUser = new Map(
-      ((profiles as { user_id: string; must_change_password: boolean; last_seen_at: string | null }[]) ?? [])
-        .map(p => [p.user_id, p]),
-    );
-    setUsers((rosters as {
-      user_id: string; email: string | null; active_role: string | null;
-      roles: string[] | null; division_code: string | null;
-    }[]).map(r => ({
-      user_id: r.user_id,
-      email: r.email,
-      must_change_password: profileByUser.get(r.user_id)?.must_change_password ?? false,
-      last_seen_at: profileByUser.get(r.user_id)?.last_seen_at ?? null,
-      roles: r.roles ?? [],
-      active_role: r.active_role,
-      division_code: r.division_code,
-    })));
-    setLoading(false);
+    try {
+      const [rosterRes, profileRes] = await Promise.all([
+        supabase.rpc('admin_list_users'),
+        supabase.from('user_profiles').select('user_id, must_change_password, last_seen_at'),
+      ]);
+      if (rosterRes.error) throw rosterRes.error;
+      if (profileRes.error) throw profileRes.error;
+      const rosters = rosterRes.data;
+      const profiles = profileRes.data;
+      if (!rosters) return;
+      const profileByUser = new Map(
+        ((profiles as { user_id: string; must_change_password: boolean; last_seen_at: string | null }[]) ?? [])
+          .map(p => [p.user_id, p]),
+      );
+      setUsers((rosters as {
+        user_id: string; email: string | null; active_role: string | null;
+        roles: string[] | null; division_code: string | null;
+      }[]).map(r => ({
+        user_id: r.user_id,
+        email: r.email,
+        must_change_password: profileByUser.get(r.user_id)?.must_change_password ?? false,
+        last_seen_at: profileByUser.get(r.user_id)?.last_seen_at ?? null,
+        roles: r.roles ?? [],
+        active_role: r.active_role,
+        division_code: r.division_code,
+      })));
+    } catch (e) {
+      console.error('[master-admin] user roster load failed', e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { void fetchUsers(); }, [provisioned]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -129,14 +139,11 @@ export function MasterAdminView() {
     return actionItems.filter(a => a.status !== 'Completed' && new Date(a.deadline) < now).length;
   }, [actionItems]);
   const grantedIP        = useMemo(() => ipIntelligence.filter(i => i.status === 'Granted').length, [ipIntelligence]);
-  const openVacancies    = useMemo(() => vacancyAdvertisements.filter(v => v.status === 'Open').length, [vacancyAdvertisements]);
+  const openVacancies    = useMemo(() => vacancyAdvertisements.filter(v => v.status === 'Open' || v.status === 'Published').length, [vacancyAdvertisements]);
   const pendingUsers     = useMemo(() => users.filter(u => u.roles.length === 1 && u.roles[0] === 'DefaultUser').length, [users]);
   const passwordPending  = useMemo(() => users.filter(u => u.must_change_password).length, [users]);
   const totalCitations   = useMemo(() => scientificOutputs.reduce((s, p) => s + (p.citationCount ?? 0), 0), [scientificOutputs]);
-  const avgImpactFactor  = useMemo(() => {
-    const ifs = scientificOutputs.map(p => p.impactFactor ?? 0).filter(Boolean);
-    return ifs.length === 0 ? 0 : ifs.reduce((a, b) => a + b, 0) / ifs.length;
-  }, [scientificOutputs]);
+  const avgImpactFactor  = useMemo(() => averageImpactFactor(scientificOutputs), [scientificOutputs]);
   const unreadNotifications = notifications.filter(n => !n.read).length;
   const openCycle = cycles.find(c => c.status === 'OPEN');
 
@@ -278,7 +285,7 @@ export function MasterAdminView() {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <KpiCard to="/helpdesk" label="Open Tickets"     value={openTickets}              icon={<TicketIcon size={18} />}    sublabel={`${criticalTickets} critical`} />
         <KpiCard to="/committees" label="Overdue Actions"  value={overdueActions}           icon={<AlertTriangle size={18} />} sublabel="Past deadline" />
-        <KpiCard to="/recruitment" label="Open Vacancies"   value={openVacancies}            icon={<ClipboardList size={18} />} sublabel={`${vacancyPosts.length} applicants`} />
+        <KpiCard to="/recruitment" label="Open Vacancies"   value={openVacancies}            icon={<ClipboardList size={18} />} sublabel={`${vacancyApplications.length} applicants`} />
         <KpiCard to="/committees" label="Committees"       value={committees.filter(c => c.status === 'Active').length} icon={<Shield size={18} />} sublabel={`${meetings.length} meetings`} />
         <KpiCard label="Notifications"    value={unreadNotifications}      icon={<Bell size={18} />}       sublabel="Unread" />
         <KpiCard label="Avg IF"           value={avgImpactFactor.toFixed(2)} icon={<Microscope size={18} />} sublabel="Publications" />

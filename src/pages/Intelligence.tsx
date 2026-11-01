@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useData } from '../contexts/DataContext';
 import { commercialisationSummary } from '../lib/intelligence/commercialisation';
 import { emergingThemes } from '../lib/intelligence/themes';
+import { averageImpactFactor } from '../lib/intelligence/impact';
 import { PatentPipelineCard } from '../components/PatentPipelineCard';
 import { useToast } from '../contexts/ToastContext';
 import { Card, Badge, StatCard } from '../components/ui/Cards';
@@ -74,17 +75,19 @@ export default function Intelligence() {
   // Filtered data
   // -------------------------------------------------------------------------
 
-  const filteredPubs = scientificOutputs.filter(
-    (p) =>
-      p.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.authors.some((a) => a.toLowerCase().includes(searchTerm.toLowerCase())),
-  );
+  const filteredPubs = useMemo(() => {
+    const q = searchTerm.toLowerCase();
+    return scientificOutputs
+      .filter((p) => p.title.toLowerCase().includes(q) || p.authors.some((a) => a.toLowerCase().includes(q)))
+      .sort((a, b) => (b.year ?? 0) - (a.year ?? 0));
+  }, [scientificOutputs, searchTerm]);
 
-  const filteredIP = ipIntelligence.filter(
-    (p) =>
-      p.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.inventors.some((i) => i.toLowerCase().includes(searchTerm.toLowerCase())),
-  );
+  const filteredIP = useMemo(() => {
+    const q = searchTerm.toLowerCase();
+    return ipIntelligence.filter((p) => p.title.toLowerCase().includes(q) || p.inventors.some((i) => i.toLowerCase().includes(q)));
+  }, [ipIntelligence, searchTerm]);
+
+  const avgImpactFactor = useMemo(() => averageImpactFactor(scientificOutputs), [scientificOutputs]);
 
   // -------------------------------------------------------------------------
   // Publication CRUD handlers
@@ -298,7 +301,7 @@ export default function Intelligence() {
         <StatCard title="Total IP Assets" value={ipIntelligence.length} icon={<Lightbulb />} />
         <StatCard
           title="Avg Impact Factor"
-          value="6.8"
+          value={avgImpactFactor.toFixed(2)}
           valueColor="text-emerald-500"
           icon={<Award />}
         />
