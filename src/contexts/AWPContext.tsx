@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from 'react';
 import { supabase, isProvisioned } from '../utils/supabaseClient';
 import { useAuth } from './AuthContext';
 import { mapAWPRow, mapAWPRevisionRow } from '../utils/pmsMappers';
@@ -98,40 +98,40 @@ export function AWPProvider({ children }: { children: ReactNode }) {
   useEffect(() => { void refresh(); }, [refresh]);
 
   // Every write is an RPC; reload afterwards so status/timestamps come from the DB.
-  const call = async <T = void,>(fn: string, args: Record<string, unknown>): Promise<T> => {
+  const call = useCallback(async <T = void,>(fn: string, args: Record<string, unknown>): Promise<T> => {
     const { data, error: err } = await client().rpc(fn, args);
     if (err) throw new Error(err.message);
     await refresh();
     return data as T;
-  };
+  }, [refresh]);
 
-  const awpFor = (staffId: string, year: string) =>
-    awps.find(a => a.staffId === staffId && a.reportingYear === year);
+  const awpFor = useCallback((staffId: string, year: string) =>
+    awps.find(a => a.staffId === staffId && a.reportingYear === year), [awps]);
 
-  const saveDraft = (staffId: string, year: string, content: AWPContent) =>
-    call<string>('pms_awp_save_draft', { p_staff_id: staffId, p_year: year, p_payload: content });
+  const saveDraft = useCallback((staffId: string, year: string, content: AWPContent) =>
+    call<string>('pms_awp_save_draft', { p_staff_id: staffId, p_year: year, p_payload: content }), [call]);
 
-  const submit = (id: string) => call('pms_awp_submit', { p_awp_id: id });
+  const submit = useCallback((id: string) => call('pms_awp_submit', { p_awp_id: id }), [call]);
 
-  const roReview = (id: string, verdict: AWPVerdict, reasons: string, content?: AWPContent) =>
-    call('pms_awp_ro_review', { p_awp_id: id, p_verdict: verdict, p_reasons: reasons || null, p_payload: content ?? null });
+  const roReview = useCallback((id: string, verdict: AWPVerdict, reasons: string, content?: AWPContent) =>
+    call('pms_awp_ro_review', { p_awp_id: id, p_verdict: verdict, p_reasons: reasons || null, p_payload: content ?? null }), [call]);
 
-  const rvoReview = (id: string, remarks: string) =>
-    call('pms_awp_rvo_review', { p_awp_id: id, p_remarks: remarks });
+  const rvoReview = useCallback((id: string, remarks: string) =>
+    call('pms_awp_rvo_review', { p_awp_id: id, p_remarks: remarks }), [call]);
 
-  const directorDecide = (id: string, decision: 'ACCEPTED' | 'MODIFIED', remarks: string, content?: AWPContent) =>
+  const directorDecide = useCallback((id: string, decision: 'ACCEPTED' | 'MODIFIED', remarks: string, content?: AWPContent) =>
     call('pms_awp_director_decide', {
       p_awp_id: id, p_decision: decision, p_remarks: remarks || null, p_payload: content ?? null,
-    });
+    }), [call]);
 
-  const returnAWP = (id: string, reasons: string) =>
-    call('pms_awp_return', { p_awp_id: id, p_reasons: reasons });
+  const returnAWP = useCallback((id: string, reasons: string) =>
+    call('pms_awp_return', { p_awp_id: id, p_reasons: reasons }), [call]);
 
-  const forwardBlank = async (staffId: string, year: string) => {
+  const forwardBlank = useCallback(async (staffId: string, year: string) => {
     await call('pms_awp_forward_blank', { p_staff_id: staffId, p_year: year });
-  };
+  }, [call]);
 
-  async function importAWP(input: AWPImportInput): Promise<string> {
+  const importAWP = useCallback(async (input: AWPImportInput): Promise<string> => {
     const sb = client();
     // Fail before uploading: a retry must not leave another orphan PDF.
     if (awpFor(input.staffId, input.year)) throw new Error('AWP already exists for this scientist and year');
@@ -152,37 +152,43 @@ export function AWPProvider({ children }: { children: ReactNode }) {
       p_ro_date: input.roDate || null,
       p_approved_date: input.approvedDate || null,
     });
-  }
+  }, [awpFor, call]);
 
-  const requestRevision = async (id: string, reasons: string, after: AWPContent) => {
+  const requestRevision = useCallback(async (id: string, reasons: string, after: AWPContent) => {
     await call('pms_awp_request_revision', { p_awp_id: id, p_reasons: reasons, p_after: after });
-  };
+  }, [call]);
 
-  const decideRevision = (revisionId: string, approve: boolean, remarks: string) =>
-    call('pms_awp_decide_revision', { p_revision_id: revisionId, p_approve: approve, p_remarks: remarks || null });
+  const decideRevision = useCallback((revisionId: string, approve: boolean, remarks: string) =>
+    call('pms_awp_decide_revision', { p_revision_id: revisionId, p_approve: approve, p_remarks: remarks || null }), [call]);
 
-  async function getSignedPdfUrl(path: string): Promise<string> {
+  const getSignedPdfUrl = useCallback(async (path: string): Promise<string> => {
     const { data, error: err } = await client().storage.from('awp-pdfs').createSignedUrl(path, 3600);
     if (err || !data) throw new Error(err?.message ?? 'Could not open PDF');
     return data.signedUrl;
-  }
+  }, []);
 
-  async function awpForReport(reportId: string): Promise<PMSAWP | null> {
+  const awpForReport = useCallback(async (reportId: string): Promise<PMSAWP | null> => {
     const { data, error: err } = await client().rpc('pms_awp_for_report', { p_report_id: reportId });
     if (err) throw new Error(err.message);
     const row = (data as Record<string, unknown>[] | null)?.[0];
     return row ? mapAWPRow(row) : null;
-  }
+  }, []);
 
-  const setReviewingOfficer = (id: string, staffId: string | null) =>
-    call('pms_awp_set_reviewing_officer', { p_awp_id: id, p_staff_id: staffId });
+  const setReviewingOfficer = useCallback((id: string, staffId: string | null) =>
+    call('pms_awp_set_reviewing_officer', { p_awp_id: id, p_staff_id: staffId }), [call]);
+
+  const value = useMemo(() => ({
+    awps, revisions, myStaffId, isLoading, error, refresh, awpFor,
+    saveDraft, submit, roReview, rvoReview, directorDecide, returnAWP, forwardBlank,
+    importAWP, requestRevision, decideRevision, getSignedPdfUrl, awpForReport, setReviewingOfficer,
+  }), [
+    awps, revisions, myStaffId, isLoading, error, refresh, awpFor,
+    saveDraft, submit, roReview, rvoReview, directorDecide, returnAWP, forwardBlank,
+    importAWP, requestRevision, decideRevision, getSignedPdfUrl, awpForReport, setReviewingOfficer,
+  ]);
 
   return (
-    <AWPContext.Provider value={{
-      awps, revisions, myStaffId, isLoading, error, refresh, awpFor,
-      saveDraft, submit, roReview, rvoReview, directorDecide, returnAWP, forwardBlank,
-      importAWP, requestRevision, decideRevision, getSignedPdfUrl, awpForReport, setReviewingOfficer,
-    }}>
+    <AWPContext.Provider value={value}>
       {children}
     </AWPContext.Provider>
   );

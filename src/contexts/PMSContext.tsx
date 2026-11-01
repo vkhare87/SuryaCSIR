@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from 'react';
 import type {
   AppraisalCycle, PMSReport, PMSReportSection, PMSAnnexure,
   PMSEvaluationCommittee, PMSEvaluationCommitteeMember,
@@ -55,6 +55,19 @@ export interface EvaluationPayload {
   reasonsForOutstanding?: string;
   reasonsBelowThreshold?: string;
   suggestionsForImprovement?: string;
+}
+
+function evaluationUpdatePayload(payload: EvaluationPayload) {
+  assertScoreInRange(payload.totalScore, 'Total score');
+  assertScoreReasons(payload.totalScore, payload);
+  return {
+    scores: payload.scores,
+    total_score: payload.totalScore,
+    comments: payload.comments,
+    reasons_for_outstanding: payload.reasonsForOutstanding ?? null,
+    reasons_below_threshold: payload.reasonsBelowThreshold ?? null,
+    suggestions_for_improvement: payload.suggestionsForImprovement ?? null,
+  };
 }
 
 export interface FinalDecisionPayload {
@@ -210,7 +223,7 @@ export function PMSProvider({ children }: { children: ReactNode }) {
 
   // --- Cycles ---
 
-  async function createCycle(data: Omit<AppraisalCycle, 'id' | 'createdAt'>): Promise<AppraisalCycle> {
+  const createCycle = useCallback(async (data: Omit<AppraisalCycle, 'id' | 'createdAt'>): Promise<AppraisalCycle> => {
     if (!supabase) throw new Error('Supabase not provisioned');
     const { data: row, error: err } = await supabase
       .from('appraisal_cycles')
@@ -221,9 +234,9 @@ export function PMSProvider({ children }: { children: ReactNode }) {
     const cycle = mapCycleRow(row as Record<string, unknown>);
     setCycles(prev => [cycle, ...prev]);
     return cycle;
-  }
+  }, []);
 
-  async function updateCycle(id: string, data: Partial<Omit<AppraisalCycle, 'id' | 'createdAt'>>): Promise<void> {
+  const updateCycle = useCallback(async (id: string, data: Partial<Omit<AppraisalCycle, 'id' | 'createdAt'>>): Promise<void> => {
     if (!supabase) throw new Error('Supabase not provisioned');
     const payload: Record<string, unknown> = {};
     if (data.name)      payload.name       = data.name;
@@ -233,11 +246,11 @@ export function PMSProvider({ children }: { children: ReactNode }) {
     const { error: err } = await supabase.from('appraisal_cycles').update(payload).eq('id', id);
     if (err) throw err;
     setCycles(prev => prev.map(c => c.id === id ? { ...c, ...data } : c));
-  }
+  }, []);
 
   // --- Evaluation Committees ---
 
-  async function createCommittee(data: Omit<PMSEvaluationCommittee, 'id' | 'createdAt' | 'members'>): Promise<PMSEvaluationCommittee> {
+  const createCommittee = useCallback(async (data: Omit<PMSEvaluationCommittee, 'id' | 'createdAt' | 'members'>): Promise<PMSEvaluationCommittee> => {
     if (!supabase) throw new Error('Supabase not provisioned');
     const { data: row, error: err } = await supabase
       .from('pms_evaluation_committees')
@@ -248,9 +261,9 @@ export function PMSProvider({ children }: { children: ReactNode }) {
     const committee = { ...mapCommitteeRow(row as Record<string, unknown>), members: [] };
     setCommittees(prev => [committee, ...prev]);
     return committee;
-  }
+  }, []);
 
-  async function addCommitteeMember(committeeId: string, userId: string, role: PMSEvaluationCommitteeMember['role']): Promise<void> {
+  const addCommitteeMember = useCallback(async (committeeId: string, userId: string, role: PMSEvaluationCommitteeMember['role']): Promise<void> => {
     if (!supabase) throw new Error('Supabase not provisioned');
     const { data: row, error: err } = await supabase
       .from('pms_evaluation_committee_members')
@@ -262,9 +275,9 @@ export function PMSProvider({ children }: { children: ReactNode }) {
     setCommittees(prev => prev.map(c =>
       c.id === committeeId ? { ...c, members: [...(c.members ?? []), member] } : c
     ));
-  }
+  }, []);
 
-  async function removeCommitteeMember(memberId: string): Promise<void> {
+  const removeCommitteeMember = useCallback(async (memberId: string): Promise<void> => {
     if (!supabase) throw new Error('Supabase not provisioned');
     const { error: err } = await supabase.from('pms_evaluation_committee_members').delete().eq('id', memberId);
     if (err) throw err;
@@ -272,11 +285,11 @@ export function PMSProvider({ children }: { children: ReactNode }) {
       ...c,
       members: c.members?.filter(m => m.id !== memberId) ?? [],
     })));
-  }
+  }, []);
 
   // --- Empowered Committee configuration ---
 
-  async function addEmpoweredMember(cycleId: string, userId: string, isChairman: boolean): Promise<void> {
+  const addEmpoweredMember = useCallback(async (cycleId: string, userId: string, isChairman: boolean): Promise<void> => {
     if (!supabase) throw new Error('Supabase not provisioned');
     const { data: row, error: err } = await supabase
       .from('pms_empowered_committee_members')
@@ -285,18 +298,18 @@ export function PMSProvider({ children }: { children: ReactNode }) {
       .single();
     if (err) throw err;
     setEmpoweredMembers(prev => [...prev, mapEmpoweredMemberRow(row as Record<string, unknown>)]);
-  }
+  }, []);
 
-  async function removeEmpoweredMember(memberId: string): Promise<void> {
+  const removeEmpoweredMember = useCallback(async (memberId: string): Promise<void> => {
     if (!supabase) throw new Error('Supabase not provisioned');
     const { error: err } = await supabase.from('pms_empowered_committee_members').delete().eq('id', memberId);
     if (err) throw err;
     setEmpoweredMembers(prev => prev.filter(m => m.id !== memberId));
-  }
+  }, []);
 
   // --- Grievance Redressal Committee ---
 
-  async function addGrievanceMember(cycleId: string, userId: string): Promise<void> {
+  const addGrievanceMember = useCallback(async (cycleId: string, userId: string): Promise<void> => {
     if (!supabase) throw new Error('Supabase not provisioned');
     const { data: row, error: err } = await supabase
       .from('pms_grievance_members')
@@ -305,18 +318,18 @@ export function PMSProvider({ children }: { children: ReactNode }) {
       .single();
     if (err) throw err;
     setGrievanceMembers(prev => [...prev, mapGrievanceMemberRow(row as Record<string, unknown>)]);
-  }
+  }, []);
 
-  async function removeGrievanceMember(memberId: string): Promise<void> {
+  const removeGrievanceMember = useCallback(async (memberId: string): Promise<void> => {
     if (!supabase) throw new Error('Supabase not provisioned');
     const { error: err } = await supabase.from('pms_grievance_members').delete().eq('id', memberId);
     if (err) throw err;
     setGrievanceMembers(prev => prev.filter(m => m.id !== memberId));
-  }
+  }, []);
 
   // --- Reports ---
 
-  async function createReport(cycleId: string): Promise<PMSReport> {
+  const createReport = useCallback(async (cycleId: string): Promise<PMSReport> => {
     if (!supabase) throw new Error('Supabase not provisioned');
     if (!user) throw new Error('Not authenticated');
     const { data: existing } = await supabase
@@ -336,7 +349,7 @@ export function PMSProvider({ children }: { children: ReactNode }) {
     const report = mapReportRow(row as Record<string, unknown>);
     setReports(prev => [report, ...prev]);
     return report;
-  }
+  }, [user]);
 
   // Stable identity: EvaluateReport refetches whenever this changes.
   const getReport = useCallback(async (reportId: string): Promise<PMSReport & { sections: PMSReportSection[]; annexures: PMSAnnexure[]; awpActivities: PMSAWPActivity[] }> => {
@@ -362,15 +375,15 @@ export function PMSProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  async function saveSection(reportId: string, sectionKey: string, data: Record<string, unknown>): Promise<void> {
+  const saveSection = useCallback(async (reportId: string, sectionKey: string, data: Record<string, unknown>): Promise<void> => {
     if (!supabase) throw new Error('Supabase not provisioned');
     const { error: err } = await supabase
       .from('pms_report_sections')
       .upsert({ report_id: reportId, section_key: sectionKey, data }, { onConflict: 'report_id,section_key' });
     if (err) throw err;
-  }
+  }, []);
 
-  async function saveBasicInfo(reportId: string, data: BasicInfoPayload): Promise<void> {
+  const saveBasicInfo = useCallback(async (reportId: string, data: BasicInfoPayload): Promise<void> => {
     if (!supabase) throw new Error('Supabase not provisioned');
     const { error: err } = await supabase
       .from('pms_reports')
@@ -384,12 +397,12 @@ export function PMSProvider({ children }: { children: ReactNode }) {
       .eq('id', reportId);
     if (err) throw err;
     setReports(prev => prev.map(r => r.id === reportId ? { ...r, ...data } : r));
-  }
+  }, []);
 
-  async function saveAWPActivities(
+  const saveAWPActivities = useCallback(async (
     reportId: string,
     activities: Omit<PMSAWPActivity, 'id' | 'reportId' | 'createdAt' | 'updatedAt'>[]
-  ): Promise<void> {
+  ): Promise<void> => {
     if (!supabase) throw new Error('Supabase not provisioned');
     // ponytail: replace-all write — AWP lists are small, diffing not worth it
     const { error: delErr } = await supabase.from('pms_awp_activities').delete().eq('report_id', reportId);
@@ -405,9 +418,9 @@ export function PMSProvider({ children }: { children: ReactNode }) {
       }))
     );
     if (insErr) throw insErr;
-  }
+  }, []);
 
-  async function uploadSignature(reportId: string, file: File): Promise<string> {
+  const uploadSignature = useCallback(async (reportId: string, file: File): Promise<string> => {
     if (!supabase) throw new Error('Supabase not provisioned');
     const path = `${reportId}/signature_${Date.now()}.${file.name.split('.').pop()}`;
     const { error: err } = await supabase.storage.from('signatures').upload(path, file, { upsert: true });
@@ -418,9 +431,9 @@ export function PMSProvider({ children }: { children: ReactNode }) {
       .eq('id', reportId);
     if (updateErr) throw updateErr;
     return path;
-  }
+  }, []);
 
-  async function uploadAnnexure(reportId: string, file: File): Promise<PMSAnnexure> {
+  const uploadAnnexure = useCallback(async (reportId: string, file: File): Promise<PMSAnnexure> => {
     if (!supabase) throw new Error('Supabase not provisioned');
     const path = `${reportId}/${Date.now()}_${file.name}`;
     const { error: uploadErr } = await supabase.storage.from('annexures').upload(path, file);
@@ -445,35 +458,35 @@ export function PMSProvider({ children }: { children: ReactNode }) {
       accessTier: 'confidential',
     });
     return mapAnnexureRow(row as Record<string, unknown>);
-  }
+  }, []);
 
-  async function deleteAnnexure(annexureId: string, filePath: string): Promise<void> {
+  const deleteAnnexure = useCallback(async (annexureId: string, filePath: string): Promise<void> => {
     if (!supabase) throw new Error('Supabase not provisioned');
     const { error: storageErr } = await supabase.storage.from('annexures').remove([filePath]);
     if (storageErr) throw storageErr;
     const { error: dbErr } = await supabase.from('pms_annexures').delete().eq('id', annexureId);
     if (dbErr) throw dbErr;
     void unregisterDocument('annexures', filePath);
-  }
+  }, []);
 
-  async function submitReport(reportId: string): Promise<void> {
+  const submitReport = useCallback(async (reportId: string): Promise<void> => {
     if (!supabase) throw new Error('Supabase not provisioned');
     ensureUser(user);
     const { error: err } = await supabase.rpc('pms_submit_report', { p_report_id: reportId });
     if (err) throw err;
     setReports(prev => prev.map(r => r.id === reportId ? { ...r, status: 'SUBMITTED' as const } : r));
-  }
+  }, [user]);
 
-  async function getSignedUrl(path: string, bucket: 'signatures' | 'annexures'): Promise<string> {
+  const getSignedUrl = useCallback(async (path: string, bucket: 'signatures' | 'annexures'): Promise<string> => {
     if (!supabase) throw new Error('Supabase not provisioned');
     const { data, error: err } = await supabase.storage.from(bucket).createSignedUrl(path, 3600);
     if (err) throw err;
     return data.signedUrl;
-  }
+  }, []);
 
   // --- Admin business rules ---
 
-  async function setDutyDays(reportId: string, dutyDays: number): Promise<void> {
+  const setDutyDays = useCallback(async (reportId: string, dutyDays: number): Promise<void> => {
     if (!supabase) throw new Error('Supabase not provisioned');
     ensureUser(user);
     const { error: err } = await supabase.rpc('pms_set_duty_days', {
@@ -482,9 +495,9 @@ export function PMSProvider({ children }: { children: ReactNode }) {
     });
     if (err) throw err;
     setReports(prev => prev.map(r => r.id === reportId ? { ...r, dutyDays } : r));
-  }
+  }, [user]);
 
-  async function markNotAssessed(reportId: string, remark?: string): Promise<void> {
+  const markNotAssessed = useCallback(async (reportId: string, remark?: string): Promise<void> => {
     if (!supabase) throw new Error('Supabase not provisioned');
     ensureUser(user);
     const { error: err } = await supabase.rpc('pms_mark_not_assessed', {
@@ -493,9 +506,9 @@ export function PMSProvider({ children }: { children: ReactNode }) {
     });
     if (err) throw err;
     await loadData();
-  }
+  }, [user, loadData]);
 
-  async function recordNonSubmission(reportId: string, certificate: File): Promise<void> {
+  const recordNonSubmission = useCallback(async (reportId: string, certificate: File): Promise<void> => {
     if (!supabase) throw new Error('Supabase not provisioned');
     ensureUser(user);
     const path = `${reportId}/non_submission_${Date.now()}_${certificate.name}`;
@@ -507,9 +520,9 @@ export function PMSProvider({ children }: { children: ReactNode }) {
     });
     if (err) throw err;
     await loadData();
-  }
+  }, [user, loadData]);
 
-  async function condoneDelay(reportId: string, condonedUntil: string, reason: string): Promise<void> {
+  const condoneDelay = useCallback(async (reportId: string, condonedUntil: string, reason: string): Promise<void> => {
     if (!supabase) throw new Error('Supabase not provisioned');
     ensureUser(user);
     const { error: err } = await supabase.rpc('pms_condone_delay', {
@@ -519,11 +532,11 @@ export function PMSProvider({ children }: { children: ReactNode }) {
     });
     if (err) throw err;
     await loadData();
-  }
+  }, [user, loadData]);
 
   // --- Evaluation flow ---
 
-  async function assignEvaluators(reportId: string, committeeId: string): Promise<void> {
+  const assignEvaluators = useCallback(async (reportId: string, committeeId: string): Promise<void> => {
     if (!supabase) throw new Error('Supabase not provisioned');
     ensureUser(user);
     const { error: err } = await supabase.rpc('pms_assign_evaluators', {
@@ -534,22 +547,10 @@ export function PMSProvider({ children }: { children: ReactNode }) {
     setReports(prev => prev.map(r =>
       r.id === reportId ? { ...r, status: 'UNDER_EVALUATION_COMMITTEE_REVIEW' as const } : r
     ));
-  }
+  }, [user]);
 
-  function evaluationUpdatePayload(payload: EvaluationPayload) {
-    assertScoreInRange(payload.totalScore, 'Total score');
-    assertScoreReasons(payload.totalScore, payload);
-    return {
-      scores: payload.scores,
-      total_score: payload.totalScore,
-      comments: payload.comments,
-      reasons_for_outstanding: payload.reasonsForOutstanding ?? null,
-      reasons_below_threshold: payload.reasonsBelowThreshold ?? null,
-      suggestions_for_improvement: payload.suggestionsForImprovement ?? null,
-    };
-  }
 
-  async function saveEvaluationScores(evaluationId: string, payload: EvaluationPayload): Promise<void> {
+  const saveEvaluationScores = useCallback(async (evaluationId: string, payload: EvaluationPayload): Promise<void> => {
     if (!supabase) throw new Error('Supabase not provisioned');
     ensureUser(user);
     const { error: err } = await supabase
@@ -558,9 +559,9 @@ export function PMSProvider({ children }: { children: ReactNode }) {
       .eq('id', evaluationId);
     if (err) throw err;
     await loadData();
-  }
+  }, [user, loadData]);
 
-  async function completeEvaluation(evaluationId: string, payload: EvaluationPayload): Promise<void> {
+  const completeEvaluation = useCallback(async (evaluationId: string, payload: EvaluationPayload): Promise<void> => {
     if (!supabase) throw new Error('Supabase not provisioned');
     ensureUser(user);
     const { error: err } = await supabase
@@ -569,12 +570,12 @@ export function PMSProvider({ children }: { children: ReactNode }) {
       .eq('id', evaluationId);
     if (err) throw err;
     await loadData();
-  }
+  }, [user, loadData]);
 
   // Senior tracks (Annexure-I / II) have no 0–100 score: Appendix-C is a
   // categorical pen picture plus a ~100 word narrative. scores/total_score are
   // left at their defaults so the standard-track scoring rules never see them.
-  async function savePenPicture(evaluationId: string, penPicture: PenPicture, complete: boolean): Promise<void> {
+  const savePenPicture = useCallback(async (evaluationId: string, penPicture: PenPicture, complete: boolean): Promise<void> => {
     if (!supabase) throw new Error('Supabase not provisioned');
     ensureUser(user);
     if (complete && !penPicture.narrative.trim()) {
@@ -590,9 +591,9 @@ export function PMSProvider({ children }: { children: ReactNode }) {
       .eq('id', evaluationId);
     if (err) throw err;
     await loadData();
-  }
+  }, [user, loadData]);
 
-  async function getReportEvaluations(reportId: string): Promise<PMSEvaluation[]> {
+  const getReportEvaluations = useCallback(async (reportId: string): Promise<PMSEvaluation[]> => {
     if (!supabase) return [];
     const { data, error: err } = await supabase
       .from('pms_evaluations')
@@ -600,9 +601,9 @@ export function PMSProvider({ children }: { children: ReactNode }) {
       .eq('report_id', reportId);
     if (err) throw err;
     return data ? data.map(r => mapEvaluationRow(r as Record<string, unknown>)) : [];
-  }
+  }, []);
 
-  async function getCommitteeDecision(reportId: string): Promise<PMSCommitteeDecision | null> {
+  const getCommitteeDecision = useCallback(async (reportId: string): Promise<PMSCommitteeDecision | null> => {
     if (!supabase) return null;
     const { data, error: err } = await supabase
       .from('pms_committee_decisions')
@@ -611,9 +612,26 @@ export function PMSProvider({ children }: { children: ReactNode }) {
       .maybeSingle();
     if (err) throw err;
     return data ? mapCommitteeDecisionRow(data as Record<string, unknown>) : null;
-  }
+  }, []);
 
-  async function finalizeReport(reportId: string, decision: FinalDecisionPayload): Promise<boolean> {
+  // File the finalized report PDF (permanent record + RAG registry, T2).
+  const refileFinalizedReport = useCallback(async (reportId: string): Promise<boolean> => {
+    try {
+      const [full, decision] = await Promise.all([getReport(reportId), getCommitteeDecision(reportId)]);
+      return await fileFinalizedReport({
+        report: full,
+        sections: full.sections,
+        annexures: full.annexures,
+        finalScore: decision?.finalScore ?? null,
+        justification: decision?.justification ?? full.systemRemark ?? null,
+      });
+    } catch (e) {
+      console.error('[pms] finalized filing failed', e);
+      return false;
+    }
+  }, [getReport, getCommitteeDecision]);
+
+  const finalizeReport = useCallback(async (reportId: string, decision: FinalDecisionPayload): Promise<boolean> => {
     if (!supabase) throw new Error('Supabase not provisioned');
     ensureUser(user);
     assertScoreInRange(decision.finalScore, 'Final score');
@@ -637,26 +655,9 @@ export function PMSProvider({ children }: { children: ReactNode }) {
     ));
 
     return refileFinalizedReport(reportId);
-  }
+  }, [user, reports, refileFinalizedReport]);
 
-  // File the finalized report PDF (permanent record + RAG registry, T2).
-  async function refileFinalizedReport(reportId: string): Promise<boolean> {
-    try {
-      const [full, decision] = await Promise.all([getReport(reportId), getCommitteeDecision(reportId)]);
-      return await fileFinalizedReport({
-        report: full,
-        sections: full.sections,
-        annexures: full.annexures,
-        finalScore: decision?.finalScore ?? null,
-        justification: decision?.justification ?? full.systemRemark ?? null,
-      });
-    } catch (e) {
-      console.error('[pms] finalized filing failed', e);
-      return false;
-    }
-  }
-
-  async function finalizeSeniorReport(reportId: string, remarks: string): Promise<void> {
+  const finalizeSeniorReport = useCallback(async (reportId: string, remarks: string): Promise<void> => {
     if (!supabase) throw new Error('Supabase not provisioned');
     ensureUser(user);
     if (remarks.trim().length < 50) {
@@ -668,11 +669,11 @@ export function PMSProvider({ children }: { children: ReactNode }) {
     });
     if (err) throw err;
     await loadData();
-  }
+  }, [user, loadData]);
 
   // --- Representation / grievance ---
 
-  async function submitRepresentation(reportId: string, grounds: string): Promise<void> {
+  const submitRepresentation = useCallback(async (reportId: string, grounds: string): Promise<void> => {
     if (!supabase) throw new Error('Supabase not provisioned');
     ensureUser(user);
     const { error: err } = await supabase.rpc('pms_submit_representation', {
@@ -681,9 +682,9 @@ export function PMSProvider({ children }: { children: ReactNode }) {
     });
     if (err) throw err;
     await loadData();
-  }
+  }, [user, loadData]);
 
-  async function resolveRepresentation(reportId: string, resolution: string, revised?: FinalDecisionPayload): Promise<void> {
+  const resolveRepresentation = useCallback(async (reportId: string, resolution: string, revised?: FinalDecisionPayload): Promise<void> => {
     if (!supabase) throw new Error('Supabase not provisioned');
     ensureUser(user);
     if (revised) {
@@ -700,9 +701,9 @@ export function PMSProvider({ children }: { children: ReactNode }) {
     });
     if (err) throw err;
     await loadData();
-  }
+  }, [user, loadData]);
 
-  async function markNotificationRead(id: string): Promise<void> {
+  const markNotificationRead = useCallback(async (id: string): Promise<void> => {
     if (!supabase) throw new Error('Supabase not provisioned');
     const { error: err } = await supabase
       .from('pms_notifications')
@@ -710,32 +711,45 @@ export function PMSProvider({ children }: { children: ReactNode }) {
       .eq('id', id);
     if (err) throw err;
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
-  }
+  }, []);
 
-  async function setAppNotificationStatus(id: string, status: NotificationStatus): Promise<void> {
+  const setAppNotificationStatus = useCallback(async (id: string, status: NotificationStatus): Promise<void> => {
     await updateNotificationStatus(id, status);
     setAppNotifications(prev => prev.map(n => n.id === id ? { ...n, status } : n));
-  }
+  }, []);
+
+  const value = useMemo(() => ({
+    cycles, reports, committees, empoweredMembers, grievanceMembers,
+    evaluations, representations, notifications, appNotifications, isLoading, error,
+    createCycle, updateCycle,
+    createCommittee, addCommitteeMember, removeCommitteeMember,
+    addEmpoweredMember, removeEmpoweredMember,
+    addGrievanceMember, removeGrievanceMember,
+    createReport, getReport, saveSection, saveBasicInfo, saveAWPActivities,
+    uploadSignature, uploadAnnexure, deleteAnnexure,
+    submitReport, getSignedUrl,
+    setDutyDays, markNotAssessed, recordNonSubmission, condoneDelay,
+    assignEvaluators, saveEvaluationScores, completeEvaluation, savePenPicture,
+    getReportEvaluations,
+    getCommitteeDecision, finalizeReport, refileFinalizedReport, finalizeSeniorReport,
+    submitRepresentation, resolveRepresentation,
+    markNotificationRead, setAppNotificationStatus,
+    refreshData: loadData,
+  }), [
+    cycles, reports, committees, empoweredMembers, grievanceMembers, evaluations, representations,
+    notifications, appNotifications, isLoading, error, createCycle, updateCycle, createCommittee,
+    addCommitteeMember, removeCommitteeMember, addEmpoweredMember, removeEmpoweredMember,
+    addGrievanceMember, removeGrievanceMember, createReport, getReport, saveSection, saveBasicInfo,
+    saveAWPActivities, uploadSignature, uploadAnnexure, deleteAnnexure, submitReport, getSignedUrl,
+    setDutyDays, markNotAssessed, recordNonSubmission, condoneDelay, assignEvaluators,
+    saveEvaluationScores, completeEvaluation, savePenPicture, getReportEvaluations,
+    getCommitteeDecision, finalizeReport, refileFinalizedReport, finalizeSeniorReport,
+    submitRepresentation, resolveRepresentation, markNotificationRead, setAppNotificationStatus,
+    loadData,
+  ]);
 
   return (
-    <PMSContext.Provider value={{
-      cycles, reports, committees, empoweredMembers, grievanceMembers,
-      evaluations, representations, notifications, appNotifications, isLoading, error,
-      createCycle, updateCycle,
-      createCommittee, addCommitteeMember, removeCommitteeMember,
-      addEmpoweredMember, removeEmpoweredMember,
-      addGrievanceMember, removeGrievanceMember,
-      createReport, getReport, saveSection, saveBasicInfo, saveAWPActivities,
-      uploadSignature, uploadAnnexure, deleteAnnexure,
-      submitReport, getSignedUrl,
-      setDutyDays, markNotAssessed, recordNonSubmission, condoneDelay,
-      assignEvaluators, saveEvaluationScores, completeEvaluation, savePenPicture,
-      getReportEvaluations,
-      getCommitteeDecision, finalizeReport, refileFinalizedReport, finalizeSeniorReport,
-      submitRepresentation, resolveRepresentation,
-      markNotificationRead, setAppNotificationStatus,
-      refreshData: loadData,
-    }}>
+    <PMSContext.Provider value={value}>
       {children}
     </PMSContext.Provider>
   );
