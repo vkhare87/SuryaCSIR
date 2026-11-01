@@ -150,7 +150,7 @@ export default function AssignEvaluators() {
               </div>
 
               {error && (
-                <p className="text-sm text-rose-600">{error}</p>
+                <p role="alert" className="text-sm text-rose-600">{error}</p>
               )}
 
               <div className="flex justify-end gap-2 pt-2">

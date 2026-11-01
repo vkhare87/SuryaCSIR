@@ -90,7 +90,7 @@ export function SimilarWorkPanel({ text }: SimilarWorkPanelProps) {
           {loading ? 'Checking…' : 'Check for similar work'}
         </button>
       </div>
-      {error && <div className="text-sm text-danger">{error}</div>}
+      {error && <div role="alert" className="text-sm text-danger">{error}</div>}
       {matches !== null && matches.length === 0 && (
         <p className="text-sm text-text-muted">No similar prior work found in indexed documents.</p>
       )}

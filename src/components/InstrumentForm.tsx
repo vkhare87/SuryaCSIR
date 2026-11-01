@@ -200,7 +200,7 @@ export function InstrumentForm({ instrument, onClose }: Props) {
             </div>
           </section>
 
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
 
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm border border-border rounded-lg hover:bg-surface-hover transition-colors">

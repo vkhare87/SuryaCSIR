@@ -16,6 +16,20 @@ const cardVariants = {
 };
 
 export function Card({ children, className, isGlass = false, variant = 'flat', ...props }: CardProps) {
+  // A clickable card is grid navigation: reachable by Tab, activated by Enter/Space.
+  const button = props.onClick
+    ? {
+        role: 'button',
+        tabIndex: 0,
+        onKeyDown: (e: React.KeyboardEvent<HTMLDivElement>) => {
+          props.onKeyDown?.(e);
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            e.currentTarget.click();
+          }
+        },
+      }
+    : {};
   return (
     <div
       className={cn(
@@ -24,6 +38,7 @@ export function Card({ children, className, isGlass = false, variant = 'flat', .
         className
       )}
       {...props}
+      {...button}
     >
       {children}
     </div>
@@ -74,11 +89,11 @@ interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
 
 export function Badge({ children, variant = 'neutral', className, ...props }: BadgeProps) {
   const variants = {
-    success: "bg-[#f0eee6] text-[#4d4c48] border border-[#e8e6dc]",
-    warning: "bg-[#f5ede0] text-[#7a4a1e] border border-[#e8d4c0]",
-    danger:  "bg-[#f5e8e8] text-[#b53333] border border-[#e8c8c8]",
-    info:    "bg-[#f0eee6] text-[#5e5d59] border border-[#e8e6dc]",
-    neutral: "bg-[#f0eee6] text-[#87867f] border border-[#e8e6dc]",
+    success: "bg-surface-hover text-text border border-border",
+    warning: "bg-badge-warning-bg text-badge-warning-fg border border-badge-warning-fg/25",
+    danger:  "bg-badge-danger-bg text-badge-danger-fg border border-badge-danger-fg/25",
+    info:    "bg-surface-hover text-text-muted border border-border",
+    neutral: "bg-surface-hover text-text-muted border border-border",
   };
 
   return (

@@ -184,7 +184,7 @@ export default function StatusUpdateModal({ proposal, onClose, onUpdated }: Prop
         )}
 
         {error && (
-          <div className="text-sm text-red-600">{error}</div>
+          <div role="alert" className="text-sm text-red-600">{error}</div>
         )}
 
         <div className="flex justify-end gap-2">

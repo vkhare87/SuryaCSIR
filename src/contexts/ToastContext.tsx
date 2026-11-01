@@ -26,10 +26,10 @@ export function useToast() {
 }
 
 const KIND_STYLES: Record<ToastKind, { bg: string; icon: typeof CheckCircle2 }> = {
-  success: { bg: 'bg-emerald-600/95 text-white', icon: CheckCircle2 },
-  error: { bg: 'bg-red-600/95 text-white', icon: XCircle },
-  warning: { bg: 'bg-amber-500/95 text-white', icon: AlertTriangle },
-  info: { bg: 'bg-blue-600/95 text-white', icon: Info },
+  success: { bg: 'bg-archive-green/95 text-background', icon: CheckCircle2 },
+  error: { bg: 'bg-badge-danger-fg/95 text-background', icon: XCircle },
+  warning: { bg: 'bg-turmeric/95 text-near-black', icon: AlertTriangle },
+  info: { bg: 'bg-iron-gall/95 text-background', icon: Info },
 };
 
 export function ToastProvider({ children }: { children: ReactNode }) {

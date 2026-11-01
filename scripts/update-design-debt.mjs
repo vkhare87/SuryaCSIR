@@ -93,7 +93,7 @@ writeFileSync(
         'Files with pre-existing design-token violations, exempted from the ' +
         'no-restricted-syntax design rules (downgraded to warn). Shrink only — ' +
         'regenerate with `node scripts/update-design-debt.mjs --write`. ' +
-        'See docs/ARCHITECTURE-REMEDIATION.md, A6.',
+        'See docs/history/ARCHITECTURE-REMEDIATION.md, A6.',
       files: current,
     },
     null,

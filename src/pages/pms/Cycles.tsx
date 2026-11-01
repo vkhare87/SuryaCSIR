@@ -117,7 +117,7 @@ export default function Cycles() {
           <option value="ARCHIVED">Archived</option>
         </select>
       </div>
-      {formError && <p className="text-sm text-rose-600">{formError}</p>}
+      {formError && <p role="alert" className="text-sm text-rose-600">{formError}</p>}
       <div className="flex justify-end gap-2 pt-2">
         <Button variant="secondary" onClick={closeModals}>Cancel</Button>
         <Button isLoading={saving} onClick={handleSave}>

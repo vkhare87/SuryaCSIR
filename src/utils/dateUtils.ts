@@ -131,23 +131,23 @@ export function amcStatus(dateStr?: string): AmcStatus {
 
 /** AMC badge color maps — shared across all AMC badge renderers */
 export const AMC_COLORS: Record<AmcStatus, string> = {
-  expired:  'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-  expiring: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
-  ok:       'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+  expired:  'bg-badge-danger-bg text-badge-danger-fg',
+  expiring: 'bg-badge-warning-bg text-badge-warning-fg',
+  ok:       'bg-archive-green/15 text-archive-green',
   none:     '',
 };
 
 export const AMC_CARD_COLORS: Record<AmcStatus, string> = {
-  expired:  'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800',
-  expiring: 'bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800',
-  ok:       'bg-emerald-50 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800',
+  expired:  'bg-badge-danger-bg border-badge-danger-fg/25',
+  expiring: 'bg-badge-warning-bg border-badge-warning-fg/25',
+  ok:       'bg-archive-green/15 border-archive-green/25',
   none:     'bg-surface border-border',
 };
 
 export const AMC_TEXT_COLORS: Record<AmcStatus, string> = {
-  expired:  'text-red-700 dark:text-red-400',
-  expiring: 'text-amber-700 dark:text-amber-400',
-  ok:       'text-emerald-700 dark:text-emerald-400',
+  expired:  'text-badge-danger-fg',
+  expiring: 'text-badge-warning-fg',
+  ok:       'text-archive-green',
   none:     'text-text-muted',
 };
 

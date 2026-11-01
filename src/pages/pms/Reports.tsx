@@ -266,7 +266,7 @@ export default function Reports() {
             </div>
           )}
 
-          {error && <p className="text-sm text-rose-600">{error}</p>}
+          {error && <p role="alert" className="text-sm text-rose-600">{error}</p>}
         </div>
       </Modal>
     </div>

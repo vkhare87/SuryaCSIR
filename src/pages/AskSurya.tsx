@@ -110,6 +110,8 @@ export default function AskSurya() {
         </p>
       </div>
 
+      {/* Busy while streaming, so a screen reader announces the finished answer once, not every chunk. */}
+      <div aria-live="polite" aria-busy={loading} className="space-y-6">
       {turns.map((turn, index) => (
         <Card key={index} className="p-5 space-y-4">
           <p className="text-sm font-medium text-text">{turn.question}</p>
@@ -173,6 +175,7 @@ export default function AskSurya() {
           )}
         </Card>
       ))}
+      </div>
 
       {loading && streamText && (
         <Card className="p-5">
@@ -197,7 +200,7 @@ export default function AskSurya() {
         </button>
       </form>
 
-      {error && <div className="text-sm text-danger">{error}</div>}
+      {error && <div role="alert" className="text-sm text-danger">{error}</div>}
 
       <Sheet isOpen={source !== null} onClose={() => setSource(null)} title={source?.label}>
         {sourceLoading || !source?.url ? (

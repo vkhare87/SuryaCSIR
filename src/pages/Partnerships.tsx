@@ -167,7 +167,7 @@ export default function Partnerships() {
                   value={ttForm.divisionCode} onChange={e => setTtForm(f => ({ ...f, divisionCode: e.target.value }))} />
               </>
             )}
-            {formError && <p className="col-span-2 text-sm text-danger">{formError}</p>}
+            {formError && <p role="alert" className="col-span-2 text-sm text-danger">{formError}</p>}
             <div className="col-span-2">
               <Button size="sm" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save'}</Button>
             </div>

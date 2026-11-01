@@ -36,15 +36,15 @@ export type CalEvent =
   | (CalEventBase & { kind: 'retirement'; source: StaffMember; retirementDate: Date });
 
 export const EVENT_COLOR: Record<CalEventKind, string> = {
-  meeting: 'bg-[#c96442]',
-  action: 'bg-amber-500',
-  custom: 'bg-emerald-500',
-  pamphlet: 'bg-indigo-500',
-  announcement: 'bg-indigo-500',
-  holiday: 'bg-rose-500',
-  project_closing: 'bg-purple-500',
-  birthday: 'bg-pink-400',
-  retirement: 'bg-sky-500',
+  meeting: 'bg-terracotta',
+  action: 'bg-turmeric',
+  custom: 'bg-archive-green',
+  pamphlet: 'bg-iron-gall',
+  announcement: 'bg-iron-gall',
+  holiday: 'bg-badge-danger-fg',
+  project_closing: 'bg-coral',
+  birthday: 'bg-text-muted',
+  retirement: 'bg-stone-gray',
 };
 
 // Literal class names: Tailwind only emits classes it can find in the source,

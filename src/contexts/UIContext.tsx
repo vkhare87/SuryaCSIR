@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useMemo, type ReactNode } from 'react';
 
 export type ViewMode = 'AUTO' | 'MOBILE' | 'DESKTOP';
 export type DeviceType = 'mobile' | 'tablet' | 'desktop';
@@ -35,14 +35,14 @@ export function UIProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('resize', handleResize);
   }, [viewMode]);
 
-  const value = {
+  const value = useMemo(() => ({
     viewMode,
     setViewMode,
     deviceType,
     isMobile: deviceType === 'mobile',
     isTablet: deviceType === 'tablet',
     isDesktop: deviceType === 'desktop',
-  };
+  }), [viewMode, deviceType]);
 
   return <UIContext.Provider value={value}>{children}</UIContext.Provider>;
 }

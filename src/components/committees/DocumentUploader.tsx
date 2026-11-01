@@ -99,7 +99,7 @@ export function DocumentUploader({ meetingId, committeeId, canUpload }: Document
             />
           </label>
           {uploadError && (
-            <p className="text-red-500 text-xs mt-1">{uploadError}</p>
+            <p role="alert" className="text-red-500 text-xs mt-1">{uploadError}</p>
           )}
         </div>
       )}

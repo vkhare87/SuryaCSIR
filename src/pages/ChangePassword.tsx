@@ -208,7 +208,7 @@ export default function ChangePassword() {
             </div>
 
             {error && (
-              <div className="text-xs text-[#b53333] font-bold bg-[#f5e8e8] p-4 rounded-xl border border-[#e8c8c8]">
+              <div role="alert" className="text-xs text-[#b53333] font-bold bg-[#f5e8e8] p-4 rounded-xl border border-[#e8c8c8]">
                 {error}
               </div>
             )}

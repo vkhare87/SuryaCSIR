@@ -239,7 +239,7 @@ export function EntityRecordsPanel({ type }: EntityRecordsPanelProps) {
 
         {/* Status */}
         {error && (
-          <div className="flex items-center gap-2 px-4 py-3 bg-rose-50 border border-rose-200 rounded-xl text-sm text-rose-700">
+          <div role="alert" className="flex items-center gap-2 px-4 py-3 bg-rose-50 border border-rose-200 rounded-xl text-sm text-rose-700">
             <AlertTriangle size={14} className="shrink-0" />
             {error}
           </div>

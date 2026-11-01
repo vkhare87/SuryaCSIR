@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import {
-  createContext, useContext, useState, useEffect, useCallback, type ReactNode,
+  createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode,
 } from 'react';
 import { supabase, isProvisioned } from '../utils/supabaseClient';
 import { useAuth } from './AuthContext';
@@ -168,10 +168,12 @@ export function ProposalsProvider({ children }: { children: ReactNode }) {
     [refresh],
   );
 
+  const value = useMemo(() => ({
+    proposals, isLoading, error, refresh, getProposal, createDraft, updateDraft,
+  }), [proposals, isLoading, error, refresh, getProposal, createDraft, updateDraft]);
+
   return (
-    <ProposalsContext.Provider value={{
-      proposals, isLoading, error, refresh, getProposal, createDraft, updateDraft,
-    }}>
+    <ProposalsContext.Provider value={value}>
       {children}
     </ProposalsContext.Provider>
   );

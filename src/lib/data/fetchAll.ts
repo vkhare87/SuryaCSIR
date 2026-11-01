@@ -13,7 +13,7 @@
  * gets the whole table or an explicit error.
  *
  * It does not make loading 28 tables into the browser a good idea — see
- * docs/ARCHITECTURE-REMEDIATION.md (A2) for pushing aggregation into
+ * docs/history/ARCHITECTURE-REMEDIATION.md (A2) for pushing aggregation into
  * Postgres. It removes the silent-wrong-answer failure mode in the meantime.
  */
 

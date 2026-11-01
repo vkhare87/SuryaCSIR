@@ -26,7 +26,7 @@ const STATUS_LABEL: Record<UploadStatus, string> = {
 const STATUS_CLASS: Record<UploadStatus, string> = {
   fresh: 'text-archive-green',
   stale: 'text-turmeric',
-  urgent: 'text-rose-600 dark:text-rose-400',
+  urgent: 'text-badge-danger-fg',
 };
 
 const inputCls = 'w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm text-text focus:ring-2 focus:ring-brand-blue outline-none';

@@ -204,7 +204,7 @@ export default function Grievance() {
             </>
           )}
 
-          {error && <p className="text-sm text-rose-600">{error}</p>}
+          {error && <p role="alert" className="text-sm text-rose-600">{error}</p>}
 
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={() => setSelectedReportId(null)}>Cancel</Button>

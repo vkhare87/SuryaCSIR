@@ -133,7 +133,7 @@ export default function ProjectReportForm() {
           ))}
         </Card>
 
-        {error && <p className="text-sm text-danger">{error}</p>}
+        {error && <p role="alert" className="text-sm text-danger">{error}</p>}
 
         <div className="flex gap-3">
           <Button type="submit" isLoading={saving}>{isEdit ? 'Save' : 'Create draft'}</Button>

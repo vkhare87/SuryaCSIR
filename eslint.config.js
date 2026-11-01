@@ -10,24 +10,28 @@ import { createRequire } from 'node:module';
 // `node scripts/update-design-debt.mjs` enforces that in CI.
 const designDebt = createRequire(import.meta.url)('./eslint.design-debt.json').files;
 
+// The patterns apply to every string in src, not only literal className
+// attributes: status maps in src/lib, ternaries and template literals were
+// invisible to the old JSXAttribute-scoped selector.
+const RAW_PALETTE =
+  String.raw`/(^|[\s:])(bg|text|border|ring|divide|from|via|to|fill|stroke|outline|accent|caret|decoration|placeholder|shadow)-(white|black|(slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\d{2,3})([\s\/]|$)/`;
+const ARBITRARY_HEX = String.raw`/\[#[0-9a-fA-F]{3,8}\]/`;
+const RAW_PALETTE_MESSAGE =
+  'Raw Tailwind color class. Use semantic tokens from src/index.css (bg-surface, text-text-muted, border-border, …).';
+const ARBITRARY_HEX_MESSAGE =
+  'Arbitrary hex color in a class. Use semantic tokens from src/index.css; raw hex belongs only in index.css and chart fill props.';
+
 const DESIGN_TOKEN_RULES = [
-  {
-    selector:
-      "JSXAttribute[name.name='className'] Literal[value=/(^|[\\s:])(bg|text|border|ring|divide|from|via|to|fill|stroke|outline|accent|caret|decoration|placeholder|shadow)-(white|black|(slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\\d{2,3})([\\s\\/]|$)/]",
-    message:
-      'Raw Tailwind color class. Use semantic tokens from src/index.css (bg-surface, text-text-muted, border-border, …).',
-  },
-  {
-    selector:
-      "JSXAttribute[name.name='className'] Literal[value=/\\[#[0-9a-fA-F]{3,8}\\]/]",
-    message:
-      'Arbitrary hex color in className. Use semantic tokens from src/index.css; raw hex belongs only in index.css and chart fill props.',
-  },
+  { selector: `Literal[value=${RAW_PALETTE}]`, message: RAW_PALETTE_MESSAGE },
+  { selector: `TemplateElement[value.raw=${RAW_PALETTE}]`, message: RAW_PALETTE_MESSAGE },
+  { selector: `Literal[value=${ARBITRARY_HEX}]`, message: ARBITRARY_HEX_MESSAGE },
+  { selector: `TemplateElement[value.raw=${ARBITRARY_HEX}]`, message: ARBITRARY_HEX_MESSAGE },
 ];
 
 export default tseslint.config(
   {
-    ignores: ['dist/**', 'node_modules/**', 'rag/.venv/**', 'ingest/.venv/**', 'public/tesseract/**'],
+    // Python trees are not JS; their caches are unreadable on Windows (EPERM).
+    ignores: ['dist/**', 'node_modules/**', 'rag/**', 'ingest/**', '**/__pycache__/**', '**/.pytest_cache/**', 'public/tesseract/**'],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

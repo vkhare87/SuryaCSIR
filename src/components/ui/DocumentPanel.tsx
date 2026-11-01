@@ -71,7 +71,7 @@ export function DocumentPanel({ entityType, entityId, docType, accessTier, title
           </>
         )}
       </div>
-      {error && <p className="text-sm text-danger">{error}</p>}
+      {error && <p role="alert" className="text-sm text-danger">{error}</p>}
       {docs.length === 0 ? (
         <p className="text-sm text-text-muted">No documents uploaded.</p>
       ) : (

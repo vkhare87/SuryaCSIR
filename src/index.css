@@ -28,6 +28,11 @@
   --color-archive-green: var(--color-archive-green);
   --color-turmeric: var(--color-turmeric);
   --color-iron-gall: var(--color-iron-gall);
+  /* Badge chips — light/dark values set per-theme below. */
+  --color-badge-warning-bg: var(--color-badge-warning-bg);
+  --color-badge-warning-fg: var(--color-badge-warning-fg);
+  --color-badge-danger-bg: var(--color-badge-danger-bg);
+  --color-badge-danger-fg: var(--color-badge-danger-fg);
 
   /* CSS-var pass-throughs for Tailwind utility resolution */
   --color-surface: var(--color-surface);
@@ -82,10 +87,16 @@
 
   --density-padding-base: 1rem;
   --density-gap-base: 1rem;
+  --density-row-y: 1rem;
 
   --color-archive-green: #3F5C46;
   --color-turmeric: #D9A441;
   --color-iron-gall: #2B3A55;
+
+  --color-badge-warning-bg: #f5ede0;
+  --color-badge-warning-fg: #7a4a1e;
+  --color-badge-danger-bg: #f5e8e8;
+  --color-badge-danger-fg: #b53333;
 
   /* Layered surfaces + gradients (light) */
   --color-surface-raised: #ffffff;
@@ -107,6 +118,11 @@
   --color-turmeric: #E0B65E;
   --color-iron-gall: #8FA3C4;
 
+  --color-badge-warning-bg: #3a2f1f;
+  --color-badge-warning-fg: #e0b65e;
+  --color-badge-danger-bg: #3d2424;
+  --color-badge-danger-fg: #e88a8a;
+
   /* Dark needs 2 surface levels to show elevation; glows run hotter */
   --color-surface-raised: #3a3a37;
   --gradient-hero: radial-gradient(1200px 600px at 20% -10%, #211f1b 0%, transparent 60%), radial-gradient(900px 500px at 90% 0%, #2a221d 0%, transparent 55%), #141413;
@@ -114,14 +130,17 @@
 }
 
 /* Density Variants */
-.density-compact {
+/* Set by ThemeContext on <html data-density>. */
+:root[data-density="compact"] {
   --density-padding-base: 0.5rem;
   --density-gap-base: 0.5rem;
+  --density-row-y: 0.5rem;
 }
 
-.density-relaxed {
+:root[data-density="relaxed"] {
   --density-padding-base: 1.5rem;
   --density-gap-base: 1.5rem;
+  --density-row-y: 1.5rem;
 }
 
 @layer base {
@@ -210,7 +229,7 @@
     @apply bg-background/80 backdrop-blur-md border border-border;
   }
   .heading {
-    font-family: Georgia, 'Times New Roman', serif;
+    font-family: var(--font-serif);
     font-weight: 500;
     line-height: 1.20;
   }

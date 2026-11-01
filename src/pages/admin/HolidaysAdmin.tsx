@@ -182,6 +182,7 @@ export default function HolidaysAdmin() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-bold text-text text-sm">Holidays for {year}</h2>
             <select
+              aria-label="Year"
               value={year}
               onChange={(e) => setYear(parseInt(e.target.value, 10))}
               className="bg-surface border border-border rounded-md px-2 py-1 text-sm text-text"
@@ -192,15 +193,15 @@ export default function HolidaysAdmin() {
 
           <div className="grid grid-cols-12 gap-2 mb-4 items-end">
             <input
-              type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)}
+              type="date" aria-label="Holiday date" value={newDate} onChange={(e) => setNewDate(e.target.value)}
               className="col-span-4 bg-surface border border-border rounded-md px-2 py-1.5 text-sm text-text"
             />
             <input
-              type="text" placeholder="Name" value={newName} onChange={(e) => setNewName(e.target.value)}
+              type="text" aria-label="Holiday name" placeholder="Name" value={newName} onChange={(e) => setNewName(e.target.value)}
               className="col-span-4 bg-surface border border-border rounded-md px-2 py-1.5 text-sm text-text"
             />
             <select
-              value={newType} onChange={(e) => setNewType(e.target.value as HolidayType)}
+              aria-label="Holiday type" value={newType} onChange={(e) => setNewType(e.target.value as HolidayType)}
               className="col-span-3 bg-surface border border-border rounded-md px-2 py-1.5 text-sm text-text"
             >
               {HOLIDAY_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
@@ -229,9 +230,9 @@ export default function HolidaysAdmin() {
                 <tr key={h.id} className="border-b border-border last:border-0">
                   {editingId === h.id ? (
                     <>
-                      <td><input type="date" value={editValues.date} onChange={(e) => setEditValues({ ...editValues, date: e.target.value })} className="bg-surface border border-border rounded-md px-1 py-0.5 text-sm text-text" /></td>
-                      <td><input type="text" value={editValues.name} onChange={(e) => setEditValues({ ...editValues, name: e.target.value })} className="bg-surface border border-border rounded-md px-1 py-0.5 text-sm text-text w-full" /></td>
-                      <td><select value={editValues.type} onChange={(e) => setEditValues({ ...editValues, type: e.target.value as HolidayType })} className="bg-surface border border-border rounded-md px-1 py-0.5 text-sm text-text">{HOLIDAY_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}</select></td>
+                      <td><input type="date" aria-label="Holiday date" value={editValues.date} onChange={(e) => setEditValues({ ...editValues, date: e.target.value })} className="bg-surface border border-border rounded-md px-1 py-0.5 text-sm text-text" /></td>
+                      <td><input type="text" aria-label="Holiday name" value={editValues.name} onChange={(e) => setEditValues({ ...editValues, name: e.target.value })} className="bg-surface border border-border rounded-md px-1 py-0.5 text-sm text-text w-full" /></td>
+                      <td><select aria-label="Holiday type" value={editValues.type} onChange={(e) => setEditValues({ ...editValues, type: e.target.value as HolidayType })} className="bg-surface border border-border rounded-md px-1 py-0.5 text-sm text-text">{HOLIDAY_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}</select></td>
                       <td className="text-right">
                         <button onClick={() => saveEdit(h.id)} className="p-1 text-emerald-500 hover:bg-surface-hover rounded-md" aria-label="Save"><Save size={14} /></button>
                         <button onClick={() => setEditingId(null)} className="p-1 text-text-muted hover:bg-surface-hover rounded-md" aria-label="Cancel"><X size={14} /></button>

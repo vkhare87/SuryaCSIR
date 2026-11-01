@@ -360,7 +360,7 @@ export function DataTable<T>({
                             rowIndex === paginatedData.length - 1 && !isOpen && "border-0"
                           )}>
                           {renderExpanded && (
-                            <td className="pl-4 pr-0 py-4">
+                            <td className="pl-4 pr-0 py-(--density-row-y)">
                               <button
                                 onClick={e => { e.stopPropagation(); toggleExpand(key); }}
                                 className="p-1 rounded-md text-text-muted hover:text-text hover:bg-surface-hover transition-colors"
@@ -370,7 +370,7 @@ export function DataTable<T>({
                             </td>
                           )}
                           {visibleColumns.map((col, colIndex) => (
-                            <td key={colIndex} className={clsx("px-6 py-4 whitespace-nowrap", col.className)}>
+                            <td key={colIndex} className={clsx("px-6 py-(--density-row-y) whitespace-nowrap", col.className)}>
                               {col.cell ? col.cell(row) : (col.accessorKey ? String(row[col.accessorKey] ?? '') : null)}
                             </td>
                           ))}

@@ -6,23 +6,23 @@ import type { TicketCategory, TicketUrgency, TicketStatus, TicketEventType } fro
 
 export const URGENCY_COLORS: Record<TicketUrgency, { bg: string; text: string; label: string }> = {
   Critical: {
-    bg: 'bg-red-50 dark:bg-red-950',
-    text: 'text-red-700 dark:text-red-300',
+    bg: 'bg-badge-danger-bg',
+    text: 'text-badge-danger-fg',
     label: 'Critical',
   },
   High: {
-    bg: 'bg-orange-50 dark:bg-orange-950',
-    text: 'text-orange-700 dark:text-orange-300',
+    bg: 'bg-badge-warning-bg',
+    text: 'text-badge-warning-fg',
     label: 'High',
   },
   Medium: {
-    bg: 'bg-yellow-50 dark:bg-yellow-950',
-    text: 'text-yellow-700 dark:text-yellow-300',
+    bg: 'bg-turmeric/15',
+    text: 'text-text',
     label: 'Medium',
   },
   Low: {
-    bg: 'bg-green-50 dark:bg-green-950',
-    text: 'text-green-700 dark:text-green-300',
+    bg: 'bg-archive-green/15',
+    text: 'text-archive-green',
     label: 'Low',
   },
 };
