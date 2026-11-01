@@ -16,7 +16,7 @@ const STATUS_LABEL: Record<UploadStatus, string> = {
 const STATUS_CLASS: Record<UploadStatus, string> = {
   fresh: 'text-archive-green',
   stale: 'text-turmeric',
-  urgent: 'text-rose-600 dark:text-rose-400',
+  urgent: 'text-badge-danger-fg',
 };
 
 function downloadTemplate(type: FileType, format: 'xlsx' | 'csv') {

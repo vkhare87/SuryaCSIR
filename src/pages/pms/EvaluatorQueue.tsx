@@ -7,9 +7,9 @@ import { Button } from '../../components/ui/Button';
 import { Skeleton } from '../../components/ui/Skeleton';
 
 const EVAL_STATUS_COLORS: Record<string, { bg: string; text: string; label: string }> = {
-  PENDING:     { bg: 'bg-gray-100',   text: 'text-gray-700',   label: 'Pending' },
-  IN_PROGRESS: { bg: 'bg-yellow-100', text: 'text-yellow-700', label: 'In Progress' },
-  COMPLETED:   { bg: 'bg-green-100',  text: 'text-green-700',  label: 'Completed' },
+  PENDING:     { bg: 'bg-surface-hover', text: 'text-text', label: 'Pending' },
+  IN_PROGRESS: { bg: 'bg-badge-warning-bg', text: 'text-badge-warning-fg', label: 'In Progress' },
+  COMPLETED:   { bg: 'bg-archive-green/15', text: 'text-archive-green', label: 'Completed' },
 };
 
 export default function EvaluatorQueue() {

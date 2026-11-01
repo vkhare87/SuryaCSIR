@@ -90,13 +90,13 @@ export function wizardStepsFor(track: PmsTrack): WizardStep[] {
 }
 
 export const STATUS_COLORS: Record<ReportStatus, { bg: string; text: string; label: string }> = {
-  DRAFT:                              { bg: 'bg-gray-100',   text: 'text-gray-700',   label: 'Draft' },
-  SUBMITTED:                          { bg: 'bg-blue-100',   text: 'text-blue-700',   label: 'Submitted' },
-  UNDER_EVALUATION_COMMITTEE_REVIEW:  { bg: 'bg-yellow-100', text: 'text-yellow-700', label: 'Evaluation Committee Review' },
-  EMPOWERED_COMMITTEE_REVIEW:         { bg: 'bg-purple-100', text: 'text-purple-700', label: 'Empowered Committee Review' },
-  FINALIZED:                          { bg: 'bg-green-100',  text: 'text-green-700',  label: 'Finalized' },
-  NOT_ASSESSED:                       { bg: 'bg-gray-100',   text: 'text-gray-500',   label: 'Not Assessed' },
-  UNDER_GRIEVANCE_REVIEW:             { bg: 'bg-orange-100', text: 'text-orange-700', label: 'Grievance Review' },
+  DRAFT:                              { bg: 'bg-surface-hover', text: 'text-text', label: 'Draft' },
+  SUBMITTED:                          { bg: 'bg-iron-gall/15', text: 'text-iron-gall', label: 'Submitted' },
+  UNDER_EVALUATION_COMMITTEE_REVIEW:  { bg: 'bg-badge-warning-bg', text: 'text-badge-warning-fg', label: 'Evaluation Committee Review' },
+  EMPOWERED_COMMITTEE_REVIEW:         { bg: 'bg-terracotta/15', text: 'text-terracotta', label: 'Empowered Committee Review' },
+  FINALIZED:                          { bg: 'bg-archive-green/15', text: 'text-archive-green', label: 'Finalized' },
+  NOT_ASSESSED:                       { bg: 'bg-surface-hover', text: 'text-text-muted', label: 'Not Assessed' },
+  UNDER_GRIEVANCE_REVIEW:             { bg: 'bg-badge-danger-bg', text: 'text-badge-danger-fg', label: 'Grievance Review' },
 };
 
 // 2026 guidelines: absolute integer scale

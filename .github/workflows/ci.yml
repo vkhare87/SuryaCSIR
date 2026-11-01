@@ -17,6 +17,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run lint
+      # The design-token allowlist may only shrink (eslint.config.js A6).
+      - run: node scripts/update-design-debt.mjs
       - run: npm test
       - run: npm run build # runs tsc -b + vite build
 
