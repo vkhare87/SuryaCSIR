@@ -44,7 +44,7 @@ describe('RLS policies call auth.uid() once per statement (WO-6d)', () => {
     const r = await db.query<{ p: string }>(`
       SELECT tablename || '.' || policyname AS p FROM pg_policies
        WHERE schemaname = 'public'
-         AND (coalesce(qual, '') || coalesce(with_check, '')) ~ '(?<!SELECT )auth\.uid\(\)'
+         AND (coalesce(qual, '') || coalesce(with_check, '')) ~ '(?<!SELECT )auth\\.uid\\(\\)'
        ORDER BY 1`);
     expect(r.rows.map(x => x.p)).toEqual([]);
   });
