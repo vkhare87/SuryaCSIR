@@ -10,6 +10,7 @@ import { Skeleton } from '../../components/ui/Skeleton';
 import { UserPicker } from '../../components/ui/UserPicker';
 import { useUserDirectory } from '../../hooks/useUserDirectory';
 import type { CommitteeMemberRole, CommitteeTier } from '../../types/pms';
+import { friendlyError } from '../../lib/errors';
 
 interface CommitteeForm {
   name: string;
@@ -87,7 +88,7 @@ export default function EvaluationCommittees() {
       setShowCreate(false);
       setCommitteeForm({ name: '', description: '', cycleId: '', tier: 'I' });
     } catch (e) {
-      setFormError(e instanceof Error ? e.message : 'Failed to create');
+      setFormError(friendlyError(e, 'Failed to create'));
     } finally {
       setSaving(false);
     }
@@ -104,7 +105,7 @@ export default function EvaluationCommittees() {
       await addCommitteeMember(selectedCommitteeId, memberForm.userId, memberForm.role);
       setMemberForm({ userId: '', userLabel: '', role: 'EC_MEMBER' });
     } catch (e) {
-      setFormError(e instanceof Error ? e.message : 'Failed to add member');
+      setFormError(friendlyError(e, 'Failed to add member'));
     } finally {
       setSaving(false);
     }
@@ -124,7 +125,7 @@ export default function EvaluationCommittees() {
     try {
       await fn();
     } catch (e) {
-      setFormError(e instanceof Error ? e.message : 'Operation failed');
+      setFormError(friendlyError(e, 'Operation failed'));
     } finally {
       setSaving(false);
     }

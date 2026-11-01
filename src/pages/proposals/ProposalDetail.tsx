@@ -16,6 +16,7 @@ import { SimilarWorkPanel } from '../../components/SimilarWorkPanel';
 import { findComparables } from '../../lib/proposals/comparables';
 import { piTrackRecord } from '../../lib/proposals/trackRecord';
 import type { Proposal } from '../../types/proposal';
+import { friendlyError } from '../../lib/errors';
 
 export default function ProposalDetail() {
   const { id } = useParams<{ id: string }>();
@@ -48,7 +49,7 @@ export default function ProposalDetail() {
     try {
       setProposal(await getProposal(id));
     } catch (e) {
-      setError((e as Error).message);
+      setError(friendlyError(e));
     }
   }, [id, getProposal]);
 

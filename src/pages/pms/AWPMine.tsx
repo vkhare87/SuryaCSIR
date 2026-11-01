@@ -14,6 +14,7 @@ import {
   AWP_STATUS_LABEL, activityTotal, awpActionFor, awpYearOptions, emptyAWPContent, reportingYearFor, revisionWindowOpen,
 } from '../../lib/pms/awp';
 import type { AWPContent, PMSAWP } from '../../types/pms';
+import { friendlyError } from '../../lib/errors';
 
 export default function AWPMine() {
   const { awps, revisions, myStaffId, isLoading, awpFor, saveDraft, submit, requestRevision } = useAWP();
@@ -74,7 +75,7 @@ export default function AWPMine() {
   const run = async (fn: () => Promise<void>, done: string) => {
     setBusy(true); setError(null); setMessage(null);
     try { await fn(); setMessage(done); }
-    catch (e) { setError(e instanceof Error ? e.message : 'Action failed'); }
+    catch (e) { setError(friendlyError(e, 'Action failed')); }
     finally { setBusy(false); }
   };
 

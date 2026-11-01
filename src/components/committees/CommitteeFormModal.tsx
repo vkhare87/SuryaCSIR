@@ -9,6 +9,7 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import type { Committee } from '../../types';
 import type { SelectedMember } from './MemberPicker';
+import { friendlyError } from '../../lib/errors';
 
 interface CommitteeFormModalProps {
   isOpen: boolean;
@@ -151,7 +152,7 @@ export function CommitteeFormModal({ isOpen, onClose, committee }: CommitteeForm
       await refreshData?.();
       onClose();
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : 'Failed to save committee');
+      setSubmitError(friendlyError(err, 'Failed to save committee'));
     } finally {
       setSubmitting(false);
     }
@@ -170,7 +171,7 @@ export function CommitteeFormModal({ isOpen, onClose, committee }: CommitteeForm
       await refreshData?.();
       onClose();
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : 'Failed to delete committee');
+      setSubmitError(friendlyError(err, 'Failed to delete committee'));
       setSubmitting(false);
     }
   };

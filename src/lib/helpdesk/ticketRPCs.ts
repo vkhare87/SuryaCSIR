@@ -1,4 +1,5 @@
 import { supabase } from '../../utils/supabaseClient';
+import { friendlyError } from '../errors';
 
 interface CreateTicketParams {
   subject: string;
@@ -47,7 +48,7 @@ export async function createTicket(params: CreateTicketParams): Promise<RpcResul
     p_submitted_by: params.submitted_by,
   });
 
-  if (error) return { success: false, error: error.message };
+  if (error) return { success: false, error: friendlyError(error) };
 
   // RPC returns only the uuid; the human token (AMPRI-YYMMDD-XXX) lives on
   // the row. tickets_select is USING(true) for authenticated, so this read
@@ -74,7 +75,7 @@ export async function updateTicketStatus(params: UpdateStatusParams): Promise<Rp
     p_actor_id: params.actorId,
   });
 
-  if (error) return { success: false, error: error.message };
+  if (error) return { success: false, error: friendlyError(error) };
   return { success: true };
 }
 
@@ -92,7 +93,7 @@ export async function addResponse(params: AddResponseParams): Promise<RpcResult>
     p_message: params.message,
   });
 
-  if (error) return { success: false, error: error.message };
+  if (error) return { success: false, error: friendlyError(error) };
   return { success: true, data: { responseId: data } };
 }
 
@@ -110,6 +111,6 @@ export async function assignTicket(params: AssignTicketParams): Promise<RpcResul
     p_actor_id: params.actorId,
   });
 
-  if (error) return { success: false, error: error.message };
+  if (error) return { success: false, error: friendlyError(error) };
   return { success: true };
 }

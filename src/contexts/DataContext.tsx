@@ -72,6 +72,7 @@ import { useFeatureControls } from './FeatureControlContext';
 import { logger } from '../utils/logger';
 import { fetchAll, isMissingTable } from '../lib/data/fetchAll';
 import { withPostTotals } from '../lib/recruitment/posts';
+import { friendlyError } from '../lib/errors';
 
 // ---------------------------------------------------------------------------
 // Client-side division scoping helpers (applied after data load)
@@ -331,9 +332,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (!isMissingTable(crRes.error)) checkTable('contribution_requests', crRes);
       if (!isMissingTable(dsRes.error)) checkTable('data_stewards', dsRes);
       if (tableErrors.length > 0) {
-        const summary = `${tableErrors.length} table(s) failed to load: ${tableErrors.map(e => e.table).join(', ')}`;
+        // Table names go to the log only (SEC-06).
+        const summary = `${tableErrors.length} table(s) failed to load.`;
         logger.error('partial_data_load_failed', new Error(summary), { tableErrors });
-        pushToast(summary, 'warning');
+        pushToast(`${summary} Some figures may be incomplete.`, 'warning');
       }
 
       const rawStaff = staffRes.data ? staffRes.data.map(mapStaffRow) : [];
@@ -371,7 +373,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setContributionRequests(crRes.data ? crRes.data.map(mapContributionRow) : []);
       setDataStewards(dsRes.data ? dsRes.data.map(mapStewardRow) : []);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to load data';
+      const message = friendlyError(err, 'Failed to load data');
       setError(message);
       logger.error('data_load_failed', err, { role, divisionCode });
       pushToast(`Data load failed: ${message}`, 'error');
@@ -394,7 +396,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const err = [crRes.error, dsRes.error].find(e => e && !isMissingTable(e));
     if (err) {
       logger.error('refresh_contributions_failed', err);
-      pushToast(`Requests refresh failed: ${err.message}`, 'error');
+      pushToast(`Requests refresh failed: ${friendlyError(err)}`, 'error');
       return;
     }
     setContributionRequests(crRes.data ? crRes.data.map(mapContributionRow) : []);
@@ -410,7 +412,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       .order('id'));
     if (err) {
       logger.error('refresh_calendar_failed', err);
-      pushToast(`Calendar refresh failed: ${err.message}`, 'error');
+      pushToast(`Calendar refresh failed: ${friendlyError(err)}`, 'error');
       return;
     }
     setCalendarEvents(data ? data.map(mapCalendarEventRow) : []);
@@ -425,7 +427,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       .order('id'));
     if (err) {
       logger.error('refresh_holidays_failed', err);
-      pushToast(`Holidays refresh failed: ${err.message}`, 'error');
+      pushToast(`Holidays refresh failed: ${friendlyError(err)}`, 'error');
       return;
     }
     setHolidays(data ? data.map(mapHolidayRow) : []);

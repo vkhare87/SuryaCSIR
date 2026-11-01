@@ -6,6 +6,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { Card } from '../ui/Cards';
 import { EmptyState } from '../ui/EmptyState';
 import type { Role } from '../../types';
+import { friendlyError } from '../../lib/errors';
 
 const ALL_ROLES: Role[] = [
   'Director', 'DivisionHead', 'HOD', 'Scientist', 'Technician',
@@ -47,8 +48,8 @@ export function ManageUsersTab() {
     // read other users' role assignments.
     const { data, error } = await supabase.rpc('admin_list_users');
     if (error) {
-      setLoadError(error.message);
-      push(error.message, 'error');
+      setLoadError(friendlyError(error));
+      push(friendlyError(error), 'error');
       setUsers([]);
       setLoading(false);
       return;
@@ -117,7 +118,7 @@ export function ManageUsersTab() {
       p_division: d.division || null,
     });
     setSaving(null);
-    if (error) { push(error.message, 'error'); return; }
+    if (error) { push(friendlyError(error), 'error'); return; }
     push('Roles updated', 'success');
     setExpanded(null);
     void load();

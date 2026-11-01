@@ -14,6 +14,7 @@ import {
   type FileType,
 } from '../utils/dataMigration';
 import { useDialog } from '../utils/useDialog';
+import { friendlyError } from '../lib/errors';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -117,7 +118,7 @@ export function EntityRecordsPanel({ type }: EntityRecordsPanelProps) {
       .select('*')
       .order(pk, { ascending: true });
     if (e) {
-      setError(e.message);
+      setError(friendlyError(e));
     } else {
       setRecords((data ?? []) as Record<string, unknown>[]);
     }
@@ -166,7 +167,7 @@ export function EntityRecordsPanel({ type }: EntityRecordsPanelProps) {
       .eq(pk, deleteTarget[pk]);
     setDeleting(false);
     if (e) {
-      alert(`Delete failed: ${e.message}`);
+      alert(`Delete failed: ${friendlyError(e)}`);
     } else {
       setDeleteTarget(null);
       loadRecords();

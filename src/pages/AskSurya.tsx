@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { askSuryaStream, sendFeedback, scheduleBrief } from '../lib/ask/client';
 import type { AskAnswer } from '../lib/ask/client';
 import { citationHref } from '../lib/ask/citations';
+import { friendlyError } from '../lib/errors';
 
 const HISTORY_TURNS = 3;
 
@@ -51,7 +52,7 @@ export default function AskSurya() {
       setTurns((prev) => [...prev, { question: q, answer, rated: false }]);
       setQuestion('');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Query failed');
+      setError(friendlyError(err, 'Query failed'));
     } finally {
       setLoading(false);
       setStreamText('');
@@ -94,7 +95,7 @@ export default function AskSurya() {
       await scheduleBrief(user.id, turn.question);
       setTurns((prev) => prev.map((t, i) => (i === index ? { ...t, scheduled: true } : t)));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save the brief');
+      setError(friendlyError(err, 'Could not save the brief'));
     }
   }
 

@@ -7,6 +7,7 @@ import { Card } from '../components/ui/Cards';
 import { EmptyState } from '../components/ui/EmptyState';
 import { ManageUsersTab } from '../components/admin/ManageUsersTab';
 import type { AccessRequest, Role } from '../types';
+import { friendlyError } from '../lib/errors';
 
 type Tab = 'pending' | 'users';
 
@@ -56,7 +57,7 @@ export default function AccessRequests() {
     const { error } = await supabase.rpc('approve_access_request', {
       p_request_id: req.id, p_roles: d.roles, p_division: d.division || null,
     });
-    if (error) { push(error.message, 'error'); return; }
+    if (error) { push(friendlyError(error), 'error'); return; }
     push('Access granted', 'success');
     void load();
   };
@@ -65,7 +66,7 @@ export default function AccessRequests() {
     if (!supabase) return;
     const note = window.prompt('Reason for rejection (optional):') ?? '';
     const { error } = await supabase.rpc('reject_access_request', { p_request_id: req.id, p_note: note });
-    if (error) { push(error.message, 'error'); return; }
+    if (error) { push(friendlyError(error), 'error'); return; }
     push('Request rejected', 'info');
     void load();
   };

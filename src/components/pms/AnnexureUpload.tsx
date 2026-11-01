@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { Upload, Trash2 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import type { PMSAnnexure } from '../../types/pms';
+import { friendlyError } from '../../lib/errors';
 
 interface Props {
   annexures: PMSAnnexure[];
@@ -33,7 +34,7 @@ export function AnnexureUpload({ annexures, onUpload, onDelete }: Props) {
       await onUpload(file);
       if (ref.current) ref.current.value = '';
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Upload failed');
+      setError(friendlyError(e, 'Upload failed'));
     } finally {
       setUploading(false);
     }

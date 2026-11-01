@@ -3,6 +3,7 @@ import { mapContributionEventRow } from '../../utils/dataMapper';
 import type { WriteResult } from '../data/entityWrite';
 import type { FileType } from '../../utils/fileTypes';
 import type { ContributionAction, ContributionEvent, DataSteward } from '../../types';
+import { friendlyError } from '../errors';
 
 export interface CreateContributionInput {
   domain: FileType;
@@ -17,7 +18,8 @@ export interface CreateContributionInput {
 }
 
 const OUT_OF_SCOPE = 'That person cannot see this record. Pick someone who can, or leave it empty to route to the data steward.';
-const friendly = (message: string) => (message.includes('target_out_of_scope') ? OUT_OF_SCOPE : message);
+const friendly = (error: { message: string }) =>
+  (error.message.includes('target_out_of_scope') ? OUT_OF_SCOPE : friendlyError(error));
 
 export async function createContributionRequest(
   input: CreateContributionInput,
@@ -28,7 +30,7 @@ export async function createContributionRequest(
     p_title: input.title, p_reason: input.reason, p_link: input.link,
     p_due: input.dueDate, p_prefill: input.prefill, p_assignee: input.assigneeId,
   });
-  return error ? { ok: false, error: friendly(error.message) } : { ok: true, id: String(data) };
+  return error ? { ok: false, error: friendly(error) } : { ok: true, id: String(data) };
 }
 
 export async function actOnContributionRequest(
@@ -41,7 +43,7 @@ export async function actOnContributionRequest(
     p_id: id, p_action: action, p_note: opts.note ?? null,
     p_target: opts.target ?? null, p_response: opts.response ?? null,
   });
-  return error ? { ok: false, error: friendly(error.message) } : { ok: true };
+  return error ? { ok: false, error: friendly(error) } : { ok: true };
 }
 
 export async function setDataSteward(
@@ -52,13 +54,13 @@ export async function setDataSteward(
   const { error } = await supabase.rpc('data_steward_set', {
     p_domain: domain, p_division: divisionCode, p_user: userId, p_kind: kind, p_cadence: cadenceDays,
   });
-  return error ? { ok: false, error: error.message } : { ok: true };
+  return error ? { ok: false, error: friendlyError(error) } : { ok: true };
 }
 
 export async function removeDataSteward(id: string): Promise<WriteResult> {
   if (!supabase) return { ok: false, error: 'Database not provisioned' };
   const { error } = await supabase.rpc('data_steward_remove', { p_id: id });
-  return error ? { ok: false, error: error.message } : { ok: true };
+  return error ? { ok: false, error: friendlyError(error) } : { ok: true };
 }
 
 export async function listRequestEvents(id: string): Promise<ContributionEvent[]> {

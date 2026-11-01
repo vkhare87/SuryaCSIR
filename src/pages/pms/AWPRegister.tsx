@@ -9,6 +9,7 @@ import { Skeleton } from '../../components/ui/Skeleton';
 import { canAdmin, scientistGrade } from '../../lib/pms/permissions';
 import { ELIGIBLE_SCIENTIST_GRADES, STANDARD_DESIGNATIONS } from '../../lib/pms/constants';
 import { AWP_STATUS_LABEL, reportingYearFor } from '../../lib/pms/awp';
+import { friendlyError } from '../../lib/errors';
 
 // Standard track (Scientist B–F) — the scientists the 2026 AWP applies to.
 function isStandardScientist(designation: string | null | undefined): boolean {
@@ -59,7 +60,7 @@ export default function AWPRegister() {
   const forward = async (staffId: string) => {
     setBusyId(staffId); setError(null);
     try { await forwardBlank(staffId, year); }
-    catch (e) { setError(e instanceof Error ? e.message : 'Could not forward'); }
+    catch (e) { setError(friendlyError(e, 'Could not forward')); }
     finally { setBusyId(null); }
   };
 
@@ -146,7 +147,7 @@ export default function AWPRegister() {
                     setBusyId(viewing.id); setError(null);
                     setReviewingOfficer(viewing.id, rvoPick)
                       .then(() => setRvoPick(''))
-                      .catch(e => setError(e instanceof Error ? e.message : 'Could not change'))
+                      .catch(e => setError(friendlyError(e, 'Could not change')))
                       .finally(() => setBusyId(null));
                   }}>
                   Save

@@ -6,6 +6,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { supabase } from '../../utils/supabaseClient';
 import { REQUESTABLE_ROLES } from '../../lib/access/requestableRoles';
 import type { AccessRequest, Role } from '../../types';
+import { friendlyError } from '../../lib/errors';
 
 export function PendingAccessView() {
   const { user } = useAuth();
@@ -48,7 +49,7 @@ export function PendingAccessView() {
       justification: justification.trim(),
     });
     setSubmitting(false);
-    if (error) { push(error.message, 'error'); return; }
+    if (error) { push(friendlyError(error), 'error'); return; }
     push('Request submitted', 'success');
     setRoles([]); setDivision(''); setJustification('');
     void load();
