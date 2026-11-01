@@ -21,6 +21,7 @@ const KIND_BADGE: Record<string, { label: string; variant: 'info' | 'warning' | 
   'progress-report': { label: 'Progress', variant: 'info' },
   'retirement':     { label: 'Workforce', variant: 'warning' },
   'contract-end':   { label: 'Contract',  variant: 'warning' },
+  'contribution':   { label: 'Request',   variant: 'info' },
 };
 
 const DUE_TEXT: Record<DueUrgency, { prefix: string; className: string }> = {
@@ -47,7 +48,7 @@ const AREA_LABELS: Partial<Record<AccessPath, string>> = {
 
 export function MyActions() {
   const { user } = useAuth();
-  const { staff, actionItems, tickets, contractStaff } = useData();
+  const { staff, actionItems, tickets, contractStaff, contributionRequests, dataStewards } = useData();
   const { reports, evaluations } = usePMS();
   const { proposals } = useProposals();
   const { reports: progressReports } = useProjectReports();
@@ -72,8 +73,12 @@ export function MyActions() {
       tickets,
       staff,
       contractStaff,
+      roles: user.roles,
+      contributions: contributionRequests,
+      stewards: dataStewards,
     });
-  }, [user, staffName, reports, evaluations, proposals, progressReports, actionItems, tickets, staff, contractStaff]);
+  }, [user, staffName, reports, evaluations, proposals, progressReports, actionItems, tickets, staff, contractStaff,
+      contributionRequests, dataStewards]);
 
   const overdueCount = useMemo(() => actions.filter(a => dueUrgency(a.due) === 'overdue').length, [actions]);
 
