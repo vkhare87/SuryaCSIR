@@ -192,6 +192,10 @@ BEGIN
         RAISE EXCEPTION 'invalid_prefill';
     END IF;
 
+    IF p_assignee IS NOT NULL AND NOT EXISTS (SELECT 1 FROM auth.users WHERE id = p_assignee) THEN
+        RAISE EXCEPTION 'invalid_target';
+    END IF;
+
     v_to := coalesce(p_assignee, contribution_steward_for(p_domain, p_division));
 
     INSERT INTO contribution_requests
@@ -236,6 +240,7 @@ DECLARE
     v_notify   uuid;
     v_title    text;
     v_event    uuid;
+    v_payload  jsonb := coalesce(p_response, '{}');
 BEGIN
     SELECT * INTO r FROM contribution_requests WHERE id = p_id FOR UPDATE;
 
@@ -255,6 +260,12 @@ BEGIN
 
     v_from := r.status;
 
+    -- A named target must be a real login, not a bare FK error later.
+    IF p_action IN ('delegate','claim') AND p_target IS NOT NULL
+       AND NOT EXISTS (SELECT 1 FROM auth.users WHERE id = p_target) THEN
+        RAISE EXCEPTION 'invalid_target';
+    END IF;
+
     CASE p_action
     WHEN 'delegate' THEN
         IF NOT v_assignee THEN RAISE EXCEPTION 'not_authorized'; END IF;
@@ -273,12 +284,21 @@ BEGIN
             RAISE EXCEPTION 'response_required';
         END IF;
         r.response := p_response;
-        v_to := CASE WHEN v_assignee THEN 'submitted' ELSE 'prepared' END;
+        IF v_assignee THEN
+            v_to := 'submitted';
+            v_notify := coalesce(r.requested_by, contribution_steward_for(r.domain, r.division_code));
+            v_title := 'Data update submitted for review';
+        ELSE
+            v_to := 'prepared';
+            v_notify := r.assignee_id; v_title := 'Delegate prepared an update';
+        END IF;
 
     WHEN 'confirm' THEN
         IF NOT v_assignee THEN RAISE EXCEPTION 'not_authorized'; END IF;
         IF v_from <> 'prepared' THEN RAISE EXCEPTION 'invalid_action: % from %', p_action, v_from; END IF;
         v_to := 'submitted';
+        v_notify := coalesce(r.requested_by, contribution_steward_for(r.domain, r.division_code));
+        v_title := 'Data update submitted for review';
 
     WHEN 'confirm_unchanged' THEN
         IF NOT v_assignee THEN RAISE EXCEPTION 'not_authorized'; END IF;
@@ -331,6 +351,9 @@ BEGIN
         r.resolved_at := now();
         v_to := 'done';
         v_notify := r.assignee_id; v_title := 'Your update was accepted';
+        -- Self-review is allowed (a steward closing their own sweep request)
+        -- but recorded, so the audit trail shows nobody else looked.
+        IF v_assignee THEN v_payload := v_payload || '{"self_review": true}'; END IF;
 
     WHEN 'return' THEN
         IF NOT v_reviewer THEN RAISE EXCEPTION 'not_authorized'; END IF;
@@ -353,9 +376,7 @@ BEGIN
         END IF;
         r.assignee_id := coalesce(p_target, v_uid);
         v_to := 'open';
-        IF r.assignee_id <> v_uid THEN
-            v_notify := r.assignee_id; v_title := 'Data update assigned to you';
-        END IF;
+        v_notify := r.assignee_id; v_title := 'Data update assigned to you';
 
     ELSE
         RAISE EXCEPTION 'invalid_action: % from %', p_action, v_from;
@@ -370,10 +391,11 @@ BEGIN
      WHERE id = p_id;
 
     INSERT INTO contribution_request_events (request_id, actor_id, action, from_status, to_status, note, payload)
-    VALUES (p_id, v_uid, p_action, v_from, v_to, v_note, coalesce(p_response, '{}'))
+    VALUES (p_id, v_uid, p_action, v_from, v_to, v_note, v_payload)
     RETURNING id INTO v_event;
 
-    IF v_notify IS NOT NULL THEN
+    -- Never notify the actor about their own action.
+    IF v_notify IS NOT NULL AND v_notify <> v_uid THEN
         INSERT INTO notifications (user_id, kind, title, body, link, dedupe_key)
         VALUES (v_notify, 'contribution', v_title, r.title,
                 '/work?r=' || p_id, 'contribution:' || p_id || ':' || v_event)
@@ -420,7 +442,8 @@ $$;
 -- One "refresh" request per (domain, division) that has a 'steward' row and
 -- whose latest import is missing or older than the shortest cadence there.
 -- The latest import id is in the dedupe key, so a re-run is a no-op and a
--- new request appears only once a newer import has itself gone stale.
+-- new request appears only once a newer import has itself gone stale and
+-- the previous refresh request for that scope is closed.
 -- import_events is not division-scoped, so a division steward's staleness
 -- follows the domain-wide latest import.
 -- Cron-only: EXECUTE revoked from client roles; EXEMPT in
@@ -437,7 +460,8 @@ DECLARE
 BEGIN
     FOR s IN
         SELECT g.domain, g.division_code, li.id AS import_id
-          FROM (SELECT domain, division_code, min(cadence_days) AS cadence_days
+          FROM (SELECT domain, division_code, min(cadence_days) AS cadence_days,
+                       'stale:' || domain || ':' || coalesce(division_code, '*') || ':' AS prefix
                   FROM data_stewards
                  WHERE kind = 'steward'
                  GROUP BY domain, division_code) g
@@ -447,8 +471,14 @@ BEGIN
                  WHERE ie.file_type = g.domain
                  ORDER BY ie.uploaded_at DESC
                  LIMIT 1) li ON true
-         WHERE li.id IS NULL
-            OR li.uploaded_at < now() - make_interval(days => g.cadence_days)
+         WHERE (li.id IS NULL
+                OR li.uploaded_at < now() - make_interval(days => g.cadence_days))
+           -- One live refresh request per (domain, division): a newer stale
+           -- period waits until the previous one is done or declined.
+           AND NOT EXISTS (
+                SELECT 1 FROM contribution_requests c
+                 WHERE left(c.dedupe_key, length(g.prefix)) = g.prefix
+                   AND c.status NOT IN ('done','declined'))
     LOOP
         v_id := NULL;
         v_to := contribution_steward_for(s.domain, s.division_code);

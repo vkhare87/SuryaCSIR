@@ -82,6 +82,17 @@ describe('creating requests', () => {
   });
 });
 
+describe('targets', () => {
+  it('an unknown target user is invalid_target, not an FK error', async () => {
+    const ghost = '39999999-0000-0000-0000-000000000000';
+    await expect(create(U.hod, amc(ghost))).rejects.toThrow(/invalid_target/);
+    const id = await create(U.hod, amc(U.owner));
+    await expect(act(U.owner, id, 'delegate', null, ghost)).rejects.toThrow(/invalid_target/);
+    const free = await create(U.admin, unowned());
+    await expect(act(U.admin, free, 'claim', null, ghost)).rejects.toThrow(/invalid_target/);
+  });
+});
+
 describe('access', () => {
   it('stranger cannot read or act on a request', async () => {
     const id = await create(U.hod, amc(U.owner));
@@ -125,8 +136,12 @@ describe('transitions', () => {
     expect((await req(id)).delegate_id).toBe(U.deleg);
     await act(U.deleg, id, 'submit', null, null, { AMCDate: '2027-03-31' });
     expect((await req(id)).status).toBe('prepared');
+    const prepared = await one(su(), `SELECT count(*)::int AS n FROM notifications WHERE user_id = $1 AND link = $2 AND title = 'Delegate prepared an update'`, [U.owner, `/work?r=${id}`]);
+    expect(prepared.n).toBe(1);
     await act(U.owner, id, 'confirm');
     expect((await req(id)).status).toBe('submitted');
+    const review = await one(su(), `SELECT count(*)::int AS n FROM notifications WHERE user_id = $1 AND link = $2 AND title = 'Data update submitted for review'`, [U.hod, `/work?r=${id}`]);
+    expect(review.n).toBe(1);
     await act(U.hod, id, 'accept');
     const row = await req(id);
     expect(row.status).toBe('done');
@@ -144,6 +159,8 @@ describe('transitions', () => {
     await expect(act(U.owner, id, 'submit', null, null, null)).rejects.toThrow(/response_required/);
     await act(U.owner, id, 'submit', null, null, { AMCDate: '2027-01-01' });
     expect((await req(id)).status).toBe('submitted');
+    const review = await one(su(), `SELECT count(*)::int AS n FROM notifications WHERE user_id = $1 AND link = $2 AND title = 'Data update submitted for review'`, [U.hod, `/work?r=${id}`]);
+    expect(review.n).toBe(1);
     await act(U.hod, id, 'return', 'Date is wrong');
     expect((await req(id)).status).toBe('open');
   });
@@ -245,6 +262,17 @@ describe('sweep', () => {
 
     await su().query(`INSERT INTO import_events (file_type, row_count, uploaded_by, uploaded_by_email, uploaded_at)
                       VALUES ('equipment', 5, $1, 'admin@t.local', now() - interval '31 days')`, [U.admin]);
+    // A newer stale period, but the first refresh request is still open.
+    expect(await sweep()).toBe(0);
+
+    // The steward closes it themselves: allowed, but marked as self-review.
+    await act(U.steward, raised.id as string, 'submit', null, null, { note: 'refreshed' });
+    await act(U.steward, raised.id as string, 'accept');
+    const ev = await one(su(), `SELECT payload FROM contribution_request_events WHERE request_id = $1 AND action = 'accept'`, [raised.id]);
+    expect(ev.payload).toMatchObject({ self_review: true });
+    const selfNote = await one(su(), `SELECT count(*)::int AS n FROM notifications WHERE user_id = $1 AND link = $2 AND title <> 'Data refresh due'`, [U.steward, `/work?r=${raised.id}`]);
+    expect(selfNote.n).toBe(0);
+
     expect(await sweep()).toBe(1);
     await su().query(`INSERT INTO import_events (file_type, row_count, uploaded_by, uploaded_by_email, uploaded_at)
                       VALUES ('equipment', 5, $1, 'admin@t.local', now())`, [U.admin]);
