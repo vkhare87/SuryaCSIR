@@ -435,7 +435,19 @@ function toISODate(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
+/** A workbook bigger than this, or with more rows, is refused: a decompression
+ * bomb must not hang the tab (SEC-03). */
+export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
+export const MAX_UPLOAD_ROWS = 50_000;
+
 async function readRawRows(file: File): Promise<Record<string, any>[]> {
+  if (file.size > MAX_UPLOAD_BYTES) throw new Error('File too large (max 25 MB).');
+  const rows = await readRows(file);
+  if (rows.length > MAX_UPLOAD_ROWS) throw new Error('Too many rows (max 50,000).');
+  return rows;
+}
+
+async function readRows(file: File): Promise<Record<string, any>[]> {
   const fileName = file.name.toLowerCase();
 
   if (fileName.endsWith('.csv')) {
