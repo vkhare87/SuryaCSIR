@@ -13,15 +13,9 @@ import { personNamesMatch } from '../utils/analytics';
 import { coAuthorPairs } from '../lib/intelligence/collaboration';
 import { successionRisk } from '../lib/staff/successionRisk';
 import { yearsUntilRetirement } from '../lib/staff/retirement';
-import { formatDate } from '../utils/dateUtils';
+import { formatDate, getServiceYears } from '../utils/dateUtils';
 import { FilterChip } from '../components/viz/FilterChip';
 import { matchesStaffFilter, STAFF_DIM_LABELS } from '../lib/staff/staffFilter';
-
-function yearsBetween(dateStr: string, ref = new Date()): number {
-  const t = Date.parse(dateStr);
-  if (!Number.isFinite(t)) return NaN;
-  return (ref.getTime() - t) / (365.25 * 86400000);
-}
 
 export default function StaffAnalytics() {
   const { staff, scientificOutputs } = useData();
@@ -135,7 +129,7 @@ export default function StaffAnalytics() {
   }, [staff, filteredStaff, filter]);
 
   const tenureYears = useMemo(
-    () => filteredStaff.map((s) => yearsBetween(s.DOJ)).filter((v) => Number.isFinite(v) && v >= 0),
+    () => filteredStaff.map((s) => getServiceYears(s.DOJ)).filter((v): v is number => v !== null && v >= 0),
     [filteredStaff],
   );
 

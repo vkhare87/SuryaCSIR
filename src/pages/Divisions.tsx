@@ -35,9 +35,7 @@ export default function Divisions() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchParams] = useSearchParams();
-  const [selectedDivCode, setSelectedDivCode] = useState<string | null>(
-    searchParams.get('div') ?? (divisions.length > 0 ? divisions[0].divCode : null)
-  );
+  const [selectedDivCode, setSelectedDivCode] = useState<string | null>(searchParams.get('div'));
   const canEdit = useCanEdit('hr');
   const [editTarget, setEditTarget] = useState<DivisionInfo | null>(null);
   const [showCreate, setShowCreate] = useState(false);
@@ -251,7 +249,7 @@ export default function Divisions() {
         </div>
         <div className="flex-1 overflow-y-auto stylish-scrollbar">
           {filteredDivisions.map(div => {
-            const isSelected = div.divCode === selectedDivCode;
+            const isSelected = div.divCode === selectedDiv?.divCode;
             const gap = (div.divSanctionedstrength || 0) - (div.divCurrentStrength || 0);
             return (
               <button

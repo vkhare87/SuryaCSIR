@@ -20,15 +20,21 @@ export default function AccessRequests() {
 
   const load = useCallback(async () => {
     if (!supabase) { setLoading(false); return; }
-    const { data } = await supabase
-      .from('access_requests')
-      .select('*')
-      .eq('status', 'PENDING')
-      .order('created_at', { ascending: true });
-    const rows = (data as AccessRequest[]) ?? [];
-    setRequests(rows);
-    setDraft(Object.fromEntries(rows.map((r) => [r.id, { roles: r.requested_roles, division: r.requested_division ?? '' }])));
-    setLoading(false);
+    try {
+      const { data, error } = await supabase
+        .from('access_requests')
+        .select('*')
+        .eq('status', 'PENDING')
+        .order('created_at', { ascending: true });
+      if (error) throw error;
+      const rows = (data as AccessRequest[]) ?? [];
+      setRequests(rows);
+      setDraft(Object.fromEntries(rows.map((r) => [r.id, { roles: r.requested_roles, division: r.requested_division ?? '' }])));
+    } catch (e) {
+      console.error('[access-requests] load failed', e);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { void load(); }, [load]);

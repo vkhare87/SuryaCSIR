@@ -338,7 +338,8 @@ export function PMSProvider({ children }: { children: ReactNode }) {
     return report;
   }
 
-  async function getReport(reportId: string): Promise<PMSReport & { sections: PMSReportSection[]; annexures: PMSAnnexure[]; awpActivities: PMSAWPActivity[] }> {
+  // Stable identity: EvaluateReport refetches whenever this changes.
+  const getReport = useCallback(async (reportId: string): Promise<PMSReport & { sections: PMSReportSection[]; annexures: PMSAnnexure[]; awpActivities: PMSAWPActivity[] }> => {
     if (!supabase) throw new Error('Supabase not provisioned');
     const [reportRes, sectionsRes, annexuresRes, awpRes] = await Promise.all([
       supabase.from('pms_reports').select('*, appraisal_cycles(*)').eq('id', reportId).single(),
@@ -359,7 +360,7 @@ export function PMSProvider({ children }: { children: ReactNode }) {
       annexures: annexuresRes.data ? annexuresRes.data.map(r => mapAnnexureRow(r as Record<string, unknown>)) : [],
       awpActivities: awpRes.data ? awpRes.data.map(r => mapAWPActivityRow(r as Record<string, unknown>)) : [],
     };
-  }
+  }, []);
 
   async function saveSection(reportId: string, sectionKey: string, data: Record<string, unknown>): Promise<void> {
     if (!supabase) throw new Error('Supabase not provisioned');

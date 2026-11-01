@@ -133,13 +133,16 @@ export function DataTable<T>({
     });
   }, [searched, columns, sort]);
 
-  useEffect(() => { setCurrentPage(1); }, [sorted.length]);
+  // Reset on a new result set, not a new length: a same-size filter change
+  // on page 3 used to show an empty slice.
+  useEffect(() => { setCurrentPage(1); }, [sorted]);
 
   const totalPages = Math.max(1, Math.ceil(sorted.length / itemsPerPage));
+  const page = Math.min(currentPage, totalPages);
   const paginatedData = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage;
+    const start = (page - 1) * itemsPerPage;
     return sorted.slice(start, start + itemsPerPage);
-  }, [sorted, currentPage, itemsPerPage]);
+  }, [sorted, page, itemsPerPage]);
 
   const handlePrev = () => setCurrentPage(p => Math.max(1, p - 1));
   const handleNext = () => setCurrentPage(p => Math.min(totalPages, p + 1));
@@ -211,7 +214,7 @@ export function DataTable<T>({
               </div>
             )}
             <span className="text-xs font-medium text-text-muted px-1 whitespace-nowrap">
-              {sorted.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}–{Math.min(currentPage * itemsPerPage, sorted.length)} of {sorted.length}
+              {sorted.length === 0 ? 0 : (page - 1) * itemsPerPage + 1}–{Math.min(page * itemsPerPage, sorted.length)} of {sorted.length}
             </span>
           </div>
 
@@ -256,12 +259,12 @@ export function DataTable<T>({
             )}
             {sorted.length > itemsPerPage && (
               <div className="flex items-center gap-1 bg-background rounded-lg p-1 border border-border">
-                <button onClick={handlePrev} disabled={currentPage === 1}
+                <button onClick={handlePrev} disabled={page === 1}
                   className="p-1.5 text-text-muted hover:text-text hover:bg-surface-hover rounded-md disabled:opacity-30 disabled:cursor-not-allowed transition-colors" title="Previous">
                   <ChevronLeft size={16} />
                 </button>
-                <span className="text-xs font-bold text-text min-w-[3rem] text-center">{currentPage} / {totalPages}</span>
-                <button onClick={handleNext} disabled={currentPage === totalPages}
+                <span className="text-xs font-bold text-text min-w-[3rem] text-center">{page} / {totalPages}</span>
+                <button onClick={handleNext} disabled={page === totalPages}
                   className="p-1.5 text-text-muted hover:text-text hover:bg-surface-hover rounded-md disabled:opacity-30 disabled:cursor-not-allowed transition-colors" title="Next">
                   <ChevronRight size={16} />
                 </button>

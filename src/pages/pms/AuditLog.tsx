@@ -45,11 +45,16 @@ export default function AuditLog() {
     setIsLoading(true);
     setError(null);
 
+    // 'all' needs the top (page+1)*PER_PAGE of *each* source: the newest N of a
+    // union always lie within the newest N of each part. Paging each source
+    // separately and merging made union rows unreachable.
+    const from = source === 'all' ? 0 : page * PER_PAGE;
     const fetchOne = (table: string, mapper: (r: Record<string, unknown>) => UnifiedLog) =>
       db.from(table)
         .select('*')
         .order('created_at', { ascending: false })
-        .range(page * PER_PAGE, (page + 1) * PER_PAGE - 1)
+        .order('id')
+        .range(from, (page + 1) * PER_PAGE - 1)
         .then(({ data, error: err }) => {
           if (err) throw new Error(err.message);
           return (data ?? []).map((r) => mapper(r as Record<string, unknown>));
@@ -62,10 +67,8 @@ export default function AuditLog() {
 
     void Promise.all(wanted)
       .then((lists) => {
-        // 'all': merged client-side by time; each source pages independently so a
-        // page shows the newest PER_PAGE of the union of both pages.
         const merged = lists.flat().sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-        setLogs(source === 'all' ? merged.slice(0, PER_PAGE) : merged);
+        setLogs(source === 'all' ? merged.slice(page * PER_PAGE, (page + 1) * PER_PAGE) : merged);
       })
       .catch((e: Error) => {
         setError(e.message);
