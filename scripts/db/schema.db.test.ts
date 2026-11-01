@@ -27,9 +27,9 @@ describe('schema integrity (BUG-32)', () => {
   const fails = (sql: string) =>
     expect(db.transaction(async tx => { await tx.exec(sql); })).rejects.toThrow();
 
-  it('a ProjectNo is unique', async () => {
-    await db.exec(`INSERT INTO projects ("ProjectID", "ProjectNo") VALUES ('P-1', 'OLP-0101')`);
-    await fails(`INSERT INTO projects ("ProjectID", "ProjectNo") VALUES ('P-2', 'OLP-0101')`);
+  it('work packages may share one ProjectNo; ProjectID is the key', async () => {
+    await db.exec(`INSERT INTO projects ("ProjectID", "ProjectNo") VALUES ('P-1', 'OLP-0101'), ('P-2', 'OLP-0101')`);
+    await fails(`INSERT INTO projects ("ProjectID", "ProjectNo") VALUES ('P-1', 'OLP-0102')`);
   });
 
   it('only one appraisal cycle can be OPEN, and a cycle ends after it starts', async () => {
