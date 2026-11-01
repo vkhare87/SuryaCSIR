@@ -9,20 +9,13 @@ import {
   type FileType,
 } from '../utils/dataMigration';
 import { useDialog } from '../utils/useDialog';
+import { PK_FIELD, updateEntityRecord } from '../lib/data/entityWrite';
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
-export const PK_FIELD: Record<FileType, string> = {
-  divisions:    'divCode',
-  staff:        'ID',
-  projects:     'ProjectID',
-  projectStaff: 'id',
-  phd:          'EnrollmentNo',
-  equipment:    'UInsID',
-  contractStaff: 'id',
-};
+export { PK_FIELD };
 
 // Auto-generated PK (UUID) — user cannot edit these
 const AUTO_PK: FileType[] = ['projectStaff', 'contractStaff'];
@@ -102,12 +95,8 @@ export function EntityEditModal({ type, record, onClose, onSaved }: EntityEditMo
           .insert(payload);
         if (e) throw new Error(e.message);
       } else {
-        const pkVal = record![pk];
-        const { error: e } = await supabase
-          .from(TABLE_NAMES[type])
-          .update(payload)
-          .eq(pk, pkVal);
-        if (e) throw new Error(e.message);
+        const res = await updateEntityRecord(type, record![pk], payload);
+        if (!res.ok) throw new Error(res.error);
       }
 
       onSaved();
