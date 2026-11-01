@@ -94,11 +94,38 @@ def test_no_citations_means_no_proposed_action():
 
 
 def test_minted_token_is_valid_hs256_for_the_owner():
-    tok = mint_user_token("s3cret", "user-1", "a@b.in", ttl_s=300, now=1000)
+    tok = mint_user_token("s3cret", "user-1", "a@b.in", ttl_s=300, now=1000, jti="j1")
     head, body, sig = tok.split(".")
     pad = lambda s: s + "=" * (-len(s) % 4)  # noqa: E731
     payload = json.loads(base64.urlsafe_b64decode(pad(body)))
     assert payload == {"sub": "user-1", "role": "authenticated", "aud": "authenticated",
-                       "iat": 1000, "exp": 1300, "email": "a@b.in"}
+                       "iat": 1000, "exp": 1300, "jti": "j1", "email": "a@b.in"}
     want = hmac.new(b"s3cret", f"{head}.{body}".encode(), hashlib.sha256).digest()
     assert base64.urlsafe_b64decode(pad(sig)) == want
+
+
+def _payload(tok):
+    body = tok.split(".")[1]
+    return json.loads(base64.urlsafe_b64decode(body + "=" * (-len(body) % 4)))
+
+
+def test_each_minted_token_has_its_own_jti():
+    a, b = (_payload(mint_user_token("s", "u", None))["jti"] for _ in range(2))
+    assert len(a) == 32 and a != b
+
+
+def test_brief_client_logs_one_mint_line_with_the_tokens_jti(monkeypatch):
+    import worker
+
+    class Cfg:
+        supabase_jwt_secret, supabase_url, supabase_anon_key = "s", "http://sb", "anon"
+
+    class Db:
+        def user_email(self, _):
+            return "a@b.in"
+
+    seen, lines = [], []
+    monkeypatch.setattr("auth.scoped_client", lambda url, key, tok: seen.append(tok) or "client")
+    client_for = worker.brief_client_factory(Cfg(), Db(), log=lines.append)
+    assert client_for("owner-1") == "client"
+    assert lines == [f"[rag] brief token minted owner=owner-1 jti={_payload(seen[0])['jti']}"]
