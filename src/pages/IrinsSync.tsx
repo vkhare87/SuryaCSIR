@@ -1,18 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Card, Badge } from '../components/ui/Cards';
 import { RefreshCw, Cloud, ExternalLink, ChevronDown, ChevronRight, Search } from 'lucide-react';
 import clsx from 'clsx';
+import { useData } from '../contexts/DataContext';
 import { supabase } from '../utils/supabaseClient';
-
-// Raw staff row from Supabase (quoted CamelCase columns)
-interface StaffRow {
-  ID: string;
-  Name: string;
-  Designation: string;
-  Division: string;
-  VidwanID: string;
-  Group: string;
-}
+import { fetchAll } from '../lib/data/fetchAll';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -43,7 +35,7 @@ interface SyncLogEntry {
 export default function IrinsSync() {
   const [profiles, setProfiles] = useState<IrinsProfile[]>([]);
   const [syncLogs, setSyncLogs] = useState<SyncLogEntry[]>([]);
-  const [staff, setStaff] = useState<StaffRow[]>([]);
+  const { staff: allStaff } = useData();
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [expandedScientist, setExpandedScientist] = useState<string | null>(null);
@@ -51,18 +43,30 @@ export default function IrinsSync() {
 
   // --- Load data ---
   const loadData = useCallback(async () => {
-    if (!supabase) return;
+    if (!supabase) { setLoading(false); return; }
     setLoading(true);
-    const [profilesRes, logsRes, staffRes] = await Promise.all([
-      supabase.from('irins_profiles').select('*').order('synced_at', { ascending: false }),
-      supabase.from('irins_sync_log').select('*').order('started_at', { ascending: false }).limit(20),
-      supabase.from('staff').select('*').eq('Group', 'Scientific').neq('VidwanID', '').not('VidwanID', 'is', null).order('Name'),
-    ]);
-    if (profilesRes.data) setProfiles(profilesRes.data);
-    if (logsRes.data) setSyncLogs(logsRes.data);
-    if (staffRes.data) setStaff(staffRes.data as StaffRow[]);
-    setLoading(false);
+    try {
+      const [profilesRes, logsRes] = await Promise.all([
+        fetchAll(supabase.from('irins_profiles').select('*').order('synced_at', { ascending: false }).order('vidwan_id')),
+        supabase.from('irins_sync_log').select('*').order('started_at', { ascending: false }).limit(20),
+      ]);
+      if (profilesRes.error) throw profilesRes.error;
+      if (logsRes.error) throw logsRes.error;
+      setProfiles(profilesRes.data as IrinsProfile[]);
+      setSyncLogs(logsRes.data ?? []);
+    } catch (e) {
+      console.error('[irins] load failed', e);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  const staff = useMemo(
+    () => allStaff
+      .filter(s => s.Group === 'Scientific' && s.VidwanID)
+      .sort((a, b) => (a.Name ?? '').localeCompare(b.Name ?? '')),
+    [allStaff],
+  );
 
   useEffect(() => { loadData(); }, [loadData]);
 

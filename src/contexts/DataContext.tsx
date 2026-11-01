@@ -143,7 +143,7 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 // ---------------------------------------------------------------------------
 
 export function DataProvider({ children }: { children: ReactNode }) {
-  const { role, divisionCode } = useAuth();
+  const { isAuthenticated, role, divisionCode } = useAuth();
   const { push: pushToast } = useToast();
   const { canAccess } = useFeatureControls();
   const provisioned = isProvisioned();
@@ -223,6 +223,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
     try {
       if (!provisioned || !supabase) {
         setError('Backend not configured. Go to Setup.');
+        resetAll();
+        return;
+      }
+      // Before auth resolves every table answers empty under RLS: a wasted
+      // round of requests and an empty-data flash.
+      if (!isAuthenticated) {
         resetAll();
         return;
       }
@@ -356,14 +362,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     loadData();
-  }, [provisioned, role, divisionCode, loadRecruitment, loadDataOps, loadContracts]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [provisioned, isAuthenticated, role, divisionCode, loadRecruitment, loadDataOps, loadContracts]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const refreshCalendar = async () => {
     if (!supabase) return;
-    const { data, error: err } = await supabase
+    const { data, error: err } = await fetchAll(supabase
       .from('calendar_events')
       .select('*')
-      .order('event_date', { ascending: true });
+      .order('event_date', { ascending: true })
+      .order('id'));
     if (err) {
       logger.error('refresh_calendar_failed', err);
       pushToast(`Calendar refresh failed: ${err.message}`, 'error');
@@ -374,10 +381,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const refreshHolidays = async () => {
     if (!supabase) return;
-    const { data, error: err } = await supabase
+    const { data, error: err } = await fetchAll(supabase
       .from('holidays')
       .select('*')
-      .order('holiday_date', { ascending: true });
+      .order('holiday_date', { ascending: true })
+      .order('id'));
     if (err) {
       logger.error('refresh_holidays_failed', err);
       pushToast(`Holidays refresh failed: ${err.message}`, 'error');
@@ -423,9 +431,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
       refreshData: loadData,
       saveEquipment: async (payload) => {
         if (!supabase) throw new Error('Supabase not configured');
-        const { error: sbErr } = await supabase.from('equipment').upsert(payload);
+        const { data, error: sbErr } = await supabase.from('equipment').upsert(payload).select().single();
         if (sbErr) throw sbErr;
-        await loadData();
+        const saved = mapEquipmentRow(data);
+        setEquipment(prev => [saved, ...prev.filter(e => e.UInsID !== saved.UInsID)]);
       },
       error,
     }}>

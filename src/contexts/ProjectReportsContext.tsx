@@ -3,6 +3,7 @@ import { createContext, useContext, useState, useEffect, useCallback, type React
 import { supabase, isProvisioned } from '../utils/supabaseClient';
 import { useAuth } from './AuthContext';
 import type { ProjectReport, ProjectReportStatus } from '../types/projectReport';
+import { fetchAll } from '../lib/data/fetchAll';
 
 function mapRow(r: Record<string, unknown>): ProjectReport {
   return {
@@ -81,10 +82,11 @@ export function ProjectReportsProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     setError(null);
     try {
-      const { data, error: err } = await supabase
+      const { data, error: err } = await fetchAll(supabase
         .from('project_reports')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .order('id'));
       if (err) throw err;
       setReports((data ?? []).map(mapRow));
     } catch (e) {
