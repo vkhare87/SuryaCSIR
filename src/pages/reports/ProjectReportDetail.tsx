@@ -9,6 +9,7 @@ import { PR_STATUS_LABELS, PR_STATUS_VARIANT, PR_EDITABLE } from '../../lib/proj
 import { uploadDocument, getDocumentUrl, openDocumentUrl, listDocuments } from '../../lib/documents/registry';
 import type { ProjectReport } from '../../types/projectReport';
 import { useBack } from '../../utils/useBack';
+import { friendlyError } from '../../lib/errors';
 
 const REVIEWER_ROLES = ['HOD', 'DivisionHead', 'Director', 'HRAdmin', 'SystemAdmin', 'MasterAdmin'];
 
@@ -37,7 +38,7 @@ export default function ProjectReportDetail() {
     setLoading(false);
   }, [id, getReport]);
 
-  useEffect(() => { load().catch((e) => { setError((e as Error).message); setLoading(false); }); }, [load]);
+  useEffect(() => { load().catch((e) => { setError(friendlyError(e)); setLoading(false); }); }, [load]);
 
   if (loading) return <div className="p-6 text-text-muted">Loading…</div>;
   if (!report) return (
@@ -54,7 +55,7 @@ export default function ProjectReportDetail() {
 
   async function act(fn: () => Promise<void>) {
     setBusy(true); setError('');
-    try { await fn(); await load(); } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
+    try { await fn(); await load(); } catch (e) { setError(friendlyError(e)); } finally { setBusy(false); }
   }
 
   async function onUpload(e: React.ChangeEvent<HTMLInputElement>) {

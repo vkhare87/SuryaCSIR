@@ -10,6 +10,7 @@ import {
 } from '../utils/dataMigration';
 import { useDialog } from '../utils/useDialog';
 import { PK_FIELD, updateEntityRecord } from '../lib/data/entityWrite';
+import { friendlyError } from '../lib/errors';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -93,7 +94,7 @@ export function EntityEditModal({ type, record, onClose, onSaved }: EntityEditMo
         const { error: e } = await supabase
           .from(TABLE_NAMES[type])
           .insert(payload);
-        if (e) throw new Error(e.message);
+        if (e) throw e;
       } else {
         const res = await updateEntityRecord(type, record![pk], payload);
         if (!res.ok) throw new Error(res.error);
@@ -102,7 +103,7 @@ export function EntityEditModal({ type, record, onClose, onSaved }: EntityEditMo
       onSaved();
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Save failed');
+      setError(friendlyError(e, 'Save failed'));
     } finally {
       setSaving(false);
     }

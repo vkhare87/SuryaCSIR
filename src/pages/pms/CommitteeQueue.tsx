@@ -12,6 +12,7 @@ import { Modal } from '../../components/ui/Modal';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { EvidencePanel } from '../../components/pms/EvidencePanel';
 import type { PMSEvaluation, PMSReportSection, PMSAnnexure, PMSReport, ReportStatus } from '../../types/pms';
+import { friendlyError } from '../../lib/errors';
 
 type ReportDetail = PMSReport & { sections: PMSReportSection[]; annexures: PMSAnnexure[] };
 
@@ -117,7 +118,7 @@ export default function CommitteeQueue() {
         await finalizeSeniorReport(selectedReportId, justification);
         setSelectedReportId(null);
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Finalization failed');
+        setError(friendlyError(e, 'Finalization failed'));
       } finally {
         setSaving(false);
       }
@@ -153,7 +154,7 @@ export default function CommitteeQueue() {
         : 'Report finalized, but the final PDF record was not filed. A PMS admin must open the report and press "File final record".');
       setSelectedReportId(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Finalization failed');
+      setError(friendlyError(e, 'Finalization failed'));
     } finally {
       setSaving(false);
     }

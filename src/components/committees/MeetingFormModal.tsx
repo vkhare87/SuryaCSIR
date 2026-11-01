@@ -3,6 +3,7 @@ import { useData } from '../../contexts/DataContext';
 import { Modal } from '../ui/Modal';
 import { supabase } from '../../utils/supabaseClient';
 import type { Meeting } from '../../types';
+import { friendlyError } from '../../lib/errors';
 
 interface AgendaItemDraft {
   description: string;
@@ -137,7 +138,7 @@ export function MeetingFormModal({ isOpen, onClose, committeeId, meeting }: Meet
       await refreshData?.();
       onClose();
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : 'Failed to save meeting');
+      setSubmitError(friendlyError(err, 'Failed to save meeting'));
     } finally {
       setSubmitting(false);
     }

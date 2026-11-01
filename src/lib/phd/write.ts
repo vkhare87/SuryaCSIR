@@ -1,5 +1,6 @@
 import { supabase } from '../../utils/supabaseClient';
 import type { PhDMilestoneName } from '../../types';
+import { friendlyError } from '../errors';
 
 export interface MilestoneInput {
   enrollmentNo: string;
@@ -17,5 +18,5 @@ export async function upsertMilestone(input: MilestoneInput): Promise<{ ok: true
     due_date: input.dueDate || null, completed_date: input.completedDate || null,
     remarks: input.remarks || null,
   }, { onConflict: 'enrollment_no,milestone' });
-  return error ? { ok: false, error: error.message } : { ok: true };
+  return error ? { ok: false, error: friendlyError(error) } : { ok: true };
 }

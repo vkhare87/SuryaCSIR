@@ -10,6 +10,7 @@ import { parseCost } from '../utils/parseCost';
 import type { AskCitation } from '../lib/ask/client';
 import type { ComparableRef } from '../lib/ask/comparables';
 import type { Project } from '../types';
+import { friendlyError } from '../lib/errors';
 
 interface SimilarWorkPanelProps {
   /** Topic to check — e.g. proposal title + abstract. */
@@ -41,7 +42,7 @@ export function SimilarWorkPanel({ text }: SimilarWorkPanelProps) {
       setMatches(found);
       setComparables(await resolveComparables(found.map((c) => c.document_id)));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Similarity check failed');
+      setError(friendlyError(err, 'Similarity check failed'));
     } finally {
       setLoading(false);
     }

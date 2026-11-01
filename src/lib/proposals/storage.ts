@@ -3,6 +3,7 @@ import type { ProposalDocType, ProposalDocument } from '../../types/proposal';
 import { mapDocumentRow } from '../../utils/proposalMappers';
 import { ALLOWED_MIME_TYPES, MAX_FILE_SIZE_BYTES } from './constants';
 import { registerDocument, createSignedUrl } from '../documents/registry';
+import { friendlyError } from '../errors';
 
 const BUCKET = 'proposal-documents';
 
@@ -31,7 +32,7 @@ export async function uploadProposalDoc(
     contentType: file.type,
     upsert: false,
   });
-  if (uploadErr) return { ok: false, error: uploadErr.message };
+  if (uploadErr) return { ok: false, error: friendlyError(uploadErr) };
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {

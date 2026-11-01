@@ -6,6 +6,7 @@ import { supabase } from '../../utils/supabaseClient';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { mapPmsRow, mapModuleRow, summarizeDetails } from '../../lib/audit/mappers';
 import type { UnifiedLog } from '../../lib/audit/mappers';
+import { friendlyError } from '../../lib/errors';
 
 type Source = 'all' | 'pms' | 'modules';
 
@@ -56,7 +57,7 @@ export default function AuditLog() {
         .order('id')
         .range(from, (page + 1) * PER_PAGE - 1)
         .then(({ data, error: err }) => {
-          if (err) throw new Error(err.message);
+          if (err) throw err;
           return (data ?? []).map((r) => mapper(r as Record<string, unknown>));
         });
 
@@ -71,7 +72,7 @@ export default function AuditLog() {
         setLogs(source === 'all' ? merged.slice(page * PER_PAGE, (page + 1) * PER_PAGE) : merged);
       })
       .catch((e: Error) => {
-        setError(e.message);
+        setError(friendlyError(e));
         setLogs([]);
       })
       .finally(() => setIsLoading(false));

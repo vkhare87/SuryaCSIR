@@ -8,6 +8,7 @@ import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Skeleton } from '../../components/ui/Skeleton';
 import type { CycleStatus } from '../../types/pms';
+import { friendlyError } from '../../lib/errors';
 
 interface CycleForm {
   name: string;
@@ -69,7 +70,7 @@ export default function Cycles() {
         setShowCreate(false);
       }
     } catch (e) {
-      setFormError(e instanceof Error ? e.message : 'Failed to save');
+      setFormError(friendlyError(e, 'Failed to save'));
     } finally {
       setSaving(false);
     }

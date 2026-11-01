@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import { useData } from '../contexts/DataContext';
 import type { Role } from '../types';
+import { friendlyError } from '../lib/errors';
 
 export interface DirectoryUser {
   userId: string;
@@ -30,7 +31,7 @@ export function useUserDirectory() {
       const { data, error: rpcError } = await supabase.rpc('user_directory');
       if (cancelled) return;
       if (rpcError) {
-        setError(rpcError.message);
+        setError(friendlyError(rpcError));
         setUsers([]);
         setLoading(false);
         return;

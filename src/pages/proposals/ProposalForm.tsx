@@ -14,6 +14,7 @@ import {
 import { canEditProposal } from '../../lib/proposals/permissions';
 import type { Proposal, ProposalCoPI } from '../../types/proposal';
 import type { StaffMember } from '../../types';
+import { friendlyError } from '../../lib/errors';
 
 interface FormState {
   title: string;
@@ -109,7 +110,7 @@ export default function ProposalForm() {
           coPIs: p.coPIs ?? [],
         });
       } catch (e) {
-        setError((e as Error).message);
+        setError(friendlyError(e));
       }
     })();
     return () => { cancelled = true; };
@@ -178,7 +179,7 @@ export default function ProposalForm() {
 
       navigate(proposalId ? `/proposals/${proposalId}` : '/proposals');
     } catch (e) {
-      setError((e as Error).message);
+      setError(friendlyError(e));
     } finally {
       setSaving(false);
     }

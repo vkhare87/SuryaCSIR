@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../utils/supabaseClient';
 import { ROLE_ROUTES } from '../constants/roleRoutes';
 import { validatePassword, MIN_PASSWORD_LENGTH } from '../lib/auth/passwordPolicy';
+import { friendlyError } from '../lib/errors';
 
 export default function ChangePassword() {
   const { user, clearMustChangePassword, role } = useAuth();
@@ -62,7 +63,7 @@ export default function ChangePassword() {
       password: newPassword,
     });
     if (updateError) {
-      setError(updateError.message);
+      setError(friendlyError(updateError));
       setIsLoading(false);
       return;
     }

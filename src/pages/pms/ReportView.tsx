@@ -14,6 +14,7 @@ import { Skeleton } from '../../components/ui/Skeleton';
 import { ReportPDF } from '../../components/pms/ReportPDF';
 import { ReportAWPSection } from '../../components/pms/ReportAWPSection';
 import type { PMSReport, PMSReportSection, PMSAnnexure, PMSAWPActivity, PMSCommitteeDecision } from '../../types/pms';
+import { friendlyError } from '../../lib/errors';
 
 type FullReport = PMSReport & { sections: PMSReportSection[]; annexures: PMSAnnexure[]; awpActivities: PMSAWPActivity[] };
 
@@ -94,7 +95,7 @@ export default function ReportView() {
       setShowRepresent(false);
       setReport({ ...report, status: 'UNDER_GRIEVANCE_REVIEW' });
     } catch (e) {
-      setRepresentError(e instanceof Error ? e.message : 'Failed to submit representation');
+      setRepresentError(friendlyError(e, 'Failed to submit representation'));
     } finally {
       setRepresenting(false);
     }

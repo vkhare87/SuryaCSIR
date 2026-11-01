@@ -7,6 +7,7 @@ import { z } from 'zod';
 // ---------------------------------------------------------------------------
 
 import { FILE_TYPE_LABELS, type FileType } from './fileTypes';
+import { friendlyError } from '../lib/errors';
 export { FILE_TYPE_LABELS };
 export type { FileType };
 
@@ -618,7 +619,7 @@ export async function pushToSupabase(
       const { error } = await client.from(tableName).upsert(chunk);
       if (error) {
         failed += chunk.length;
-        onLog(`Batch ${batchNum}/${total}: failed — ${error.message}`);
+        onLog(`Batch ${batchNum}/${total}: failed — ${friendlyError(error)}`);
       } else {
         upserted += chunk.length;
         onLog(`Batch ${batchNum}/${total}: upserted ${chunk.length} rows`);

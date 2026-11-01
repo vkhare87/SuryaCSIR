@@ -4,6 +4,7 @@ import { supabase, isProvisioned } from '../utils/supabaseClient';
 import { useAuth } from './AuthContext';
 import type { ProjectReport, ProjectReportStatus } from '../types/projectReport';
 import { fetchAll } from '../lib/data/fetchAll';
+import { friendlyError } from '../lib/errors';
 
 function mapRow(r: Record<string, unknown>): ProjectReport {
   return {
@@ -91,7 +92,7 @@ export function ProjectReportsProvider({ children }: { children: ReactNode }) {
       setReports((data ?? []).map(mapRow));
     } catch (e) {
       console.error('[project-reports] refresh failed', e);
-      setError((e as Error).message);
+      setError(friendlyError(e));
       setReports([]);
     } finally {
       setIsLoading(false);

@@ -11,6 +11,7 @@ import { Trash2, Edit2, Upload, Plus, Save, X } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
 import type { Holiday } from '../../types';
+import { friendlyError } from '../../lib/errors';
 
 type HolidayType = Holiday['holiday_type'];
 
@@ -82,7 +83,7 @@ export default function HolidaysAdmin() {
       year: y,
     });
     if (error) {
-      pushToast(`Add failed: ${error.message}`, 'error');
+      pushToast(`Add failed: ${friendlyError(error)}`, 'error');
       return;
     }
     pushToast('Holiday added', 'success');
@@ -105,7 +106,7 @@ export default function HolidaysAdmin() {
       year: y,
     }).eq('id', id);
     if (error) {
-      pushToast(`Update failed: ${error.message}`, 'error');
+      pushToast(`Update failed: ${friendlyError(error)}`, 'error');
       return;
     }
     pushToast('Holiday updated', 'success');
@@ -118,7 +119,7 @@ export default function HolidaysAdmin() {
     if (!window.confirm('Delete this holiday?')) return;
     const { error } = await supabase.from('holidays').delete().eq('id', id);
     if (error) {
-      pushToast(`Delete failed: ${error.message}`, 'error');
+      pushToast(`Delete failed: ${friendlyError(error)}`, 'error');
       return;
     }
     pushToast('Holiday deleted', 'success');
@@ -161,7 +162,7 @@ export default function HolidaysAdmin() {
     }));
     const { error } = await supabase.from('holidays').insert(payload);
     if (error) {
-      pushToast(`Import failed: ${error.message}`, 'error');
+      pushToast(`Import failed: ${friendlyError(error)}`, 'error');
       return;
     }
     pushToast(`Imported ${valid.length} rows`, 'success');

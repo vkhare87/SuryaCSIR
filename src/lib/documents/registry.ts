@@ -1,6 +1,7 @@
 import { supabase, getSupabaseUrl, getSupabaseAnonKey } from '../../utils/supabaseClient';
 import { bearerToken } from '../auth/bearerToken';
 import { logger } from '../../utils/logger';
+import { friendlyError } from '../errors';
 
 export type DocAccessTier = 'institute' | 'division' | 'owner' | 'confidential';
 
@@ -86,7 +87,7 @@ export async function uploadDocument(
   const { error: upErr } = await supabase.storage.from(SHARED_BUCKET).upload(path, file, {
     contentType: file.type, upsert: false,
   });
-  if (upErr) return { ok: false, error: upErr.message };
+  if (upErr) return { ok: false, error: friendlyError(upErr) };
 
   const id = await registerDocument({
     entityType: input.entityType,

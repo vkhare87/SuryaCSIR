@@ -1,5 +1,6 @@
 import { supabase } from '../../utils/supabaseClient';
 import type { VacancyAdvertisement } from '../../types';
+import { friendlyError } from '../errors';
 
 export type DriveStage = VacancyAdvertisement['driveStage'];
 
@@ -19,5 +20,5 @@ export function drivesByStage(ads: VacancyAdvertisement[]) {
 export async function setDriveStage(id: string, stage: DriveStage): Promise<{ ok: true } | { ok: false; error: string }> {
   if (!supabase) return { ok: false, error: 'Database not provisioned' };
   const { error } = await supabase.from('vacancy_advertisements').update({ drive_stage: stage }).eq('id', id);
-  return error ? { ok: false, error: error.message } : { ok: true };
+  return error ? { ok: false, error: friendlyError(error) } : { ok: true };
 }

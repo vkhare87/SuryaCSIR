@@ -4,6 +4,7 @@ import { supabase } from '../../utils/supabaseClient';
 import { useData } from '../../contexts/DataContext';
 import { registerDocument, unregisterDocument } from '../../lib/documents/registry';
 import type { MeetingDocument } from '../../types';
+import { friendlyError } from '../../lib/errors';
 
 interface DocumentUploaderProps {
   meetingId: string;
@@ -54,7 +55,7 @@ export function DocumentUploader({ meetingId, committeeId, canUpload }: Document
 
       await refreshData?.();
     } catch (err) {
-      setUploadError(err instanceof Error ? err.message : 'Upload failed');
+      setUploadError(friendlyError(err, 'Upload failed'));
     } finally {
       setUploading(false);
       e.target.value = '';

@@ -9,6 +9,7 @@ import { StatusBadge } from '../../components/pms/StatusBadge';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { friendlyError } from '../../lib/errors';
 
 export default function Reports() {
   const { user } = useAuth();
@@ -57,7 +58,7 @@ export default function Reports() {
     try {
       await fn();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Operation failed');
+      setError(friendlyError(e, 'Operation failed'));
     } finally {
       setSaving(false);
     }

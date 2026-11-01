@@ -4,6 +4,7 @@ import { Modal } from './ui/Modal';
 import { Button } from './ui/Button';
 import { supabase } from '../utils/supabaseClient';
 import type { PhDStudent } from '../types';
+import { friendlyError } from '../lib/errors';
 
 interface Props {
   isOpen: boolean;
@@ -72,7 +73,7 @@ export function PhDStudentFormModal({ isOpen, onClose, student }: Props) {
 
     setSubmitting(false);
     if (error) {
-      setSubmitError(error.message);
+      setSubmitError(friendlyError(error));
       return;
     }
     await refreshData();
@@ -86,7 +87,7 @@ export function PhDStudentFormModal({ isOpen, onClose, student }: Props) {
     const { error } = await supabase.from('phd_students').delete().eq('EnrollmentNo', student.EnrollmentNo);
     setSubmitting(false);
     if (error) {
-      setSubmitError(error.message);
+      setSubmitError(friendlyError(error));
       return;
     }
     await refreshData();

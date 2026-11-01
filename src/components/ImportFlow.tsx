@@ -25,6 +25,7 @@ import {
   saveMapping,
   suggestMappingsViaAI,
 } from '../lib/ingest/columnMapping';
+import { friendlyError } from '../lib/errors';
 
 const STEPS = [
   { num: 1 as const, label: 'Upload' },
@@ -209,7 +210,7 @@ export function ImportFlow({ type, showTypePicker = false, initialFile, onComple
       const suggestions = await suggestMappingsViaAI(supabase, unmapped, targetFields);
       applyMapping(rawData, columnMappings.map((m) => (m.mapped ? m : { raw: m.raw, mapped: suggestions[m.raw] ?? null })));
     } catch (err) {
-      pushToast(`AI mapping suggestion failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      pushToast(`AI mapping suggestion failed: ${friendlyError(err)}`, 'error');
     } finally {
       setIsSuggesting(false);
     }
@@ -254,7 +255,7 @@ export function ImportFlow({ type, showTypePicker = false, initialFile, onComple
         uploaded_by: user.id,
         uploaded_by_email: user.email,
       });
-      if (eventErr) pushToast(`Import saved, but the upload log failed: ${eventErr.message}`, 'warning');
+      if (eventErr) pushToast(`Import saved, but the upload log failed: ${friendlyError(eventErr)}`, 'warning');
     }
 
     // Phase C: remember this header shape's mapping so the next file from

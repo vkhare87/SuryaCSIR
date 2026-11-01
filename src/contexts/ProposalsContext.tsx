@@ -9,6 +9,7 @@ import {
 } from '../utils/proposalMappers';
 import type { Proposal, ProposalCoPI } from '../types/proposal';
 import { fetchAll } from '../lib/data/fetchAll';
+import { friendlyError } from '../lib/errors';
 
 interface ProposalsContextType {
   proposals: Proposal[];
@@ -53,7 +54,7 @@ export function ProposalsProvider({ children }: { children: ReactNode }) {
       setProposals((data ?? []).map(mapProposalRow));
     } catch (e) {
       console.error('[proposals] refresh failed', e);
-      setError((e as Error).message);
+      setError(friendlyError(e));
       setProposals([]);
     } finally {
       setIsLoading(false);

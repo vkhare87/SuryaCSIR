@@ -27,8 +27,8 @@ describe('updateEntityRecord', () => {
     expect(await updateEntityRecord('projects', 'P-1', { ProjectName: 'X' })).toEqual({ ok: true });
   });
 
-  it('passes through a database error', async () => {
-    result = { data: null, error: { message: 'boom' } };
-    expect(await updateEntityRecord('projects', 'P-1', {})).toEqual({ ok: false, error: 'boom' });
+  it('turns a database error into friendly text (SEC-06)', async () => {
+    result = { data: null, error: { code: '23505', message: 'Key ("ProjectID")=(P-1) already exists.' } };
+    expect(await updateEntityRecord('projects', 'P-1', {})).toEqual({ ok: false, error: 'That record already exists.' });
   });
 });

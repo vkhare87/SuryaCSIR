@@ -5,6 +5,7 @@ import { useAuth } from './AuthContext';
 import { mapAWPRow, mapAWPRevisionRow } from '../utils/pmsMappers';
 import type { AWPContent, AWPVerdict, PMSAWP, PMSAWPRevision } from '../types/pms';
 import { fetchAll } from '../lib/data/fetchAll';
+import { friendlyError } from '../lib/errors';
 
 export interface AWPImportInput {
   staffId: string;
@@ -87,7 +88,7 @@ export function AWPProvider({ children }: { children: ReactNode }) {
       setMyStaffId((staffRes.data as string | null) ?? null);
     } catch (e) {
       console.error('[awp] load failed', e);
-      setError(e instanceof Error ? e.message : 'Failed to load Annual Work Plans');
+      setError(friendlyError(e, 'Failed to load Annual Work Plans'));
       setAwps([]);
       setRevisions([]);
     } finally {
@@ -100,7 +101,7 @@ export function AWPProvider({ children }: { children: ReactNode }) {
   // Every write is an RPC; reload afterwards so status/timestamps come from the DB.
   const call = useCallback(async <T = void,>(fn: string, args: Record<string, unknown>): Promise<T> => {
     const { data, error: err } = await client().rpc(fn, args);
-    if (err) throw new Error(err.message);
+    if (err) throw err;
     await refresh();
     return data as T;
   }, [refresh]);
@@ -141,7 +142,7 @@ export function AWPProvider({ children }: { children: ReactNode }) {
     const { error: upErr } = await sb.storage.from('awp-pdfs').upload(path, input.pdf, {
       contentType: 'application/pdf',
     });
-    if (upErr) throw new Error(upErr.message);
+    if (upErr) throw upErr;
     return call<string>('pms_awp_import', {
       p_staff_id: input.staffId,
       p_year: input.year,
@@ -169,7 +170,7 @@ export function AWPProvider({ children }: { children: ReactNode }) {
 
   const awpForReport = useCallback(async (reportId: string): Promise<PMSAWP | null> => {
     const { data, error: err } = await client().rpc('pms_awp_for_report', { p_report_id: reportId });
-    if (err) throw new Error(err.message);
+    if (err) throw err;
     const row = (data as Record<string, unknown>[] | null)?.[0];
     return row ? mapAWPRow(row) : null;
   }, []);

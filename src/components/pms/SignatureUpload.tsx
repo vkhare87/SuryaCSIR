@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Upload, X } from 'lucide-react';
 import { Button } from '../ui/Button';
+import { friendlyError } from '../../lib/errors';
 
 interface Props {
   currentUrl: string | null;
@@ -25,7 +26,7 @@ export function SignatureUpload({ currentUrl, onUpload }: Props) {
     try {
       await onUpload(file);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Upload failed');
+      setError(friendlyError(e, 'Upload failed'));
     } finally {
       setUploading(false);
     }

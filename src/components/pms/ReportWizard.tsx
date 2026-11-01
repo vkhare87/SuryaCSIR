@@ -23,6 +23,7 @@ import { SignatureUpload } from './SignatureUpload';
 import { AnnexureUpload } from './AnnexureUpload';
 import { AWPNextYearLink } from './AWPNextYearLink';
 import type { PMSReport, PMSReportSection, PMSAnnexure, PMSAWPActivity, SectionKey } from '../../types/pms';
+import { friendlyError } from '../../lib/errors';
 
 type FullReport = PMSReport & { sections: PMSReportSection[]; annexures: PMSAnnexure[]; awpActivities: PMSAWPActivity[] };
 type FormComponent = ComponentType<{ data: Record<string, unknown>; onChange: (d: Record<string, unknown>) => void }>;
@@ -100,7 +101,7 @@ export function ReportWizard({ report: initialReport, cycleOpen }: Props) {
         setReport(r => ({ ...r, ...payload }));
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Save failed');
+      setError(friendlyError(e, 'Save failed'));
       throw e;
     } finally {
       setSaving(false);
@@ -134,7 +135,7 @@ export function ReportWizard({ report: initialReport, cycleOpen }: Props) {
       await submitReport(report.id);
       navigate(`/pms/reports/${report.id}`, { replace: true });
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Submit failed');
+      setError(friendlyError(e, 'Submit failed'));
     } finally {
       setSubmitting(false);
     }

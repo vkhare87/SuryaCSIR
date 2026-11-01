@@ -3,6 +3,7 @@ import { useData } from '../contexts/DataContext';
 import { X } from 'lucide-react';
 import type { Equipment } from '../types';
 import { useDialog } from '../utils/useDialog';
+import { friendlyError } from '../lib/errors';
 
 interface Props {
   instrument: Equipment | null;
@@ -81,7 +82,7 @@ export function InstrumentForm({ instrument, onClose }: Props) {
       await saveEquipment(payload);
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Save failed');
+      setError(friendlyError(err, 'Save failed'));
     } finally {
       setSaving(false);
     }
