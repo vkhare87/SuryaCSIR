@@ -43,6 +43,11 @@ VITE_SUPABASE_ANON_KEY=<anon key>
 VITE_RAG_URL=http://localhost:8000     # or /rag behind nginx in production
 ```
 
+**Offline dev login.** `admin@dev.local` / `admin123` signs in as SystemAdmin +
+MasterAdmin without Supabase, so it bypasses every RLS policy. It works only with
+`VITE_DEV_LOGIN=1` in `.env.local` and outside a production build. Never set it in
+a deploy profile or the build machine's environment (SEC-07).
+
 **With no credentials the app still runs** — `isProvisioned()` returns false and
 `DataProvider` serves `src/utils/mockData.ts`. That is the intended path for UI work.
 
@@ -65,7 +70,12 @@ supabase db reset         # rebuild from migrations + seed
 ```
 
 Demo data (`supabase/mock/*.sql`) is **development only**. A mock helpdesk fixture once
-reached production and had to be removed by hand.
+reached production and had to be removed by hand. Each file now refuses to run unless the
+session opts in, and stops psql at that refusal. Load one into a **local** database only:
+
+```bash
+PGOPTIONS='-c surya.allow_mock=on' psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -f supabase/mock/01_divisions.sql
+```
 
 ### 1.4 RAG service
 
