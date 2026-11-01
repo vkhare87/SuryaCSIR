@@ -4,6 +4,7 @@ import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
 import { Card, Badge } from '../components/ui/Cards';
 import { InstrumentForm } from '../components/InstrumentForm';
+import { RequestUpdateButton } from '../components/RequestUpdateButton';
 import { RelatedRail, type RailSection } from '../components/RelatedRail';
 import { amcStatus, AMC_CARD_COLORS, AMC_TEXT_COLORS, findStaffByName } from '../utils/dateUtils';
 import { equipmentStatusClass } from '../utils/equipmentStatus';
@@ -101,6 +102,13 @@ export default function InstrumentDetail() {
         </div>
         <div className="flex items-center gap-2">
           <RelatedRail sections={relatedSections} />
+          <RequestUpdateButton
+            domain="equipment"
+            recordRef={instrument.UInsID}
+            divisionCode={instrument.Division || null}
+            record={instrument}
+            defaultTitle={`Update instrument ${instrument.Name}`}
+          />
           {isAdmin && (
             <button
               onClick={() => setEditOpen(true)}

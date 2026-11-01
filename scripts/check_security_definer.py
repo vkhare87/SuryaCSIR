@@ -92,6 +92,9 @@ EXEMPT: dict[str, str] = {
         "revoke asserted in 20261020000001. Only writes rows keyed to the "
         "user each rule names."
     ),
+    "contribution_steward_for": "internal resolver; EXECUTE revoked from client roles",
+    "contribution_requests_sweep": "cron-only; EXECUTE revoked from client roles",
+    "contribution_target_can_see": "internal scope check called only by a trigger; EXECUTE revoked from client roles",
 }
 
 

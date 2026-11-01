@@ -3,7 +3,7 @@ import { deriveMyActions, dueUrgency, type MyActionsInput } from './myActions';
 import type { PMSReport, PMSEvaluation } from '../../types/pms';
 import type { Proposal } from '../../types/proposal';
 import type { ProjectReport } from '../../types/projectReport';
-import type { ActionItem, Ticket, StaffMember, ContractStaff } from '../../types';
+import type { ActionItem, Ticket, StaffMember, ContractStaff, ContributionRequest } from '../../types';
 
 const base: MyActionsInput = {
   userId: 'u1',
@@ -17,6 +17,9 @@ const base: MyActionsInput = {
   tickets: [],
   staff: [],
   contractStaff: [],
+  roles: ['Scientist'],
+  contributions: [],
+  stewards: [],
 };
 
 // DOB such that superannuation (DOB + 60y) lands ~`years` from today.
@@ -85,6 +88,13 @@ const ticket = (over: Partial<Ticket>): Ticket => ({
   urgency: 'Medium', description: '', submitted_by: 'u9', assigned_to: 'u1',
   status: 'Open', created_at: '', updated_at: '', resolved_at: null, ...over,
 } as Ticket);
+
+const contribution = (over: Partial<ContributionRequest>): ContributionRequest => ({
+  id: 'cr1', domain: 'equipment', recordRef: 'UI-1', divisionCode: 'D1',
+  title: 'Confirm AMC date', reason: '', link: null, requestedBy: 'u9',
+  assigneeId: 'u1', delegateId: null, status: 'open', dueDate: '2026-12-01',
+  prefill: {}, response: null, createdAt: '', resolvedAt: null, ...over,
+});
 
 describe('deriveMyActions', () => {
   it('returns empty for no inputs', () => {
@@ -176,6 +186,45 @@ describe('deriveMyActions', () => {
     const self = deriveMyActions({ ...base, role: 'ProjectStaff', staffName: 'Mr B Temp', contractStaff: cs });
     expect(self.map(a => a.id)).toEqual(['contract-cs1']);
     expect(self[0].label).toBe('Your engagement ends soon');
+  });
+});
+
+describe('deriveMyActions — contribution requests', () => {
+  it('lists an open request assigned to me with link /work?r=<id> and its due date', () => {
+    const out = deriveMyActions({ ...base, contributions: [contribution({})] });
+    expect(out).toEqual([{
+      id: 'cr-cr1', kind: 'contribution', label: 'Data request',
+      detail: 'Confirm AMC date', due: '2026-12-01', link: '/work?r=cr1',
+    }]);
+  });
+
+  it('lists a request where I am the delegate', () => {
+    const out = deriveMyActions({ ...base, contributions: [contribution({ assigneeId: 'u2', delegateId: 'u1' })] });
+    expect(out.map(a => a.label)).toEqual(['Data request']);
+  });
+
+  it('lists a submitted request I requested as "Update awaiting your review"', () => {
+    const out = deriveMyActions({
+      ...base,
+      contributions: [contribution({ requestedBy: 'u1', assigneeId: 'u2', status: 'submitted' })],
+    });
+    expect(out.map(a => a.label)).toEqual(['Update awaiting your review']);
+  });
+
+  it('reviews by any held role, not just the active one', () => {
+    const submitted = contribution({ assigneeId: 'u2', status: 'submitted' });
+    expect(deriveMyActions({ ...base, contributions: [submitted] })).toEqual([]);
+    const out = deriveMyActions({ ...base, roles: ['Scientist', 'HRAdmin'], contributions: [submitted] });
+    expect(out.map(a => a.label)).toEqual(['Update awaiting your review']);
+  });
+
+  it('omits done, declined and blocked requests', () => {
+    const out = deriveMyActions({
+      ...base,
+      contributions: (['done', 'declined', 'blocked'] as const).map((status, i) =>
+        contribution({ id: `c${i}`, requestedBy: 'u1', status })),
+    });
+    expect(out).toEqual([]);
   });
 });
 

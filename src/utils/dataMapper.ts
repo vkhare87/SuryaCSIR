@@ -1,4 +1,4 @@
-import type { DivisionInfo, StaffMember, ProjectInfo, ProjectStaff, PhDStudent, PhDMilestone, Equipment, ScientificOutput, IPIntelligence, MoU, TechTransfer, ContractStaff, VacancyAdvertisement, VacancyPost, Committee, CommitteeMember, Meeting, AgendaItem, ActionItem, MeetingDocument, Ticket, TicketResponse, TicketEvent, HelpdeskRouting, CalendarEvent, Holiday, ImportEvent } from '../types';
+import type { DivisionInfo, StaffMember, ProjectInfo, ProjectStaff, PhDStudent, PhDMilestone, Equipment, ScientificOutput, IPIntelligence, MoU, TechTransfer, ContractStaff, VacancyAdvertisement, VacancyPost, Committee, CommitteeMember, Meeting, AgendaItem, ActionItem, MeetingDocument, Ticket, TicketResponse, TicketEvent, HelpdeskRouting, CalendarEvent, Holiday, ImportEvent, ContributionRequest, ContributionEvent, DataSteward } from '../types';
 
 /**
  * These mappers will eventually transform raw Supabase rows 
@@ -364,4 +364,44 @@ export const mapImportEventRow = (row: any): ImportEvent => ({
   uploaded_by: row.uploaded_by || '',
   uploaded_by_email: row.uploaded_by_email || '',
   uploaded_at: row.uploaded_at || '',
+});
+
+export const mapContributionRow = (row: any): ContributionRequest => ({
+  id: String(row.id),
+  domain: row.domain,
+  recordRef: row.record_ref ?? null,
+  divisionCode: row.division_code ?? null,
+  title: row.title ?? '',
+  reason: row.reason ?? '',
+  link: row.link ?? null,
+  requestedBy: row.requested_by ?? null,
+  assigneeId: row.assignee_id ?? null,
+  delegateId: row.delegate_id ?? null,
+  status: row.status,
+  dueDate: row.due_date ?? null,
+  prefill: row.prefill ?? {},
+  response: row.response ?? null,
+  createdAt: row.created_at ?? '',
+  resolvedAt: row.resolved_at ?? null,
+});
+
+export const mapContributionEventRow = (row: any): ContributionEvent => ({
+  id: String(row.id),
+  requestId: String(row.request_id),
+  actorId: row.actor_id ?? null,
+  action: row.action,
+  fromStatus: row.from_status ?? null,
+  toStatus: row.to_status,
+  note: row.note ?? null,
+  payload: row.payload ?? {},
+  createdAt: row.created_at ?? '',
+});
+
+export const mapStewardRow = (row: any): DataSteward => ({
+  id: String(row.id),
+  domain: row.domain,
+  divisionCode: row.division_code ?? null,
+  userId: String(row.user_id),
+  kind: row.kind === 'accountable' ? 'accountable' : 'steward',
+  cadenceDays: Number(row.cadence_days ?? 90),
 });

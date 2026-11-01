@@ -1,7 +1,7 @@
 # SURYA — Database Design
 
 _Complete schema reference for the PostgreSQL 17 database. Supersedes `docs/DATA-MODEL.md`,
-which now points here. Current as of 2026-08-08 (31 migrations, 65 tables in `public`)._
+which now points here. Current as of 2026-11-01 (37 migrations, 73 tables in `public`)._
 
 Companions: [api_spec.md](api_spec.md) (how the schema is called),
 [system_design.md](system_design.md) (state machines),
@@ -43,7 +43,7 @@ column-level narrowings on `user_roles` / `user_profiles`.
 
 ## 2. Entity relationship overview
 
-Sixty-five tables in eight domains. The diagram shows the load-bearing relationships;
+Seventy-three tables in eight domains. The diagram shows the load-bearing relationships;
 per-table detail follows in §3.
 
 ### 2.1 Identity and HR core
@@ -548,6 +548,56 @@ examples in the routing prompt — a human-in-the-loop quality feedback path.
 | `ingest_sender_map` | `20260719000002` | `(email text PK, division_code, created_at)` — maps a mail sender to a division |
 | `import_field_mappings` | `20260719000003` | `(id uuid PK, file_type, header_fingerprint text, mapping jsonb, confirmed_by FK, confirmed_at, use_count int)`. Fingerprint = SHA-256 of sorted normalized headers; remembers a human-confirmed mapping so the same layout needs no model call again |
 
+
+### 3.9 Data operations — `20261101000001_contribution_requests.sql`
+
+All three tables are **read-only to clients** (`GRANT SELECT` to `authenticated`, nothing
+else; the migration asserts it). Every write goes through the RPCs in
+[api_spec.md §B.8](api_spec.md#b8-data-operations--contribution-requests). `domain` on both
+`data_stewards` and `contribution_requests` is `CHECK`ed to exactly the client `FileType`
+keys: `divisions` · `staff` · `projects` · `projectStaff` · `phd` · `equipment` ·
+`contractStaff`.
+
+#### `data_stewards` — who keeps each data domain current
+`(id uuid PK, domain text, division_code text?, user_id uuid FK auth.users CASCADE, kind text, cadence_days int CHECK > 0 DEFAULT 90, created_at)`,
+**UNIQUE NULLS NOT DISTINCT** `(domain, division_code, user_id)`. `kind` ∈ `accountable` \|
+`steward`. `division_code` NULL = domain-wide. Routing (`contribution_steward_for`) prefers a
+division row over domain-wide, `steward` over `accountable`, then the oldest. Institute-readable
+(`USING (true)`) — ownership is operational metadata, same tier as `import_events`. Written
+by `data_steward_set` / `data_steward_remove` (admin only).
+
+#### `contribution_requests` — a small owned ask: "confirm / fill this"
+`(id uuid PK, domain text, record_ref text?, division_code text?, title text CHECK btrim ≠ '', reason text DEFAULT '', link text?, requested_by uuid?, assignee_id uuid?, delegate_id uuid?, status text DEFAULT 'open', due_date date?, prefill jsonb DEFAULT '{}', response jsonb?, dedupe_key text U?, created_at, updated_at, resolved_at?)`.
+`status` ∈ `open` \| `prepared` \| `submitted` \| `needs_clarification` \| `blocked` \|
+`done` \| `declined` ([system_design.md §4.8](system_design.md#48-contribution-request--contribution_requestsstatus)).
+The three people columns are FKs to `auth.users` **ON DELETE SET NULL**, so removing a login
+never erases what was asked and answered. `requested_by` NULL = raised by the sweep;
+`assignee_id` NULL = unowned (Unowned tab on `/work`). `link` is a relative app path only:
+`CHECK (link ~ '^/([^/\]|$)' AND link !~ '[[:cntrl:]]')` — `/x` yes; `//x`, `/\x`,
+`https://x` no, and no control characters (browsers strip TAB/LF/CR, so `/<TAB>/evil` would
+open `//evil`). `dedupe_key` is set only by the sweep (`stale:<domain>:<division|*>:<import id|none>`).
+`record_ref` is the target row's primary key (`PK_FIELD` in `src/lib/data/entityWrite.ts`).
+A request **never writes a canonical table**: on accept the client applies `response` with
+the same RLS-gated update the edit modal uses, then calls `accept`.
+**SELECT:** requester, assignee, delegate, a reviewer (`contribution_is_reviewer`: requester,
+admin, or a steward covering the domain/division), the Director, or a division manager for
+their own `division_code`.
+**Indexes:** `(assignee_id, status)`, `(delegate_id, status)`, `(domain, division_code)`.
+`updated_at` via the `set_updated_at` trigger.
+
+#### `contribution_request_events` — append-only audit
+`(id uuid PK, request_id FK CASCADE, actor_id uuid FK auth.users SET NULL?, action text, from_status text?, to_status text, note text?, payload jsonb DEFAULT '{}', created_at)`.
+One row per create and per `contribution_request_act` call; `actor_id` NULL = the sweep.
+`payload` carries the prefill on `created`, the response on `submit`, and
+`{"self_review": true}` when the assignee accepted their own update. Readable exactly when the
+parent request is. **Index:** `(request_id, created_at)`.
+
+**Sweep.** `contribution_requests_sweep()` (pg_cron `contribution-requests-sweep`, `45 1 * * *`
+= 07:15 IST, after the notifications sweep) raises one `Refresh <domain> data` request per
+`(domain, division)` that has a `steward` row and whose latest `import_events` row is missing
+or older than the shortest `cadence_days` there — and only when no earlier refresh request for
+that scope is still open. Cron-only: `EXECUTE` revoked from client roles.
+
 ---
 
 ## 4. Indexing strategy
@@ -573,7 +623,7 @@ examples in the routing prompt — a human-in-the-loop quality feedback path.
 speculative; the tables are small and fully loaded per session.
 
 **Coverage by domain:** identity 3 · HR 11 · PMS 5 · committees/helpdesk 14 ·
-proposals/reports 6 · documents/RAG 4 · ingestion 2.
+proposals/reports 6 · documents/RAG 4 · ingestion 2 · data operations 4.
 
 ---
 
@@ -599,7 +649,7 @@ proposals/reports 6 · documents/RAG 4 · ingestion 2.
 
 | Directory | Applied where | Contents |
 |---|---|---|
-| `supabase/migrations/` | Everywhere | 31 files: the 8-file domain baseline + 23 append-only additions |
+| `supabase/migrations/` | Everywhere | 37 files: the 8-file domain baseline + 29 append-only additions |
 | `supabase/migrations_archive/` | **Nowhere** | Pre-2026-07-12 history, reference only |
 | `supabase/seed/` | Every environment | Helpdesk routing defaults, one `OPEN` appraisal cycle |
 | `supabase/mock/` | **Dev only** | 17-file CSIR-AMPRI demo fixture. A mock helpdesk fixture once reached production and had to be removed by hand (`supabase/ops/remove_mock_helpdesk.sql`) — do not apply these to a live project |
@@ -642,7 +692,7 @@ What exists today:
 | Appraisal cycles | `status` → `ARCHIVED` | Soft archival; rows stay. `ON DELETE RESTRICT` from `pms_reports` makes hard deletion impossible while reports exist |
 | Proposals | `status` → `ARCHIVED` + `archived boolean` | Soft |
 | Documents | `ingest_status='skipped'`/`'failed'` retained | Registry rows are never auto-deleted; owner or admin may delete explicitly |
-| Audit trails | Append-only, no delete policy | `pms_audit_logs`, `audit_log`, `ticket_events`, `*_status_history` |
+| Audit trails | Append-only, no delete policy | `pms_audit_logs`, `audit_log`, `ticket_events`, `*_status_history`, `contribution_request_events` |
 | Cascade deletes | Child rows follow their parent | e.g. deleting a `documents` row cascades `doc_indexes` + `doc_pages`; deleting a `pms_reports` row cascades sections, annexures, AWP, representations, notifications |
 | Restrict deletes | Parents with history cannot be deleted | `appraisal_cycles`, `pms_evaluations`, `pms_committee_decisions` |
 | Full wipe | `supabase/ops/wipe_data.sql` | Development only |

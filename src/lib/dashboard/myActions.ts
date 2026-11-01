@@ -1,14 +1,15 @@
-import type { ActionItem, Ticket, Role, StaffMember, ContractStaff } from '../../types';
+import type { ActionItem, Ticket, Role, StaffMember, ContractStaff, ContributionRequest, DataSteward } from '../../types';
 import type { PMSReport, PMSEvaluation } from '../../types/pms';
 import type { Proposal } from '../../types/proposal';
 import type { ProjectReport } from '../../types/projectReport';
 import { staffNameMatchesAuthor } from '../../utils/dateUtils';
 import { retirementDate, yearsUntilRetirement } from '../staff/retirement';
+import { inboxBucket, isReviewer } from '../contributions/state';
 
 export interface MyAction {
   id: string;
   kind: 'pms-draft' | 'pms-evaluation' | 'proposal' | 'action-item' | 'ticket' | 'progress-report'
-      | 'retirement' | 'contract-end';
+      | 'retirement' | 'contract-end' | 'contribution';
   label: string;
   detail: string;
   due: string | null;
@@ -52,11 +53,18 @@ export interface MyActionsInput {
   tickets: Ticket[];
   staff: StaffMember[];
   contractStaff: ContractStaff[];
+  /** Every role the user holds — request review rights follow any role, not the active one. */
+  roles: Role[];
+  contributions: ContributionRequest[];
+  stewards: DataSteward[];
 }
 
 /** Pending items requiring the current user's action, most urgent first (nulls-last by due date). */
 export function deriveMyActions(input: MyActionsInput): MyAction[] {
-  const { userId, staffName, role, reports, evaluations, proposals, progressReports, actionItems, tickets, staff, contractStaff } = input;
+  const {
+    userId, staffName, role, reports, evaluations, proposals, progressReports, actionItems, tickets, staff,
+    contractStaff, roles, contributions, stewards,
+  } = input;
   const actions: MyAction[] = [];
   const now = new Date();
 
@@ -200,6 +208,15 @@ export function deriveMyActions(input: MyActionsInput): MyAction[] {
       due: isoDate(new Date(t)),
       link: '/staff/project',
     });
+  }
+
+  for (const c of contributions) {
+    const bucket = inboxBucket(c, userId, isReviewer(c, userId, roles, stewards));
+    const label = bucket === 'todo' ? 'Data request'
+      : bucket === 'review' && c.status === 'submitted' ? 'Update awaiting your review'
+      : null;
+    if (!label) continue;
+    actions.push({ id: `cr-${c.id}`, kind: 'contribution', label, detail: c.title, due: c.dueDate, link: `/work?r=${c.id}` });
   }
 
   // Due-dated items first (ascending), undated after, stable within groups.
