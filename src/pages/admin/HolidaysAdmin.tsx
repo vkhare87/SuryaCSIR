@@ -8,8 +8,7 @@ import { Card } from '../../components/ui/Cards';
 import { Navigate } from 'react-router-dom';
 import { canManageHolidays } from '../../lib/calendar/permissions';
 import { Trash2, Edit2, Upload, Plus, Save, X } from 'lucide-react';
-import * as XLSX from 'xlsx';
-import Papa from 'papaparse';
+import { parseFileRaw } from '../../utils/dataMigration';
 import type { Holiday } from '../../types';
 
 type HolidayType = Holiday['holiday_type'];
@@ -125,25 +124,17 @@ export default function HolidaysAdmin() {
     await refreshHolidays();
   }
 
-  function handleFile(e: ChangeEvent<HTMLInputElement>) {
+  // Same reader as the data import: size and row caps, and date cells come
+  // back as YYYY-MM-DD instead of serial numbers.
+  async function handleFile(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const data = ev.target?.result;
-      let rows: Record<string, unknown>[] = [];
-      if (file.name.toLowerCase().endsWith('.csv')) {
-        const parsed = Papa.parse<Record<string, unknown>>(String(data), { header: true, skipEmptyLines: true });
-        rows = parsed.data;
-      } else {
-        const wb = XLSX.read(data, { type: 'binary' });
-        const sheet = wb.Sheets[wb.SheetNames[0]];
-        rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet);
-      }
-      setImportRows(rows.map(validateImportRow));
-    };
-    if (file.name.toLowerCase().endsWith('.csv')) reader.readAsText(file);
-    else reader.readAsBinaryString(file);
+    const parsed = await parseFileRaw(file);
+    if (!parsed.success) {
+      pushToast(parsed.error ?? 'Could not read the file', 'error');
+      return;
+    }
+    setImportRows((parsed.data ?? []).map(validateImportRow));
   }
 
   async function commitImport() {
