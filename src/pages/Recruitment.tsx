@@ -33,9 +33,9 @@ import {
   Megaphone,
   BarChart3,
 } from 'lucide-react';
-import type { VacancyPost } from '../types';
+import type { VacancyApplication } from '../types';
 
-const STATUS_TO_VARIANT: Record<VacancyPost['status'], 'info' | 'warning' | 'success' | 'danger' | 'neutral'> = {
+const STATUS_TO_VARIANT: Record<VacancyApplication['status'], 'info' | 'warning' | 'success' | 'danger' | 'neutral'> = {
   Received:    'info',
   Shortlisted: 'warning',
   Interviewed: 'warning',
@@ -44,7 +44,7 @@ const STATUS_TO_VARIANT: Record<VacancyPost['status'], 'info' | 'warning' | 'suc
 };
 
 export default function Recruitment() {
-  const { vacancyAdvertisements, vacancyPosts, isLoading } = useData();
+  const { vacancyAdvertisements, vacancyApplications, isLoading } = useData();
   const { hasPermission } = useAuth();
   const canManage = hasPermission(['HRAdmin', 'SystemAdmin', 'MasterAdmin']);
   const [searchTerm, setSearchTerm] = useState('');
@@ -53,40 +53,49 @@ export default function Recruitment() {
 
   // Per-vacancy applicant count and shortlisted/interviewed split.
   const stats = useMemo(() => {
-    const byVacancy = new Map<string, VacancyPost[]>();
-    for (const p of vacancyPosts) {
+    const byVacancy = new Map<string, VacancyApplication[]>();
+    for (const p of vacancyApplications) {
       const list = byVacancy.get(p.vacancyId) ?? [];
       list.push(p);
       byVacancy.set(p.vacancyId, list);
     }
     return byVacancy;
-  }, [vacancyPosts]);
+  }, [vacancyApplications]);
 
-  const openVacancies = vacancyAdvertisements.filter(v => v.status === 'Open');
-  const activeApplicants = vacancyPosts.filter(p =>
-    p.status !== 'Rejected' && openVacancies.some(v => v.id === p.vacancyId)
+  // Published adverts are live too: the schema's statuses are Draft|Open|Published|Closed|Cancelled.
+  const openVacancies = useMemo(
+    () => vacancyAdvertisements.filter(v => v.status === 'Open' || v.status === 'Published'),
+    [vacancyAdvertisements],
   );
+  const activeApplicants = useMemo(() => {
+    const open = new Set(openVacancies.map(v => v.id));
+    return vacancyApplications.filter(p => p.status !== 'Rejected' && open.has(p.vacancyId));
+  }, [vacancyApplications, openVacancies]);
 
-  const chartFiltered = applyChartFilter(vacancyAdvertisements, filter, VACANCY_DIMS);
-  const filtered = chartFiltered.filter(v => {
+  const chartFiltered = useMemo(
+    () => applyChartFilter(vacancyAdvertisements, filter, VACANCY_DIMS),
+    [vacancyAdvertisements, filter],
+  );
+  const filtered = useMemo(() => {
     const q = searchTerm.toLowerCase();
-    return !q ||
+    return chartFiltered.filter(v =>
+      !q ||
       v.title.toLowerCase().includes(q) ||
       v.designation.toLowerCase().includes(q) ||
-      v.division.toLowerCase().includes(q);
-  });
+      v.division.toLowerCase().includes(q));
+  }, [chartFiltered, searchTerm]);
 
   // Onboarding pipeline = recently Selected applicants.
-  const pipeline = vacancyPosts.filter(p => p.status === 'Selected').slice(0, 5);
-
-  const selectedCount = vacancyPosts.filter(p => p.status === 'Selected').length;
+  const selected = useMemo(() => vacancyApplications.filter(p => p.status === 'Selected'), [vacancyApplications]);
+  const pipeline = selected.slice(0, 5);
+  const selectedCount = selected.length;
   const funnelPreview = useMemo(() => {
-    const order: VacancyPost['status'][] = ['Received', 'Shortlisted', 'Interviewed', 'Selected', 'Rejected'];
+    const order: VacancyApplication['status'][] = ['Received', 'Shortlisted', 'Interviewed', 'Selected', 'Rejected'];
     return order.map(s => ({
       label: s,
-      value: vacancyPosts.filter(p => p.status === s).length,
+      value: vacancyApplications.filter(p => p.status === s).length,
     }));
-  }, [vacancyPosts]);
+  }, [vacancyApplications]);
 
   return (
     <div className="space-y-6">
@@ -124,7 +133,7 @@ export default function Recruitment() {
         />
         <KpiTile
           label="Total Applicants"
-          value={vacancyPosts.length}
+          value={vacancyApplications.length}
           sublabel="across all vacancies"
           icon={<ClipboardList size={16} />}
           accent="neutral"

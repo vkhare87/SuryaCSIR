@@ -223,22 +223,21 @@ export interface VacancyAdvertisement {
   id: string;
   title: string;
   description: string;
-  designation: string;
-  division: string;
-  numberOfPositions: number;
-  qualifications: string;
-  salary?: string;
-  applicationDeadline: string;
+  designation: string;       // from its vacancy_posts
+  division: string;          // division_code
+  numberOfPositions: number; // sum of its vacancy_posts.no_of_positions
+  applicationDeadline: string; // closing_date
   createdAt: string;
-  status: 'Open' | 'Closed' | 'Archived';
+  status: 'Draft' | 'Open' | 'Published' | 'Closed' | 'Cancelled';
   staffCategory: 'Permanent' | 'Project';
   driveStage: 'Advertised' | 'Applications Closed' | 'Screening' | 'Interviews'
             | 'Selection' | 'Offers Issued' | 'Joined' | 'Closed';
 }
 
-export interface VacancyPost {
+export interface VacancyApplication {
   id: string;
   vacancyId: string; // References VacancyAdvertisement.id
+  postId?: string;   // References vacancy_posts.id
   candidateName: string;
   email: string;
   phoneNumber: string;

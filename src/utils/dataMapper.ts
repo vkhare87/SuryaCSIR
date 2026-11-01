@@ -1,4 +1,4 @@
-import type { DivisionInfo, StaffMember, ProjectInfo, ProjectStaff, PhDStudent, PhDMilestone, Equipment, ScientificOutput, IPIntelligence, MoU, TechTransfer, ContractStaff, VacancyAdvertisement, VacancyPost, Committee, CommitteeMember, Meeting, AgendaItem, ActionItem, MeetingDocument, Ticket, TicketResponse, TicketEvent, HelpdeskRouting, CalendarEvent, Holiday, ImportEvent } from '../types';
+import type { DivisionInfo, StaffMember, ProjectInfo, ProjectStaff, PhDStudent, PhDMilestone, Equipment, ScientificOutput, IPIntelligence, MoU, TechTransfer, ContractStaff, VacancyAdvertisement, VacancyApplication, Committee, CommitteeMember, Meeting, AgendaItem, ActionItem, MeetingDocument, Ticket, TicketResponse, TicketEvent, HelpdeskRouting, CalendarEvent, Holiday, ImportEvent } from '../types';
 
 /**
  * These mappers will eventually transform raw Supabase rows 
@@ -203,27 +203,27 @@ export const mapVacancyAdvertisementRow = (row: any): VacancyAdvertisement => ({
   id: String(row.id || ''),
   title: row.title || '',
   description: row.description || '',
-  designation: row.designation || '',
-  division: row.division || '',
-  numberOfPositions: parseInt(row.numberOfPositions || row.number_of_positions || '1', 10),
-  qualifications: row.qualifications || '',
-  salary: row.salary || undefined,
-  applicationDeadline: row.applicationDeadline || row.application_deadline || '',
+  // designation / numberOfPositions live on vacancy_posts; withPostTotals fills them.
+  designation: '',
+  division: row.division_code || '',
+  numberOfPositions: 0,
+  applicationDeadline: row.closing_date || '',
   createdAt: row.createdAt || row.created_at || row.issue_date || '',
   status: row.status || 'Open',
   staffCategory: row.staff_category || 'Permanent',
   driveStage: row.drive_stage || 'Advertised',
 });
 
-export const mapVacancyPostRow = (row: any): VacancyPost => ({
+export const mapVacancyApplicationRow = (row: any): VacancyApplication => ({
   id: String(row.id || ''),
-  vacancyId: String(row.vacancyId || row.vacancy_id || ''),
-  candidateName: row.candidateName || row.candidate_name || '',
+  vacancyId: String(row.advertisement_id || ''),
+  postId: row.post_id ?? undefined,
+  candidateName: row.candidate_name || '',
   email: row.email || '',
-  phoneNumber: row.phoneNumber || row.phone_number || '',
+  phoneNumber: row.phone || '',
   qualifications: row.qualifications || '',
   experience: row.experience || '',
-  applicationDate: row.applicationDate || row.application_date || '',
+  applicationDate: row.applied_on || '',
   status: row.status || 'Received',
   notes: row.notes || undefined,
 });

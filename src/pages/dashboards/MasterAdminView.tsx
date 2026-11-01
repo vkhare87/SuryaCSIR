@@ -74,7 +74,7 @@ export function MasterAdminView() {
   const {
     staff, projects, phDStudents, equipment, divisions,
     scientificOutputs, ipIntelligence, contractStaff, vacancyAdvertisements,
-    vacancyPosts, committees, meetings, actionItems, tickets,
+    vacancyApplications, committees, meetings, actionItems, tickets,
     isBackendProvisioned, error: dataError,
   } = useData();
   const { cycles, reports, evaluations, notifications } = usePMS();
@@ -139,7 +139,7 @@ export function MasterAdminView() {
     return actionItems.filter(a => a.status !== 'Completed' && new Date(a.deadline) < now).length;
   }, [actionItems]);
   const grantedIP        = useMemo(() => ipIntelligence.filter(i => i.status === 'Granted').length, [ipIntelligence]);
-  const openVacancies    = useMemo(() => vacancyAdvertisements.filter(v => v.status === 'Open').length, [vacancyAdvertisements]);
+  const openVacancies    = useMemo(() => vacancyAdvertisements.filter(v => v.status === 'Open' || v.status === 'Published').length, [vacancyAdvertisements]);
   const pendingUsers     = useMemo(() => users.filter(u => u.roles.length === 1 && u.roles[0] === 'DefaultUser').length, [users]);
   const passwordPending  = useMemo(() => users.filter(u => u.must_change_password).length, [users]);
   const totalCitations   = useMemo(() => scientificOutputs.reduce((s, p) => s + (p.citationCount ?? 0), 0), [scientificOutputs]);
@@ -285,7 +285,7 @@ export function MasterAdminView() {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <KpiCard to="/helpdesk" label="Open Tickets"     value={openTickets}              icon={<TicketIcon size={18} />}    sublabel={`${criticalTickets} critical`} />
         <KpiCard to="/committees" label="Overdue Actions"  value={overdueActions}           icon={<AlertTriangle size={18} />} sublabel="Past deadline" />
-        <KpiCard to="/recruitment" label="Open Vacancies"   value={openVacancies}            icon={<ClipboardList size={18} />} sublabel={`${vacancyPosts.length} applicants`} />
+        <KpiCard to="/recruitment" label="Open Vacancies"   value={openVacancies}            icon={<ClipboardList size={18} />} sublabel={`${vacancyApplications.length} applicants`} />
         <KpiCard to="/committees" label="Committees"       value={committees.filter(c => c.status === 'Active').length} icon={<Shield size={18} />} sublabel={`${meetings.length} meetings`} />
         <KpiCard label="Notifications"    value={unreadNotifications}      icon={<Bell size={18} />}       sublabel="Unread" />
         <KpiCard label="Avg IF"           value={avgImpactFactor.toFixed(2)} icon={<Microscope size={18} />} sublabel="Publications" />
