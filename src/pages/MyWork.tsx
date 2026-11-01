@@ -106,8 +106,9 @@ export default function MyWork() {
     () => (selected ? (Object.keys(buckets) as Bucket[]).find(b => buckets[b].includes(selected)) ?? null : null),
     [buckets, selected],
   );
-  const activeTab = tab ?? selectedBucket ?? 'todo';
   const tabs = TABS.filter(t => t.value !== 'unowned' || showUnowned);
+  const paramTab = tabs.find(t => t.value === params.get('tab'))?.value ?? null;
+  const activeTab = tab ?? selectedBucket ?? paramTab ?? 'todo';
 
   if (!user) return null;
 

@@ -1,4 +1,4 @@
-import type { ImportEvent } from '../../types';
+import type { DataSteward, ImportEvent } from '../../types';
 import { FILE_TYPE_LABELS, type FileType } from '../../utils/fileTypes';
 
 export type UploadStatus = 'fresh' | 'stale' | 'urgent';
@@ -11,6 +11,8 @@ export interface DomainUpload {
   cadenceDays: number;
   daysSinceUpload: number | null;
   status: UploadStatus;
+  owners: DataSteward[];
+  ownerStatus: 'owned' | 'no-owner';
 }
 
 /**
@@ -40,8 +42,11 @@ function statusFor(daysSinceUpload: number | null, cadenceDays: number): UploadS
  * callers — this returns declaration order (matches the template stepper).
  * Distinct from lib/divisions/freshness.ts's content-recency signal: this one
  * answers "when was this domain last uploaded", not "how recent are the
- * records inside it". */
-export function domainUploadLedger(events: ImportEvent[], now: Date = new Date()): DomainUpload[] {
+ * records inside it". A steward row's cadence overrides the default; the
+ * smallest cadence among a domain's stewards wins. */
+export function domainUploadLedger(
+  events: ImportEvent[], stewards: DataSteward[], now: Date = new Date(),
+): DomainUpload[] {
   return (Object.keys(FILE_TYPE_LABELS) as FileType[]).map((domain) => {
     const latest = events
       .filter((e) => e.file_type === domain)
@@ -54,7 +59,10 @@ export function domainUploadLedger(events: ImportEvent[], now: Date = new Date()
       daysSinceUpload = Math.max(0, Math.floor(ms / 86_400_000));
     }
 
-    const cadenceDays = CADENCE_DAYS[domain];
+    const owners = stewards.filter((s) => s.domain === domain);
+    const cadenceDays = owners.length
+      ? Math.min(...owners.map((s) => s.cadenceDays))
+      : CADENCE_DAYS[domain];
     return {
       domain,
       label: FILE_TYPE_LABELS[domain],
@@ -63,6 +71,8 @@ export function domainUploadLedger(events: ImportEvent[], now: Date = new Date()
       cadenceDays,
       daysSinceUpload,
       status: statusFor(daysSinceUpload, cadenceDays),
+      owners,
+      ownerStatus: owners.length ? 'owned' : 'no-owner',
     };
   });
 }
