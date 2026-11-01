@@ -13,7 +13,7 @@ import { UserPicker } from '../components/ui/UserPicker';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/Tabs';
 import { availableActions, changedFields, inboxBucket, isReviewer } from '../lib/contributions/state';
 import { actOnContributionRequest, listRequestEvents } from '../lib/contributions/api';
-import { updateEntityRecord } from '../lib/data/entityWrite';
+import { PK_FIELD, updateEntityRecord } from '../lib/data/entityWrite';
 import type { WriteResult } from '../lib/data/entityWrite';
 import { FIELD_META } from '../utils/dataMigration';
 import { DATA_ADMINS } from '../constants/access';
@@ -210,6 +210,12 @@ function RequestPanel({ r, userId, isAdmin, nameOf, onDone }: RequestPanelProps)
     return () => { cancelled = true; };
   }, [r.id, r.status]);
 
+  // Only these columns may be submitted or written on Accept: in FIELD_META, in the prefill, never the PK.
+  // The response comes from the assignee (who can call the RPC directly), so anything else is ignored.
+  const editable = useMemo(
+    () => FIELD_META[r.domain].map(f => f.column).filter(c => c !== PK_FIELD[r.domain] && c in r.prefill),
+    [r.domain, r.prefill],
+  );
   const labels = useMemo(
     () => new Map(FIELD_META[r.domain].map(f => [f.column, f.label])),
     [r.domain],
@@ -222,12 +228,16 @@ function RequestPanel({ r, userId, isAdmin, nameOf, onDone }: RequestPanelProps)
     return availableActions(r, userId, reviewer, canClaim);
   }, [r, userId, user?.roles, isAdmin, dataStewards]);
 
-  const drafted = useMemo(() => changedFields(r.prefill, draft), [r.prefill, draft]);
+  const drafted = useMemo(
+    () => changedFields(Object.fromEntries(editable.map(k => [k, r.prefill[k]])), draft),
+    [editable, r.prefill, draft],
+  );
   // The response holds only changed fields, so compare it against those prefill keys alone.
   const submittedChanges = useMemo(() => {
     const resp = r.response ?? {};
-    return changedFields(Object.fromEntries(Object.keys(resp).map(k => [k, r.prefill[k]])), resp);
-  }, [r.prefill, r.response]);
+    const keys = editable.filter(k => k in resp);
+    return changedFields(Object.fromEntries(keys.map(k => [k, r.prefill[k]])), Object.fromEntries(keys.map(k => [k, resp[k]])));
+  }, [editable, r.prefill, r.response]);
 
   const run = async (action: ContributionAction) => {
     setError('');
@@ -245,6 +255,7 @@ function RequestPanel({ r, userId, isAdmin, nameOf, onDone }: RequestPanelProps)
         response: Object.fromEntries(drafted.map(c => [c.field, c.to])),
       });
     } else {
+      // Not atomic: the record write and the resolve are two calls. A retry is safe (same patch, then resolve).
       if (action === 'accept' && submittedChanges.length > 0 && r.recordRef) {
         const patch = Object.fromEntries(submittedChanges.map(c => [c.field, c.to === '' ? null : c.to]));
         const write = await updateEntityRecord(r.domain, r.recordRef, patch);
@@ -302,7 +313,7 @@ function RequestPanel({ r, userId, isAdmin, nameOf, onDone }: RequestPanelProps)
       {actions.includes('submit') && (
         <section className="space-y-3">
           <h3 className="text-sm font-semibold text-text">Update the record</h3>
-          {Object.keys(r.prefill).map(field => {
+          {editable.map(field => {
             const label = labels.get(field) ?? field;
             return (
               <div key={field} className="grid gap-2 sm:grid-cols-2 sm:items-center">
@@ -329,6 +340,9 @@ function RequestPanel({ r, userId, isAdmin, nameOf, onDone }: RequestPanelProps)
           {submittedChanges.length > 0
             ? <ChangeTable changes={submittedChanges} labels={labels} />
             : <p className="text-sm text-text-muted">Confirmed with no changes.</p>}
+          {submittedChanges.length > 0 && !r.recordRef && (
+            <p className="text-sm text-text-muted">These changes can't be applied automatically — update the records, then accept.</p>
+          )}
           {actions.includes('accept') && (
             <div className="flex justify-end">
               <Button onClick={() => run('accept')} isLoading={busy}>{ACTION_LABEL.accept}</Button>

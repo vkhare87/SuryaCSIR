@@ -56,7 +56,7 @@ describe('RequestUpdateButton', () => {
       domain: 'equipment', recordRef: 'UI-1', divisionCode: 'D01', title: 'Update SEM',
       reason: 'AMC lapsed', link: '/facilities/UI-1', dueDate: null, assigneeId: null,
     });
-    expect(Object.keys(input.prefill).sort()).toEqual(FIELD_META.equipment.map(f => f.column).sort());
+    expect(Object.keys(input.prefill).sort()).toEqual(FIELD_META.equipment.map(f => f.column).filter(c => c !== 'UInsID').sort());
     expect(input.prefill.Name).toBe('SEM');
     await waitFor(() => expect(push).toHaveBeenCalledWith('Request sent', 'success'));
     expect(refreshContributions).toHaveBeenCalled();

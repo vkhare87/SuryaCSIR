@@ -70,7 +70,7 @@ import { useAuth } from './AuthContext';
 import { useToast } from './ToastContext';
 import { useFeatureControls } from './FeatureControlContext';
 import { logger } from '../utils/logger';
-import { fetchAll } from '../lib/data/fetchAll';
+import { fetchAll, isMissingTable } from '../lib/data/fetchAll';
 
 // ---------------------------------------------------------------------------
 // Client-side division scoping helpers (applied after data load)
@@ -318,8 +318,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
       checkTable('tech_transfers', ttRes);
       checkTable('phd_milestones', phmRes);
       checkTable('import_events', ieRes);
-      checkTable('contribution_requests', crRes);
-      checkTable('data_stewards', dsRes);
+      // Missing table = Phase 1 migration not applied yet; stay quiet and leave the arrays empty.
+      if (!isMissingTable(crRes.error)) checkTable('contribution_requests', crRes);
+      if (!isMissingTable(dsRes.error)) checkTable('data_stewards', dsRes);
       if (tableErrors.length > 0) {
         const summary = `${tableErrors.length} table(s) failed to load: ${tableErrors.map(e => e.table).join(', ')}`;
         logger.error('partial_data_load_failed', new Error(summary), { tableErrors });
@@ -381,7 +382,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       fetchAll(supabase.from('contribution_requests').select('*').order('created_at', { ascending: false }).order('id')),
       fetchAll(supabase.from('data_stewards').select('*').order('id')),
     ]);
-    const err = crRes.error ?? dsRes.error;
+    const err = [crRes.error, dsRes.error].find(e => e && !isMissingTable(e));
     if (err) {
       logger.error('refresh_contributions_failed', err);
       pushToast(`Requests refresh failed: ${err.message}`, 'error');

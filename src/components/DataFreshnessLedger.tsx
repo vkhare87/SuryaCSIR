@@ -146,6 +146,7 @@ export function DataFreshnessLedger() {
   const isAdmin = !!user && user.roles.some(r => DATA_ADMINS.includes(r));
 
   const remove = async (steward: DataSteward) => {
+    if (!window.confirm(`Remove ${nameOf(steward.userId)} as ${steward.kind} for ${FILE_TYPE_LABELS[steward.domain]}?`)) return;
     const res = await removeDataSteward(steward.id);
     if (!res.ok) return push(res.error ?? 'Could not remove owner', 'error');
     await refreshContributions();

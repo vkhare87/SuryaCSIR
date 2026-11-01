@@ -307,7 +307,8 @@ UI: new "Owner" column. Owner names from `staff.find(s => s.user_id === steward.
 - [ ] **Step 1: Update the docs** listed above.
 - [ ] **Step 2: Run** `npm test` and note the new file/test count in `CLAUDE.md`.
 - [ ] **Step 3: Apply to the live project** — only with the user's go-ahead: `supabase db push`. Expected: `20261101000001_contribution_requests` applied. (Free project may be paused; resume it in the Dashboard first.)
-- [ ] **Step 4: Smoke-test in the app**: as an HOD, open an instrument → Request update → sign in as the steward → `/work` shows it → submit a change → as HOD accept → instrument shows the new value and the steward's bell says "Your update was accepted".
+- [ ] **Step 4: Smoke-test in the app**: as an HOD, open an instrument → Request update → sign in as the steward → `/work` shows it → submit a change → accept as a user with edit rights on equipment (HRAdmin or MasterAdmin; the HOD who asked can't write the row under RLS) → instrument shows the new value and the steward's bell says "Your update was accepted".
+   Second check: repeat with a fresh request, but accept as the HOD → Accept shows "Could not update the record: No record was updated — you may not have edit rights on this record, or it no longer exists." and the request stays `submitted`.
 - [ ] **Step 5: Commit** `docs(data-ops): contribution requests across the engineering suite`.
 
 ---

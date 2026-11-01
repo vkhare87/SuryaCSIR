@@ -10,7 +10,8 @@ vi.mock('../lib/contributions/api', () => ({
   actOnContributionRequest: vi.fn(async () => ({ ok: true })),
   listRequestEvents: vi.fn(async () => []),
 }));
-vi.mock('../lib/data/entityWrite', () => ({
+vi.mock('../lib/data/entityWrite', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../lib/data/entityWrite')>()),
   updateEntityRecord: vi.fn(async () => ({ ok: true })),
 }));
 vi.mock('../components/ui/UserPicker', () => ({ UserPicker: () => <div>picker</div> }));
@@ -86,6 +87,34 @@ describe('MyWork', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Accept' }));
     expect(await screen.findByText(/permission denied/)).toBeInTheDocument();
     expect(actOnContributionRequest).not.toHaveBeenCalled();
+  });
+
+  it('accept patches only allowed prefill fields, never the PK or extra columns', async () => {
+    requests = [{
+      ...base, id: 'r5', domain: 'projects', recordRef: 'P-1', requestedBy: 'u1', assigneeId: 'u7',
+      status: 'submitted', prefill: { ProjectName: 'Old', ProjectID: 'P-1' },
+      response: { ProjectName: 'New', ProjectID: 'P-2', owner_user_id: 'u666' },
+    }];
+    renderAt('/work?r=r5');
+    fireEvent.click(screen.getByRole('button', { name: 'Accept' }));
+    await waitFor(() => expect(actOnContributionRequest).toHaveBeenCalledTimes(1));
+    expect(updateEntityRecord).toHaveBeenCalledWith('projects', 'P-1', { ProjectName: 'New' });
+  });
+
+  it('submit form omits the PK even if it is in the prefill', () => {
+    requests = [{ ...base, prefill: { ...base.prefill, UInsID: 'UI-1' } }];
+    renderAt('/work?r=r1');
+    expect(screen.queryByLabelText('New Instrument ID')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('New Working Status')).toBeInTheDocument();
+  });
+
+  it('without a record ref, accept only resolves and says so', async () => {
+    requests = [{ ...requests[2], recordRef: null }];
+    renderAt('/work?r=r4');
+    expect(screen.getByText("These changes can't be applied automatically — update the records, then accept.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Accept' }));
+    await waitFor(() => expect(actOnContributionRequest).toHaveBeenCalledTimes(1));
+    expect(updateEntityRecord).not.toHaveBeenCalled();
   });
 
   it('hides the Unowned tab for a plain scientist', () => {

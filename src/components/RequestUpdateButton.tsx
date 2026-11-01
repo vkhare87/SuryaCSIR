@@ -10,6 +10,7 @@ import { Modal } from './ui/Modal';
 import { UserPicker } from './ui/UserPicker';
 import { createContributionRequest } from '../lib/contributions/api';
 import { FIELD_META } from '../utils/dataMigration';
+import { PK_FIELD } from '../lib/data/entityWrite';
 import { DATA_ADMINS } from '../constants/access';
 import type { DirectoryUser } from '../hooks/useUserDirectory';
 import type { FileType } from '../utils/fileTypes';
@@ -79,7 +80,8 @@ export function RequestUpdateButton({ domain, recordRef, divisionCode, record, d
       reason: reason.trim(),
       link: pathname.startsWith('/') && !pathname.startsWith('//') ? pathname : null,
       dueDate: dueDate || null,
-      prefill: Object.fromEntries(FIELD_META[domain].map(f => [f.column, (record as Record<string, unknown>)[f.column] ?? null])),
+      prefill: Object.fromEntries(FIELD_META[domain].filter(f => f.column !== PK_FIELD[domain])
+        .map(f => [f.column, (record as Record<string, unknown>)[f.column] ?? null])),
       assigneeId: assignee?.userId ?? null,
     });
     setBusy(false);

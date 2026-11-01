@@ -18,6 +18,12 @@ export async function updateEntityRecord(
   type: FileType, pkValue: unknown, patch: Record<string, unknown>,
 ): Promise<WriteResult> {
   if (!supabase) return { ok: false, error: 'Database not provisioned' };
-  const { error } = await supabase.from(TABLE_NAMES[type]).update(patch).eq(PK_FIELD[type], pkValue);
-  return error ? { ok: false, error: error.message } : { ok: true };
+  const pk = PK_FIELD[type];
+  // RLS drops a disallowed UPDATE to 0 rows with no error, so ask for the rows back.
+  const { data, error } = await supabase.from(TABLE_NAMES[type]).update(patch).eq(pk, pkValue).select(pk);
+  if (error) return { ok: false, error: error.message };
+  if (!data || data.length === 0) {
+    return { ok: false, error: 'No record was updated — you may not have edit rights on this record, or it no longer exists.' };
+  }
+  return { ok: true };
 }

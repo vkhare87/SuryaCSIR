@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { fetchAll, PAGE_SIZE } from './fetchAll';
+import { fetchAll, isMissingTable, PAGE_SIZE } from './fetchAll';
 
 /** Stands in for a PostgREST query builder, capped like `db-max-rows`. */
 function fakeTable(rowCount: number, cap = PAGE_SIZE) {
@@ -91,5 +91,15 @@ describe('fetchAll', () => {
     const { data, error } = await fetchAll(query);
     expect(error?.message).toBe('connection lost');
     expect(data).toHaveLength(PAGE_SIZE);
+  });
+});
+
+describe('isMissingTable', () => {
+  it('matches only the not-yet-migrated codes', () => {
+    expect(isMissingTable({ message: 'x', code: '42P01' })).toBe(true);
+    expect(isMissingTable({ message: 'x', code: 'PGRST205' })).toBe(true);
+    expect(isMissingTable({ message: 'x', code: '42501' })).toBe(false);
+    expect(isMissingTable({ message: 'x' })).toBe(false);
+    expect(isMissingTable(null)).toBe(false);
   });
 });
