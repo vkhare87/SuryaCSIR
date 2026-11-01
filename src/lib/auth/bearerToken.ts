@@ -15,7 +15,7 @@ const TIMED_OUT = Symbol('timed out');
 // Set by a sign-out in any tab (gotrue broadcasts it). After that the stored
 // token must never be reused, even if getSession() stalls (SEC-16).
 let signedOut = false;
-supabase?.auth.onAuthStateChange(event => {
+supabase?.auth?.onAuthStateChange?.(event => {
   if (event === 'SIGNED_OUT') signedOut = true;
   else if (event === 'SIGNED_IN') signedOut = false;
 });
