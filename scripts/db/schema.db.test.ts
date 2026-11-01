@@ -36,6 +36,7 @@ describe('schema integrity (BUG-32)', () => {
     await db.exec(`INSERT INTO appraisal_cycles (name, start_date, end_date, status) VALUES ('A', '2030-04-01', '2031-03-31', 'OPEN')`);
     await fails(`INSERT INTO appraisal_cycles (name, start_date, end_date, status) VALUES ('B', '2031-04-01', '2032-03-31', 'OPEN')`);
     await fails(`INSERT INTO appraisal_cycles (name, start_date, end_date, status) VALUES ('C', '2032-04-01', '2032-03-31', 'CLOSED')`);
+    await fails(`INSERT INTO appraisal_cycles (name, start_date, end_date, status) VALUES ('D', '2032-01-01', '2032-12-31', 'CLOSED')`);
   });
 });
 

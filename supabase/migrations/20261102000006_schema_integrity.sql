@@ -3,7 +3,8 @@
 -- BUG-32 / BUG-33 / WO-6:
 --   6a. projects."ProjectNo" is the join key for project_staff, phd_students,
 --       proposals, project_reports and projects_select, but was not unique.
---   6b. Only one appraisal cycle may be OPEN; a cycle ends after it starts.
+--   6b. Only one appraisal cycle may be OPEN; a cycle ends after it starts,
+--       in March (the derived deadlines assume it).
 --   6c. Indexes on RLS predicates and the client's .order() columns.
 --   6d. auth.uid() -> (SELECT auth.uid()) in every public policy, so it is
 --       evaluated once per statement instead of once per row.
@@ -43,6 +44,9 @@ BEGIN
     IF EXISTS (SELECT 1 FROM public.appraisal_cycles WHERE end_date <= start_date) THEN
         RAISE EXCEPTION 'An appraisal cycle ends on or before its start date; fix it before this migration';
     END IF;
+    IF EXISTS (SELECT 1 FROM public.appraisal_cycles WHERE extract(month FROM end_date) <> 3) THEN
+        RAISE EXCEPTION 'An appraisal cycle does not end in March; pms_deadline derives May 15 / Jun 30 / Jul 31 / Nov 30 from a March end date';
+    END IF;
 END $$;
 
 CREATE UNIQUE INDEX IF NOT EXISTS appraisal_cycles_one_open
@@ -50,6 +54,11 @@ CREATE UNIQUE INDEX IF NOT EXISTS appraisal_cycles_one_open
 ALTER TABLE public.appraisal_cycles DROP CONSTRAINT IF EXISTS appraisal_cycles_dates;
 ALTER TABLE public.appraisal_cycles
     ADD CONSTRAINT appraisal_cycles_dates CHECK (end_date > start_date);
+-- Deadlines stay derived from the end year (product decision 2026-11-01), so
+-- a cycle must end in March or every derived date is wrong.
+ALTER TABLE public.appraisal_cycles DROP CONSTRAINT IF EXISTS appraisal_cycles_march_end;
+ALTER TABLE public.appraisal_cycles
+    ADD CONSTRAINT appraisal_cycles_march_end CHECK (extract(month FROM end_date) = 3);
 
 -- ── 6c. Indexes ──────────────────────────────────────────────────────────
 CREATE INDEX IF NOT EXISTS project_staff_project_no_idx    ON public.project_staff ("ProjectNo");

@@ -53,6 +53,11 @@ export default function Cycles() {
       setFormError('All fields required');
       return;
     }
+    // The DB derives every deadline from a 31 March end (appraisal_cycles_march_end).
+    if (form.endDate.slice(5, 7) !== '03') {
+      setFormError('A reporting year ends in March (e.g. 2027-03-31)');
+      return;
+    }
     setSaving(true);
     setFormError(null);
     try {
