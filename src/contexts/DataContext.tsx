@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from 'react';
 import type {
   DivisionInfo,
   StaffMember,
@@ -196,7 +196,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const resetAll = () => {
+  const resetAll = useCallback(() => {
     setDivisions([]);
     setStaff([]);
     setProjects([]);
@@ -227,9 +227,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setImportEvents([]);
     setContributionRequests([]);
     setDataStewards([]);
-  };
+  }, []);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
@@ -379,13 +379,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [provisioned, isAuthenticated, role, divisionCode, loadRecruitment, loadDataOps, loadContracts, pushToast, resetAll]);
 
   useEffect(() => {
-    loadData();
-  }, [provisioned, isAuthenticated, role, divisionCode, loadRecruitment, loadDataOps, loadContracts]); // eslint-disable-line react-hooks/exhaustive-deps
+    void loadData();
+  }, [loadData]);
 
-  const refreshContributions = async () => {
+  const refreshContributions = useCallback(async () => {
     if (!supabase) return;
     const [crRes, dsRes] = await Promise.all([
       fetchAll(supabase.from('contribution_requests').select('*').order('created_at', { ascending: false }).order('id')),
@@ -399,9 +399,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
     setContributionRequests(crRes.data ? crRes.data.map(mapContributionRow) : []);
     setDataStewards(dsRes.data ? dsRes.data.map(mapStewardRow) : []);
-  };
+  }, [pushToast]);
 
-  const refreshCalendar = async () => {
+  const refreshCalendar = useCallback(async () => {
     if (!supabase) return;
     const { data, error: err } = await fetchAll(supabase
       .from('calendar_events')
@@ -414,9 +414,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
       return;
     }
     setCalendarEvents(data ? data.map(mapCalendarEventRow) : []);
-  };
+  }, [pushToast]);
 
-  const refreshHolidays = async () => {
+  const refreshHolidays = useCallback(async () => {
     if (!supabase) return;
     const { data, error: err } = await fetchAll(supabase
       .from('holidays')
@@ -429,55 +429,38 @@ export function DataProvider({ children }: { children: ReactNode }) {
       return;
     }
     setHolidays(data ? data.map(mapHolidayRow) : []);
-  };
+  }, [pushToast]);
+
+  const saveEquipment = useCallback(async (payload: Record<string, unknown>) => {
+    if (!supabase) throw new Error('Supabase not configured');
+    const { data, error: sbErr } = await supabase.from('equipment').upsert(payload).select().single();
+    if (sbErr) throw sbErr;
+    const saved = mapEquipmentRow(data);
+    setEquipment(prev => [saved, ...prev.filter(e => e.UInsID !== saved.UInsID)]);
+  }, []);
+
+  const value = useMemo(() => ({
+    divisions, staff, projects, projectStaff, phDStudents, phdMilestones, contractStaff,
+    scientificOutputs, ipIntelligence, mous, techTransfers, equipment, labs, vacancyAdvertisements,
+    vacancyApplications, committees, committeeMembers, meetings, agendaItems, actionItems,
+    meetingDocs, tickets, ticketResponses, ticketEvents, helpdeskRouting, calendarEvents, holidays,
+    importEvents, contributionRequests, dataStewards, refreshContributions, refreshCalendar,
+    refreshHolidays, isLoading,
+    isBackendProvisioned: provisioned,
+    refreshData: loadData,
+    saveEquipment,
+    error,
+  }), [
+    divisions, staff, projects, projectStaff, phDStudents, phdMilestones, contractStaff,
+    scientificOutputs, ipIntelligence, mous, techTransfers, equipment, labs, vacancyAdvertisements,
+    vacancyApplications, committees, committeeMembers, meetings, agendaItems, actionItems,
+    meetingDocs, tickets, ticketResponses, ticketEvents, helpdeskRouting, calendarEvents, holidays,
+    importEvents, contributionRequests, dataStewards, refreshContributions, refreshCalendar,
+    refreshHolidays, isLoading, provisioned, loadData, saveEquipment, error,
+  ]);
 
   return (
-    <DataContext.Provider value={{
-      divisions,
-      staff,
-      projects,
-      projectStaff,
-      phDStudents,
-      phdMilestones,
-      contractStaff,
-      scientificOutputs,
-      ipIntelligence,
-      mous,
-      techTransfers,
-      equipment,
-      labs,
-      vacancyAdvertisements,
-      vacancyApplications,
-      committees,
-      committeeMembers,
-      meetings,
-      agendaItems,
-      actionItems,
-      meetingDocs,
-      tickets,
-      ticketResponses,
-      ticketEvents,
-      helpdeskRouting,
-      calendarEvents,
-      holidays,
-      importEvents,
-      contributionRequests,
-      dataStewards,
-      refreshContributions,
-      refreshCalendar,
-      refreshHolidays,
-      isLoading,
-      isBackendProvisioned: provisioned,
-      refreshData: loadData,
-      saveEquipment: async (payload) => {
-        if (!supabase) throw new Error('Supabase not configured');
-        const { data, error: sbErr } = await supabase.from('equipment').upsert(payload).select().single();
-        if (sbErr) throw sbErr;
-        const saved = mapEquipmentRow(data);
-        setEquipment(prev => [saved, ...prev.filter(e => e.UInsID !== saved.UInsID)]);
-      },
-      error,
-    }}>
+    <DataContext.Provider value={value}>
       {children}
     </DataContext.Provider>
   );
