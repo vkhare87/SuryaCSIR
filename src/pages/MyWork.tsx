@@ -22,6 +22,9 @@ import type { ContributionAction, ContributionEvent, ContributionRequest, Contri
 
 type Bucket = 'todo' | 'review' | 'unowned' | 'done';
 
+// Same rule as the contribution_requests.link CHECK; kept here in case a row predates it.
+const safeLink = (l: string | null) => (l && /^\/([^/\\]|$)/.test(l) ? l : null);
+
 const ACTION_LABEL: Record<ContributionAction, string> = {
   delegate: 'Delegate',
   submit: 'Submit update',
@@ -265,6 +268,7 @@ function RequestPanel({ r, userId, isAdmin, nameOf, onDone }: RequestPanelProps)
   const buttons = BUTTON_ORDER.filter(a => actions.includes(a));
   const showNote = actions.some(a => NOTE_ACTIONS.includes(a));
   const showPicker = actions.includes('delegate') || actions.includes('claim');
+  const link = safeLink(r.link);
 
   return (
     <Card className="p-5 space-y-5">
@@ -286,8 +290,8 @@ function RequestPanel({ r, userId, isAdmin, nameOf, onDone }: RequestPanelProps)
           <dd className="text-text font-mono">{r.dueDate ?? '—'}</dd></div>
         <div><dt className="text-xs text-text-muted">Record</dt>
           <dd className="text-text">
-            {r.link ? (
-              <Link to={r.link} className="inline-flex items-center gap-1 text-brand-blue hover:underline">
+            {link ? (
+              <Link to={link} className="inline-flex items-center gap-1 text-brand-blue hover:underline">
                 Open record <ExternalLink size={12} />
               </Link>
             ) : show(r.recordRef)}
