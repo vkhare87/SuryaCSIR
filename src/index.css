@@ -51,7 +51,9 @@
   --font-mono: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
   /* DESIGN.md R1 — Fraunces. Georgia stays as the fallback, which is what
      every `font-serif` usage silently rendered as before the font loaded. */
-  --font-serif: 'Fraunces', Georgia, 'Times New Roman', serif;
+  /* Tiro only has Devanagari loaded, so it renders सूर्य on the login screen
+     and nothing else. */
+  --font-serif: 'Fraunces Variable', 'Tiro Devanagari Sanskrit', Georgia, 'Times New Roman', serif;
 
   /* Ring Shadows */
   --shadow-ring: 0px 0px 0px 1px #e8e6dc;
