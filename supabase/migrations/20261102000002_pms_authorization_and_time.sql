@@ -6,6 +6,9 @@
 --     The cycle-wide pms_is_evaluation_committee_member branch goes too: it
 --     let a tier-I panel member read tier-II/III reports. The pms_evaluations
 --     branch is the precise grant.
+-- 2b. BUG-04: the 15-day representation window survives the Nov 30 lock
+--     (product decision 2026-11-01). Only FINALIZED <-> UNDER_GRIEVANCE_REVIEW
+--     and pms_representations rows pass; everything else stays locked.
 -- 2c. BUG-05: one clock. Every PMS deadline compares against the IST day.
 -- Tests: scripts/db/pms.db.test.ts.
 -- ============================================================
@@ -136,6 +139,49 @@ BEGIN
     IF NOT FOUND THEN RETURN; END IF;
     v_awp.projects := public.pms_awp_redact_projects(v_awp.projects);
     RETURN NEXT v_awp;
+END;
+$$;
+
+-- ── 2b. Appeals through the lock ──────────────────────────────────────────
+-- The window itself (15 days from score communication) and the 5-member
+-- committee are enforced by pms_submit_representation /
+-- pms_resolve_representation, not by the calendar.
+CREATE OR REPLACE FUNCTION public.pms_block_locked_cycle_reports()
+RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $$
+DECLARE
+    v_cycle_id uuid;
+BEGIN
+    v_cycle_id := CASE WHEN TG_OP = 'DELETE' THEN OLD.cycle_id ELSE NEW.cycle_id END;
+    IF public.pms_cycle_locked(v_cycle_id) THEN
+        IF TG_OP = 'UPDATE'
+           AND ((OLD.status = 'FINALIZED'              AND NEW.status = 'UNDER_GRIEVANCE_REVIEW')
+             OR (OLD.status = 'UNDER_GRIEVANCE_REVIEW' AND NEW.status = 'FINALIZED')) THEN
+            RETURN NEW;
+        END IF;
+        RAISE EXCEPTION 'PMS cycle is locked (system-wide lock after November 30)';
+    END IF;
+    RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.pms_block_locked_cycle_children()
+RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $$
+DECLARE
+    v_report_id uuid;
+    v_cycle_id  uuid;
+    v_status    text;
+BEGIN
+    v_report_id := CASE WHEN TG_OP = 'DELETE' THEN OLD.report_id ELSE NEW.report_id END;
+    SELECT cycle_id, status INTO v_cycle_id, v_status
+      FROM public.pms_reports WHERE id = v_report_id;
+    IF v_cycle_id IS NOT NULL AND public.pms_cycle_locked(v_cycle_id) THEN
+        IF TG_TABLE_NAME = 'pms_representations'
+           AND v_status IN ('FINALIZED', 'UNDER_GRIEVANCE_REVIEW') THEN
+            RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
+        END IF;
+        RAISE EXCEPTION 'PMS cycle is locked (system-wide lock after November 30)';
+    END IF;
+    RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
 END;
 $$;
 

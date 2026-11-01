@@ -213,3 +213,52 @@ describe('one clock: the IST day (BUG-05)', () => {
        VALUES ($1, 'R&D', 'lead', 50)`, [draft]))).rejects.toThrow(/locked/);
   });
 });
+
+describe('appeals survive the Nov 30 lock (BUG-04)', () => {
+  const SCI_A = '30000000-0000-0000-0000-0000000000a1';
+  const SCI_B = '30000000-0000-0000-0000-0000000000a2';
+  const R_FRESH = '50000000-0000-0000-0000-0000000000a1'; // score communicated 5 days ago
+  const R_STALE = '50000000-0000-0000-0000-0000000000a2'; // score communicated 29 days ago
+  const GROUNDS = 'The committee did not consider two granted patents.';
+  const asUser = (tx: Tx, uid: string) =>
+    tx.query(`SELECT set_config('request.jwt.claims', $1, true)`, [JSON.stringify({ sub: uid, role: 'authenticated' })]);
+
+  beforeAll(async () => {
+    await db.exec(`
+      INSERT INTO auth.users (id, email) VALUES ('${SCI_A}', 'a1@t.local'), ('${SCI_B}', 'a2@t.local');
+      INSERT INTO pms_grievance_members (cycle_id, user_id) VALUES
+        ('${CYCLE}', '${U.emp1}'), ('${CYCLE}', '${U.emp2}'), ('${CYCLE}', '${U.emp3}'),
+        ('${CYCLE}', '${U.chair}'), ('${CYCLE}', '${U.ecm}');
+      INSERT INTO pms_reports (id, cycle_id, scientist_id, status, score_communicated_at) VALUES
+        ('${R_FRESH}', '${CYCLE}', '${SCI_A}', 'FINALIZED', now() - interval '5 days'),
+        ('${R_STALE}', '${CYCLE}', '${SCI_B}', 'FINALIZED', now() - interval '29 days');
+      INSERT INTO pms_committee_decisions (report_id, decided_by, final_score, justification) VALUES
+        ('${R_FRESH}', '${U.emp1}', 70, '${JUSTIFY}'), ('${R_STALE}', '${U.emp1}', 70, '${JUSTIFY}');
+    `);
+  });
+
+  it('after the lock, a report still inside its 15 days can be appealed and the appeal resolved', async () => {
+    const status = await onDay(`${Y}-12-03`, SCI_A, async tx => {
+      await rpc(tx, 'pms_submit_representation', [R_FRESH, GROUNDS]);
+      await asUser(tx, U.emp2);
+      await rpc(tx, 'pms_resolve_representation', [R_FRESH, 'Patents reviewed; score stands as awarded.', null, null, null, null]);
+      return (await one(tx, `SELECT status FROM pms_reports WHERE id = $1`, [R_FRESH])).status;
+    });
+    expect(status).toBe('FINALIZED');
+  });
+
+  it('a report whose 15 days have passed cannot be appealed', async () => {
+    await expect(onDay(`${Y}-12-03`, SCI_B, tx => rpc(tx, 'pms_submit_representation', [R_STALE, GROUNDS])))
+      .rejects.toThrow(/window/);
+  });
+
+  it('the carve-out does not reopen anything else after the lock', async () => {
+    // As the table owner (bypasses RLS), so only the lock trigger can refuse it.
+    await expect(db.transaction(async tx => {
+      await tx.exec(`CREATE OR REPLACE FUNCTION public.ist_today() RETURNS date LANGUAGE sql STABLE AS $$ SELECT '${Y}-12-03'::date $$`);
+      await tx.query(`UPDATE pms_reports SET status = 'NOT_ASSESSED' WHERE id = $1`, [R_FRESH]);
+    })).rejects.toThrow(/locked/);
+    await expect(onDay(`${Y}-12-03`, U.ecm, tx => tx.query(
+      `UPDATE pms_evaluations SET comments = 'late' WHERE evaluator_id = $1`, [U.ecm]))).rejects.toThrow(/locked/);
+  });
+});
