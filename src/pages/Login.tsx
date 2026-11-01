@@ -4,7 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Sun, Lock, ArrowRight, Mail, ExternalLink, Newspaper,
   Eye, Scale, Users, Clock, Map, Compass, BookOpen,
-  FolderX, Layers, Lightbulb,
+  FolderX, Layers, Lightbulb, Pause, Play,
 } from 'lucide-react';
 import { ROLE_ROUTES } from '../constants/roleRoutes';
 import { resolvePostLoginPath } from '../lib/auth/postLogin';
@@ -106,27 +106,31 @@ export default function Login() {
   const [tickerVisible, setTickerVisible] = useState(true);
   const [slide, setSlide] = useState(0);
   const [paused, setPaused] = useState(false);
+  const [userPaused, setUserPaused] = useState(false);
+  const [reducedMotion] = useState(() => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false);
   const { login, isAuthenticated, role } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
+    if (reducedMotion) return;
+    let fade: ReturnType<typeof setTimeout> | undefined;
     const interval = setInterval(() => {
       setTickerVisible(false);
-      setTimeout(() => {
+      fade = setTimeout(() => {
         setTickerIndex(i => (i + 1) % ACHIEVEMENTS.length);
         setTickerVisible(true);
       }, 400);
     }, 4000);
-    return () => clearInterval(interval);
-  }, []);
+    return () => { clearInterval(interval); clearTimeout(fade); };
+  }, [reducedMotion]);
 
   // Auto-advance slides; including `slide` in deps resets the timer after a manual jump
   useEffect(() => {
-    if (paused) return;
+    if (paused || userPaused || reducedMotion) return;
     const t = setInterval(() => setSlide(s => (s + 1) % SLIDE_COUNT), SLIDE_INTERVAL_MS);
     return () => clearInterval(t);
-  }, [paused, slide]);
+  }, [paused, userPaused, reducedMotion, slide]);
 
   // Navigate to role-specific dashboard once auth and role are both resolved
   useEffect(() => {
@@ -415,6 +419,17 @@ export default function Login() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            {!reducedMotion && (
+              <button
+                type="button"
+                aria-label={userPaused ? 'Play slides' : 'Pause slides'}
+                aria-pressed={userPaused}
+                onClick={() => setUserPaused(p => !p)}
+                className="p-1 rounded-full text-[#faf9f5]/60 hover:text-[#faf9f5]"
+              >
+                {userPaused ? <Play size={14} /> : <Pause size={14} />}
+              </button>
+            )}
             {SLIDE_TITLES.map((title, i) => (
               <button
                 key={title}
@@ -489,13 +504,15 @@ export default function Login() {
           <form onSubmit={handleLogin} className="space-y-8">
             <div className="space-y-6">
               <div className="space-y-2">
-                <label className="text-[10px] font-semibold text-[#87867f] uppercase tracking-widest ml-1">Institutional Email</label>
+                <label htmlFor="login-email" className="text-[10px] font-semibold text-[#87867f] uppercase tracking-widest ml-1">Institutional Email</label>
                 <div className="relative group">
                   <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#b0aea5] group-focus-within:text-[#c96442] transition-colors">
                     <Mail size={18} />
                   </div>
                   <input
+                    id="login-email"
                     type="email"
+                    autoComplete="username"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full pl-12 pr-4 py-4 bg-[#f5f4ed] border border-[#f0eee6] rounded-[12px] focus:ring-2 focus:ring-[#c96442] focus:border-[#c96442] outline-none text-[#141413] font-medium transition-all placeholder:text-[#b0aea5]"
@@ -506,13 +523,15 @@ export default function Login() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-[10px] font-semibold text-[#87867f] uppercase tracking-widest ml-1">Secure Passphrase</label>
+                <label htmlFor="login-password" className="text-[10px] font-semibold text-[#87867f] uppercase tracking-widest ml-1">Secure Passphrase</label>
                 <div className="relative group">
                   <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#b0aea5] group-focus-within:text-[#c96442] transition-colors">
                     <Lock size={18} />
                   </div>
                   <input
+                    id="login-password"
                     type="password"
+                    autoComplete="current-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="w-full pl-12 pr-4 py-4 bg-[#f5f4ed] border border-[#f0eee6] rounded-[12px] focus:ring-2 focus:ring-[#c96442] focus:border-[#c96442] outline-none text-[#141413] font-medium transition-all placeholder:text-[#b0aea5]"
@@ -524,7 +543,7 @@ export default function Login() {
             </div>
 
             {error && (
-              <div className="text-xs text-[#b53333] font-bold bg-[#f5e8e8] p-4 rounded-xl border border-[#e8c8c8] animate-shake">
+              <div role="alert" className="text-xs text-[#b53333] font-bold bg-[#f5e8e8] p-4 rounded-xl border border-[#e8c8c8] animate-shake">
                 {error}
               </div>
             )}

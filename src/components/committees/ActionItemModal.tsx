@@ -167,7 +167,7 @@ export function ActionItemModal({ isOpen, onClose, meetingId }: ActionItemModalP
 
         {/* --- Submit Error --- */}
         {submitError && (
-          <div className="bg-[#f5e8e8] border border-[#e8c8c8] text-[#b53333] px-4 py-3 rounded-lg text-sm">
+          <div role="alert" className="bg-[#f5e8e8] border border-[#e8c8c8] text-[#b53333] px-4 py-3 rounded-lg text-sm">
             {submitError}
           </div>
         )}

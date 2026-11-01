@@ -143,7 +143,7 @@ export default function ProjectReportDetail() {
         )}
       </Card>
 
-      {error && <p className="text-sm text-danger">{error}</p>}
+      {error && <p role="alert" className="text-sm text-danger">{error}</p>}
 
       <div className="flex flex-wrap gap-3">
         {(isOwner && editable) && (

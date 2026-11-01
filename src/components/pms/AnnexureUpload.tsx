@@ -74,7 +74,7 @@ export function AnnexureUpload({ annexures, onUpload, onDelete }: Props) {
         </Button>
         <span className="text-xs text-text-muted">PDF, Word, JPEG, PNG</span>
       </div>
-      {error && <p className="text-xs text-rose-600">{error}</p>}
+      {error && <p role="alert" className="text-xs text-rose-600">{error}</p>}
     </div>
   );
 }

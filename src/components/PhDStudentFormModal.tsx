@@ -154,7 +154,7 @@ export function PhDStudentFormModal({ isOpen, onClose, student }: Props) {
         </div>
 
         {submitError && (
-          <div className="bg-[#f5e8e8] border border-[#e8c8c8] text-[#b53333] px-4 py-3 rounded-lg text-sm">
+          <div role="alert" className="bg-[#f5e8e8] border border-[#e8c8c8] text-[#b53333] px-4 py-3 rounded-lg text-sm">
             {submitError}
           </div>
         )}
@@ -192,7 +192,7 @@ function Field({ label, error, children }: { label: string; error?: string; chil
     <div>
       <label className="block text-xs font-semibold text-text-muted mb-1">{label}</label>
       {children}
-      {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
+      {error && <p role="alert" className="text-xs text-red-600 mt-1">{error}</p>}
     </div>
   );
 }

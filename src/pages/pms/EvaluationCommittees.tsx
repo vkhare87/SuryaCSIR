@@ -284,7 +284,7 @@ export default function EvaluationCommittees() {
             </div>
           </div>
         </div>
-        {formError && <p className="text-sm text-rose-600">{formError}</p>}
+        {formError && <p role="alert" className="text-sm text-rose-600">{formError}</p>}
       </div>
 
       {/* Create Committee Modal */}
@@ -329,7 +329,7 @@ export default function EvaluationCommittees() {
               {cycles.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
-          {formError && <p className="text-sm text-rose-600">{formError}</p>}
+          {formError && <p role="alert" className="text-sm text-rose-600">{formError}</p>}
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="secondary" onClick={() => setShowCreate(false)}>Cancel</Button>
             <Button isLoading={saving} onClick={handleCreateCommittee}>Create</Button>
@@ -397,7 +397,7 @@ export default function EvaluationCommittees() {
                 </div>
               )}
             </div>
-            {formError && <p className="text-sm text-rose-600 mt-2">{formError}</p>}
+            {formError && <p role="alert" className="text-sm text-rose-600 mt-2">{formError}</p>}
           </div>
         </div>
       </Modal>

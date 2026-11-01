@@ -228,10 +228,11 @@ export default function EvaluateReport() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {EVALUATION_DIMENSIONS.map(dim => (
             <div key={dim.key} className="p-4 bg-surface border border-border rounded-xl">
-              <label className="block text-sm font-medium text-text mb-0.5">{dim.label}</label>
+              <label htmlFor={`score-${dim.key}`} className="block text-sm font-medium text-text mb-0.5">{dim.label}</label>
               <p className="text-xs text-text-muted mb-2">{dim.description}</p>
               <div className="flex items-center gap-2">
                 <input
+                  id={`score-${dim.key}`}
                   type="number"
                   min={SCORE_RANGE.min}
                   max={SCORE_RANGE.max}
@@ -254,8 +255,9 @@ export default function EvaluateReport() {
       {/* Total score + grade */}
       <div className="p-4 bg-[#fdf0e8] border border-[#c96442]/20 rounded-2xl space-y-2">
         <div className="flex items-center gap-3">
-          <label className="text-sm font-medium text-[#c96442]">Total score (0–100):</label>
+          <label htmlFor="score-total" className="text-sm font-medium text-[#c96442]">Total score (0–100):</label>
           <input
+            id="score-total"
             type="number"
             min={SCORE_RANGE.min}
             max={SCORE_RANGE.max}
@@ -281,10 +283,11 @@ export default function EvaluateReport() {
       {/* Conditional mandatory reasons */}
       {needsOutstanding && (
         <div>
-          <label className="block text-sm font-medium text-text mb-1">
+          <label htmlFor="reasons-outstanding" className="block text-sm font-medium text-text mb-1">
             Reasons for Outstanding grade <span className="text-rose-600">*</span>
           </label>
           <textarea
+            id="reasons-outstanding"
             rows={3}
             value={reasonsOutstanding}
             onChange={e => setReasonsOutstanding(e.target.value)}
@@ -297,10 +300,11 @@ export default function EvaluateReport() {
       {needsBelow && (
         <>
           <div>
-            <label className="block text-sm font-medium text-text mb-1">
+            <label htmlFor="reasons-below" className="block text-sm font-medium text-text mb-1">
               Reasons for score below threshold <span className="text-rose-600">*</span>
             </label>
             <textarea
+              id="reasons-below"
               rows={3}
               value={reasonsBelow}
               onChange={e => setReasonsBelow(e.target.value)}
@@ -310,10 +314,11 @@ export default function EvaluateReport() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-text mb-1">
+            <label htmlFor="suggestions" className="block text-sm font-medium text-text mb-1">
               Suggestions for improvement <span className="text-rose-600">*</span>
             </label>
             <textarea
+              id="suggestions"
               rows={3}
               value={suggestions}
               onChange={e => setSuggestions(e.target.value)}
@@ -329,8 +334,9 @@ export default function EvaluateReport() {
 
       {/* Comments */}
       <div>
-        <label className="block text-sm font-medium text-text mb-1">Comments (optional)</label>
+        <label htmlFor="comments" className="block text-sm font-medium text-text mb-1">Comments (optional)</label>
         <textarea
+          id="comments"
           rows={4}
           value={comments}
           onChange={e => setComments(e.target.value)}
@@ -341,7 +347,7 @@ export default function EvaluateReport() {
       </div>
 
       {error && (
-        <div className="px-4 py-3 bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl">
+        <div role="alert" className="px-4 py-3 bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl">
           {error}
         </div>
       )}

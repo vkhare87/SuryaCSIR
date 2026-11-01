@@ -84,7 +84,7 @@ export default function AWPRegister() {
       <p className="text-sm text-text-muted">
         {counts.total} scientists · {counts.approved} approved · {counts.pending} under review · {counts.missing} not submitted
       </p>
-      {error && <p className="text-sm text-danger">{error}</p>}
+      {error && <p role="alert" className="text-sm text-danger">{error}</p>}
 
       <div className="overflow-x-auto border border-border rounded-2xl bg-surface">
         <table className="w-full text-sm">

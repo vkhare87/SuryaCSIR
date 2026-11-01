@@ -63,7 +63,7 @@ export function PhDMilestonePanel({ student, canEdit, onClose }: PhDMilestonePan
           <span className="text-sm text-text-muted">{progress.percent}%</span>
           {progress.overdue.length > 0 && <Badge variant="warning">{progress.overdue.length} overdue</Badge>}
         </div>
-        {error && <p className="text-sm text-danger">{error}</p>}
+        {error && <p role="alert" className="text-sm text-danger">{error}</p>}
         <ul className="divide-y divide-border">
           {PHD_MILESTONE_ORDER.map(name => {
             const existing = byName.get(name);

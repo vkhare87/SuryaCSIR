@@ -306,7 +306,7 @@ export function ReportWizard({ report: initialReport, cycleOpen }: Props) {
 
       {/* Error */}
       {error && (
-        <div className="px-4 py-3 bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl">
+        <div role="alert" className="px-4 py-3 bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl">
           {error}
         </div>
       )}

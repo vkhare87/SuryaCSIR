@@ -210,8 +210,9 @@ export default function TicketForm() {
         <p className="text-sm font-[500] text-text font-serif">Ticket Details</p>
 
         <div>
-          <label className="block text-xs font-semibold text-text-muted mb-1">Subject</label>
+          <label htmlFor="ticket-subject" className="block text-xs font-semibold text-text-muted mb-1">Subject</label>
           <input
+            id="ticket-subject"
             type="text"
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
@@ -252,8 +253,9 @@ export default function TicketForm() {
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-text-muted mb-1">Description</label>
+          <label htmlFor="ticket-description" className="block text-xs font-semibold text-text-muted mb-1">Description</label>
           <textarea
+            id="ticket-description"
             rows={5}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -268,7 +270,7 @@ export default function TicketForm() {
       </section>
 
       {error && (
-        <div className="bg-[#f5e8e8] border border-[#e8c8c8] text-[#b53333] px-4 py-3 rounded-lg text-sm">
+        <div role="alert" className="bg-[#f5e8e8] border border-[#e8c8c8] text-[#b53333] px-4 py-3 rounded-lg text-sm">
           {error}
         </div>
       )}

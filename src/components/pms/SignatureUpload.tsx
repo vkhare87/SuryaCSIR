@@ -72,7 +72,7 @@ export function SignatureUpload({ currentUrl, onUpload }: Props) {
         </div>
       )}
       {uploading && <p className="text-xs text-text-muted">Uploading…</p>}
-      {error && <p className="text-xs text-rose-600">{error}</p>}
+      {error && <p role="alert" className="text-xs text-rose-600">{error}</p>}
       {!displayUrl && (
         <Button variant="secondary" size="sm" onClick={() => ref.current?.click()}>
           Choose File

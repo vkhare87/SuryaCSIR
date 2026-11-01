@@ -175,7 +175,7 @@ export default function AWPMine() {
       )}
 
       {message && <p className="text-sm text-text-muted">{message}</p>}
-      {error && <p className="text-sm text-danger">{error}</p>}
+      {error && <p role="alert" className="text-sm text-danger">{error}</p>}
     </div>
   );
 }
