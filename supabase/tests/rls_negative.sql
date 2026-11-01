@@ -442,6 +442,86 @@ BEGIN
 END $$;
 -- ═══ END notifications block ════════════════════════════════════════════
 
+-- ═══ BEGIN PMS workflow block (20261102000001) — T21–T23 ════════════════
+-- reports_update pinned only scientist_id and evaluations_update had no
+-- WITH CHECK, so the owner could finalize their own report and an evaluator
+-- could re-point an evaluation at any report. The cycles are CLOSED so they
+-- never collide with a seeded OPEN cycle; their lock date is in the future.
+INSERT INTO public.appraisal_cycles (id, name, start_date, end_date, status) VALUES
+  ('a0000000-0000-0000-0000-000000000001', 'T21 cycle',
+   make_date(extract(year FROM current_date)::int, 4, 1),
+   make_date(extract(year FROM current_date)::int + 1, 3, 31), 'CLOSED'),
+  ('a0000000-0000-0000-0000-000000000002', 'T23 cycle',
+   make_date(extract(year FROM current_date)::int, 4, 1),
+   make_date(extract(year FROM current_date)::int + 1, 3, 31), 'CLOSED');
+INSERT INTO public.pms_reports (id, cycle_id, scientist_id, status) VALUES
+  ('a0000000-0000-0000-0000-000000000021', 'a0000000-0000-0000-0000-000000000001',
+   '11111111-1111-1111-1111-111111111111', 'DRAFT'),
+  ('a0000000-0000-0000-0000-000000000022', 'a0000000-0000-0000-0000-000000000001',
+   '22222222-2222-2222-2222-222222222222', 'UNDER_EVALUATION_COMMITTEE_REVIEW'),
+  ('a0000000-0000-0000-0000-000000000023', 'a0000000-0000-0000-0000-000000000002',
+   '22222222-2222-2222-2222-222222222222', 'UNDER_EVALUATION_COMMITTEE_REVIEW');
+INSERT INTO public.pms_evaluations (report_id, evaluator_id) VALUES
+  ('a0000000-0000-0000-0000-000000000022', '11111111-1111-1111-1111-111111111111');
+
+-- T21 — the owner moves their own DRAFT out of DRAFT
+DO $$
+DECLARE v_status text;
+BEGIN
+    CALL pg_temp.become('11111111-1111-1111-1111-111111111111', 'lowpriv@test.local');
+    PERFORM pg_temp.blocked(
+        'UPDATE public.pms_reports SET status = ''FINALIZED''
+          WHERE id = ''a0000000-0000-0000-0000-000000000021''');
+    RESET ROLE;
+
+    SELECT status INTO v_status FROM public.pms_reports WHERE id = 'a0000000-0000-0000-0000-000000000021';
+    IF v_status <> 'DRAFT' THEN
+        RAISE EXCEPTION 'T21 FAILED: owner set own report to %', v_status;
+    END IF;
+END $$;
+
+-- T22 — the owner writes workflow columns on their own DRAFT
+DO $$
+DECLARE v_row public.pms_reports%ROWTYPE;
+BEGIN
+    CALL pg_temp.become('11111111-1111-1111-1111-111111111111', 'lowpriv@test.local');
+    PERFORM pg_temp.blocked(
+        'UPDATE public.pms_reports SET duty_days = 100
+          WHERE id = ''a0000000-0000-0000-0000-000000000021''');
+    PERFORM pg_temp.blocked(
+        'UPDATE public.pms_reports SET score_communicated_at = now(), submitted_at = now()
+          WHERE id = ''a0000000-0000-0000-0000-000000000021''');
+    PERFORM pg_temp.blocked(
+        'UPDATE public.pms_reports SET cycle_id = ''a0000000-0000-0000-0000-000000000002''
+          WHERE id = ''a0000000-0000-0000-0000-000000000021''');
+    RESET ROLE;
+
+    SELECT * INTO v_row FROM public.pms_reports WHERE id = 'a0000000-0000-0000-0000-000000000021';
+    IF v_row.duty_days IS NOT NULL OR v_row.score_communicated_at IS NOT NULL
+       OR v_row.submitted_at IS NOT NULL
+       OR v_row.cycle_id <> 'a0000000-0000-0000-0000-000000000001' THEN
+        RAISE EXCEPTION 'T22 FAILED: owner wrote a workflow column on own report';
+    END IF;
+END $$;
+
+-- T23 — an evaluator re-points their evaluation at another report
+DO $$
+DECLARE v_report uuid;
+BEGIN
+    CALL pg_temp.become('11111111-1111-1111-1111-111111111111', 'lowpriv@test.local');
+    PERFORM pg_temp.blocked(
+        'UPDATE public.pms_evaluations SET report_id = ''a0000000-0000-0000-0000-000000000023''
+          WHERE evaluator_id = ''11111111-1111-1111-1111-111111111111''');
+    RESET ROLE;
+
+    SELECT report_id INTO v_report FROM public.pms_evaluations
+     WHERE evaluator_id = '11111111-1111-1111-1111-111111111111';
+    IF v_report <> 'a0000000-0000-0000-0000-000000000022' THEN
+        RAISE EXCEPTION 'T23 FAILED: evaluator moved an evaluation to report %', v_report;
+    END IF;
+END $$;
+-- ═══ END PMS workflow block ═════════════════════════════════════════════
+
 DO $$ BEGIN RAISE NOTICE 'ALL RLS NEGATIVE TESTS PASSED'; END $$;
 
 ROLLBACK;
