@@ -35,6 +35,7 @@ const STAFF: Role[] = VERIFIED.filter(r => r !== 'Student' && r !== 'ProjectStaf
 export const ACCESS_MAP = {
   '/':                        ALL_ROLES,
   '/ask':                     VERIFIED,
+  '/work':                    VERIFIED,
   '/calendar':                VERIFIED,
   '/intelligence':            ['Director', ...DIV_MANAGERS, ...MASTER] as Role[],
   '/explore':                 ['Director', ...DIV_MANAGERS, ...MASTER] as Role[],
@@ -79,6 +80,7 @@ export type AccessPath = keyof typeof ACCESS_MAP;
 export const FEATURE_LABELS: Record<AccessPath, string> = {
   '/':                        'Dashboard',
   '/ask':                     'Ask SURYA',
+  '/work':                    'My Work',
   '/calendar':                'Calendar',
   '/intelligence':            'Intelligence',
   '/explore':                 'Explore Graph',

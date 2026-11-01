@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { ACCESS_MAP, ALL_ROLES } from './access';
+import { ACCESS_MAP, ALL_ROLES, VERIFIED } from './access';
 
 // Guards against ACCESS_MAP/App.tsx drift — the "triple source of truth" problem
 // the overhaul's T0 collapsed. Every ACCESS_MAP path must be a registered route,
@@ -72,6 +72,11 @@ describe('ACCESS_MAP role scoping decisions', () => {
   it('HRAdmin is removed from Partnerships and Explore', () => {
     expect(can('/partnerships', 'HRAdmin')).toBe(false);
     expect(can('/explore', 'HRAdmin')).toBe(false);
+  });
+
+  it('/work is reachable by every verified role and not by DefaultUser', () => {
+    for (const role of VERIFIED) expect(can('/work', role)).toBe(true);
+    expect(can('/work', 'DefaultUser')).toBe(false);
   });
 
   it('FinanceAdmin can see Proposals', () => {

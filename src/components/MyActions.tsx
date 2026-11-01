@@ -138,6 +138,11 @@ export function MyActions() {
           })}
         </ul>
       )}
+      {actions.length > 8 && (
+        <Link to="/work" className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-brand-blue hover:underline">
+          View all {actions.length} <ChevronRight size={12} />
+        </Link>
+      )}
     </Card>
   );
 }

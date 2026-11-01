@@ -41,6 +41,7 @@ const Recruitment       = lazy(() => import('./pages/Recruitment'));
 const DataManagement    = lazy(() => import('./pages/DataManagement'));
 const AccessRequests    = lazy(() => import('./pages/AccessRequests'));
 const Calendar          = lazy(() => import('./pages/Calendar'));
+const MyWork            = lazy(() => import('./pages/MyWork'));
 const PMSIndex          = lazy(() => import('./pages/pms/Index'));
 const PMSCycles         = lazy(() => import('./pages/pms/Cycles'));
 const EvaluationCommittees = lazy(() => import('./pages/pms/EvaluationCommittees'));
@@ -196,6 +197,7 @@ function App() {
             <Route path="/helpdesk" element={<ProtectedRoute accessPath="/helpdesk"><TicketList /></ProtectedRoute>} />
             <Route path="/recruitment" element={<ProtectedRoute accessPath="/recruitment"><Recruitment /></ProtectedRoute>} />
             <Route path="/calendar" element={<ProtectedRoute accessPath="/calendar"><Calendar /></ProtectedRoute>} />
+            <Route path="/work" element={<ProtectedRoute accessPath="/work"><MyWork /></ProtectedRoute>} />
             <Route path="/ask" element={<ProtectedRoute accessPath="/ask"><AskSurya /></ProtectedRoute>} />
             <Route path="/data" element={<ProtectedRoute desktopOnly accessPath="/data"><DataManagement /></ProtectedRoute>} />
             <Route path="/pms" element={<ProtectedRoute accessPath="/pms"><PMSIndex /></ProtectedRoute>} />

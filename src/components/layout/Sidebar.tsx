@@ -5,7 +5,7 @@ import {
   Settings as SettingsIcon, LayoutDashboard, Calendar as CalendarIcon,
   Building2, Handshake, Activity, FileText, Database, Network, Cloud, X,
   ClipboardCheck, Ticket as TicketIcon, CalendarDays, UserCog, UserCheck,
-  ScanText, Sparkles, Share2, Microscope, SlidersHorizontal, ChevronDown, MoreHorizontal,
+  ScanText, Sparkles, Share2, Microscope, SlidersHorizontal, ChevronDown, MoreHorizontal, Inbox,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -32,6 +32,7 @@ const NAV_SECTIONS: NavSection[] = [
     label: 'Overview',
     items: [
       { path: '/',             label: 'Dashboard',       icon: LayoutDashboard },
+      { path: '/work',         label: 'My Work',         icon: Inbox },
       { path: '/ask',          label: 'Ask SURYA',       icon: Sparkles },
       { path: '/intelligence', label: 'Intelligence',    icon: Microscope },
       { path: '/explore',      label: 'Explore Graph',   icon: Share2 },

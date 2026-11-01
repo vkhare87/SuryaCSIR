@@ -23,13 +23,13 @@ describe('least-privilege role scope', () => {
   it('SystemAdmin is platform-only', () => {
     expect(paths('SystemAdmin').sort()).toEqual([
       '/', '/admin/access-requests', '/admin/holidays', '/admin/rag', '/ask', '/calendar',
-      '/committees', '/data', '/helpdesk', '/irins-sync',
+      '/committees', '/data', '/helpdesk', '/irins-sync', '/work',
     ]);
   });
 
   it('Student and ProjectStaff get only the basics', () => {
     for (const r of ['Student', 'ProjectStaff'] as Role[]) {
-      expect(paths(r).sort()).toEqual(['/', '/ask', '/calendar', '/helpdesk']);
+      expect(paths(r).sort()).toEqual(['/', '/ask', '/calendar', '/helpdesk', '/work']);
     }
   });
 
