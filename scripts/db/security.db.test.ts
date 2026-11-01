@@ -85,3 +85,52 @@ describe('upload namespace (SEC-11)', () => {
     expect(path).toBe('legacy/P1/note.pdf');
   });
 });
+
+describe('append-only audit trail (SEC-05)', () => {
+  const DIRECTOR = 'a0000000-0000-0000-0000-000000000010';
+  const SYSADMIN = 'a0000000-0000-0000-0000-000000000011';
+  let ticketId = '';
+
+  beforeAll(async () => {
+    await db.exec(`
+      INSERT INTO auth.users (id, email) VALUES ('${DIRECTOR}', 'dir@t.local'), ('${SYSADMIN}', 'sys@t.local');
+      INSERT INTO user_roles (user_id, role) VALUES ('${DIRECTOR}', 'Director'), ('${SYSADMIN}', 'SystemAdmin');
+    `);
+    ticketId = await as(db, SCI, tx => one<string>(tx,
+      `SELECT public.helpdesk_create_ticket('Fan broken', 'Infrastructure', 'Low', 'Lab 1', '${SCI}') AS v`));
+  });
+
+  const auditRows = async (entity: string) =>
+    (await db.query<{ n: number }>(`SELECT count(*)::int AS n FROM audit_log WHERE entity_type = $1`, [entity])).rows[0].n;
+  // RLS turns a forbidden UPDATE/DELETE into "0 rows"; a revoked grant raises. Either way nothing may change.
+  const changes = async (uid: string, sql: string) => {
+    try { return (await as(db, uid, tx => tx.query(sql))).affectedRows ?? 0; } catch { return 0; }
+  };
+
+  it('a Director cannot rewrite or erase audit_log, or write it directly', async () => {
+    expect(await auditRows('ticket')).toBeGreaterThan(0);
+    expect(await changes(DIRECTOR, `UPDATE audit_log SET action = 'x'`)).toBe(0);
+    expect(await changes(DIRECTOR, `DELETE FROM audit_log`)).toBe(0);
+    await expect(as(db, DIRECTOR, tx => tx.query(
+      `INSERT INTO audit_log (entity_type, entity_id, action, actor_id) VALUES ('ticket', gen_random_uuid(), 'forged', 'x')`))).rejects.toThrow();
+  });
+
+  it('a Director cannot edit or delete tickets, events or responses directly', async () => {
+    expect(await changes(DIRECTOR, `UPDATE tickets SET status = 'Closed'`)).toBe(0);
+    expect(await changes(DIRECTOR, `DELETE FROM tickets`)).toBe(0);
+    expect(await changes(DIRECTOR, `DELETE FROM ticket_events`)).toBe(0);
+    expect(await changes(DIRECTOR, `DELETE FROM ticket_responses`)).toBe(0);
+  });
+
+  it('the status RPC still moves the ticket and writes its history', async () => {
+    const before = await auditRows('ticket');
+    await as(db, SYSADMIN, tx => tx.query(
+      `SELECT public.helpdesk_update_status($1, 'InProgress', $2)`, [ticketId, SYSADMIN]));
+    const status = (await db.query<{ s: string }>(`SELECT status AS s FROM tickets WHERE id = $1`, [ticketId])).rows[0].s;
+    expect(status).toBe('InProgress');
+    expect(await auditRows('ticket')).toBe(before + 1);
+    const events = (await db.query<{ n: number }>(
+      `SELECT count(*)::int AS n FROM ticket_events WHERE ticket_id = $1`, [ticketId])).rows[0].n;
+    expect(events).toBeGreaterThan(0);
+  });
+});
