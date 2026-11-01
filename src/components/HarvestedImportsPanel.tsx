@@ -16,6 +16,7 @@ import { supabase } from '../utils/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import type { HarvestedImport } from '../types';
+import { friendlyError } from '../lib/errors';
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' });
@@ -38,7 +39,7 @@ export function HarvestedImportsPanel({ onImported }: { onImported: () => void }
     try {
       setRows(await listPendingHarvested(supabase));
     } catch (err) {
-      pushToast(`Failed to load harvested files: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      pushToast(`Failed to load harvested files: ${friendlyError(err)}`, 'error');
     } finally {
       setIsLoading(false);
     }
@@ -52,7 +53,7 @@ export function HarvestedImportsPanel({ onImported }: { onImported: () => void }
       const file = await downloadHarvestedFile(supabase, row);
       setReviewing({ row, file, entityType: guessType(row.file_name) });
     } catch (err) {
-      pushToast(`Failed to open file: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      pushToast(`Failed to open file: ${friendlyError(err)}`, 'error');
     }
   };
 
@@ -61,7 +62,7 @@ export function HarvestedImportsPanel({ onImported }: { onImported: () => void }
     try {
       await markHarvestedDiscarded(supabase, row.id, user.id);
     } catch (err) {
-      pushToast(`Failed to discard: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      pushToast(`Failed to discard: ${friendlyError(err)}`, 'error');
       return;
     }
     await load();
@@ -72,7 +73,7 @@ export function HarvestedImportsPanel({ onImported }: { onImported: () => void }
     try {
       await markHarvestedReviewed(supabase, reviewing.row.id, user.id);
     } catch (err) {
-      pushToast(`Imported, but marking the file reviewed failed: ${err instanceof Error ? err.message : String(err)}`, 'warning');
+      pushToast(`Imported, but marking the file reviewed failed: ${friendlyError(err)}`, 'warning');
     }
     setReviewing(null);
     await load();

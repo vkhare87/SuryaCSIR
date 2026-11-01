@@ -24,6 +24,7 @@ import {
   mapRepresentationRow, mapNotificationRow,
 } from '../utils/pmsMappers';
 import { fetchAll } from '../lib/data/fetchAll';
+import { friendlyError } from '../lib/errors';
 
 function ensureUser<T>(user: T | null | undefined): asserts user is T {
   if (!user) throw new Error('Not authenticated');
@@ -213,7 +214,7 @@ export function PMSProvider({ children }: { children: ReactNode }) {
       setNotifications(notifRes.data ? notifRes.data.map(r => mapNotificationRow(r as Record<string, unknown>)) : []);
       setAppNotifications(appNotifRes.data ? appNotifRes.data.map(r => mapAppNotificationRow(r as Record<string, unknown>)) : []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load PMS data');
+      setError(friendlyError(err, 'Failed to load PMS data'));
     } finally {
       setIsLoading(false);
     }

@@ -7,6 +7,7 @@ import { StatusBadge } from '../../components/pms/StatusBadge';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { friendlyError } from '../../lib/errors';
 
 export default function AssignEvaluators() {
   const { user } = useAuth();
@@ -51,7 +52,7 @@ export default function AssignEvaluators() {
       setSelectedReportId(null);
       setSelectedCommitteeId(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Assignment failed');
+      setError(friendlyError(e, 'Assignment failed'));
     } finally {
       setSaving(false);
     }

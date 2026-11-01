@@ -11,6 +11,7 @@ import { FEATURE_LABELS, type AccessPath } from '../../constants/access';
 import { FEATURE_GROUPS, grantableFeatures } from '../../lib/access/featureControls';
 import type { DirectoryUser } from '../../hooks/useUserDirectory';
 import type { FeatureGrant, Role } from '../../types';
+import { friendlyError } from '../../lib/errors';
 
 export function UserFeatureGrants() {
   const { user: me } = useAuth();
@@ -26,7 +27,7 @@ export function UserFeatureGrants() {
     if (!supabase) return;
     const { data, error } = await supabase
       .from('feature_grants').select('*').eq('user_id', userId).order('feature_key');
-    if (error) push(error.message, 'error');
+    if (error) push(friendlyError(error), 'error');
     setGrants(error ? [] : (data as FeatureGrant[]));
   }, [push]);
 
@@ -52,7 +53,7 @@ export function UserFeatureGrants() {
       user_id: target.userId, feature_key: feature, note: note.trim() || null, granted_by: me.id,
     });
     setBusy(false);
-    if (error) { push(error.message, 'error'); return; }
+    if (error) { push(friendlyError(error), 'error'); return; }
     push(`${FEATURE_LABELS[feature]} granted to ${target.name ?? target.email}`, 'success');
     setFeature('');
     setNote('');
@@ -65,7 +66,7 @@ export function UserFeatureGrants() {
     const { error } = await supabase.from('feature_grants')
       .delete().eq('user_id', g.user_id).eq('feature_key', g.feature_key);
     setBusy(false);
-    if (error) { push(error.message, 'error'); return; }
+    if (error) { push(friendlyError(error), 'error'); return; }
     await afterChange(target.userId);
   };
 

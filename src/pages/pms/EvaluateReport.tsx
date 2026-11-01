@@ -11,6 +11,7 @@ import { EvidencePanel } from '../../components/pms/EvidencePanel';
 import { PenPictureForm } from '../../components/pms/PenPictureForm';
 import { ReportAWPSection } from '../../components/pms/ReportAWPSection';
 import type { PenPicture, PMSReportSection, PMSAnnexure, PMSReport } from '../../types/pms';
+import { friendlyError } from '../../lib/errors';
 
 type ReportDetail = PMSReport & { sections: PMSReportSection[]; annexures: PMSAnnexure[] };
 
@@ -113,7 +114,7 @@ export default function EvaluateReport() {
         await savePenPicture(evaluation.id, penPicture, complete);
         navigate('/pms/evaluate');
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Save failed');
+        setError(friendlyError(e, 'Save failed'));
       } finally {
         setSaving(false);
       }
@@ -151,7 +152,7 @@ export default function EvaluateReport() {
       }
       navigate('/pms/evaluate');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Save failed');
+      setError(friendlyError(e, 'Save failed'));
     } finally {
       setSaving(false);
     }

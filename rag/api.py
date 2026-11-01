@@ -13,7 +13,7 @@ import urllib.error
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from auth import verify_token, scoped_client
 from query_service import parse_bearer, handle_query, stream_query, log_query, find_similar
@@ -45,20 +45,32 @@ _LLM = make_llm(
 )
 
 
+MAX_QUESTION_CHARS = 2000
+MAX_HISTORY_TURNS = 6
+
+
 class HistoryTurn(BaseModel):
-    question: str
-    answer: str
+    question: str = Field(max_length=MAX_QUESTION_CHARS)
+    answer: str = Field(max_length=8000)
 
 
 class QueryIn(BaseModel):
-    question: str
-    history: list[HistoryTurn] | None = None
+    question: str = Field(max_length=MAX_QUESTION_CHARS)
+    history: list[HistoryTurn] | None = Field(default=None, max_length=MAX_HISTORY_TURNS)
 
 
-def _authed_client(body_question: str, authorization):
-    question = (body_question or "").strip()
-    if not question:
-        raise HTTPException(status_code=400, detail="empty question")
+def _gate_open(client, fn: str) -> bool:
+    """True only when the database says so. Deny on any error: this is the
+    authorization path, so an RPC failure must not fall open."""
+    try:
+        return client.rpc(fn, {}).execute().data is True
+    except Exception:
+        return False
+
+
+def _scoped(authorization, gate: str):
+    """Scoped client for a caller the database lets through `gate` (SEC-02).
+    401 for a missing or bad token, 403 when the gate is closed."""
     try:
         jwt = parse_bearer(authorization)
     except ValueError:
@@ -67,7 +79,17 @@ def _authed_client(body_question: str, authorization):
         verify_token(jwt, _ANON_URL, _ANON_KEY)
     except PermissionError:
         raise HTTPException(status_code=401, detail="invalid token")
-    return question, scoped_client(_ANON_URL, _ANON_KEY, jwt)
+    client = scoped_client(_ANON_URL, _ANON_KEY, jwt)
+    if not _gate_open(client, gate):
+        raise HTTPException(status_code=403, detail="forbidden")
+    return client
+
+
+def _authed_client(body_question: str, authorization):
+    question = (body_question or "").strip()
+    if not question:
+        raise HTTPException(status_code=400, detail="empty question")
+    return question, _scoped(authorization, "can_use_ask_surya")
 
 
 @app.post("/query")
@@ -110,7 +132,7 @@ def query_stream(body: QueryIn, authorization: str | None = Header(default=None)
 
 
 class SimilarIn(BaseModel):
-    text: str
+    text: str = Field(max_length=MAX_QUESTION_CHARS)
 
 
 @app.post("/similar")
@@ -118,15 +140,7 @@ def similar(body: SimilarIn, authorization: str | None = Header(default=None)):
     text = (body.text or "").strip()
     if not text:
         raise HTTPException(status_code=400, detail="empty text")
-    try:
-        jwt = parse_bearer(authorization)
-    except ValueError:
-        raise HTTPException(status_code=401, detail="missing bearer token")
-    try:
-        verify_token(jwt, _ANON_URL, _ANON_KEY)
-    except PermissionError:
-        raise HTTPException(status_code=401, detail="invalid token")
-    client = scoped_client(_ANON_URL, _ANON_KEY, jwt)
+    client = _scoped(authorization, "can_use_ask_surya")
     return {"matches": find_similar(text, client, _LLM)}
 
 
@@ -144,15 +158,10 @@ class MapColumnsIn(BaseModel):
 def map_columns(body: MapColumnsIn, authorization: str | None = Header(default=None)):
     """Phase C: propose raw-header -> canonical-column mappings for an import
     file with unrecognized headers. Advisory only — the caller (ImportFlow)
-    still requires a human confirm before anything writes to HR tables."""
-    try:
-        jwt = parse_bearer(authorization)
-    except ValueError:
-        raise HTTPException(status_code=401, detail="missing bearer token")
-    try:
-        verify_token(jwt, _ANON_URL, _ANON_KEY)
-    except PermissionError:
-        raise HTTPException(status_code=401, detail="invalid token")
+    still requires a human confirm before anything writes to HR tables.
+    Gated like the import page itself (/data is DATA_ADMINS = caller_is_admin),
+    not by the Ask SURYA switch."""
+    _scoped(authorization, "caller_is_admin")
     if not body.raw_headers or not body.target_fields:
         raise HTTPException(status_code=400, detail="raw_headers and target_fields required")
     if len(body.raw_headers) > 400 or len(body.target_fields) > 400:

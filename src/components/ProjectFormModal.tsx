@@ -4,6 +4,7 @@ import { Modal } from './ui/Modal';
 import { Button } from './ui/Button';
 import { supabase } from '../utils/supabaseClient';
 import type { ProjectInfo } from '../types';
+import { friendlyError } from '../lib/errors';
 
 interface Props {
   isOpen: boolean;
@@ -80,7 +81,7 @@ export function ProjectFormModal({ isOpen, onClose, project }: Props) {
 
     setSubmitting(false);
     if (error) {
-      setSubmitError(error.message);
+      setSubmitError(friendlyError(error));
       return;
     }
     await refreshData();
@@ -94,7 +95,7 @@ export function ProjectFormModal({ isOpen, onClose, project }: Props) {
     const { error } = await supabase.from('projects').delete().eq('ProjectNo', project.ProjectNo);
     setSubmitting(false);
     if (error) {
-      setSubmitError(error.message);
+      setSubmitError(friendlyError(error));
       return;
     }
     await refreshData();

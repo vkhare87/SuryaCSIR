@@ -3,6 +3,7 @@ import { useData } from '../../contexts/DataContext';
 import { Modal } from '../ui/Modal';
 import { supabase } from '../../utils/supabaseClient';
 import type { Committee } from '../../types';
+import { friendlyError } from '../../lib/errors';
 
 interface ActionItemModalProps {
   isOpen: boolean;
@@ -78,7 +79,7 @@ export function ActionItemModal({ isOpen, onClose, meetingId }: ActionItemModalP
       await refreshData?.();
       onClose();
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : 'Failed to create action item');
+      setSubmitError(friendlyError(err, 'Failed to create action item'));
     } finally {
       setSubmitting(false);
     }

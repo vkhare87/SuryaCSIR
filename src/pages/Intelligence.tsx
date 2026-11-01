@@ -24,6 +24,7 @@ import {
   Plus,
   Trash2,
 } from 'lucide-react';
+import { friendlyError } from '../lib/errors';
 
 export default function Intelligence() {
   const { scientificOutputs, ipIntelligence, projects, techTransfers, refreshData } = useData();
@@ -113,11 +114,11 @@ export default function Intelligence() {
     if (pubModalMode === 'add') {
       const id = crypto.randomUUID();
       const { error } = await supabase.from('scientific_outputs').insert({ id, ...record });
-      if (error) { toast.push(`Save failed: ${error.message}`, 'error'); setIsSaving(false); return; }
+      if (error) { toast.push(`Save failed: ${friendlyError(error)}`, 'error'); setIsSaving(false); return; }
       toast.push('Publication added', 'success');
     } else if (selectedPub) {
       const { error } = await supabase.from('scientific_outputs').update(record).eq('id', selectedPub.id);
-      if (error) { toast.push(`Update failed: ${error.message}`, 'error'); setIsSaving(false); return; }
+      if (error) { toast.push(`Update failed: ${friendlyError(error)}`, 'error'); setIsSaving(false); return; }
       toast.push('Publication updated', 'success');
     }
     await refreshData();
@@ -158,11 +159,11 @@ export default function Intelligence() {
     if (ipModalMode === 'add') {
       const id = crypto.randomUUID();
       const { error } = await supabase.from('ip_intelligence').insert({ id, ...record });
-      if (error) { toast.push(`Save failed: ${error.message}`, 'error'); setIsSaving(false); return; }
+      if (error) { toast.push(`Save failed: ${friendlyError(error)}`, 'error'); setIsSaving(false); return; }
       toast.push('IP record added', 'success');
     } else if (selectedIP) {
       const { error } = await supabase.from('ip_intelligence').update(record).eq('id', selectedIP.id);
-      if (error) { toast.push(`Update failed: ${error.message}`, 'error'); setIsSaving(false); return; }
+      if (error) { toast.push(`Update failed: ${friendlyError(error)}`, 'error'); setIsSaving(false); return; }
       toast.push('IP record updated', 'success');
     }
     await refreshData();

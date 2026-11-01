@@ -11,6 +11,7 @@ import { STATUS_LABELS } from '../../lib/proposals/constants';
 import { useData } from '../../contexts/DataContext';
 import type { Proposal, ProposalStatus } from '../../types/proposal';
 import { useDialog } from '../../utils/useDialog';
+import { friendlyError } from '../../lib/errors';
 
 interface Props {
   proposal: Proposal;
@@ -93,7 +94,7 @@ export default function StatusUpdateModal({ proposal, onClose, onUpdated }: Prop
       }
       await onUpdated();
     } catch (e) {
-      setError((e as Error).message);
+      setError(friendlyError(e));
     } finally {
       setWorking(false);
     }

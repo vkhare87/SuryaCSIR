@@ -7,6 +7,7 @@ import { Card } from '../../components/ui/Cards';
 import { Button } from '../../components/ui/Button';
 import { PERIOD_LABELS } from '../../lib/projectReports/constants';
 import type { ProjectReportPeriod } from '../../types/projectReport';
+import { friendlyError } from '../../lib/errors';
 
 const EMPTY: ProjectReportDraft = {
   projectNo: '', projectName: '', divisionCode: null,
@@ -38,7 +39,7 @@ export default function ProjectReportForm() {
         expenditureSummary: r.expenditureSummary, outcomes: r.outcomes, remarks: r.remarks,
       });
       setLoading(false);
-    }).catch((e) => { setError((e as Error).message); setLoading(false); });
+    }).catch((e) => { setError(friendlyError(e)); setLoading(false); });
     return () => { cancelled = true; };
   }, [isEdit, id, getReport]);
 
@@ -66,7 +67,7 @@ export default function ProjectReportForm() {
       if (isEdit && id) { await updateDraft(id, form); navigate(`/reports/${id}`); }
       else { const created = await createDraft(form); navigate(`/reports/${created.id}`); }
     } catch (e) {
-      setError((e as Error).message);
+      setError(friendlyError(e));
       setSaving(false);
     }
   }

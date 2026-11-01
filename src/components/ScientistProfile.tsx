@@ -3,6 +3,7 @@ import { Badge } from './ui/Cards';
 import { ExternalLink, BookOpen, Award, FlaskConical, Lightbulb, FileText, Bookmark, Hash, Loader2 } from 'lucide-react';
 import clsx from 'clsx';
 import { supabase } from '../utils/supabaseClient';
+import { friendlyError } from '../lib/errors';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -60,7 +61,7 @@ export default function ScientistProfile({ vidwanId, compact = false }: Props) {
       if (cancelled) return;
       if (err) {
         if (err.code === 'PGRST116') setError('Not synced yet');
-        else setError(err.message);
+        else setError(friendlyError(err));
         setData(null);
       } else {
         setData(row?.profile_data as IrinsData);

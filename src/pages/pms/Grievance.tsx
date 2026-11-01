@@ -8,6 +8,7 @@ import { getGrade, isValidScore, requiresBelowThresholdReasons, requiresOutstand
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { friendlyError } from '../../lib/errors';
 
 export default function Grievance() {
   const { user } = useAuth();
@@ -88,7 +89,7 @@ export default function Grievance() {
       );
       setSelectedReportId(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Resolution failed');
+      setError(friendlyError(e, 'Resolution failed'));
     } finally {
       setSaving(false);
     }

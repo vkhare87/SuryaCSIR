@@ -8,6 +8,7 @@ import { Button } from '../../components/ui/Button';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { AWP_STATUS_LABEL, activityTotal, awpActionFor, type AWPAction } from '../../lib/pms/awp';
 import type { AWPContent, AWPVerdict, PMSAWP } from '../../types/pms';
+import { friendlyError } from '../../lib/errors';
 
 const ACTION_LABEL: Record<Exclude<AWPAction, 'EDIT'>, string> = {
   RO_REVIEW: 'Review as Reporting Officer',
@@ -59,13 +60,13 @@ export default function AWPInbox() {
   const run = async (fn: () => Promise<void>) => {
     setBusy(true); setError(null);
     try { await fn(); setSelectedId(null); }
-    catch (e) { setError(e instanceof Error ? e.message : 'Action failed'); }
+    catch (e) { setError(friendlyError(e, 'Action failed')); }
     finally { setBusy(false); }
   };
 
   const openPdf = async (path: string) => {
     try { window.open(await getSignedPdfUrl(path), '_blank', 'noopener'); }
-    catch (e) { setError(e instanceof Error ? e.message : 'Could not open PDF'); }
+    catch (e) { setError(friendlyError(e, 'Could not open PDF')); }
   };
 
   return (

@@ -4,6 +4,7 @@ import { Modal } from './ui/Modal';
 import { Button } from './ui/Button';
 import { supabase } from '../utils/supabaseClient';
 import type { DivisionInfo } from '../types';
+import { friendlyError } from '../lib/errors';
 
 interface Props {
   isOpen: boolean;
@@ -97,7 +98,7 @@ export function DivisionFormModal({ isOpen, onClose, division }: Props) {
     setSubmitting(false);
 
     if (error) {
-      setSubmitError(error.message);
+      setSubmitError(friendlyError(error));
       return;
     }
 
@@ -115,7 +116,7 @@ export function DivisionFormModal({ isOpen, onClose, division }: Props) {
       .eq('divCode', division.divCode);
     setSubmitting(false);
     if (error) {
-      setSubmitError(error.message);
+      setSubmitError(friendlyError(error));
       return;
     }
     await refreshData();

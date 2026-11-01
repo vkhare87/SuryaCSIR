@@ -1,11 +1,12 @@
 import { supabase } from '../../utils/supabaseClient';
+import { friendlyError } from '../errors';
 
 export type RpcResult = { ok: true } | { ok: false, error: string };
 
 async function callRpc(name: string, args: Record<string, unknown>): Promise<RpcResult> {
   if (!supabase) return { ok: false, error: 'Database not provisioned' };
   const { error } = await supabase.rpc(name, args);
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyError(error) };
   return { ok: true };
 }
 

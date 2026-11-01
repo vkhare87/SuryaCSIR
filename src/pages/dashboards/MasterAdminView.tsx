@@ -18,6 +18,7 @@ import { KpiCard } from '../../components/ui/KpiCard';
 import { averageImpactFactor } from '../../lib/intelligence/impact';
 import type { Role } from '../../types';
 import type { ReportStatus } from '../../types/pms';
+import { friendlyError } from '../../lib/errors';
 
 interface UserRow {
   user_id: string;
@@ -186,7 +187,7 @@ export function MasterAdminView() {
       p_active_role: activeRole,
       p_division: newDivCode || current?.division_code || null,
     });
-    if (error) { toast.push(error.message, 'error'); return; }
+    if (error) { toast.push(friendlyError(error), 'error'); return; }
     toast.push(`Assigned ${newRole}`, 'success');
     setAddingRoleFor(null);
     setNewRole('DefaultUser');
@@ -213,7 +214,7 @@ export function MasterAdminView() {
       p_active_role: activeRole,
       p_division: current?.division_code ?? null,
     });
-    if (error) { toast.push(error.message, 'error'); return; }
+    if (error) { toast.push(friendlyError(error), 'error'); return; }
     toast.push(`Removed ${role}`, 'success');
     fetchUsers();
   };
@@ -227,7 +228,7 @@ export function MasterAdminView() {
     // user_profiles (20260725000001) — admins flag it via the audited RPC.
     const { error } = await supabase.rpc('admin_force_password_reset', { p_user_id: userId });
     if (error) {
-      toast.push(`Could not flag password reset: ${error.message}`, 'warning');
+      toast.push(`Could not flag password reset: ${friendlyError(error)}`, 'warning');
       return;
     }
     toast.push('Password reset flagged on next login', 'success');

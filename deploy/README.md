@@ -94,6 +94,16 @@ npm ci; npm run build
 Copy-Item -Recurse dist C:\surya\dist
 ```
 Install **nginx for Windows**, drop `deploy/nginx.conf` into `conf/`, adjust paths,
+and do the two steps at the top of that file:
+```powershell
+# 1. Fill in the Supabase origin the CSP allows (same value as VITE_SUPABASE_URL, no trailing slash)
+(Get-Content deploy\nginx.conf) -replace '__SUPABASE_ORIGIN__', 'https://<project>.supabase.co' | Set-Content C:\nginx\conf\surya.conf
+# 2. In conf\nginx.conf, inside http { }, above the include of surya.conf:
+#      limit_req_zone $binary_remote_addr zone=rag_query:10m rate=6r/m;
+nginx -t
+```
+The rate limit is per client IP. If users reach nginx through a shared proxy, they
+share one budget — raise `rate` or key on a header the proxy sets. Then
 run nginx as a service (NSSM again works). TLS: use an institute-CA-signed cert if the
 institute runs an internal CA (typical for government networks); otherwise self-signed
 plus a documented browser exception.

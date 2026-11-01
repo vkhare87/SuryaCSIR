@@ -4,6 +4,7 @@ import { useFeatureControls } from '../contexts/FeatureControlContext';
 import { useToast } from '../contexts/ToastContext';
 import { supabase } from '../utils/supabaseClient';
 import type { FeatureControl } from '../types';
+import { friendlyError } from '../lib/errors';
 
 const SAVED_FLASH_MS = 1500;
 
@@ -30,7 +31,7 @@ export function useFeatureControlEditor() {
     });
     setSaving(null);
     if (error) {
-      push(error.message, 'error');
+      push(friendlyError(error), 'error');
       return;
     }
     await refresh();

@@ -1,5 +1,6 @@
 import { supabase } from '../../utils/supabaseClient';
 import type { MoU, TechTransfer } from '../../types';
+import { friendlyError } from '../errors';
 
 type WriteResult = { ok: true } | { ok: false; error: string };
 
@@ -12,7 +13,7 @@ export async function addMoU(input: Omit<MoU, 'id'>): Promise<WriteResult> {
     division_code: input.divisionCode || null,
     linked_project_no: input.linkedProjectNo || null, remarks: input.remarks || null,
   });
-  return error ? { ok: false, error: error.message } : { ok: true };
+  return error ? { ok: false, error: friendlyError(error) } : { ok: true };
 }
 
 export async function addTechTransfer(input: Omit<TechTransfer, 'id'>): Promise<WriteResult> {
@@ -25,5 +26,5 @@ export async function addTechTransfer(input: Omit<TechTransfer, 'id'>): Promise<
     linked_project_no: input.linkedProjectNo || null, linked_ip_id: input.linkedIpId || null,
     division_code: input.divisionCode || null, remarks: input.remarks || null,
   });
-  return error ? { ok: false, error: error.message } : { ok: true };
+  return error ? { ok: false, error: friendlyError(error) } : { ok: true };
 }

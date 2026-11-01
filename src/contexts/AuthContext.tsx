@@ -142,7 +142,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
-      if (error.message.toLowerCase().includes('database error querying schema')) {
+      // A 500 from GoTrue is the "Database error querying schema" case: offer a link instead.
+      if (error.status === 500) {
         const { error: otpError } = await supabase.auth.signInWithOtp({
           email,
           options: { shouldCreateUser: false },
@@ -152,7 +153,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         return { success: false, error: 'Login failed and a recovery link could not be sent. Please contact your administrator.' };
       }
-      return { success: false, error: error.message };
+      // The caller is not signed in yet: name only the case they can act on (SEC-06).
+      return {
+        success: false,
+        error: error.code === 'invalid_credentials' || error.message === 'Invalid login credentials'
+          ? 'Invalid login credentials'
+          : 'Sign-in failed. Please try again or contact your administrator.',
+      };
     }
     if (data.user) {
       const resolved = await resolveUserRoles(data.user);

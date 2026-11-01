@@ -31,6 +31,7 @@ import {
   type CalEventKind,
 } from '../lib/calendar/types';
 import type { Meeting, ActionItem, CalendarEvent, Holiday } from '../types';
+import { friendlyError } from '../lib/errors';
 
 const DAY_NAMES = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const MONTH_NAMES = [
@@ -221,7 +222,7 @@ export default function Calendar() {
       created_by: user.id,
     });
     if (error) {
-      pushToast(`Create failed: ${error.message}`, 'error');
+      pushToast(`Create failed: ${friendlyError(error)}`, 'error');
       return;
     }
     pushToast('Event created', 'success');
@@ -242,7 +243,7 @@ export default function Calendar() {
       division_code: values.visibility === 'Division' ? values.division_code : null,
     }).eq('id', id);
     if (error) {
-      pushToast(`Update failed: ${error.message}`, 'error');
+      pushToast(`Update failed: ${friendlyError(error)}`, 'error');
       return;
     }
     pushToast('Event updated', 'success');
@@ -253,7 +254,7 @@ export default function Calendar() {
     if (!supabase) return;
     const { error } = await supabase.from('calendar_events').delete().eq('id', id);
     if (error) {
-      pushToast(`Delete failed: ${error.message}`, 'error');
+      pushToast(`Delete failed: ${friendlyError(error)}`, 'error');
       return;
     }
     pushToast('Event deleted', 'success');

@@ -9,6 +9,7 @@ import { Button } from '../../components/ui/Button';
 import { activityTotal, emptyAWPContent, reportingYearFor } from '../../lib/pms/awp';
 import { parseAWPText } from '../../lib/pms/awpExtract';
 import type { AWPContent, AWPVerdict } from '../../types/pms';
+import { friendlyError } from '../../lib/errors';
 
 type ImportStatus = 'APPROVED' | 'WITH_DIRECTOR' | 'WITH_RO';
 
@@ -111,7 +112,7 @@ export default function AWPImport() {
       const nextReady = items.find(x => x.key !== it.key && x.state === 'ready');
       if (nextReady) setSelectedKey(nextReady.key);
     } catch (e) {
-      patch(it.key, { error: e instanceof Error ? e.message : 'Save failed' });
+      patch(it.key, { error: friendlyError(e, 'Save failed') });
     } finally {
       setBusy(false);
     }

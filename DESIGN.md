@@ -20,7 +20,7 @@
 - **Body/UI:** **Inter** — kept as-is. Deliberately *not* swapped (rejected risk R4): it is the least-broken part of the current system and a body-font swap has the highest churn-to-value ratio of any considered change.
 - **Data/IDs/scores/dates:** **IBM Plex Mono**, `font-variant-numeric: tabular-nums`. Every identifier, date, and score renders as a ledger *entry*, not UI chrome.
 - **One Devanagari moment:** **Tiro Devanagari Sanskrit**, सूर्य set large, login screen only. Not decoration — a specific, deliberate acknowledgment of place.
-- **Loading:** Google Fonts CDN (`Fraunces`, `Inter` already loaded, add `IBM+Plex+Mono`, `Tiro+Devanagari+Sanskrit`), `font-display: swap`.
+- **Loading:** self-hosted from `@fontsource` packages, imported in `src/main.tsx` (Fraunces variable with `opsz`, family `'Fraunces Variable'`), `font-display: swap`. No font CDN: it leaked client IPs and broke on the air-gapped LAN (SEC-17, 2026-11-01).
 - **Scale:** unchanged existing scale — kicker 12px / body 16px / h3 18-19px / h2 24-28px / h1 30-52px depending on context. No new scale introduced.
 
 ## Color
