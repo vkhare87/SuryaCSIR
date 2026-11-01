@@ -16,6 +16,9 @@ export interface CreateContributionInput {
   assigneeId: string | null;
 }
 
+const OUT_OF_SCOPE = 'That person cannot see this record. Pick someone who can, or leave it empty to route to the data steward.';
+const friendly = (message: string) => (message.includes('target_out_of_scope') ? OUT_OF_SCOPE : message);
+
 export async function createContributionRequest(
   input: CreateContributionInput,
 ): Promise<WriteResult & { id?: string }> {
@@ -25,7 +28,7 @@ export async function createContributionRequest(
     p_title: input.title, p_reason: input.reason, p_link: input.link,
     p_due: input.dueDate, p_prefill: input.prefill, p_assignee: input.assigneeId,
   });
-  return error ? { ok: false, error: error.message } : { ok: true, id: String(data) };
+  return error ? { ok: false, error: friendly(error.message) } : { ok: true, id: String(data) };
 }
 
 export async function actOnContributionRequest(
@@ -38,7 +41,7 @@ export async function actOnContributionRequest(
     p_id: id, p_action: action, p_note: opts.note ?? null,
     p_target: opts.target ?? null, p_response: opts.response ?? null,
   });
-  return error ? { ok: false, error: error.message } : { ok: true };
+  return error ? { ok: false, error: friendly(error.message) } : { ok: true };
 }
 
 export async function setDataSteward(

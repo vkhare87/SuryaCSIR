@@ -37,7 +37,7 @@ const req = (id: string) => one(su(), `SELECT * FROM contribution_requests WHERE
 const amc = (assignee: string | null = null) =>
   ['equipment', 'UI-1', 'IMD', 'Confirm AMC date', 'AMC field empty', '/facilities/UI-1', null,
     JSON.stringify({ AMCDate: null }), assignee];
-const unowned = () => ['phd', null, null, 'Check thesis titles', 'Missing titles', '/phd', null, '{}', null];
+const unowned = () => ['phd', null, 'IMD', 'Check thesis titles', 'Missing titles', '/phd', null, '{}', null];
 
 beforeAll(async () => {
   db = await migratedDb();
@@ -46,11 +46,13 @@ beforeAll(async () => {
       ('${U.admin}', 'admin@t.local'), ('${U.steward}', 'st@t.local'), ('${U.hod}', 'hod@t.local'),
       ('${U.owner}', 'own@t.local'), ('${U.deleg}', 'del@t.local'), ('${U.stranger}', 'x@t.local');
     INSERT INTO public.user_roles (user_id, role, division_code) VALUES
-      ('${U.admin}', 'MasterAdmin', NULL), ('${U.hod}', 'HOD', 'IMD');
+      ('${U.admin}', 'MasterAdmin', NULL), ('${U.hod}', 'HOD', 'IMD'), ('${U.deleg}', 'Technician', 'IMD');
     UPDATE public.user_profiles SET active_role = 'HOD' WHERE user_id = '${U.hod}';
     INSERT INTO public.divisions ("divCode") VALUES ('IMD');
     INSERT INTO public.staff ("ID", "Name", "Division", "Email", user_id)
       VALUES ('T-HOD', 'HoD', 'IMD', 'hod@t.local', '${U.hod}');
+    -- Scope for targets: owner owns the instrument, deleg is a Technician in IMD.
+    INSERT INTO public.equipment ("UInsID", "Division", owner_user_id) VALUES ('UI-1', 'IMD', '${U.owner}');
   `);
   await as(db, U.admin, tx => rpc(tx, 'data_steward_set', ['equipment', null, U.steward, 'steward', 30]));
 }, 180000);
@@ -90,6 +92,34 @@ describe('targets', () => {
     await expect(act(U.owner, id, 'delegate', null, ghost)).rejects.toThrow(/invalid_target/);
     const free = await create(U.admin, unowned());
     await expect(act(U.admin, free, 'claim', null, ghost)).rejects.toThrow(/invalid_target/);
+  });
+});
+
+describe('target scope (no prefill leak)', () => {
+  it('cannot assign a request to someone who cannot read the record', async () => {
+    await expect(create(U.hod, amc(U.stranger))).rejects.toThrow(/target_out_of_scope/);
+  });
+
+  it('cannot delegate to someone who cannot read the record', async () => {
+    const id = await create(U.hod, amc(U.owner));
+    await expect(act(U.owner, id, 'delegate', null, U.stranger)).rejects.toThrow(/target_out_of_scope/);
+    expect((await req(id)).delegate_id).toBeNull();
+  });
+
+  it('cannot claim an unowned request for someone out of scope', async () => {
+    const id = await create(U.admin, unowned());
+    await expect(act(U.admin, id, 'claim', null, U.owner)).rejects.toThrow(/target_out_of_scope/);
+  });
+
+  it('allows the record owner, a division technician and the steward', async () => {
+    expect(await create(U.hod, amc(U.owner))).toBeTruthy();
+    expect(await create(U.hod, amc(U.deleg))).toBeTruthy();
+    expect(await create(U.hod, amc(U.steward))).toBeTruthy();
+  });
+
+  it('a signed-in user cannot call the scope helper', async () => {
+    await expect(as(db, U.hod, tx => rpc(tx, 'contribution_target_can_see', [U.owner, 'equipment', 'IMD', 'UI-1'])))
+      .rejects.toThrow(/permission denied/);
   });
 });
 
@@ -191,9 +221,9 @@ describe('transitions', () => {
 
   it('admin can claim an unowned request for a user', async () => {
     const id = await create(U.admin, unowned());
-    await act(U.admin, id, 'claim', null, U.owner);
+    await act(U.admin, id, 'claim', null, U.hod);
     const row = await req(id);
-    expect(row.assignee_id).toBe(U.owner);
+    expect(row.assignee_id).toBe(U.hod);
     expect(row.status).toBe('open');
     // Once owned it is no longer claimable.
     await expect(act(U.admin, id, 'claim')).rejects.toThrow(/invalid_action/);

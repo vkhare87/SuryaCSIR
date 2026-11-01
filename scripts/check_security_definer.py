@@ -94,6 +94,7 @@ EXEMPT: dict[str, str] = {
     ),
     "contribution_steward_for": "internal resolver; EXECUTE revoked from client roles",
     "contribution_requests_sweep": "cron-only; EXECUTE revoked from client roles",
+    "contribution_target_can_see": "internal scope check called only by a trigger; EXECUTE revoked from client roles",
 }
 
 
