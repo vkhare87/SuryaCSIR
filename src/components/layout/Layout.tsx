@@ -16,6 +16,7 @@ import { ROLE_ROUTES } from '../../constants/roleRoutes';
 import { ROLE_LABELS } from '../../constants/access';
 import { pageTrail } from '../../utils/pageTrail';
 import { useDialog } from '../../utils/useDialog';
+import { ErrorBoundary, PageErrorCard } from '../ErrorBoundary';
 
 // UserAccount carries no display name, so derive from the email local part:
 // "khare.vivek87@…" → "KV", "vkhare@…" → "VK".
@@ -39,7 +40,7 @@ export function Layout() {
   const { isMobile, deviceType } = useUI();
   const { error } = useData();
   const toast = useToast();
-  const { canAccess } = useFeatureControls();
+  const { canAccess, controlsDegraded } = useFeatureControls();
   const lastRole = useRef(role);
 
   // Toast on the role actually changing, not on the click: setActiveRole
@@ -182,6 +183,13 @@ export function Layout() {
           </div>
         )}
 
+        {controlsDegraded && (
+          <div role="alert" className="px-4 py-2 bg-badge-warning-bg border-b border-border text-badge-warning-fg text-sm flex items-center gap-2">
+            <AlertCircle size={14} className="shrink-0" />
+            <span>Feature controls unavailable — all features are enabled.</span>
+          </div>
+        )}
+
         {/* Scrollable Content Viewport */}
         <main className={clsx('flex-1 overflow-auto p-4 md:p-8 bg-background relative', isMobile && 'pb-24')}>
            <div className="mx-auto max-w-7xl w-full">
@@ -193,7 +201,10 @@ export function Layout() {
                  exit={{ opacity: 0, y: -10 }}
                  transition={{ duration: 0.2 }}
                >
-                 <Outlet />
+                 {/* Keyed on the route: leaving a crashed page clears the error. */}
+                 <ErrorBoundary key={pathname} fallback={<PageErrorCard />}>
+                   <Outlet />
+                 </ErrorBoundary>
                </motion.div>
              </AnimatePresence>
            </div>

@@ -14,6 +14,8 @@ interface FeatureControlContextType {
   isEnabled: (path: string) => boolean;
   /** Full access check: role (ACCESS_MAP) or personal grant, then controls. */
   canAccess: (path: string) => boolean;
+  /** The controls read failed, so every kill switch is off (fail-open). Shown as a banner (SEC-13). */
+  controlsDegraded: boolean;
   refresh: () => Promise<void>;
 }
 
@@ -28,6 +30,7 @@ export function useFeatureControls() {
 export function FeatureControlProvider({ children }: { children: ReactNode }) {
   const { user, isAuthenticated } = useAuth();
   const [controls, setControls] = useState<FeatureControl[]>([]);
+  const [controlsDegraded, setControlsDegraded] = useState(false);
   const [grants, setGrants] = useState<string[]>([]);
   const userId = user?.id;
 
@@ -40,12 +43,15 @@ export function FeatureControlProvider({ children }: { children: ReactNode }) {
       if (error) {
         console.error('[feature-controls] load failed — defaulting open', error);
         setControls([]);
+        setControlsDegraded(true);
         return;
       }
       setControls((data as FeatureControl[]) ?? []);
+      setControlsDegraded(false);
     } catch (err) {
       console.error('[feature-controls] load failed — defaulting open', err);
       setControls([]);
+      setControlsDegraded(true);
     }
   }, []);
 
@@ -78,8 +84,9 @@ export function FeatureControlProvider({ children }: { children: ReactNode }) {
       canAccess: (path: string) =>
         user ? featureAccessible(path, user.activeRole, controls, grantSet) : false,
       refresh: async () => { await Promise.all([refresh(), refreshGrants()]); },
+      controlsDegraded,
     };
-  }, [controls, grants, user, refresh, refreshGrants]);
+  }, [controls, grants, user, refresh, refreshGrants, controlsDegraded]);
 
   return (
     <FeatureControlContext.Provider value={value}>
