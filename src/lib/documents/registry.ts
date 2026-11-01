@@ -72,14 +72,17 @@ export interface UploadDocInput {
 /**
  * Upload a file to the shared documents bucket and register it. Used by new
  * modules (T2+) that have no legacy bucket of their own. Files land under
- * `{entityType}/{entityId}/{epoch}_{name}`. Returns document id or an error.
+ * `{uploader uid}/{entityType}/{entityId}/{epoch}_{name}` — Storage and the
+ * registry both refuse any other path (SEC-11). Returns document id or an error.
  */
 export async function uploadDocument(
   file: File,
   input: UploadDocInput,
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   if (!supabase) return { ok: false, error: 'Database not provisioned' };
-  const path = `${input.entityType}/${input.entityId}/${Date.now()}_${sanitize(file.name)}`;
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: 'Not signed in' };
+  const path = `${user.id}/${input.entityType}/${input.entityId}/${Date.now()}_${sanitize(file.name)}`;
   const { error: upErr } = await supabase.storage.from(SHARED_BUCKET).upload(path, file, {
     contentType: file.type, upsert: false,
   });
@@ -99,7 +102,11 @@ export async function uploadDocument(
     divisionCode: input.divisionCode ?? null,
   });
   if (!id) {
-    await supabase.storage.from(SHARED_BUCKET).remove([path]);
+    const { error: rmErr } = await supabase.storage.from(SHARED_BUCKET).remove([path]);
+    if (rmErr) {
+      logger.error('[documents] leftover upload not removed', rmErr, { path });
+      return { ok: false, error: 'Registry insert failed, and the uploaded file was left behind. Tell an administrator.' };
+    }
     return { ok: false, error: 'Registry insert failed' };
   }
   return { ok: true, id };
