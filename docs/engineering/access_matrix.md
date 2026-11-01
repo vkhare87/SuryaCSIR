@@ -34,7 +34,7 @@ Source of truth: `ACCESS_MAP` in `src/constants/access.ts`. This table is genera
 | HRAdmin | HR office | Staff, recruitment, data, PMS administration, proposal/report review |
 | FinanceAdmin | Finance office | Projects, proposals, partnerships, R&D monitor |
 | SystemAdmin | Platform operator | Accounts, access requests, data imports, IRINS sync, RAG, holidays |
-| MasterAdmin | Superuser | Every feature (33 of 33), whatever the switches; Feature Controls |
+| MasterAdmin | Superuser | Every feature (38 of 38), whatever the switches; Feature Controls |
 | Student / ProjectStaff | Scholar / project hire | Own dashboard, Ask, calendar, helpdesk |
 | EmpoweredCommittee | PMS final scoring | PMS + committee queue |
 | Guest / DefaultUser | Not yet approved | Dashboard (pending view) and helpdesk only |
@@ -47,6 +47,7 @@ Source of truth: `ACCESS_MAP` in `src/constants/access.ts`. This table is genera
 |---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
 | Dashboard | `/` | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● |
 | Ask SURYA | `/ask` | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | · | · | ● |
+| My Work | `/work` | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | · | · | ● |
 | Calendar | `/calendar` | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | · | · | ● |
 | Intelligence | `/intelligence` | ● | ● | ● | · | · | · | · | · | ● | · | · | · | · | · |
 | Explore Graph | `/explore` | ● | ● | ● | · | · | · | · | · | ● | · | · | · | · | · |
@@ -72,6 +73,10 @@ Source of truth: `ACCESS_MAP` in `src/constants/access.ts`. This table is genera
 | PMS Evaluator Assignment | `/pms/assign` | · | · | · | · | · | ● | · | · | ● | · | · | · | · | · |
 | PMS Committee Queue | `/pms/committee` | · | · | · | · | · | · | · | · | · | · | · | · | · | ● |
 | PMS Audit Log | `/pms/audit` | · | · | · | · | · | ● | · | · | ● | · | · | · | · | · |
+| My Annual Work Plan | `/pms/awp` | ● | ● | ● | ● | · | · | · | · | · | · | · | · | · | · |
+| AWP Inbox | `/pms/awp/inbox` | ● | ● | ● | ● | · | ● | · | · | ● | · | · | · | · | · |
+| AWP Import | `/pms/awp/import` | · | · | · | · | · | ● | · | · | ● | · | · | · | · | · |
+| AWP Register | `/pms/awp/register` | ● | · | · | · | · | ● | · | · | ● | · | · | · | · | · |
 | Access Requests | `/admin/access-requests` | · | · | · | · | · | · | · | ● | ● | · | · | · | · | · |
 | Feature Controls | `/admin/features` | · | · | · | · | · | · | · | · | ● | · | · | · | · | · |
 | Data Management | `/data` | · | · | · | · | · | ● | · | ● | ● | · | · | · | · | · |

@@ -115,6 +115,8 @@ On `/query/stream` a mid-stream failure arrives as an SSE frame, not an HTTP sta
 - All `pms_*`, `proposal_*`, `project_report_*` transition RPCs assert the current state
   before writing, so a duplicate call raises rather than double-applying.
 - `helpdesk_create_ticket` is **not** idempotent — it mints a new token per call.
+- `contribution_request_create` is **not** idempotent; `contribution_request_act` asserts the
+  current status, and the sweep dedupes on `dedupe_key`, so a re-run raises nothing new.
 - Imports upsert on primary key, so re-importing the same file is safe.
 - Document capture dedupes on SHA-256 content hash.
 
@@ -366,6 +368,56 @@ Client-side draft validation (`missingTicketFields`) requires non-empty `categor
 | `documents_set_access_tier` | `p_document_id uuid, p_tier text` | `void` | Owner or admin. `p_tier` ∈ `institute` \| `division` \| `owner` \| `confidential` |
 | `rag_requeue_document` | `p_doc_id uuid` | `void` | Admin. `failed` → `pending`, resets `ingest_attempts` |
 | `rag_requeue_all` | — | `int` (rows requeued) | Admin. Bulk re-index |
+
+## B.8 Data operations — contribution requests
+
+`20261101000001_contribution_requests.sql`. Client wrappers in
+`src/lib/contributions/api.ts`; the tables are SELECT-only to clients
+([database_design.md §3.9](database_design.md#39-data-operations--20261101000001_contribution_requestssql)).
+"Admin" below is `caller_is_admin()` (HRAdmin · SystemAdmin · MasterAdmin); "steward" is a
+`data_stewards` row for the caller covering the request's domain and division (a domain-wide
+row covers every division).
+
+| Function | Parameters | Returns | Authorization + effect |
+|---|---|---|---|
+| `contribution_request_create` | `p_domain text, p_record_ref text, p_division text, p_title text, p_reason text, p_link text, p_due date, p_prefill jsonb, p_assignee uuid` | `uuid` | Admin, Director, the division's manager (`p_division`), or a steward. Assignee = `p_assignee`, else the routed steward, else NULL (unowned). Writes a `created` event (payload = prefill) and notifies the assignee (`/work?r=<id>`) |
+| `contribution_request_act` | `p_id uuid, p_action text, p_note text, p_target uuid, p_response jsonb` | `text` (new status) | Caller must be the assignee, the delegate, or a reviewer (requester, admin, or steward); each action then narrows further — see the table in [system_design.md §4.8](system_design.md#48-contribution-request--contribution_requestsstatus). Row-locked (`FOR UPDATE`); writes one event and notifies the next person, never the actor |
+| `data_steward_set` | `p_domain text, p_division text, p_user uuid, p_kind text, p_cadence int` | `uuid` | Admin. Upsert on `(domain, division_code, user_id)`; `p_kind` defaults `steward`, `p_cadence` 90 |
+| `data_steward_remove` | `p_id uuid` | `void` | Admin. Deletes the row |
+
+`p_action` ∈ `delegate` · `submit` · `confirm` · `confirm_unchanged` · `clarify` · `answer` ·
+`not_mine` · `cannot_provide` · `accept` · `return` · `withdraw` · `claim`. `p_target` is
+read only by `delegate` (required) and `claim` (optional; defaults to the caller).
+`p_response` is read only by `submit` (required JSON object of changed fields). `p_note` is
+required by `clarify`, `answer`, `cannot_provide`, `return`, `withdraw`.
+
+**Errors** (`RAISE EXCEPTION` → HTTP 400; the message is the code):
+
+| Code | Raised by | When |
+|---|---|---|
+| `not_authorized` | all four | Not signed in, request not found, or the caller's role on the request does not allow the action |
+| `invalid_domain: <d>` | create | `p_domain` not one of the seven `FileType` keys |
+| `title_required` | create | Blank title |
+| `invalid_link` | create | `p_link` not a relative app path (`^/([^/\]|$)`), or contains a control character. The table `CHECK` enforces the same rule |
+| `invalid_prefill` | create | `p_prefill` is not a JSON object |
+| `invalid_target` | create, act | `p_assignee` / `p_target` is not a real login; `delegate` with no target or to the current assignee |
+| `invalid_action: <a> from <s>` | act | Unknown action, or not allowed from the current status |
+| `response_required` | act | `submit` without a JSON-object response |
+| `note_required` | act | A note-requiring action with a blank note |
+
+`data_steward_set` with a bad `domain`, `kind` or `cadence_days ≤ 0` fails the table `CHECK`
+(400, constraint violation).
+
+**Accepting an update** is two calls, by design — the request never writes the HR table:
+
+```ts
+await updateEntityRecord(r.domain, r.recordRef, patch);   // RLS-gated, same path as the edit modal
+await actOnContributionRequest(r.id, 'accept');           // → 'done'
+```
+
+`contribution_steward_for(p_domain, p_division)` and `contribution_requests_sweep()` are
+internal (`EXECUTE` revoked from client roles; `EXEMPT` in `check_security_definer.py`).
+`contribution_is_reviewer(r)` is a client-callable `INVOKER` helper used by RLS.
 
 ---
 
