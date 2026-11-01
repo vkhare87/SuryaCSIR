@@ -50,15 +50,15 @@ export const EVENT_COLOR: Record<CalEventKind, string> = {
 // Literal class names: Tailwind only emits classes it can find in the source,
 // so a runtime .replace('bg-', 'border-') produced classes that never existed.
 export const EVENT_BORDER: Record<CalEventKind, string> = {
-  meeting: 'border-[#c96442]',
-  action: 'border-amber-500',
-  custom: 'border-emerald-500',
-  pamphlet: 'border-indigo-500',
-  announcement: 'border-indigo-500',
-  holiday: 'border-rose-500',
-  project_closing: 'border-purple-500',
-  birthday: 'border-pink-400',
-  retirement: 'border-sky-500',
+  meeting: 'border-terracotta',
+  action: 'border-turmeric',
+  custom: 'border-archive-green',
+  pamphlet: 'border-iron-gall',
+  announcement: 'border-iron-gall',
+  holiday: 'border-danger',
+  project_closing: 'border-coral',
+  birthday: 'border-text-muted',
+  retirement: 'border-stone-gray',
 };
 
 export const EVENT_LABEL: Record<CalEventKind, string> = {
