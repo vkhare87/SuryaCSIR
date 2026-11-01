@@ -57,7 +57,7 @@ export function inboxBucket(
   r: ContributionRequest, userId: string, reviewer: boolean,
 ): 'todo' | 'review' | 'unowned' | 'done' | null {
   if (r.status === 'done' || r.status === 'declined') return 'done';
-  if (r.assigneeId === null) return 'unowned';
+  if (r.assigneeId === null && r.status === 'open') return 'unowned';
   const assignee = r.assigneeId === userId;
   const worker = assignee || r.delegateId === userId;
   if (worker && (r.status === 'open' || r.status === 'needs_clarification')) return 'todo';

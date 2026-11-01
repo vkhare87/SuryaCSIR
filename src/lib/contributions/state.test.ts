@@ -44,6 +44,19 @@ describe('availableActions', () => {
     expect(availableActions(req(), 'stranger', false, false)).toEqual([]);
   });
 
+  it('assignee on needs_clarification sees submit, not_mine, cannot_provide (no clarify)', () => {
+    expect(availableActions(req({ status: 'needs_clarification' }), 'owner', false, false))
+      .toEqual(['submit', 'not_mine', 'cannot_provide']);
+  });
+
+  it('delegate on prepared sees clarify only', () => {
+    expect(availableActions(req({ status: 'prepared' }), 'deleg', false, false)).toEqual(['clarify']);
+  });
+
+  it('reviewer can withdraw a blocked request', () => {
+    expect(availableActions(req({ status: 'blocked' }), 'hod', true, false)).toEqual(['withdraw']);
+  });
+
   it('canClaim shows claim only when assignee is null', () => {
     expect(availableActions(req({ assigneeId: null, delegateId: null }), 'stew', true, true)).toEqual(['withdraw', 'claim']);
     expect(availableActions(req(), 'stew', true, true)).toEqual(['withdraw']);
@@ -60,6 +73,9 @@ describe('isReviewer', () => {
     expect(isReviewer(req(), 'stew', ['Scientist'], [steward({ domain: 'staff' })])).toBe(false);
     expect(isReviewer(req({ divisionCode: null }), 'stew', ['Scientist'], [steward({ divisionCode: 'IMD' })])).toBe(false);
     expect(isReviewer(req(), 'owner', ['Director'], [steward()])).toBe(false);
+    expect(isReviewer(req(), 'x', ['SystemAdmin'], [])).toBe(true);
+    expect(isReviewer(req(), 'x', ['MasterAdmin'], [])).toBe(true);
+    expect(isReviewer(req({ requestedBy: null }), 'x', ['Scientist'], [])).toBe(false);
   });
 });
 
@@ -92,5 +108,14 @@ describe('inboxBucket', () => {
     expect(inboxBucket(req(), 'deleg', false)).toBe('todo');
     expect(inboxBucket(req({ status: 'submitted' }), 'owner', false)).toBeNull();
     expect(inboxBucket(req(), 'stranger', false)).toBeNull();
+  });
+
+  it('only an open request with no assignee is unowned; other orphaned statuses stay with the reviewer', () => {
+    const orphan = { assigneeId: null, delegateId: null };
+    for (const status of ['submitted', 'needs_clarification', 'blocked'] as const) {
+      expect(inboxBucket(req({ ...orphan, status }), 'hod', true)).toBe('review');
+      expect(inboxBucket(req({ ...orphan, status }), 'stranger', false)).toBeNull();
+    }
+    expect(inboxBucket(req({ ...orphan, status: 'prepared' }), 'hod', true)).toBeNull();
   });
 });
