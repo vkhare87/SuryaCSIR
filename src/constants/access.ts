@@ -12,7 +12,7 @@ const MASTER: Role[] = ['MasterAdmin'];
 // no HR / PMS / research pages — MasterAdmin grants those per user if needed.
 const PLATFORM: Role[] = ['SystemAdmin', 'MasterAdmin'];
 const HR: Role[] = ['HRAdmin', 'MasterAdmin'];
-const DATA_ADMINS: Role[] = ['HRAdmin', 'SystemAdmin', 'MasterAdmin'];
+export const DATA_ADMINS: Role[] = ['HRAdmin', 'SystemAdmin', 'MasterAdmin'];
 const PMS_AUTHORS: Role[] = ['Scientist', 'HOD', 'DivisionHead', 'Director'];
 // Division-scoped managers. Same page access; RLS scopes their rows to their
 // own division_code (see 20260718000001_rls_scope_reads.sql).
