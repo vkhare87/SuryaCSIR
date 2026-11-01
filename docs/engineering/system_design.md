@@ -365,6 +365,62 @@ stateDiagram-v2
 `pending → discarded`. Dedupe is a unique index on `content_hash`, so a re-sent mail or a
 re-scanned folder cannot create a second row.
 
+
+### 4.8 Contribution request — `contribution_requests.status`
+
+```mermaid
+stateDiagram-v2
+  [*] --> open: contribution_request_create<br/>or the daily sweep
+  open --> open: delegate · not_mine · claim
+  open --> prepared: submit (delegate)
+  open --> submitted: submit (assignee)
+  open --> needs_clarification: clarify
+  open --> blocked: cannot_provide
+  open --> done: confirm_unchanged
+  prepared --> submitted: confirm (assignee)
+  prepared --> needs_clarification: clarify
+  needs_clarification --> open: answer (reviewer) · not_mine
+  needs_clarification --> prepared: submit (delegate)
+  needs_clarification --> submitted: submit (assignee)
+  needs_clarification --> blocked: cannot_provide
+  submitted --> done: accept (reviewer)
+  submitted --> open: return (reviewer)
+  open --> declined: withdraw
+  prepared --> declined: withdraw
+  submitted --> declined: withdraw
+  needs_clarification --> declined: withdraw
+  blocked --> declined: withdraw
+  done --> [*]
+  declined --> [*]
+```
+
+The transition table lives in one place, `contribution_request_act`; any (action, status)
+pair not below raises `invalid_action`, any caller the column excludes raises
+`not_authorized`. `src/lib/contributions/state.ts` mirrors it only to decide which buttons
+`/work` shows.
+
+| Action | Who | From | To | Notes |
+|---|---|---|---|---|
+| `delegate` | assignee | `open` | `open` | Sets `delegate_id` (must be a real login, not the assignee) |
+| `submit` | assignee or delegate | `open`, `needs_clarification` | `submitted` (assignee) / `prepared` (delegate) | Stores `response` (JSON object of changed fields) |
+| `confirm` | assignee | `prepared` | `submitted` | Assignee signs off the delegate's draft |
+| `confirm_unchanged` | assignee | `open` | `done` | "Still correct" — empty response, no review |
+| `clarify` | assignee or delegate | `open`, `prepared` | `needs_clarification` | Note required; notifies the requester |
+| `answer` | reviewer | `needs_clarification` | `open` | Note required |
+| `not_mine` | assignee | `open`, `needs_clarification` | `open` | Re-routes to `contribution_steward_for`; clears the delegate. If that resolves back to the caller, the request becomes unowned |
+| `cannot_provide` | assignee | `open`, `needs_clarification` | `blocked` | Note required |
+| `accept` | reviewer | `submitted` | `done` | Client applies the response first (RLS-gated). Assignee self-accept is allowed but logged `{"self_review": true}` |
+| `return` | reviewer | `submitted` | `open` | Note required |
+| `withdraw` | reviewer | any but `done`/`declined` | `declined` | Note required |
+| `claim` | admin or steward | `open`, unowned only | `open` | Assigns to `p_target` or the caller |
+
+Reviewer = the requester, an admin, or a steward covering the request's domain/division.
+Every action appends a `contribution_request_events` row (`from_status`, `to_status`, note,
+payload) and notifies the next person (`notifications.kind = 'contribution'`, link
+`/work?r=<id>`), never the actor. A sweep-raised request has no requester, so "submitted for
+review" goes to the routed steward. The sweep keeps at most one live refresh request per
+`(domain, division)`.
+
 ---
 
 ## 5. Deployment

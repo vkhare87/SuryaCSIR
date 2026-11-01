@@ -94,7 +94,7 @@ describe('sortAndCap', () => {
 });
 
 describe('buildUploadRecencyDigest', () => {
-  const ledger = domainUploadLedger([], new Date('2026-07-19'));
+  const ledger = domainUploadLedger([], [], new Date('2026-07-19'));
 
   it('is empty for roles that cannot open Data Management', () => {
     expect(buildUploadRecencyDigest('Director', ledger)).toEqual([]);

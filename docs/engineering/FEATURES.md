@@ -75,7 +75,8 @@ Related docs: [app.md](app.md) (product spec), [database_design.md](database_des
   `DirectorView` under `src/pages/dashboards/`).
 - **My Actions inbox** sits at the top of each dashboard: pending PMS submissions or
   evaluations, proposal revisions requested, progress reports due, assigned committee
-  action items, open helpdesk tickets, access requests (admins). Each item deep-links
+  action items, open helpdesk tickets, access requests (admins), data requests to
+  do and updates awaiting your review (see My Work below). Each item deep-links
   to the owning module.
 
 ---
@@ -107,6 +108,29 @@ Related docs: [app.md](app.md) (product spec), [database_design.md](database_des
   CRUD for every entity. This is how institutional data enters SURYA.
 - **How:** `/data` → pick entity → upload file → review detected column mappings →
   fix flagged rows → import. Entity field names intentionally mirror Excel headers.
+- **Freshness ledger** on `/data` shows each domain's last import and its **data stewards**;
+  admins add or remove a steward (domain, optional division, `steward`/`accountable`,
+  refresh cadence in days) inline.
+
+### Contribution requests & My Work (2026-11-01)
+- **Who:** every verified role opens **My Work** (`/work`); Director, DivisionHead, HOD
+  and the data admins (HR/System/Master) raise requests; stewards and admins also see an
+  **Unowned** tab and can claim from it.
+- A contribution request is a small owned ask — "confirm or fix this record". **Request
+  update** on a project or instrument page opens a form (title, reason, due date, optional
+  assignee; the record's current values travel as the prefill). With no assignee it routes
+  to the domain's steward (division steward first), else lands unowned.
+- **How (assignee):** `/work` → To do → open the request → edit the prefilled fields and
+  **Submit update**, or **Still correct**, **Ask for clarification**, **Delegate**, **Not mine**, or
+  **Cannot provide**. A delegate's draft comes back as *Prepared* for the assignee to confirm.
+- **How (reviewer):** To review tab → see the field-by-field diff → **Accept** writes the change
+  to the record through the normal RLS-gated update, then closes the request; or **Return**
+  with a note. The requester or a reviewer can **Withdraw** any open request.
+- A daily sweep (07:15 IST) raises a *Refresh <domain> data* request for each stewarded
+  domain whose last import is older than the steward's cadence — one live request per scope.
+- Every step is audited (`contribution_request_events`, shown as a timeline) and notifies the
+  next person through the bell (`/work?r=<id>` deep-link). Requests never write HR tables
+  themselves. State machine: [system_design.md §4.8](system_design.md#48-contribution-request--contribution_requestsstatus).
 
 ### IRINS sync
 - **Route:** `/irins-sync`; CLI `npm run sync:irins`.

@@ -11,6 +11,7 @@ import { useMemo, useState } from 'react';
 import { parseDate, diffInDays, isWithinMonths } from '../utils/dateUtils';
 import { useCanEdit } from '../lib/permissions/canEdit';
 import { ProjectFormModal } from '../components/ProjectFormModal';
+import { RequestUpdateButton } from '../components/RequestUpdateButton';
 import { useBack } from '../utils/useBack';
 
 export default function ProjectDetail() {
@@ -103,6 +104,13 @@ export default function ProjectDetail() {
           </div>
           <p className="text-text-muted text-sm mt-1">Research & Sponsored Project Profile</p>
         </div>
+        <RequestUpdateButton
+          domain="projects"
+          recordRef={project.ProjectID}
+          divisionCode={project.DivisionCode || null}
+          record={project}
+          defaultTitle={`Update project ${project.ProjectNo}`}
+        />
         {canEdit && (
           <button
             onClick={() => setEditOpen(true)}

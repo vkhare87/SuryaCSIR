@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { domainUploadLedger } from './uploadFreshness';
-import type { ImportEvent } from '../../types';
+import type { DataSteward, ImportEvent } from '../../types';
 
 const ev = (file_type: string, uploaded_at: string): ImportEvent => ({
   id: uploaded_at, file_type, row_count: 1,
@@ -11,7 +11,7 @@ describe('domainUploadLedger', () => {
   const now = new Date('2026-07-19T12:00:00Z');
 
   it('never-uploaded domains are urgent with null days', () => {
-    const staff = domainUploadLedger([], now).find((d) => d.domain === 'staff')!;
+    const staff = domainUploadLedger([], [], now).find((d) => d.domain === 'staff')!;
     expect(staff.status).toBe('urgent');
     expect(staff.daysSinceUpload).toBeNull();
   });
@@ -22,7 +22,7 @@ describe('domainUploadLedger', () => {
       ev('staff', '2026-01-01T00:00:00Z'),   // older, ignored
       ev('projects', '2026-06-01T00:00:00Z'), // 48d ≥ 30 → stale
       ev('contractStaff', '2026-01-01T00:00:00Z'), // 199d ≥ 60 → urgent
-    ], now);
+    ], [], now);
     const by = Object.fromEntries(rows.map((r) => [r.domain, r]));
     expect(by.staff.status).toBe('fresh');
     expect(by.staff.daysSinceUpload).toBe(18);
@@ -31,7 +31,32 @@ describe('domainUploadLedger', () => {
   });
 
   it('clamps future timestamps to 0 days (clock skew)', () => {
-    const rows = domainUploadLedger([ev('staff', '2026-07-20T00:00:00Z')], now);
+    const rows = domainUploadLedger([ev('staff', '2026-07-20T00:00:00Z')], [], now);
     expect(rows.find((d) => d.domain === 'staff')!.daysSinceUpload).toBe(0);
+  });
+
+  it('marks a domain with no steward rows as no-owner', () => {
+    const steward: DataSteward = { id: 's1', domain: 'staff', divisionCode: null, userId: 'u1', kind: 'steward', cadenceDays: 90 };
+    const rows = domainUploadLedger([], [steward], now);
+    const by = Object.fromEntries(rows.map((r) => [r.domain, r]));
+    expect(by.staff.ownerStatus).toBe('owned');
+    expect(by.staff.owners).toEqual([steward]);
+    expect(by.equipment.ownerStatus).toBe('no-owner');
+    expect(by.equipment.owners).toEqual([]);
+  });
+
+  it('uses the steward cadence over the default', () => {
+    const rows = domainUploadLedger(
+      [ev('equipment', '2026-06-09T12:00:00Z')], // 40 days ago
+      [
+        { id: 's1', domain: 'equipment', divisionCode: null, userId: 'u1', kind: 'steward', cadenceDays: 60 },
+        { id: 's2', domain: 'equipment', divisionCode: 'D1', userId: 'u2', kind: 'steward', cadenceDays: 30 },
+      ],
+      now,
+    );
+    const eq = rows.find((d) => d.domain === 'equipment')!;
+    expect(eq.daysSinceUpload).toBe(40);
+    expect(eq.cadenceDays).toBe(30);
+    expect(eq.status).toBe('stale');
   });
 });

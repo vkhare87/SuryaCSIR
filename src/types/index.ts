@@ -1,4 +1,5 @@
 // Core entities based on the Excel/CSV data schema
+import type { FileType } from '../utils/fileTypes';
 
 export interface DivisionInfo {
   divCode: string;
@@ -476,4 +477,51 @@ export interface AppNotification {
   status: NotificationStatus;
   proposedAction: Record<string, unknown> | null;
   createdAt: string;
+}
+
+export type ContributionStatus =
+  | 'open' | 'prepared' | 'submitted' | 'needs_clarification' | 'blocked' | 'done' | 'declined';
+
+export type ContributionAction =
+  | 'delegate' | 'submit' | 'confirm' | 'confirm_unchanged' | 'clarify' | 'answer'
+  | 'not_mine' | 'cannot_provide' | 'accept' | 'return' | 'withdraw' | 'claim';
+
+export interface ContributionRequest {
+  id: string;
+  domain: FileType;
+  recordRef: string | null;
+  divisionCode: string | null;
+  title: string;
+  reason: string;
+  link: string | null;
+  requestedBy: string | null;
+  assigneeId: string | null;
+  delegateId: string | null;
+  status: ContributionStatus;
+  dueDate: string | null;
+  prefill: Record<string, unknown>;
+  response: Record<string, unknown> | null;
+  createdAt: string;
+  resolvedAt: string | null;
+}
+
+export interface ContributionEvent {
+  id: string;
+  requestId: string;
+  actorId: string | null;
+  action: ContributionAction | 'created';
+  fromStatus: ContributionStatus | null;
+  toStatus: ContributionStatus;
+  note: string | null;
+  payload: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface DataSteward {
+  id: string;
+  domain: FileType;
+  divisionCode: string | null;
+  userId: string;
+  kind: 'accountable' | 'steward';
+  cadenceDays: number;
 }

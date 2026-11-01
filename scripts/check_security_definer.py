@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Fail if a SECURITY DEFINER function has no authorization check.
+"""Fail if a SECURITY DEFINER function has no authorization check, or does
+not pin its search_path.
 
 Why this exists
 ---------------
@@ -17,8 +18,16 @@ This is a lint, not a proof. It cannot tell a correct check from a wrong one.
 It only makes the *absence* of one impossible to introduce silently, which is
 the failure mode that actually happened.
 
+A marker only counts in code: comments are stripped first, and a bare
+"is anyone logged in" test (`auth.uid() IS [NOT] NULL`) is not a check.
+
+search_path: a definer function without `SET search_path` resolves names
+through the caller's path. The pin may come from the CREATE header or from a
+later `ALTER FUNCTION ... SET search_path`; a later CREATE OR REPLACE without
+one resets it, exactly as Postgres does.
+
 Usage:  python3 scripts/check_security_definer.py
-Exit:   0 clean, 1 unguarded function found.
+Exit:   0 clean, 1 unguarded or unpinned function found.
 """
 
 from __future__ import annotations
@@ -92,6 +101,9 @@ EXEMPT: dict[str, str] = {
         "revoke asserted in 20261020000001. Only writes rows keyed to the "
         "user each rule names."
     ),
+    "contribution_steward_for": "internal resolver; EXECUTE revoked from client roles",
+    "contribution_requests_sweep": "cron-only; EXECUTE revoked from client roles",
+    "contribution_target_can_see": "internal scope check called only by a trigger; EXECUTE revoked from client roles",
 }
 
 
@@ -102,7 +114,7 @@ FUNC_START = re.compile(
 
 
 def iter_functions(sql: str):
-    """Yield (name, header, body) for each function definition in `sql`.
+    """Yield (position, name, header, body) for each function definition in `sql`.
 
     Bodies here are always dollar-quoted with `$$`, so the body is the text
     between the first and second `$$` after the declaration.
@@ -118,7 +130,20 @@ def iter_functions(sql: str):
         if second == -1:
             continue
 
-        yield name, rest[:first], rest[first + 2:second]
+        yield match.start(), name, rest[:first], rest[first + 2:second]
+
+
+ALTER_PIN = re.compile(
+    r"ALTER\s+FUNCTION\s+(?:public\.)?(\w+)\s*\([^)]*\)\s*SET\s+search_path",
+    re.IGNORECASE,
+)
+LINE_COMMENT = re.compile(r"--[^\n]*")
+LOGGED_IN_ONLY = re.compile(r"auth\.uid\(\)\s+IS\s+(?:NOT\s+)?NULL", re.IGNORECASE)
+
+
+def has_check(body: str) -> bool:
+    code = LOGGED_IN_ONLY.sub("", LINE_COMMENT.sub("", body))
+    return any(marker in code for marker in AUTHZ_MARKERS)
 
 
 def main() -> int:
@@ -129,23 +154,44 @@ def main() -> int:
     # A function may be redefined by a later migration. Only the final
     # definition is live, so key on name and let later files win.
     latest: dict[str, tuple[str, str]] = {}
+    pinned: dict[str, bool] = {}
 
     for path in sorted(MIGRATIONS.glob("*.sql")):
         sql = path.read_text(encoding="utf-8", errors="replace")
-        for name, header, body in iter_functions(sql):
+        # Apply this file's CREATEs and ALTERs in the order they appear.
+        events = [(pos, (name, header, body)) for pos, name, header, body in iter_functions(sql)]
+        events += [(m.start(), m.group(1)) for m in ALTER_PIN.finditer(sql)]
+        for _, item in sorted(events, key=lambda e: e[0]):
+            if isinstance(item, str):
+                pinned[item] = True
+                continue
+            name, header, body = item
             if "SECURITY DEFINER" not in header.upper():
                 latest.pop(name, None)  # redefined as INVOKER; no longer in scope
                 continue
             latest[name] = (path.name, body)
+            pinned[name] = "SEARCH_PATH" in header.upper()
 
     unguarded = [
         (name, origin)
         for name, (origin, body) in sorted(latest.items())
-        if name not in EXEMPT
-        and not any(marker in body for marker in AUTHZ_MARKERS)
+        if name not in EXEMPT and not has_check(body)
+    ]
+    unpinned = [
+        (name, origin)
+        for name, (origin, _) in sorted(latest.items())
+        if not pinned.get(name)
     ]
 
     checked = len(latest)
+    if unpinned:
+        print(f"FAIL: {len(unpinned)} SECURITY DEFINER function(s) without "
+              f"SET search_path (of {checked} checked):\n")
+        for name, origin in unpinned:
+            print(f"  {name}()  —  {origin}")
+        print("\nAdd `SET search_path = public` to the header, or an "
+              "`ALTER FUNCTION ... SET search_path = public` in a later migration.")
+        return 1
     if unguarded:
         print(f"FAIL: {len(unguarded)} SECURITY DEFINER function(s) with no "
               f"authorization check (of {checked} checked):\n")
@@ -163,7 +209,7 @@ def main() -> int:
         return 1
 
     print(f"OK: {checked} SECURITY DEFINER function(s) checked, "
-          f"{len(EXEMPT)} exempt, none unguarded.")
+          f"{len(EXEMPT)} exempt, none unguarded, all pin search_path.")
     return 0
 
 

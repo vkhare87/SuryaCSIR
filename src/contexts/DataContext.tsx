@@ -30,6 +30,8 @@ import type {
   CalendarEvent,
   Holiday,
   ImportEvent,
+  ContributionRequest,
+  DataSteward,
 } from '../types';
 import { supabase, isProvisioned } from '../utils/supabaseClient';
 import {
@@ -61,12 +63,14 @@ import {
   mapCalendarEventRow,
   mapHolidayRow,
   mapImportEventRow,
+  mapContributionRow,
+  mapStewardRow,
 } from '../utils/dataMapper';
 import { useAuth } from './AuthContext';
 import { useToast } from './ToastContext';
 import { useFeatureControls } from './FeatureControlContext';
 import { logger } from '../utils/logger';
-import { fetchAll } from '../lib/data/fetchAll';
+import { fetchAll, isMissingTable } from '../lib/data/fetchAll';
 import { withPostTotals } from '../lib/recruitment/posts';
 
 // ---------------------------------------------------------------------------
@@ -128,6 +132,9 @@ interface DataContextType {
   calendarEvents: CalendarEvent[];
   holidays: Holiday[];
   importEvents: ImportEvent[];
+  contributionRequests: ContributionRequest[];
+  dataStewards: DataSteward[];
+  refreshContributions: () => Promise<void>;
   refreshCalendar: () => Promise<void>;
   refreshHolidays: () => Promise<void>;
   isLoading: boolean;
@@ -184,6 +191,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [importEvents, setImportEvents] = useState<ImportEvent[]>([]);
+  const [contributionRequests, setContributionRequests] = useState<ContributionRequest[]>([]);
+  const [dataStewards, setDataStewards] = useState<DataSteward[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -216,6 +225,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setCalendarEvents([]);
     setHolidays([]);
     setImportEvents([]);
+    setContributionRequests([]);
+    setDataStewards([]);
   };
 
   const loadData = async () => {
@@ -239,7 +250,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         divRes, staffRes, projRes, psRes, phdRes, equipRes, labsRes, soRes, ipRes, csRes,
         vaRes, vpRes, vappRes,
         cmtRes, cmmRes, mtgRes, agiRes, actRes, mdcRes, tktRes, trsRes, tevRes, hrtRes,
-        ceRes, holRes, mouRes, ttRes, phmRes, ieRes,
+        ceRes, holRes, mouRes, ttRes, phmRes, ieRes, crRes, dsRes,
       ] = await Promise.all([
         // Every read is paged (fetchAll) — an unbounded select is capped at
         // db-max-rows silently, with no error and no flag, so the aggregates
@@ -278,6 +289,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         fetchAll(supabase.from('tech_transfers').select('*').order('id')),
         fetchAll(supabase.from('phd_milestones').select('*').order('id')),
         loadDataOps ? fetchAll(supabase.from('import_events').select('*').order('uploaded_at', { ascending: false }).order('id')) : skipped,
+        fetchAll(supabase.from('contribution_requests').select('*').order('created_at', { ascending: false }).order('id')),
+        fetchAll(supabase.from('data_stewards').select('*').order('id')),
       ]);
 
       // Surface per-table errors — Promise.all hides them as empty data
@@ -314,6 +327,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
       checkTable('tech_transfers', ttRes);
       checkTable('phd_milestones', phmRes);
       checkTable('import_events', ieRes);
+      // Missing table = Phase 1 migration not applied yet; stay quiet and leave the arrays empty.
+      if (!isMissingTable(crRes.error)) checkTable('contribution_requests', crRes);
+      if (!isMissingTable(dsRes.error)) checkTable('data_stewards', dsRes);
       if (tableErrors.length > 0) {
         const summary = `${tableErrors.length} table(s) failed to load: ${tableErrors.map(e => e.table).join(', ')}`;
         logger.error('partial_data_load_failed', new Error(summary), { tableErrors });
@@ -352,6 +368,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setCalendarEvents(ceRes.data ? ceRes.data.map(mapCalendarEventRow) : []);
       setHolidays(holRes.data ? holRes.data.map(mapHolidayRow) : []);
       setImportEvents(ieRes.data ? ieRes.data.map(mapImportEventRow) : []);
+      setContributionRequests(crRes.data ? crRes.data.map(mapContributionRow) : []);
+      setDataStewards(dsRes.data ? dsRes.data.map(mapStewardRow) : []);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load data';
       setError(message);
@@ -366,6 +384,22 @@ export function DataProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     loadData();
   }, [provisioned, isAuthenticated, role, divisionCode, loadRecruitment, loadDataOps, loadContracts]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const refreshContributions = async () => {
+    if (!supabase) return;
+    const [crRes, dsRes] = await Promise.all([
+      fetchAll(supabase.from('contribution_requests').select('*').order('created_at', { ascending: false }).order('id')),
+      fetchAll(supabase.from('data_stewards').select('*').order('id')),
+    ]);
+    const err = [crRes.error, dsRes.error].find(e => e && !isMissingTable(e));
+    if (err) {
+      logger.error('refresh_contributions_failed', err);
+      pushToast(`Requests refresh failed: ${err.message}`, 'error');
+      return;
+    }
+    setContributionRequests(crRes.data ? crRes.data.map(mapContributionRow) : []);
+    setDataStewards(dsRes.data ? dsRes.data.map(mapStewardRow) : []);
+  };
 
   const refreshCalendar = async () => {
     if (!supabase) return;
@@ -427,6 +461,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
       calendarEvents,
       holidays,
       importEvents,
+      contributionRequests,
+      dataStewards,
+      refreshContributions,
       refreshCalendar,
       refreshHolidays,
       isLoading,

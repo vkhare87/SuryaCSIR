@@ -26,12 +26,17 @@ export const PAGE_SIZE = 1000;
 const MAX_PAGES = 100;
 
 export interface PagedQuery<T> {
-  range(from: number, to: number): PromiseLike<{ data: T[] | null; error: { message: string } | null }>;
+  range(from: number, to: number): PromiseLike<{ data: T[] | null; error: { message: string; code?: string } | null }>;
 }
 
 export interface FetchAllResult<T> {
   data: T[];
-  error: { message: string } | null;
+  error: { message: string; code?: string } | null;
+}
+
+/** True when the table does not exist yet (migration not applied): Postgres 42P01 or PostgREST schema-cache PGRST205. */
+export function isMissingTable(error: { code?: string } | null): boolean {
+  return error?.code === '42P01' || error?.code === 'PGRST205';
 }
 
 /**
