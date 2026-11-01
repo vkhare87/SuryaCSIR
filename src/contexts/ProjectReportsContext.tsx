@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from 'react';
 import { supabase, isProvisioned } from '../utils/supabaseClient';
 import { useAuth } from './AuthContext';
 import type { ProjectReport, ProjectReportStatus } from '../types/projectReport';
@@ -146,11 +146,13 @@ export function ProjectReportsProvider({ children }: { children: ReactNode }) {
     [refresh],
   );
 
+  const value = useMemo(() => ({
+    reports, isLoading, error, refresh, getReport,
+    createDraft, updateDraft, submitReport, reviewReport,
+  }), [reports, isLoading, error, refresh, getReport, createDraft, updateDraft, submitReport, reviewReport]);
+
   return (
-    <ProjectReportsContext.Provider value={{
-      reports, isLoading, error, refresh, getReport,
-      createDraft, updateDraft, submitReport, reviewReport,
-    }}>
+    <ProjectReportsContext.Provider value={value}>
       {children}
     </ProjectReportsContext.Provider>
   );

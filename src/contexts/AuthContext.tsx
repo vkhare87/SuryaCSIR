@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from 'react';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import type { UserAccount, Role } from '../types';
 import { supabase } from '../utils/supabaseClient';
@@ -30,7 +30,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserAccount | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const resolveUserRoles = async (authUser: SupabaseUser): Promise<boolean> => {
+  const resolveUserRoles = useCallback(async (authUser: SupabaseUser): Promise<boolean> => {
     if (!supabase) return false;
 
     // Fetch all role rows for this user. ORDER BY is load-bearing: roles[0]
@@ -83,7 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .eq('user_id', authUser.id);
 
     return true;
-  };
+  }, []);
 
   useEffect(() => {
     if (!supabase) {
@@ -123,7 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string; otpSent?: boolean }> => {
+  const login = useCallback(async (email: string, password: string): Promise<{ success: boolean; error?: string; otpSent?: boolean }> => {
     if (import.meta.env.DEV && email === 'admin@dev.local' && password === 'admin123') {
       setUser({
         id: 'dev-admin',
@@ -159,20 +159,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
     return { success: true };
-  };
+  }, [resolveUserRoles]);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     if (supabase) {
       await supabase.auth.signOut();
     }
     localStorage.removeItem('surya_session');
     setUser(null);
-  };
+  }, []);
 
   // must_change_password is no longer in the caller's column grant on
   // user_profiles (20260725000001) — clearing it goes through the RPC, and
   // only after the password actually changed. See ChangePassword.tsx.
-  const clearMustChangePassword = async () => {
+  const clearMustChangePassword = useCallback(async () => {
     if (!supabase || !user) return;
     const { error } = await supabase.rpc('clear_must_change_password');
     if (error) {
@@ -180,9 +180,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     setUser((prev) => prev ? { ...prev, mustChangePassword: false } : prev);
-  };
+  }, [user]);
 
-  const setActiveRole = async (role: Role) => {
+  const setActiveRole = useCallback(async (role: Role) => {
     if (!user || !user.roles.includes(role)) return;
     const previousRole = user.activeRole;
 
@@ -209,32 +209,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('Failed to persist active role:', err);
       setUser((prev) => (prev && prev.activeRole === role ? { ...prev, activeRole: previousRole } : prev));
     }
-  };
+  }, [user]);
 
   // Permission follows the ACTIVE role, matching ProtectedRoute in App.tsx.
   // Checking every assigned role meant a user acting as Scientist still saw
   // HRAdmin upload controls on pages the route guard would have denied.
-  const hasPermission = (allowedRoles: Role[]) => {
+  const hasPermission = useCallback((allowedRoles: Role[]) => {
     if (!user?.activeRole) return false;
     return allowedRoles.includes(user.activeRole);
-  };
+  }, [user]);
+
+  const value = useMemo(() => ({
+    user,
+    isAuthenticated: !!user,
+    role: user?.activeRole ?? null,        // backward-compat alias
+    roles: user?.roles ?? [],
+    activeRole: user?.activeRole ?? null,
+    divisionCode: user?.divisionCode ?? null,
+    mustChangePassword: user?.mustChangePassword ?? false,
+    login,
+    logout,
+    clearMustChangePassword,
+    setActiveRole,
+    isLoading,
+    hasPermission,
+  }), [user, isLoading, login, logout, clearMustChangePassword, setActiveRole, hasPermission]);
 
   return (
-    <AuthContext.Provider value={{
-      user,
-      isAuthenticated: !!user,
-      role: user?.activeRole ?? null,        // backward-compat alias
-      roles: user?.roles ?? [],
-      activeRole: user?.activeRole ?? null,
-      divisionCode: user?.divisionCode ?? null,
-      mustChangePassword: user?.mustChangePassword ?? false,
-      login,
-      logout,
-      clearMustChangePassword,
-      setActiveRole,
-      isLoading,
-      hasPermission,
-    }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

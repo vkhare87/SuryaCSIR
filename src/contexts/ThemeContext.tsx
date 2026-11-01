@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from 'react';
 
 type Theme = 'light' | 'dark';
 type Density = 'compact' | 'medium' | 'relaxed';
@@ -25,14 +25,15 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('surya_theme', theme);
   }, [theme]);
 
-  const setTheme = (t: Theme) => setThemeState(t);
-  const setDensity = (d: Density) => {
+  const setDensity = useCallback((d: Density) => {
     setDensityState(d);
     localStorage.setItem('surya_density', d);
-  };
+  }, []);
+
+  const value = useMemo(() => ({ theme, setTheme: setThemeState, density, setDensity }), [theme, density, setDensity]);
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, density, setDensity }}>
+    <ThemeContext.Provider value={value}>
       {children}
     </ThemeContext.Provider>
   );
