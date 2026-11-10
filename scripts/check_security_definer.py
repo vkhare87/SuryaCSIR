@@ -80,6 +80,16 @@ EXEMPT: dict[str, str] = {
         "Whether the write happens at all is decided by the table's RLS "
         "(HRAdmin/SystemAdmin/MasterAdmin) before this runs."
     ),
+    "sync_project_key": (
+        "trigger; resolves a project number to projects.\"ProjectID\" when exactly "
+        "one project carries it. The write itself is gated by the table's RLS or "
+        "RPC; EXECUTE revoked from clients (20261110000002)."
+    ),
+    "proposal_caller_is_copi": (
+        "caller-identity resolver: is the caller a named co-PI of this proposal. "
+        "Keyed on caller_staff_id(); answers only about the caller. Definer "
+        "because proposal_copis's own policy calls proposals_can_read()."
+    ),
     "pms_awp_sync_staff_user": (
         "trigger on staff UPDATE OF user_id; mirrors the link onto pms_awps. "
         "The staff write is authorized by staff RLS; EXECUTE revoked from clients."
