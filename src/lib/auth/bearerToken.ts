@@ -10,6 +10,15 @@ import { supabase } from '../../utils/supabaseClient';
  * hang, silently blank UI, or a spinner that never resolves.
  */
 const AUTH_TIMEOUT_MS = 3000;
+const TIMED_OUT = Symbol('timed out');
+
+// Set by a sign-out in any tab (gotrue broadcasts it). After that the stored
+// token must never be reused, even if getSession() stalls (SEC-16).
+let signedOut = false;
+supabase?.auth?.onAuthStateChange?.(event => {
+  if (event === 'SIGNED_OUT') signedOut = true;
+  else if (event === 'SIGNED_IN') signedOut = false;
+});
 
 /** The session gotrue-js persists; the same object getSession() would have returned. */
 function storedToken(): string | null {
@@ -36,12 +45,14 @@ export async function bearerToken(): Promise<string> {
   if (!supabase) throw new Error('Not signed in');
   const session = await Promise.race([
     supabase.auth.getSession().then(r => r.data.session),
-    new Promise<null>(resolve => setTimeout(() => resolve(null), AUTH_TIMEOUT_MS)),
+    new Promise<typeof TIMED_OUT>(resolve => setTimeout(() => resolve(TIMED_OUT), AUTH_TIMEOUT_MS)),
   ]);
-  // Fall back to the persisted session when the auth client stalls: getSession()
-  // reads the same localStorage entry, so an unexpired stored token is equally
-  // valid, and the request proceeds instead of failing on a client-side hang.
-  const token = session?.access_token ?? storedToken();
+  // Fall back to the persisted session only when the auth client stalls:
+  // getSession() reads the same localStorage entry, so an unexpired stored token
+  // is equally valid. A session that resolved to null means signed out.
+  const token = session === TIMED_OUT
+    ? (signedOut ? null : storedToken())
+    : session?.access_token ?? null;
   if (!token) throw new Error('Not signed in');
   return token;
 }

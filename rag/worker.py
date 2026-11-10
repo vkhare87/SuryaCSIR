@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+import uuid
 
 from config import load_config
 from parse import parse_pdf
@@ -46,6 +47,21 @@ def build_collections(db, llm) -> int:
     return len(collections)
 
 
+def brief_client_factory(cfg, db, log=lambda line: print(line, flush=True)):
+    """client_for(owner) for run_briefs: a scoped client on a fresh 5-minute
+    token minted as the owner. One log line per mint, with the token's jti, is
+    the record of every token the worker made (SEC-10)."""
+    from auth import mint_user_token, scoped_client
+
+    def client_for(owner):
+        jti = uuid.uuid4().hex
+        token = mint_user_token(cfg.supabase_jwt_secret, owner, db.user_email(owner), jti=jti)
+        log(f"[rag] brief token minted owner={owner} jti={jti}")
+        return scoped_client(cfg.supabase_url, cfg.supabase_anon_key, token)
+
+    return client_for
+
+
 def main():
     cfg = load_config(os.environ)
     ocr = make_ocr(cfg.ocr_backend)
@@ -61,14 +77,9 @@ def main():
         # One pass, then exit — the host scheduler runs it hourly (deploy/README.md).
         if not cfg.supabase_jwt_secret:
             raise SystemExit("--briefs needs SUPABASE_JWT_SECRET to answer as each owner")
-        from auth import mint_user_token, scoped_client
         from briefs import run_briefs
 
-        def client_for(owner):
-            token = mint_user_token(cfg.supabase_jwt_secret, owner, db.user_email(owner))
-            return scoped_client(cfg.supabase_url, cfg.supabase_anon_key, token)
-
-        n = run_briefs(db, llm, client_for)
+        n = run_briefs(db, llm, brief_client_factory(cfg, db))
         print(f"[rag] posted {n} brief(s)", flush=True)
         return
     if "--reindex-model" in sys.argv:

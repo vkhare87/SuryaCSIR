@@ -7,6 +7,7 @@ import hashlib
 import hmac
 import json
 import time
+import uuid
 
 from supabase import create_client
 
@@ -27,15 +28,20 @@ def _b64url(raw: bytes) -> str:
     return base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
 
 
-def mint_user_token(secret: str, user_id: str, email: str | None, ttl_s: int = 300, now=None) -> str:
+def mint_user_token(secret: str, user_id: str, email: str | None, ttl_s: int = 300, now=None,
+                    jti: str | None = None) -> str:
     """Short-lived HS256 access token for one user, signed with the project's JWT
     secret. Used only by the briefs worker to answer a user's saved question AS that
     user, so RLS scopes the answer. Carries `email` because caller_email() (staff
-    scoping) reads it. Five minutes covers one answer; nothing stores the token."""
+    scoping) reads it. Five minutes covers one answer; nothing stores the token.
+
+    Anyone holding the secret can mint a token for any user, MasterAdmin included
+    (SEC-10): the secret's file ACL is the real control (deploy/README.md). The
+    jti gives each legitimate token a name the worker log records."""
     iat = int(now if now is not None else time.time())
     header = {"alg": "HS256", "typ": "JWT"}
     payload = {"sub": user_id, "role": "authenticated", "aud": "authenticated",
-               "iat": iat, "exp": iat + ttl_s}
+               "iat": iat, "exp": iat + ttl_s, "jti": jti or uuid.uuid4().hex}
     if email:
         payload["email"] = email
     signing = ".".join(_b64url(json.dumps(p, separators=(",", ":")).encode()) for p in (header, payload))

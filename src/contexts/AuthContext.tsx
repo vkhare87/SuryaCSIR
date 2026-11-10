@@ -3,6 +3,7 @@ import { createContext, useContext, useState, useEffect, useCallback, useMemo, t
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import type { UserAccount, Role } from '../types';
 import { supabase } from '../utils/supabaseClient';
+import { isDevLogin } from '../lib/auth/devLogin';
 
 interface AuthContextType {
   user: UserAccount | null;
@@ -91,12 +92,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session?.user) {
-        await resolveUserRoles(session.user);
-      }
-      setIsLoading(false);
-    });
+    // A throw in role resolution must not leave the app on its loading screen.
+    supabase.auth.getSession()
+      .then(async ({ data: { session } }) => {
+        if (session?.user) await resolveUserRoles(session.user);
+      })
+      .catch(err => console.error('[auth] session restore failed', err))
+      .finally(() => setIsLoading(false));
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
@@ -124,7 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const login = useCallback(async (email: string, password: string): Promise<{ success: boolean; error?: string; otpSent?: boolean }> => {
-    if (import.meta.env.DEV && email === 'admin@dev.local' && password === 'admin123') {
+    if (isDevLogin(email, password)) {
       setUser({
         id: 'dev-admin',
         email,
