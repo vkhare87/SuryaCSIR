@@ -1,3 +1,14 @@
+\set ON_ERROR_STOP on
+-- DEV ONLY (SEC-18). Refuses to run unless the session opts in, and the line
+-- above stops psql at that refusal instead of running the rest of the file:
+--   PGOPTIONS='-c surya.allow_mock=on' psql "<LOCAL db url>" -f <this file>
+DO $$
+BEGIN
+    IF current_setting('surya.allow_mock', true) IS DISTINCT FROM 'on' THEN
+        RAISE EXCEPTION 'supabase/mock is dev-only: set surya.allow_mock=on, for a LOCAL database only';
+    END IF;
+END $$;
+
 -- 20260521120000_dev_all_roles.sql
 -- ⚠ DEV ONLY — grants every role to one user for role-switcher testing. Do NOT apply in production.
 -- Grants all application roles to vivek.khare@csir.res.in for development

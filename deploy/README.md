@@ -126,6 +126,14 @@ Users can save an Ask SURYA question as a daily or weekly brief (`scheduled_quer
 notification bell (`source='agent'`). It only reads and posts; it never changes a record.
 
 1. Set `SUPABASE_JWT_SECRET` in the worker env file (see `rag-worker.env.example`).
+   **This is the most sensitive value in the deployment.** Anyone who reads it can sign
+   a login token for any user, MasterAdmin included, and RLS will trust it. Keep the
+   §3 ACL on `C:\surya\env`, keep the file out of images and backups, and rotate the
+   secret (Supabase → Settings → API) if the file may have leaked. Each token the worker
+   signs has a unique `jti` and one `[rag] brief token minted owner=… jti=…` line in the
+   worker log; a token with a jti that is not in that log was not made by the worker.
+   Follow-up: move the project to asymmetric JWT signing keys so the worker no longer
+   holds a key that can sign for anyone (SEC-10).
 2. Schedule one pass per hour (Task Scheduler on Windows):
 
    ```powershell
