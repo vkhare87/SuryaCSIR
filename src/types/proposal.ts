@@ -75,6 +75,10 @@ export interface Proposal {
 
   linkedProjectNo: string | null;
   archived: boolean;
+  /** project_schemes.code — 'ULIP' | 'HQ'. */
+  track: string | null;
+  /** The version the reviewers were given; set by proposal_submit. */
+  submittedVersionId: string | null;
 
   createdAt: string;
   updatedAt: string;
@@ -87,4 +91,28 @@ export interface Proposal {
   coPIs?: ProposalCoPI[];
   documents?: ProposalDocument[];
   history?: ProposalStatusEntry[];
+}
+
+/** A PI's private note on a proposal. Never shown to anyone else. */
+export interface ProposalNote {
+  id: string;
+  proposalId: string;
+  body: string;
+  /** The proposal field this note was moved into, if any. */
+  usedIn: NoteTarget | null;
+  usedAt: string | null;
+  createdAt: string;
+}
+
+export type NoteTarget = 'abstract' | 'problemStatement' | 'objectives' | 'expectedOutcomes';
+
+export interface ProposalVersion {
+  id: string;
+  proposalId: string;
+  versionNo: number;
+  label: string;
+  kind: 'manual' | 'submitted';
+  createdAt: string;
+  /** The proposal as it stood, co-PIs included. */
+  proposal: Proposal;
 }
