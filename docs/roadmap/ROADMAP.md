@@ -21,7 +21,7 @@ and the frame, they carry the implementation detail):
 | [sources/AHEAD-INTELLIGENCE-MASTER.md](sources/AHEAD-INTELLIGENCE-MASTER.md) | Semantic-layer architecture, IDs `R1`–`R5`, guardrails |
 | [sources/INTELLIGENCE-PHASES.md](sources/INTELLIGENCE-PHASES.md) | Executable phase breakdown for `R1`–`R5` |
 | [sources/REVIEW-2026-10-20.md](sources/REVIEW-2026-10-20.md) | Whole-codebase review: AI-agent readiness `G1`–`G7`, role UI `R1`–`R5`, mobile `M1`–`M7` |
-| [sources/PROJECT-LIFECYCLE-PLAN.md](sources/PROJECT-LIFECYCLE-PLAN.md) | Project lifecycle from private draft to archive, PME role, funds ledger, CSIR April-2025 rules; phases `PL0`–`PL6` |
+| [sources/PROJECT-LIFECYCLE-PLAN.md](sources/PROJECT-LIFECYCLE-PLAN.md) | Project lifecycle from private draft to archive, PME role, funds ledger, scientist workspace, CSIR April-2025 rules; phases `PL0`–`PL7` |
 | [../history/ARCHITECTURE-REMEDIATION.md](../history/ARCHITECTURE-REMEDIATION.md) | The three audit items still open |
 | [../../TODOS.md](../../TODOS.md), [../../CLAUDE.md](../../CLAUDE.md) | Open hardening and deferred debt |
 
@@ -368,7 +368,7 @@ B1 and B4 are in **WP-1**. B5 is the natural on-ramp to **WP-14's** transparency
 C2 feeds C1's milestone-delay input, so **WP-11 C1 + WP-13 C2 pair naturally.**
 
 **C2, C4 and the review-chain half of C3 are now specified in full** by
-[sources/PROJECT-LIFECYCLE-PLAN.md](sources/PROJECT-LIFECYCLE-PLAN.md) (`PL1`–`PL2`) — build them from
+[sources/PROJECT-LIFECYCLE-PLAN.md](sources/PROJECT-LIFECYCLE-PLAN.md) (`PL2`–`PL3`) — build them from
 that brief, not as standalone items.
 
 ### WP-14 — Governance & records ◇ · Trust/Keep · effort S–M
@@ -456,7 +456,7 @@ turns SURYA from a management portal into an institutional record system.
 | **Cross-site backup** | Irreplaceable data replicated off one lab's server |
 
 **The project master file has its implementation plan:**
-[sources/PROJECT-LIFECYCLE-PLAN.md](sources/PROJECT-LIFECYCLE-PLAN.md), phases `PL0`–`PL6`. It also
+[sources/PROJECT-LIFECYCLE-PLAN.md](sources/PROJECT-LIFECYCLE-PLAN.md), phases `PL0`–`PL7`. It also
 supplies the utilisation data WP-11 `C1` and `A3` were waiting on.
 
 **Sequencing within WP-18:** project master file → patent prosecution file → everything
@@ -556,3 +556,4 @@ whether a work package is actually moving the system toward anything.
 |---|---|
 | 2026-08-08 | Created. Merged nine future-facing documents into 20 work packages. Original item IDs preserved; source documents retained under `sources/`. Marked `P2`/`P3`/`P4`/`P5`/`P9` as shipped after verifying against the code — the source brief still lists them as proposals. |
 | 2026-11-10 | Added `sources/PROJECT-LIFECYCLE-PLAN.md` (`PL0`–`PL6`): unified project lifecycle, PME role, funds ledger. Pointed WP-13 `C2`/`C3`/`C4` and the WP-18 project master file at it. No new work package. |
+| 2026-11-10 | `PROJECT-LIFECYCLE-PLAN.md` revision 2: scientist workspace added as `PL1` (title-only start, notes, autosave, versions, readiness); later phases renumbered, now `PL0`–`PL7`. ULIP chain, scanned signatures and read-only co-PIs recorded. |
