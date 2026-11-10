@@ -47,7 +47,7 @@ data WP-11 `C1` (health score) and `A3` (S-curves) were blocked on.
 | Similar-work check | `SimilarWorkPanel` on the detail page only, after saving | While drafting |
 | `proposals` + 9 RPCs | Draft → submit → review → approve → OM → link, with history. Signed PDF required to submit | Every review step is "any admin". Budget is one number. Drafts readable by Director / HOD / admins. Completeness is checked in the browser only (`submitSchema`) |
 | Co-PIs | `proposal_copis` holds `staff_id` + name; co-PIs get no read access at all | Read access, keyed on staff identity |
-| `projects` | Excel-fed flat table. PK `"ProjectID"`; `"ProjectNo"` neither unique nor indexed, yet everything joins on it. Cost and dates are `text` | Stage, history, budget heads, typed columns |
+| `projects` | Excel-fed flat table. PK `"ProjectID"`. `"ProjectNo"` is **deliberately not unique** — one umbrella number covers several work packages (live: `HCP0054` = 4 rows; uniqueness was tried and dropped in `20261102000006`) — yet reports, MoUs and tech transfers join on it. Cost and dates are `text` | Stage, history, budget heads, typed columns; joins moved to `project_id` |
 | Proposal → project | `proposal_link_project` needs the project row uploaded first | Sanction creates the project |
 | `project_reports` | Exists only if the PI starts one; `milestones` is free text | Expected slots; structured milestones |
 | Committees | Meetings, agenda, action items, minutes | Not linked to any proposal or project |
@@ -95,7 +95,7 @@ which steps are required. Nothing else forks.
 | Vetting chain | PME → ULIP review committee recommends → Director approves | PME → Finance → Director forwards (§4.1) |
 | Appraisal | The review committee; nothing at HQ (§1.1 excludes these) | HQ Level 1 and Level 2 — **recorded, not performed, in SURYA** |
 | Sanction document | Director's approval, signed scan | Sanction OM with project number (§4.1.5) |
-| Project code | Institute's own numbering, unique | Validated against §2.2 pattern |
+| Project code | Institute's own numbering | Validated against §2.2 pattern |
 | Funds receipt needs | Order no. and date | OM no. and date **and IFD concurrence file no. and date** (§7.2) |
 | Stage-gates | Off | On for FTT / FTC / MMP only (§4.2) |
 | Review calendar | ULIP review committee, half-yearly | By category (§5) |
@@ -261,8 +261,8 @@ The same page gains tabs (§8.2). The scientist's notes stay with the file, stil
 All new tables: snake_case, RLS enabled with an explicit policy block, every state
 change through a `SECURITY DEFINER` RPC that opens with an authorization block
 (`supabase/CLAUDE.md`). New project-side tables key on `project_id` →
-`projects("ProjectID")`, which is stable; `"ProjectNo"` becomes `UNIQUE` but stays
-correctable.
+`projects("ProjectID")`, the only real key. `"ProjectNo"` stays non-unique: several
+work-package rows may share one umbrella number, and the file page lists its siblings.
 
 ### 5.1 Changes to existing tables
 
@@ -271,10 +271,10 @@ correctable.
 | `proposals` | `DROP NOT NULL` on every column except `title`, `pi_user_id`, `pi_name`, `created_by`, `status` (completeness moves into `proposal_submit`). `+ track`, `+ category_code`, `+ theme_code`, `+ parent_project_id`, `+ project_id` (set at sanction), `+ submitted_version_id` |
 | `proposal_copis` | Unchanged; read access for co-PIs is `staff_id = caller_staff_id()` |
 | `proposal_documents` | Widen `doc_type`: `+ quotation`, `+ supporting`, `+ signed_step_scan` |
-| `projects` | `+ stage` (`CHECK`), `+ track`, `+ category_code`, `+ proposal_id`, `+ sanctioned_cost numeric`, `+ start_date date`, `+ end_date date` (typed twins, backfilled with `try_parse_date`), `+ sanction_ref`, `+ closed_at`. `"ProjectNo"` → `UNIQUE` after a duplicate check that **fails loudly** |
-| `project_reports` | `+ project_id`, `+ slot_id`. `project_no` → FK |
+| `projects` | `+ stage` (`CHECK`), `+ track`, `+ category_code`, `+ proposal_id`, `+ sanctioned_cost numeric`, `+ start_date date`, `+ end_date date` (typed twins, backfilled with `try_parse_date`), `+ sanction_ref`, `+ closed_at`. Index (non-unique) on `"ProjectNo"`. `project_sanction` may create one row per work package under one number |
+| `project_reports` | `+ project_id`, `+ slot_id`. `project_id` backfilled only where `project_no` resolves to exactly one row; the rest are listed on the PME desk |
 | `scientific_outputs`, `ip_intelligence`, `equipment` | `+ project_id` (nullable FK) — roadmap `C4` |
-| `mous`, `tech_transfers` | `linked_project_no` → FK |
+| `mous`, `tech_transfers` | `+ project_id`, backfilled the same way; `linked_project_no` kept as entered |
 | `agenda_items` | `+ subject_type`, `+ subject_id` (proposal, project, change request, completion report), `+ decision` |
 
 `"ProjectStatus"` stays for the Excel importer but is derived from `stage` by trigger and
@@ -443,7 +443,7 @@ multi-week). Each phase ships on its own and leaves the app working.
 
 | ID | Phase | Contents | Effort | Done when |
 |---|---|---|---|---|
-| `PL0` | Foundations | PME role (§4.3). `projects.stage` + status normalisation. `"ProjectNo"` unique. Typed cost / date columns. `track` and `project_schemes`. Private drafts. FKs on existing project-number columns | L | A PME user signs in to an empty desk; Director dashboard counts match a hand count; a second user cannot read another's draft (DB test) |
+| `PL0` | Foundations | PME role (§4.3). `projects.stage` + status normalisation. Typed cost / date columns. `track` and `project_schemes`. Private drafts. `project_id` beside every existing project-number column | L | A PME user signs in to an empty desk; Director dashboard counts match a hand count; a second user cannot read another's draft (DB test) |
 | `PL1` | **Scientist workspace** | §3.1–3.6: title-only start from home, optional fields, autosave, notes with Move into…, versions and compare, sectioned page, readiness meter, similar-work while drafting, wider create permission, notes on phone | L–XL | A new scientist account goes from login to a saved idea in one click and one field; a note moved into Objectives appears there and is marked used; killing the browser mid-typing loses nothing |
 | `PL2` | Concept to sanction | Budget lines, co-PI read access, print for signature (§3.7), `proposal_review_steps` per track, section comments (§3.8), `project_sanction` creating the project with budget and equipment list | XL | One ULIP and one HQ proposal walked draft → project with no Excel upload and no manual link |
 | `PL3` | Funds and execution | Receipts, expenditure, milestones, post-sanction tabs and timeline, output / equipment links | XL | Sanctioned · received · spent · balance correct per head and year against a worked example; reversal entry tested |
@@ -507,7 +507,7 @@ switch the old Proposals / Progress Reports navigation off.
 | # | Question | Default if unanswered |
 |---|---|---|
 | 1 | Who may start a proposal? | Scientist, HOD, Division Head, Director |
-| 2 | ULIP project-number format | Free-format, unique |
+| 2 | ULIP project-number format | Free-format; work packages may share a number |
 | 3 | Is there a Finance check on ULIP proposals before the review committee? | No |
 | 4 | Does Head RPBD also hold the PME role? | Independent: leader is a setting, PME is a role; one person may hold both |
 | 5 | Who performs Finance vetting on the HQ track | Any `FinanceAdmin` |
