@@ -57,7 +57,14 @@ export interface ProjectInfo {
   DivisionCode: string;
   Extension: string;
   ApprovalAuthority: string;
+  /** Derived by the database from ProjectStatus; absent until 20261110000002 is applied. */
+  stage?: ProjectStage | null;
+  /** project_schemes.code — 'ULIP' | 'HQ'; null until PME classifies a legacy project. */
+  track?: string | null;
 }
+
+export type ProjectStage =
+  | 'SANCTIONED' | 'ACTIVE' | 'ON_HOLD' | 'CLOSING' | 'CLOSED' | 'ARCHIVED' | 'FORECLOSED';
 
 export type Project = ProjectInfo;
 
@@ -197,7 +204,8 @@ export type Role =
   | 'ProjectStaff'
   | 'Guest'
   | 'DefaultUser'
-  | 'EmpoweredCommittee';
+  | 'EmpoweredCommittee'
+  | 'PME';
 
 export interface UserAccount {
   id: string;

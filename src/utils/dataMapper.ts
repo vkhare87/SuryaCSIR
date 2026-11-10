@@ -68,6 +68,8 @@ export const mapProjectRow = (row: any): ProjectInfo => {
     DivisionCode: row.DivisionCode || row.division_code || '',
     Extension: row.Extension || row.extension || '',
     ApprovalAuthority: row.ApprovalAuthority || row.approval_authority || '',
+    stage: row.stage ?? null,
+    track: row.track ?? null,
   };
 };
 

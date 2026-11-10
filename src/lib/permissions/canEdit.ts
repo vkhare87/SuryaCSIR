@@ -15,7 +15,8 @@ import type { UserAccount, Role } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 
 export type EditableModule =
-  | 'hr'             // HR data: staff, divisions, projects, phd
+  | 'hr'             // HR data: staff, divisions, phd
+  | 'projects'       // project records — PME's domain (HRAdmin until rollout)
   | 'pms'            // performance reports
   | 'committees'     // committee governance
   | 'helpdesk'       // ticket management
@@ -25,6 +26,7 @@ const GLOBAL_ADMINS: ReadonlyArray<Role> = ['SystemAdmin', 'MasterAdmin'];
 
 const MODULE_EDITORS: Record<EditableModule, ReadonlyArray<Role>> = {
   hr:         ['HRAdmin'],
+  projects:   ['HRAdmin', 'PME'],
   pms:        ['HRAdmin'],
   committees: [],
   helpdesk:   [],

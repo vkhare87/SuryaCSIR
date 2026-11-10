@@ -24,6 +24,7 @@ import { buildScientistDossier } from '../lib/scientist/dossier';
 import { buildScientistBrief } from '../lib/scientist/brief';
 import { ENTITY_META } from '../lib/entities';
 import { useBack } from '../utils/useBack';
+import { isActiveProject, projectStatusLabel } from '../lib/projects/stage';
 
 const TRAJECTORY_FLAG_LABEL: Record<string, string> = {
   'output-rising': 'Output rising',
@@ -280,7 +281,7 @@ export default function StaffDetail() {
 
           {/* Stat Cards */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <StatCard title="Active Projects" value={linkedProjects.filter(p => p.ProjectStatus === 'Active').length} className="bg-surface-hover border-transparent" />
+            <StatCard title="Active Projects" value={linkedProjects.filter(isActiveProject).length} className="bg-surface-hover border-transparent" />
             <StatCard title="Publications" value={publications.length} className="bg-surface-hover border-transparent shadow-none" />
             <StatCard title="PhD Students" value={supervisingAsMain.length + supervisingAsCo.length} className="bg-surface-hover border-transparent shadow-none" />
             <StatCard title="IP Assets" value={ipAssets.length} className="bg-surface-hover border-transparent shadow-none" />
@@ -404,7 +405,7 @@ export default function StaffDetail() {
                       <p className="text-text-muted text-xs mt-1 truncate max-w-md" title={proj.ProjectName}>{proj.ProjectName}</p>
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
-                      <Badge variant={proj.ProjectStatus === 'Active' ? 'success' : 'neutral'}>{proj.ProjectStatus}</Badge>
+                      <Badge variant={isActiveProject(proj) ? 'success' : 'neutral'}>{projectStatusLabel(proj)}</Badge>
                       <ChevronRight size={14} className="text-text-muted group-hover:text-[#c96442] transition-all group-hover:translate-x-1" />
                     </div>
                   </Link>

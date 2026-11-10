@@ -3,6 +3,7 @@ import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Card } from '../../components/ui/Cards';
 import { KpiCard } from '../../components/ui/KpiCard';
+import { isActiveProject, projectStatusLabel } from '../../lib/projects/stage';
 
 export function ProjectStaffView() {
   const { projectStaff, projects } = useData();
@@ -97,9 +98,9 @@ export function ProjectStaffView() {
                     <td className="px-6 py-3 text-[#4d4c48] font-medium max-w-[200px] truncate">{p.ProjectName}</td>
                     <td className="px-6 py-3">
                       <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
-                        p.ProjectStatus === 'Active' ? 'bg-[#f0f8f0] text-[#3a7a3a]' : 'bg-background text-[#87867f]'
+                        isActiveProject(p) ? 'bg-[#f0f8f0] text-[#3a7a3a]' : 'bg-background text-[#87867f]'
                       }`}>
-                        {p.ProjectStatus}
+                        {projectStatusLabel(p)}
                       </span>
                     </td>
                   </tr>

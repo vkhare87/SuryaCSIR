@@ -1,0 +1,28 @@
+import { describe, it, expect } from 'vitest';
+import { pmeDeskItems } from './pmeDesk';
+import type { ProjectInfo } from '../../types';
+import type { Proposal } from '../../types/proposal';
+
+const project = (over: Partial<ProjectInfo>) => ({ ProjectStatus: 'Active', track: 'ULIP', ...over }) as ProjectInfo;
+const proposal = (status: Proposal['status']) => ({ status }) as Proposal;
+
+describe('pmeDeskItems', () => {
+  it('is empty when nothing is waiting', () => {
+    expect(pmeDeskItems([proposal('DRAFT'), proposal('LINKED')], [project({})])).toEqual([]);
+  });
+
+  it('counts what is waiting on PME and drops the rows at zero', () => {
+    const items = pmeDeskItems(
+      [proposal('SUBMITTED'), proposal('SUBMITTED'), proposal('OM_ISSUED'), proposal('UNDER_REVIEW')],
+      [project({}), project({ ProjectStatus: 'Submitted' }), project({ ProjectStatus: 'Ongoing', track: null })],
+    );
+    expect(items.map(i => [i.key, i.count])).toEqual([
+      ['vetting', 2], ['sanction', 1], ['no-stage', 1], ['no-track', 1],
+    ]);
+  });
+
+  it('trusts a stored stage over the status text', () => {
+    const items = pmeDeskItems([], [project({ ProjectStatus: 'whatever', stage: 'ACTIVE' })]);
+    expect(items).toEqual([]);
+  });
+});

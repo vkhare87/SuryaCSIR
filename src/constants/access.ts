@@ -3,7 +3,7 @@ import type { Role } from '../types';
 export const ALL_ROLES: Role[] = [
   'Director', 'DivisionHead', 'HOD', 'Scientist', 'Technician',
   'HRAdmin', 'FinanceAdmin', 'SystemAdmin', 'MasterAdmin',
-  'Student', 'ProjectStaff', 'Guest', 'DefaultUser', 'EmpoweredCommittee',
+  'Student', 'ProjectStaff', 'Guest', 'DefaultUser', 'EmpoweredCommittee', 'PME',
 ];
 
 // MasterAdmin is the institute superuser and appears on every business page.
@@ -12,6 +12,9 @@ const MASTER: Role[] = ['MasterAdmin'];
 // no HR / PMS / research pages — MasterAdmin grants those per user if needed.
 const PLATFORM: Role[] = ['SystemAdmin', 'MasterAdmin'];
 const HR: Role[] = ['HRAdmin', 'MasterAdmin'];
+// PME carries a project file from submission to archive. Not an admin: it
+// holds the project pages only (RLS: 20261110000002).
+const PME: Role[] = ['PME'];
 export const DATA_ADMINS: Role[] = ['HRAdmin', 'SystemAdmin', 'MasterAdmin'];
 const PMS_AUTHORS: Role[] = ['Scientist', 'HOD', 'DivisionHead', 'Director'];
 // Division-scoped managers. Same page access; RLS scopes their rows to their
@@ -41,17 +44,17 @@ export const ACCESS_MAP = {
   '/explore':                 ['Director', ...DIV_MANAGERS, ...MASTER] as Role[],
   '/staff':                   ['Director', ...DIV_MANAGERS, ...HR] as Role[],
   '/staff/analytics':         ['Director', ...DIV_MANAGERS, ...HR] as Role[],
-  '/staff/project':           ['Director', ...DIV_MANAGERS, ...HR] as Role[],
+  '/staff/project':           ['Director', ...DIV_MANAGERS, ...HR, ...PME] as Role[],
   '/phd':                     ['Director', ...DIV_MANAGERS, 'Scientist', ...MASTER] as Role[],
   '/divisions':               ['Director', ...DIV_MANAGERS, ...MASTER] as Role[],
   '/recruitment':             HR,
-  '/projects':                ['Director', ...DIV_MANAGERS, 'Scientist', 'FinanceAdmin', ...MASTER] as Role[],
-  '/proposals':               [...PMS_AUTHORS, 'FinanceAdmin', ...HR] as Role[],
-  '/reports':                 [...PMS_AUTHORS, ...HR] as Role[],
+  '/projects':                ['Director', ...DIV_MANAGERS, 'Scientist', 'FinanceAdmin', ...PME, ...MASTER] as Role[],
+  '/proposals':               [...PMS_AUTHORS, 'FinanceAdmin', ...PME, ...HR] as Role[],
+  '/reports':                 [...PMS_AUTHORS, ...PME, ...HR] as Role[],
   '/reports/new':             PMS_AUTHORS,
   '/facilities':              ['Director', ...DIV_MANAGERS, 'Technician', ...MASTER] as Role[],
-  '/partnerships':            ['Director', ...DIV_MANAGERS, 'FinanceAdmin', ...MASTER] as Role[],
-  '/rnd-monitor':             ['Director', ...DIV_MANAGERS, 'FinanceAdmin', ...MASTER] as Role[],
+  '/partnerships':            ['Director', ...DIV_MANAGERS, 'FinanceAdmin', ...PME, ...MASTER] as Role[],
+  '/rnd-monitor':             ['Director', ...DIV_MANAGERS, 'FinanceAdmin', ...PME, ...MASTER] as Role[],
   '/committees':              STAFF,
   '/helpdesk':                ALL_ROLES,
   '/pms':                     [...PMS_AUTHORS, 'EmpoweredCommittee', ...HR] as Role[],
@@ -138,6 +141,7 @@ export const PRIMARY_NAV: Record<Role, AccessPath[]> = {
   FinanceAdmin:       ADMIN_NAV,
   SystemAdmin:        ADMIN_NAV,
   MasterAdmin:        ADMIN_NAV,
+  PME:                ['/', '/projects', '/proposals', '/reports', '/calendar'],
   Technician:         ['/'],
   Guest:              ['/'],
   DefaultUser:        ['/'],
@@ -158,4 +162,5 @@ export const ROLE_LABELS: Record<Role, string> = {
   Guest:              'Guest',
   DefaultUser:        'Pending access',
   EmpoweredCommittee: 'Empowered Committee',
+  PME:                'PME',
 };

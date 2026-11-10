@@ -13,13 +13,14 @@ import { useCanEdit } from '../lib/permissions/canEdit';
 import { ProjectFormModal } from '../components/ProjectFormModal';
 import { RequestUpdateButton } from '../components/RequestUpdateButton';
 import { useBack } from '../utils/useBack';
+import { isActiveProject, isCompletedProject, projectStatusLabel } from '../lib/projects/stage';
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const goBack = useBack('/projects');
   const { projects, projectStaff, phDStudents, staff, divisions } = useData();
-  const canEdit = useCanEdit('hr');
+  const canEdit = useCanEdit('projects');
   const [editOpen, setEditOpen] = useState(false);
 
   const project = projects.find(p => p.ProjectID === id);
@@ -62,8 +63,8 @@ export default function ProjectDetail() {
   }
 
   let statusVariant: 'success' | 'warning' | 'danger' | 'neutral' | 'info' = 'neutral';
-  if (project.ProjectStatus === 'Active') statusVariant = 'success';
-  if (project.ProjectStatus === 'Completed') statusVariant = 'info';
+  if (isActiveProject(project)) statusVariant = 'success';
+  if (isCompletedProject(project)) statusVariant = 'info';
 
   const sCost = parseFloat(project.SanctionedCost?.replace(/[^0-9.-]+/g, '') ?? '') || 0;
   const currCost = parseFloat(project.UtilizedAmount?.replace(/[^0-9.-]+/g, '') ?? '') || 0;
@@ -95,7 +96,7 @@ export default function ProjectDetail() {
         <div className="flex-1">
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-2xl font-[500] text-text font-serif">{project.ProjectNo}</h1>
-            <Badge variant={statusVariant}>{project.ProjectStatus}</Badge>
+            <Badge variant={statusVariant}>{projectStatusLabel(project)}</Badge>
             {daysLeft !== null && daysLeft > 0 && daysLeft <= 30 && (
               <Badge variant="danger" className="flex items-center gap-1">
                 <AlertTriangle size={10} /> {daysLeft}d left

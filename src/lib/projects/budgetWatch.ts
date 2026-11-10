@@ -1,6 +1,7 @@
 import { parseDate } from '../../utils/dateUtils';
 import { parseCost } from '../../utils/parseCost';
 import type { ProjectInfo } from '../../types';
+import { isFinishedProject } from './stage';
 
 // SPA twin of rag/analytics.py _project_budget_variance — same thresholds so
 // Ask SURYA and this panel never disagree on what counts as a breach.
@@ -22,7 +23,7 @@ export interface BudgetWatchRow {
 export function budgetWatch(projects: ProjectInfo[], today: Date = new Date()): BudgetWatchRow[] {
   const rows: BudgetWatchRow[] = [];
   for (const p of projects) {
-    if (['completed', 'closed'].includes(p.ProjectStatus.trim().toLowerCase())) continue;
+    if (isFinishedProject(p)) continue;
     const sanctioned = parseCost(p.SanctionedCost);
     if (sanctioned <= 0) continue;
     const utilizationPct = parseCost(p.UtilizedAmount) / sanctioned * 100;

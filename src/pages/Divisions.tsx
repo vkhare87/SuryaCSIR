@@ -24,6 +24,7 @@ import { equipmentStatusClass } from '../utils/equipmentStatus';
 import { ENTITY_META } from '../lib/entities';
 import type { DivisionInfo, StaffMember } from '../types';
 import { useUrlTab } from '../utils/useUrlTab';
+import { isActiveProject, projectStatusLabel } from '../lib/projects/stage';
 
 const DIVISION_TABS = ['detail', 'analytics'] as const;
 
@@ -107,7 +108,7 @@ export default function Divisions() {
     const sanctioned = divisions.reduce((s, d) => s + (d.divSanctionedstrength || 0), 0);
     const current = divisions.reduce((s, d) => s + (d.divCurrentStrength || 0), 0);
     const totalProjects = projects.length;
-    const activeProjects = projects.filter(p => p.ProjectStatus === 'Active').length;
+    const activeProjects = projects.filter(isActiveProject).length;
     return { sanctioned, current, gap: sanctioned - current, totalProjects, activeProjects };
   }, [divisions, projects]);
 
@@ -577,8 +578,8 @@ export default function Divisions() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="font-mono text-xs font-bold text-[#c96442]">{proj.ProjectNo}</span>
-                      <Badge variant={proj.ProjectStatus === 'Active' ? 'success' : 'neutral'} className="text-[9px]">
-                        {proj.ProjectStatus}
+                      <Badge variant={isActiveProject(proj) ? 'success' : 'neutral'} className="text-[9px]">
+                        {projectStatusLabel(proj)}
                       </Badge>
                     </div>
                     <p className="text-sm font-bold text-text truncate group-hover:text-[#c96442] transition-colors" title={proj.ProjectName}>{proj.ProjectName}</p>

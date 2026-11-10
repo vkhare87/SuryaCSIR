@@ -19,6 +19,7 @@ import { averageImpactFactor } from '../../lib/intelligence/impact';
 import type { Role } from '../../types';
 import type { ReportStatus } from '../../types/pms';
 import { friendlyError } from '../../lib/errors';
+import { isActiveProject } from '../../lib/projects/stage';
 
 interface UserRow {
   user_id: string;
@@ -33,7 +34,7 @@ interface UserRow {
 const ALL_ROLE_VALUES: Role[] = [
   'Director', 'DivisionHead', 'HOD', 'Scientist', 'Technician',
   'HRAdmin', 'FinanceAdmin', 'SystemAdmin', 'MasterAdmin',
-  'Student', 'ProjectStaff', 'Guest', 'DefaultUser', 'EmpoweredCommittee',
+  'Student', 'ProjectStaff', 'Guest', 'DefaultUser', 'EmpoweredCommittee', 'PME',
 ];
 
 const ROLE_COLORS: Record<string, string> = {
@@ -51,6 +52,7 @@ const ROLE_COLORS: Record<string, string> = {
   Guest:        'bg-[#f5f4ed] text-[#87867f]',
   DefaultUser:  'bg-[#f5e8e8] text-[#a03333]',
   EmpoweredCommittee: 'bg-[#ede9fe] text-[#5b21b6]',
+  PME:          'bg-surface-hover text-brand-blue',
 };
 
 const STATUS_LABELS: Record<ReportStatus, string> = {
@@ -131,7 +133,7 @@ export function MasterAdminView() {
   useEffect(() => { void fetchUsers(); }, [provisioned]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Derived metrics ───────────────────────────────────────────────
-  const activeProjects   = useMemo(() => projects.filter(p => p.ProjectStatus === 'Active').length, [projects]);
+  const activeProjects   = useMemo(() => projects.filter(isActiveProject).length, [projects]);
   const equipmentDown    = useMemo(() => equipment.filter(e => isEquipmentDown(e.WorkingStatus)).length, [equipment]);
   const openTickets      = useMemo(() => tickets.filter(t => t.status === 'Open' || t.status === 'InProgress').length, [tickets]);
   const criticalTickets  = useMemo(() => tickets.filter(t => t.urgency === 'Critical' && t.status !== 'Closed').length, [tickets]);

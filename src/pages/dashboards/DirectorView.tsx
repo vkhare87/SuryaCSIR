@@ -14,6 +14,7 @@ import { EquipmentOpsSection } from '../../components/dashboard/EquipmentOpsSect
 import { DEFAULT_THRESHOLDS } from '../../utils/directorMetrics';
 import { useDirectorThresholds } from '../../hooks/useDirectorThresholds';
 import { instituteFreshness, type DivisionFreshness } from '../../lib/divisions/freshness';
+import { isActiveProject } from '../../lib/projects/stage';
 
 const FRESHNESS_BADGE: Record<DivisionFreshness['staleness'], string> = {
   fresh: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
@@ -33,7 +34,7 @@ export function DirectorView() {
     return new Map(all.map((f) => [f.divCode, f]));
   }, [divisions, staff, projects, scientificOutputs, ipIntelligence, mous, techTransfers, phDStudents]);
 
-  const activeProjects = projects.filter((p) => p.ProjectStatus === 'Active').length;
+  const activeProjects = projects.filter(isActiveProject).length;
 
   return (
     <div className="space-y-8 pb-12">

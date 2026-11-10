@@ -8,6 +8,7 @@ import { Treemap } from '../components/viz/Treemap';
 import { Heatmap } from '../components/viz/Heatmap';
 import { Bar, BarChart, CartesianGrid, Cell, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { SEMANTIC } from '../components/viz/palette';
+import { isActiveProject } from '../lib/projects/stage';
 
 const STALENESS_STYLE: Record<Staleness, string> = {
   fresh: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
@@ -49,7 +50,7 @@ export default function DivisionsAnalytics() {
       divisions
         .map((d) => ({
           label: d.divCode,
-          value: projects.filter((p) => p.DivisionCode === d.divCode && p.ProjectStatus === 'Active').length,
+          value: projects.filter((p) => p.DivisionCode === d.divCode && isActiveProject(p)).length,
         }))
         .sort((a, b) => b.value - a.value),
     [divisions, projects],

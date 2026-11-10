@@ -322,7 +322,7 @@ export const FIELD_META: Record<FileType, FieldMeta[]> = {
     { column: 'SponsorerType',         label: 'Sponsorer Type',         required: false, example: 'Government',               hint: 'Sponsor category.' },
     { column: 'SponsorerName',         label: 'Sponsorer Name',         required: false, example: 'DST',                      hint: 'Sponsoring agency.' },
     { column: 'ProjectCategory',       label: 'Project Category',       required: false, example: 'R&D',                      hint: 'Project category.' },
-    { column: 'ProjectStatus',         label: 'Project Status',         required: false, example: 'Ongoing',                  hint: 'Ongoing / Completed.' },
+    { column: 'ProjectStatus',         label: 'Project Status',         required: false, example: 'Active',                   hint: 'Active / On Hold / Completed / Foreclosed. "Ongoing" is read as Active.' },
     { column: 'StartDate',             label: 'Start Date',             required: false, example: '2024-04-01',               hint: 'YYYY-MM-DD.' },
     { column: 'CompletioDate',         label: 'Completion Date',        required: false, example: '2027-03-31',               hint: 'YYYY-MM-DD.' },
     { column: 'SanctionedCost',        label: 'Sanctioned Cost',        required: false, example: '5000000',                  hint: 'Amount in INR.' },

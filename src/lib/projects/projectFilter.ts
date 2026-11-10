@@ -1,5 +1,6 @@
 import type { ChartFilter } from '../../utils/useChartFilter';
 import type { ProjectInfo } from '../../types';
+import { projectStatusLabel } from './stage';
 
 export const PROJECT_DIM_LABELS: Record<string, string> = {
   fundType: 'Fund type', status: 'Status', sponsorer: 'Sponsorer', pi: 'PI', division: 'Division',
@@ -9,7 +10,7 @@ export const PROJECT_DIM_LABELS: Record<string, string> = {
 export function projectDimValue(p: ProjectInfo, dim: string): string | null {
   switch (dim) {
     case 'fundType':  return p.FundType || 'Unspecified';
-    case 'status':    return p.ProjectStatus;
+    case 'status':    return projectStatusLabel(p) || 'Unspecified';
     case 'sponsorer': return p.SponsorerName || 'Unspecified';
     case 'pi':        return p.PrincipalInvestigator || 'Unassigned';
     case 'division':  return p.DivisionCode;

@@ -8,6 +8,7 @@ import type {
   IPIntelligence, Equipment, TechTransfer, MoU,
 } from '../../types';
 import type { PMSReport, PMSReportSection } from '../../types/pms';
+import { isActiveProject, isCompletedProject } from '../projects/stage';
 
 // One-click "everything the institute knows about this scientist", joined at
 // the person: present work, history, impact, PMS claim corroboration, and
@@ -61,10 +62,6 @@ export interface PmsHistoryEntry {
   finalScore: number | null;
   grade: string | null;
 }
-
-const isActive = (status: string) => status.trim().toLowerCase() === 'active';
-const isCompleted = (status: string) =>
-  ['completed', 'closed'].includes(status.trim().toLowerCase());
 
 export function buildScientistDossier(params: {
   staffId: string;
@@ -127,13 +124,13 @@ export function buildScientistDossier(params: {
     member,
     joinBasis: { staff: 'id', publications: 'name', ip: 'name', projects: 'name', supervision: 'name' },
     present: {
-      activeProjects: portfolio.linkedProjects.filter(p => isActive(p.ProjectStatus)),
+      activeProjects: portfolio.linkedProjects.filter(isActiveProject),
       supervisedPhDs: portfolio.supervisedPhDs,
       coSupervisedPhDs: portfolio.coSupervisedPhDs,
       assignedEquipment: portfolio.assignedEquipment,
     },
     history: {
-      completedProjects: portfolio.linkedProjects.filter(p => isCompleted(p.ProjectStatus)),
+      completedProjects: portfolio.linkedProjects.filter(isCompletedProject),
       trackRecord: piTrackRecord(params.projects, member.Name),
       pmsHistory: params.pmsHistory ?? [],
     },

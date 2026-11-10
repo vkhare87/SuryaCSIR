@@ -20,14 +20,15 @@ import { ProjectFormModal } from '../components/ProjectFormModal';
 import { ENTITY_META } from '../lib/entities';
 import type { ProjectInfo, ProjectStaff } from '../types';
 import { useUrlTab } from '../utils/useUrlTab';
+import { isActiveProject, isCompletedProject, projectStatusLabel, PROJECT_STAGES, STAGE_LABELS } from '../lib/projects/stage';
 
 const PROJECT_TABS = ['projects', 'staff', 'analytics'] as const;
 
 export default function Projects() {
   const { projects, projectStaff, isLoading, error } = useData();
   const { hasPermission } = useAuth();
-  const canUpload = hasPermission(['HRAdmin', 'SystemAdmin', 'MasterAdmin']);
-  const canEdit = useCanEdit('hr');
+  const canUpload = hasPermission(['PME', 'HRAdmin', 'SystemAdmin', 'MasterAdmin']);
+  const canEdit = useCanEdit('projects');
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useUrlTab(PROJECT_TABS);
   const { filter, clearFilter } = useChartFilter();
@@ -43,7 +44,7 @@ export default function Projects() {
         (p.ProjectName?.toLowerCase() || '').includes(searchStr) ||
         (p.PrincipalInvestigator?.toLowerCase() || '').includes(searchStr);
 
-      const matchesStatus = statusFilter === 'ALL' || p.ProjectStatus === statusFilter;
+      const matchesStatus = statusFilter === 'ALL' || projectStatusLabel(p) === statusFilter;
 
       return matchesSearch && matchesStatus;
     });
@@ -66,8 +67,8 @@ export default function Projects() {
     });
   }, [projectStaff, searchTerm]);
 
-  const activeProjects = projects.filter(p => p.ProjectStatus === 'Active');
-  const completedProjects = projects.filter(p => p.ProjectStatus === 'Completed');
+  const activeProjects = projects.filter(isActiveProject);
+  const completedProjects = projects.filter(isCompletedProject);
 
   // Calculate total budget (rough estimation for mock data since it's strings)
   const totalBudget = activeProjects.reduce((sum, p) => {
@@ -130,14 +131,13 @@ export default function Projects() {
     },
     {
       header: 'Status',
-      value: (p: ProjectInfo) => p.ProjectStatus ?? '',
+      value: (p: ProjectInfo) => projectStatusLabel(p),
       cell: (p: ProjectInfo) => {
         let variant: 'success' | 'warning' | 'danger' | 'neutral' | 'info' = 'neutral';
-        if (p.ProjectStatus === 'Active') variant = 'success';
-        if (p.ProjectStatus === 'Completed') variant = 'info';
-        if (p.ProjectStatus === 'Closed') variant = 'neutral';
+        if (isActiveProject(p)) variant = 'success';
+        if (isCompletedProject(p)) variant = 'info';
         
-        return <Badge variant={variant}>{p.ProjectStatus}</Badge>;
+        return <Badge variant={variant}>{projectStatusLabel(p)}</Badge>;
       }
     },
     {
@@ -202,8 +202,8 @@ export default function Projects() {
         <span className="font-mono text-xs font-bold text-[#c96442] bg-[#c96442]/10 px-2 py-1 rounded">
           {p.ProjectNo}
         </span>
-        <Badge variant={p.ProjectStatus === 'Active' ? 'success' : p.ProjectStatus === 'Completed' ? 'info' : 'neutral'}>
-          {p.ProjectStatus}
+        <Badge variant={isActiveProject(p) ? 'success' : isCompletedProject(p) ? 'info' : 'neutral'}>
+          {projectStatusLabel(p)}
         </Badge>
       </div>
       <h3 className="font-bold text-text text-lg leading-tight mb-2 line-clamp-2" title={p.ProjectName}>
@@ -302,9 +302,7 @@ export default function Projects() {
               className="w-full sm:w-auto sm:max-w-xs max-w-full pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm appearance-none cursor-pointer"
             >
               <option value="ALL">All Statuses</option>
-              <option value="Active">Active</option>
-              <option value="Completed">Completed</option>
-              <option value="Closed">Closed</option>
+              {PROJECT_STAGES.map(s => <option key={s} value={STAGE_LABELS[s]}>{STAGE_LABELS[s]}</option>)}
             </select>
           </div>
         </div>

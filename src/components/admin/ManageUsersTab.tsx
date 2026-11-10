@@ -11,7 +11,7 @@ import { friendlyError } from '../../lib/errors';
 const ALL_ROLES: Role[] = [
   'Director', 'DivisionHead', 'HOD', 'Scientist', 'Technician',
   'HRAdmin', 'FinanceAdmin', 'SystemAdmin', 'MasterAdmin', 'Student',
-  'ProjectStaff', 'Guest', 'DefaultUser', 'EmpoweredCommittee',
+  'ProjectStaff', 'Guest', 'DefaultUser', 'EmpoweredCommittee', 'PME',
 ];
 
 interface ManagedUser {

@@ -169,6 +169,7 @@ function App() {
             <Route path="/student"       element={<ProtectedRoute allowedRoles={['Student']}><Dashboard /></ProtectedRoute>} />
             <Route path="/project-staff" element={<ProtectedRoute allowedRoles={['ProjectStaff']}><Dashboard /></ProtectedRoute>} />
             <Route path="/guest"         element={<ProtectedRoute allowedRoles={['Guest']}><Dashboard /></ProtectedRoute>} />
+            <Route path="/pme"           element={<ProtectedRoute allowedRoles={['PME']}><Dashboard /></ProtectedRoute>} />
             <Route path="/pending"       element={<ProtectedRoute allowedRoles={['DefaultUser']}><Dashboard /></ProtectedRoute>} />
             <Route path="/staff" element={<ProtectedRoute accessPath="/staff"><HumanCapital /></ProtectedRoute>} />
             <Route path="/staff/analytics" element={<ProtectedRoute accessPath="/staff/analytics"><StaffAnalytics /></ProtectedRoute>} />
