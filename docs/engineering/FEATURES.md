@@ -29,7 +29,16 @@ Related docs: [app.md](app.md) (product spec), [database_design.md](database_des
   current dashboard and nav. Switch roles from the role switcher in the top layout bar.
 - Roles: `Director`, `DivisionHead`, `HOD`, `Scientist`, `Technician`, `HRAdmin`,
   `FinanceAdmin`, `SystemAdmin`, `MasterAdmin`, `Student`, `ProjectStaff`, `Guest`,
-  `DefaultUser`, `EmpoweredCommittee`.
+  `DefaultUser`, `EmpoweredCommittee`, `PME`.
+
+### PME desk
+- **Who:** `PME`. **Route:** `/pme`.
+- Work queue for the project monitoring office: proposals awaiting vetting, sanctions
+  awaiting a project record, projects whose status maps to no stage, projects not yet
+  classified as ULIP or HQ scheme. PME edits project records; it is not an admin.
+- A proposal in `DRAFT` is private to its PI and named co-PIs; PME and everyone else
+  see it from submission onward.
+- First phase (`PL0`) of `docs/roadmap/sources/PROJECT-LIFECYCLE-PLAN.md`.
 
 ### Access requests
 - **Who:** new users request; `SystemAdmin`/`MasterAdmin` approve. **Route:** `/admin/access-requests`.

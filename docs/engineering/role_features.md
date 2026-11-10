@@ -241,3 +241,18 @@ MasterAdmin grants and Feature Controls switches change it per user.
 - Helpdesk `/helpdesk`
 - Performance Mgmt `/pms`
 - PMS Committee Queue `/pms/committee`
+
+## PME — 12 of 38
+
+- Dashboard `/`
+- Ask SURYA `/ask`
+- My Work `/work`
+- Calendar `/calendar`
+- Project Staff `/staff/project`
+- Projects `/projects`
+- Proposals `/proposals`
+- Progress Reports `/reports`
+- Partnerships `/partnerships`
+- R&D Monitor `/rnd-monitor`
+- Committees `/committees`
+- Helpdesk `/helpdesk`

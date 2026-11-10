@@ -1,7 +1,7 @@
 # SURYA — Database Design
 
 _Complete schema reference for the PostgreSQL 17 database. Supersedes `docs/DATA-MODEL.md`,
-which now points here. Current as of 2026-11-01 (37 migrations, 73 tables in `public`)._
+which now points here. Current as of 2026-11-10 (49 migrations, 75 tables in `public`)._
 
 Companions: [api_spec.md](api_spec.md) (how the schema is called),
 [system_design.md](system_design.md) (state machines),
@@ -150,7 +150,7 @@ Notation: **PK** primary key · **FK** foreign key · **U** unique · `?` nullab
 | Column | Type | Notes |
 |---|---|---|
 | `user_id` | `uuid` | **PK** (composite), FK → `auth.users` ON DELETE CASCADE |
-| `role` | `text` | **PK** (composite). CHECK ∈ the 14 roles |
+| `role` | `text` | **PK** (composite). CHECK ∈ the 15 roles (`PME` added by `20261110000001`) |
 | `division_code` | `text?` | NULL for cross-division roles |
 | `must_change_password` | `boolean` | default `true` |
 
@@ -548,6 +548,40 @@ examples in the routing prompt — a human-in-the-loop quality feedback path.
 | `ingest_sender_map` | `20260719000002` | `(email text PK, division_code, created_at)` — maps a mail sender to a division |
 | `import_field_mappings` | `20260719000003` | `(id uuid PK, file_type, header_fingerprint text, mapping jsonb, confirmed_by FK, confirmed_at, use_count int)`. Fingerprint = SHA-256 of sorted normalized headers; remembers a human-confirmed mapping so the same layout needs no model call again |
 
+
+### 3.8a Project lifecycle foundations — `20261110000001_pme_role.sql`, `20261110000002_project_lifecycle_foundations.sql`
+
+Phase `PL0` of [`../roadmap/sources/PROJECT-LIFECYCLE-PLAN.md`](../roadmap/sources/PROJECT-LIFECYCLE-PLAN.md).
+
+#### `project_schemes` — tracks
+`(code text PK, name, leader_user_id uuid? FK → auth.users SET NULL, review_committee_id uuid? FK → committees SET NULL, created_at, updated_at)`.
+Ships with `ULIP` and `HQ` (structural rows, inserted by the migration). `leader_user_id` is
+the scheme leader (ULIP: Head RPBD) — a setting, not a role.
+**RLS:** verified users read; MasterAdmin writes.
+
+#### Columns added to `projects`
+| Column | Type | Notes |
+|---|---|---|
+| `stage` | `text?` | CHECK ∈ `SANCTIONED` \| `ACTIVE` \| `ON_HOLD` \| `CLOSING` \| `CLOSED` \| `ARCHIVED` \| `FORECLOSED`. NULL = the status text maps to no stage |
+| `track` | `text?` | FK → `project_schemes(code)`. Backfilled only from an unambiguous number prefix; otherwise NULL for PME to set |
+| `sanctioned_cost` | `numeric?` | Typed twin of `"SanctionedCost"` |
+| `start_date`, `end_date` | `date?` | Typed twins of `"StartDate"`, `"CompletioDate"` |
+
+`trg_projects_derive_columns` (BEFORE INSERT OR UPDATE) keeps each pair in step: a changed
+`stage` rewrites `"ProjectStatus"` to its label; a changed status text re-derives `stage`
+(`project_stage_of_status` — `Ongoing` and `Active` are both `ACTIVE`); the text columns the
+importer writes are otherwise left as entered. The same vocabulary lives in
+`src/lib/projects/stage.ts`. **Indexes:** `("ProjectNo")` (non-unique), `(stage)`.
+
+#### `project_id` beside every project number
+`proposals`, `project_reports`, `project_staff`, `mous`, `tech_transfers` each gain
+`project_id text? FK → projects("ProjectID") SET NULL`, indexed. `"ProjectNo"` is **not
+unique** — one umbrella number covers several work packages — so `sync_project_key`
+(BEFORE INSERT OR UPDATE, SECURITY DEFINER) fills `project_id` only when exactly one project
+carries the number, and leaves a shared number unlinked.
+
+#### `proposals.track`
+`text? FK → project_schemes(code)`.
 
 ### 3.9 Data operations — `20261101000001_contribution_requests.sql`
 

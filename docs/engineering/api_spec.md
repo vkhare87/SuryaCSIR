@@ -161,7 +161,7 @@ is the RLS policy, not a query parameter.
 | `committees`, `committee_members`, `meetings`, `agenda_items`, `action_items`, `meeting_documents` | All authenticated | Chair/secretary + admins; minutes lock after finalization (`unlock_meeting_minutes` to reopen) |
 | `tickets`, `ticket_responses`, `ticket_events` | Submitter + assignee + admins | **RPC only** |
 | `calendar_events`, `holidays` | By `visibility` (`OrgWide` / `Division` / `Personal`) | Creator + admins |
-| `proposals`, `proposal_copis`, `proposal_documents`, `proposal_status_history` | `proposals_can_read` — PI, co-PIs, same division, admins | Editable statuses only; transitions via RPC |
+| `proposals`, `proposal_copis`, `proposal_documents`, `proposal_status_history` | `proposals_can_read` — a `DRAFT`: PI, creator and named co-PIs only. From submission: also the division's managers, Director, admins, PME and the track's scheme leader | Editable statuses only; transitions via RPC |
 | `project_reports`, `project_report_history` | `project_reports_can_read` | Editable statuses only; transitions via RPC |
 | `pms_reports` and children | Owner + admins + assigned evaluators + committee + grievance members | Owner in `DRAFT` only; transitions via RPC |
 | `documents` | `documents_can_read` — four-tier ladder | Insert: `owner_id = auth.uid()`. Update: admins only |

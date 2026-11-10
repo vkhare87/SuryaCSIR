@@ -219,9 +219,11 @@ The same page gains tabs (§8.2). The scientist's notes stay with the file, stil
 
 - Reads every proposal **from submission onward** and every project file.
 - Performs or records every stage transition after submission, through RPCs.
-- Owns the `projects` domain: creates, edits, imports legacy rows. `HRAdmin` and
-  `SystemAdmin` lose direct write on `projects`, `project_staff`, `mous`,
-  `tech_transfers` once `PL0` ships; HRAdmin keeps `staff`.
+- Owns the `projects` domain: creates, edits, imports legacy rows. `PL0` adds PME's write
+  access beside the existing one; `HRAdmin` and `SystemAdmin` lose direct write on
+  `projects`, `project_staff`, `mous`, `tech_transfers` at rollout (`PL7`), once PME
+  accounts exist — withdrawing it earlier would leave nobody able to edit a project.
+  HRAdmin keeps `staff`.
 - Enters fund receipts and expenditure; schedules reviews; places items on committee
   agendas; uploads orders, OMs and minutes.
 
@@ -443,7 +445,7 @@ multi-week). Each phase ships on its own and leaves the app working.
 
 | ID | Phase | Contents | Effort | Done when |
 |---|---|---|---|---|
-| `PL0` | Foundations | PME role (§4.3). `projects.stage` + status normalisation. Typed cost / date columns. `track` and `project_schemes`. Private drafts. `project_id` beside every existing project-number column | L | A PME user signs in to an empty desk; Director dashboard counts match a hand count; a second user cannot read another's draft (DB test) |
+| `PL0` ✅ | Foundations (shipped 2026-11-10, migrations `20261110000001`–`2`) | PME role (§4.3). `projects.stage` + status normalisation. Typed cost / date columns. `track` and `project_schemes`. Private drafts. `project_id` beside every existing project-number column | L | A PME user signs in to an empty desk; Director dashboard counts match a hand count; a second user cannot read another's draft (DB test) |
 | `PL1` | **Scientist workspace** | §3.1–3.6: title-only start from home, optional fields, autosave, notes with Move into…, versions and compare, sectioned page, readiness meter, similar-work while drafting, wider create permission, notes on phone | L–XL | A new scientist account goes from login to a saved idea in one click and one field; a note moved into Objectives appears there and is marked used; killing the browser mid-typing loses nothing |
 | `PL2` | Concept to sanction | Budget lines, co-PI read access, print for signature (§3.7), `proposal_review_steps` per track, section comments (§3.8), `project_sanction` creating the project with budget and equipment list | XL | One ULIP and one HQ proposal walked draft → project with no Excel upload and no manual link |
 | `PL3` | Funds and execution | Receipts, expenditure, milestones, post-sanction tabs and timeline, output / equipment links | XL | Sanctioned · received · spent · balance correct per head and year against a worked example; reversal entry tested |
@@ -464,6 +466,8 @@ released to scientists on its own — drafts simply wait at "ready to submit" un
   division) — today a scientist sees only their own staff row, so a co-PI picker would be
   empty.
 - Restricting who may grant admin-tier roles — PME is a powerful role to hand out.
+
+None of the three is done as of `PL0`; `PL0` itself does not depend on them.
 
 ### Verification, every phase
 
