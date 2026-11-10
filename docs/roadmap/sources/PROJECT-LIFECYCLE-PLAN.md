@@ -15,6 +15,11 @@ of Projects_, OM No. 33/GIM&FGP/2025-CPD dated 25 April 2025 (cited below as "§
    the institute runs them under today).
 2. A dedicated **PME** role manages the whole lifecycle, conception to record keeping.
 3. **PME enters funds received.** Expenditure is entered by PME as well (see §4.3).
+4. **ULIP governance.** Head RPBD is the project leader of the ULIP scheme. A review
+   committee recommends; the Director approves.
+5. **Signatures are on scanned copies.** The signed scan is what finalises a step; the
+   app records who uploaded it and when. No in-app signing.
+6. **Co-PIs read a draft; only the PI edits it.**
 
 **Supersedes / absorbs** these roadmap items, which describe slices of the same thing:
 WP-18 "Project master file", WP-13 `C2` (milestones), `C3` (evaluation rubric, partly),
@@ -62,14 +67,21 @@ Stages `SANCTIONED` onward live on a new `projects.stage` column with a `CHECK`.
 
 | | **ULIP** (in-house) | **HQ scheme** (FIR, FBR, NCP, FTT, FTC, MMP, FCP, HCP, IST — §2.1) |
 |---|---|---|
-| Vetting chain | PME → Finance → Research Council → Director sanctions | PME → Finance → Director forwards (§4.1) |
-| Appraisal | Research Council only (§1.1 excludes these from HQ review) | HQ Level 1 and Level 2 — **recorded, not performed, in SURYA** |
-| Sanction document | Director's sanction order | Sanction OM with project number (§4.1.5) |
+| Scheme leader | Head RPBD | — (Nodal Directorate at HQ) |
+| Vetting chain | PME → ULIP review committee recommends → Director approves | PME → Finance → Director forwards (§4.1) |
+| Appraisal | The review committee above; nothing at HQ (§1.1 excludes these) | HQ Level 1 and Level 2 — **recorded, not performed, in SURYA** |
+| Sanction document | Director's approval, signed scan | Sanction OM with project number (§4.1.5) |
 | Project code | Institute's own numbering | Validated against §2.2 pattern |
 | Funds receipt needs | Order no. and date | OM no. and date **and IFD concurrence file no. and date** (§7.2) |
 | Stage-gates | Off | On for FTT / FTC / MMP only (§4.2) |
-| Review calendar | Research Council half-yearly | By category (§5) |
-| Closure | PCR → Research Council | PCR → RC in-principle → Monitoring Committee → DG (§8) |
+| Review calendar | ULIP review committee, half-yearly | By category (§5) |
+| Closure | PCR → review committee recommends → Director | PCR → RC in-principle → Monitoring Committee → DG (§8) |
+
+**Head RPBD as scheme leader.** Held as a setting, not a role: a one-row-per-scheme
+`project_schemes` table (`code`, `name`, `leader_user_id`, `review_committee_id` →
+`committees`). The leader sees every ULIP file from submission onward, convenes the review
+committee, and is named on each file. The review committee is an ordinary committee in the
+existing Committees module, so its meetings, agenda and minutes need nothing new.
 
 A third track for externally funded projects can be added later as one more column in
 this table; nothing in the model assumes two.
@@ -102,7 +114,8 @@ this table; nothing in the model assumes two.
 ### 3.2 Guard rails (enforced in SQL, not the UI)
 
 - **Drafts are private.** `proposals_can_read` changes so a `DRAFT` is visible only to
-  its creator and named co-PIs. Today Director, division managers and all admins can
+  its creator and named co-PIs, and editable only by its creator (the existing
+  `proposals_update_owner` policy already says this — keep it). Today Director, division managers and all admins can
   read it.
 - **No self-dealing.** A PME user who is PI or co-PI on a file cannot vet it, record its
   sanction, or enter its funds. Same class of bug as the appraisal self-evaluation
@@ -159,7 +172,7 @@ one helper in `src/lib/projects/`.
 |---|---|---|
 | `proposal_versions` | Full snapshot of a draft each time the PI saves a named version or submits | PI |
 | `proposal_budget_lines` | Year × head × amount. Copied to the project at sanction | PI (draft only) |
-| `proposal_review_steps` | One row per required step of the track: `PME`, `FINANCE`, `RC`, `DIRECTOR`, `HQ_L1`, `HQ_L2`, `COMPETENT_AUTHORITY`; decision, date, notes, `meeting_id`, document | Step owner; PME records external ones |
+| `proposal_review_steps` | One row per required step of the track: `PME`, `FINANCE`, `REVIEW_COMMITTEE`, `RC`, `DIRECTOR`, `HQ_L1`, `HQ_L2`, `COMPETENT_AUTHORITY`; decision, date, notes, `meeting_id`, **signed scan (required to complete the step)** | Step owner; PME records external ones |
 | `project_budget_lines` | Sanctioned amount per financial year and head; revised only by an approved change request | RPC |
 | `project_fund_receipts` | Date, financial year, amount, head (optional), source, order/OM no. and date, IFD file no. and date, document, `reverses_id` | **PME** |
 | `project_expenditure` | Financial year, period, head, amount, signed-statement document, `reverses_id` | PME |
@@ -228,7 +241,7 @@ lineage is navigable in both directions (§8.4 of the manual).
 | `SUBMITTED` | With PME for vetting | PME |
 | `UNDER_REVIEW` | Working through `proposal_review_steps` | Each step owner; PME records external steps |
 | `REVISION_REQUESTED` | Back with the PI, note required | PI resubmits (new version) |
-| `RECOMMENDED` | All lab steps passed | Director (sanctions on ULIP, forwards on HQ) |
+| `RECOMMENDED` | All lab steps passed (on ULIP: review committee has recommended) | Director (approves on ULIP, forwards on HQ) |
 | `APPROVED` | Competent authority approved | PME records |
 | `OM_ISSUED` → `LINKED` | Sanction recorded; **`project_sanction` creates the project and sets `LINKED` in the same transaction** | PME |
 | `REJECTED`, `ARCHIVED` | Terminal | — |
@@ -344,11 +357,11 @@ then switch the old Proposals / Progress Reports navigation off.
 
 | # | Question | Default if unanswered |
 |---|---|---|
-| 1 | Exact ULIP approval chain and project-number format | PME → Finance → Research Council → Director; free-format number |
-| 2 | Are the four signatures (PI, Head PME, Finance, Director) to be captured in the app or on an uploaded signed scan? | Uploaded signed scan; the app records who and when |
+| 1 | ULIP project-number format | Free-format, unique |
+| 1a | Is there a Finance check on ULIP proposals before the review committee? | No — not in the chain as described |
+| 1b | Does Head RPBD also head the PME function, i.e. hold the PME role? | Treated as independent: scheme leader is a setting, PME is a role, one person may hold both |
 | 3 | Who performs the Finance vetting step | Any `FinanceAdmin` |
 | 4 | May a PME user also be a PI? | Yes, with the self-dealing guard in §3.2; a second PME or MasterAdmin handles that file |
-| 5 | Should co-PIs edit a draft or only read it? | Read only; PI edits |
 
 ---
 
