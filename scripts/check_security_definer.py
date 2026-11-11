@@ -86,6 +86,13 @@ EXEMPT: dict[str, str] = {
         "becomes unique or shared. The projects write is gated by its RLS; "
         "EXECUTE revoked from clients (20261110000002)."
     ),
+    "project_generate_slots": (
+        "internal schedule builder; called only by the projects trigger and the "
+        "migration backfill. EXECUTE revoked from clients (20261111000003)."
+    ),
+    "projects_regenerate_slots": "trigger on projects; the projects write is gated by its RLS. EXECUTE revoked (20261111000003)",
+    "project_reports_take_slot": "trigger on project_reports; the report write is gated by its RLS. EXECUTE revoked (20261111000003)",
+    "project_reports_answer_slot": "trigger on project_reports; same. EXECUTE revoked (20261111000003)",
     "project_caller_is_party": (
         "caller-identity resolver: is the caller PI, author or co-PI of this "
         "project. Answers only about the caller (20261111000002)."
