@@ -33,6 +33,11 @@ describe('pmeDeskItems', () => {
     expect(items.map(i => [i.key, i.count])).toEqual([['awaiting-funds', 1], ['milestones', 3]]);
   });
 
+  it('totals what is overdue across the portfolio', () => {
+    const items = pmeDeskItems([], [], 0, [{ overdue: 2, minutesOverdue: 0 }, { overdue: 1, minutesOverdue: 1 }]);
+    expect(items.map(i => [i.key, i.count])).toEqual([['overdue', 3], ['minutes', 1]]);
+  });
+
   it('trusts a stored stage over the status text', () => {
     const items = pmeDeskItems([], [project({ ProjectStatus: 'whatever', stage: 'ACTIVE' })]);
     expect(items).toEqual([]);

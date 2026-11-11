@@ -1,9 +1,10 @@
 import type { ProjectInfo } from '../../types';
 import type { Proposal } from '../../types/proposal';
 import { projectStage } from './stage';
+import type { PortfolioRow } from '../../types/projectFile';
 
 export interface PmeDeskItem {
-  key: 'vetting' | 'unclassified' | 'sanction' | 'awaiting-funds' | 'milestones' | 'no-stage' | 'no-track';
+  key: 'vetting' | 'unclassified' | 'sanction' | 'awaiting-funds' | 'milestones' | 'overdue' | 'minutes' | 'no-stage' | 'no-track';
   label: string;
   detail: string;
   count: number;
@@ -11,7 +12,10 @@ export interface PmeDeskItem {
 }
 
 /** The PME work queue. Every row is a count of things waiting on PME; rows with nothing waiting are dropped. */
-export function pmeDeskItems(proposals: Proposal[], projects: ProjectInfo[], milestonesWaiting = 0): PmeDeskItem[] {
+export function pmeDeskItems(
+  proposals: Proposal[], projects: ProjectInfo[], milestonesWaiting = 0,
+  portfolio: Pick<PortfolioRow, 'overdue' | 'minutesOverdue'>[] = [],
+): PmeDeskItem[] {
   const items: PmeDeskItem[] = [
     {
       key: 'vetting',
@@ -47,6 +51,20 @@ export function pmeDeskItems(proposals: Proposal[], projects: ProjectInfo[], mil
       detail: 'Proposed by a PI, or reported done',
       count: milestonesWaiting,
       to: '/projects',
+    },
+    {
+      key: 'overdue',
+      label: 'Reviews and progress reports overdue',
+      detail: 'Owed by the schedule and not yet held or filed',
+      count: portfolio.reduce((n, r) => n + r.overdue, 0),
+      to: '/portfolio',
+    },
+    {
+      key: 'minutes',
+      label: 'Minutes overdue',
+      detail: 'Reviews held without their signed minutes filed in time',
+      count: portfolio.reduce((n, r) => n + r.minutesOverdue, 0),
+      to: '/portfolio',
     },
     {
       key: 'no-stage',

@@ -144,6 +144,17 @@ describe('deriveMyActions', () => {
     expect(deriveMyActions({ ...base, role: 'Director', proposals: recommended }).map(a => a.id)).toEqual(['prop-review-p4']);
   });
 
+  it('lists progress reports and called reviews owed on the user\'s projects, with their due date', () => {
+    const out = deriveMyActions({ ...base, dueSlots: [
+      { slotId: 's1', projectId: 'P1', projectNo: 'ULIP-1', kind: 'PROGRESS_REPORT', body: 'Progress report', periodLabel: 'H1 2027-28', dueDate: '2027-10-15' },
+      { slotId: 's2', projectId: 'P1', projectNo: 'ULIP-1', kind: 'CALLED_REVIEW', body: 'Review called by the Director', periodLabel: 'Called', dueDate: '2027-10-20' },
+    ] });
+    expect(out.map(a => [a.id, a.label, a.due])).toEqual([
+      ['slot-s1', 'Progress report due — ULIP-1', '2027-10-15'],
+      ['slot-s2', 'Review called — ULIP-1', '2027-10-20'],
+    ]);
+  });
+
   it('surfaces own draft/revision progress reports; review queue only for reviewers', () => {
     const progressReports = [
       progressReport({}),

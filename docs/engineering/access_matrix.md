@@ -65,6 +65,7 @@ Source of truth: `ACCESS_MAP` in `src/constants/access.ts`. This table is genera
 | Instruments | `/facilities` | ● | ● | ● | · | ● | · | · | · | ● | · | · | · | · | · | · |
 | Partnerships | `/partnerships` | ● | ● | ● | · | · | · | ● | · | ● | · | · | · | · | · | ● |
 | R&D Monitor | `/rnd-monitor` | ● | ● | ● | · | · | · | ● | · | ● | · | · | · | · | · | ● |
+| Project Portfolio | `/portfolio` | ● | ● | ● | · | · | · | ● | · | ● | · | · | · | · | · | ● |
 | Committees | `/committees` | ● | ● | ● | ● | ● | ● | ● | ● | ● | · | · | · | · | ● | ● |
 | Helpdesk | `/helpdesk` | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● |
 | Performance Mgmt | `/pms` | ● | ● | ● | ● | · | ● | · | · | ● | · | · | · | · | ● | · |
@@ -98,11 +99,15 @@ Also fixed: PMS sub-pages (`/pms/reports`, `/pms/evaluate`, `/pms/grievance`), p
 detail/edit and meeting detail had a feature key but **no role check** — any signed-in role
 could open them by URL. Every route with an `accessPath` now checks role + grant + switches.
 
-## What changed on 2026-11-10
+## What changed on 2026-11-10 / 11
+
+`/portfolio` (Project Portfolio) added for Director, Division Head, HOD, FinanceAdmin, PME and
+MasterAdmin; the view behind it is row-scoped by RLS, so a division manager sees their division.
+
 
 | Role | Added | Why |
 |---|---|---|
-| PME (new) | Projects, Proposals, Progress Reports, Project Staff, Partnerships, R&D Monitor | Carries a project file from submission to archive — `docs/roadmap/sources/PROJECT-LIFECYCLE-PLAN.md` §4 |
+| PME (new) | Projects, Proposals, Progress Reports, Project Staff, Partnerships, R&D Monitor, Project Portfolio | Carries a project file from submission to archive — `docs/roadmap/sources/PROJECT-LIFECYCLE-PLAN.md` §4 |
 
 A `DRAFT` proposal is no longer readable by Director, division managers or admins: RLS
 (`proposals_can_read`, 20261110000002) limits it to its PI and named co-PIs.

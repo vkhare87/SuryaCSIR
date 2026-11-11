@@ -43,7 +43,7 @@ export interface ProjectMilestone {
   decisionNote: string | null;
 }
 
-export type ProjectDocType = 'receipt_order' | 'expenditure_statement' | 'milestone_evidence' | 'other';
+export type ProjectDocType = 'receipt_order' | 'expenditure_statement' | 'milestone_evidence' | 'minutes' | 'other';
 
 export interface ProjectDocument {
   id: string;
@@ -75,4 +75,66 @@ export interface ProjectFile {
   milestones: ProjectMilestone[];
   documents: ProjectDocument[];
   events: ProjectEvent[];
+  slots: ReviewSlot[];
+}
+
+export type SlotKind =
+  | 'PROGRESS_REPORT' | 'REVIEW_COMMITTEE' | 'RESEARCH_COUNCIL' | 'TASK_FORCE'
+  | 'MONITORING_COMMITTEE' | 'STAGE_GATE' | 'CALLED_REVIEW';
+
+export type ReviewDecision =
+  | 'CONTINUE' | 'CONTINUE_WITH_CHANGES' | 'HOLD' | 'FORECLOSURE_RECOMMENDED'
+  | 'GO' | 'CONDITIONAL_GO' | 'KILL' | 'RECYCLE';
+
+/** One review or progress report a project owes (project_review_slots). */
+export interface ReviewSlot {
+  id: string;
+  kind: SlotKind;
+  body: string;
+  periodLabel: string;
+  dueDate: string;
+  generated: boolean;
+  status: 'PENDING' | 'DONE' | 'CANCELLED';
+  meetingId: string | null;
+  heldOn: string | null;
+  decision: ReviewDecision | null;
+  outcome: string | null;
+  minutesDue: string | null;
+  minutesDocumentId: string | null;
+  reportId: string | null;
+  notes: string | null;
+}
+
+/** One row of the project_portfolio view. */
+export interface PortfolioRow {
+  projectId: string;
+  projectNo: string;
+  projectName: string;
+  divisionCode: string;
+  piName: string;
+  stage: string;
+  track: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  sanctionedCost: number | null;
+  elapsedPct: number | null;
+  received: number;
+  spent: number;
+  milestonesTotal: number;
+  milestonesAchieved: number;
+  overdue: number;
+  minutesOverdue: number;
+  nextDue: string | null;
+  lastReportOn: string | null;
+  lastDecision: ReviewDecision | null;
+}
+
+export interface DueSlot {
+  slotId: string;
+  projectId: string;
+  projectNo: string;
+  kind: SlotKind;
+  body: string;
+  periodLabel: string;
+  dueDate: string;
 }

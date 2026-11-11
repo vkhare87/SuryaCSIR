@@ -2,7 +2,8 @@ import { supabase } from '../../utils/supabaseClient';
 import { createSignedUrl } from '../documents/registry';
 import { friendlyError } from '../errors';
 import type {
-  ExpenditurePeriod, ProjectDocType, ProjectDocument, ProjectFile, ProjectMilestone,
+  DueSlot, ExpenditurePeriod, PortfolioRow, ProjectDocType, ProjectDocument, ProjectFile, ProjectMilestone,
+  ReviewDecision, ReviewSlot,
 } from '../../types/projectFile';
 
 const BUCKET = 'project-documents';
@@ -15,16 +16,23 @@ function client() {
 
 const num = (v: any) => Number(v ?? 0);
 
+const mapSlot = (x: any): ReviewSlot => ({
+  id: x.id, kind: x.kind, body: x.body, periodLabel: x.period_label, dueDate: x.due_date, generated: !!x.generated,
+  status: x.status, meetingId: x.meeting_id, heldOn: x.held_on, decision: x.decision, outcome: x.outcome,
+  minutesDue: x.minutes_due, minutesDocumentId: x.minutes_document_id, reportId: x.report_id, notes: x.notes,
+});
+
 /** The ledger, plan and history of one project. Tables from 20261111000001/2; empty until applied. */
 export async function loadProjectFile(projectId: string): Promise<ProjectFile> {
   const c = client();
-  const [b, r, e, m, d, ev] = await Promise.all([
+  const [b, r, e, m, d, ev, sl] = await Promise.all([
     c.from('project_budget_lines').select('*').eq('project_id', projectId).order('fiscal_year'),
     c.from('project_fund_receipts').select('*').eq('project_id', projectId).order('received_on').order('recorded_at'),
     c.from('project_expenditure').select('*').eq('project_id', projectId).order('fiscal_year').order('recorded_at'),
     c.from('project_milestones').select('*').eq('project_id', projectId).order('target_date'),
     c.from('project_documents').select('*').eq('project_id', projectId).order('uploaded_at', { ascending: false }),
     c.from('project_events').select('*').eq('project_id', projectId).order('at', { ascending: false }).limit(200),
+    c.from('project_review_slots').select('*').eq('project_id', projectId).order('due_date'),
   ]);
   return {
     budgetLines: (b.data ?? []).map((x: any) => ({ fiscalYear: x.fiscal_year, head: x.head, item: x.item ?? '', amount: num(x.amount) })),
@@ -45,6 +53,7 @@ export async function loadProjectFile(projectId: string): Promise<ProjectFile> {
       id: x.id, docType: x.doc_type, storagePath: x.storage_path, fileName: x.file_name, uploadedAt: x.uploaded_at,
     })),
     events: (ev.data ?? []).map((x: any) => ({ id: x.id, at: x.at, kind: x.kind, summary: x.summary })),
+    slots: (sl.data ?? []).map(mapSlot),
   };
 }
 
@@ -137,4 +146,51 @@ export async function milestonesAwaitingPme(): Promise<number> {
     .from('project_milestones').select('id', { count: 'exact', head: true }).in('status', ['PROPOSED', 'REPORTED']);
   if (error) return 0;
   return count ?? 0;
+}
+
+// --- Monitoring (20261111000003) ---
+
+/** Put a review on a committee meeting's agenda. */
+export function scheduleSlot(slotId: string, meetingId: string) {
+  return rpc('project_slot_schedule', { p_slot_id: slotId, p_meeting_id: meetingId });
+}
+
+export function recordSlot(slotId: string, heldOn: string, decision: ReviewDecision, outcome: string, minutesDocumentId: string | null) {
+  return rpc('project_slot_record', {
+    p_slot_id: slotId, p_held_on: heldOn, p_decision: decision, p_outcome: outcome, p_minutes_document_id: minutesDocumentId,
+  });
+}
+
+export function addSlotMinutes(slotId: string, documentId: string) {
+  return rpc('project_slot_add_minutes', { p_slot_id: slotId, p_document_id: documentId });
+}
+
+export function callReview(projectId: string, dueDate: string, reason: string) {
+  return rpc('project_call_review', { p_project_id: projectId, p_due_date: dueDate, p_reason: reason });
+}
+
+/** Every running project the caller may see, one row each (RLS-scoped view). */
+export async function loadPortfolio(): Promise<PortfolioRow[]> {
+  const { data, error } = await client().from('project_portfolio').select('*').order('project_no');
+  if (error) throw error;
+  return (data ?? []).map((x: any): PortfolioRow => ({
+    projectId: x.project_id, projectNo: x.project_no, projectName: x.project_name ?? '', divisionCode: x.division_code ?? '',
+    piName: x.pi_name ?? '', stage: x.stage, track: x.track, startDate: x.start_date, endDate: x.end_date,
+    sanctionedCost: x.sanctioned_cost === null ? null : Number(x.sanctioned_cost),
+    elapsedPct: x.elapsed_pct === null ? null : Number(x.elapsed_pct),
+    received: Number(x.received ?? 0), spent: Number(x.spent ?? 0),
+    milestonesTotal: Number(x.milestones_total ?? 0), milestonesAchieved: Number(x.milestones_achieved ?? 0),
+    overdue: Number(x.overdue ?? 0), minutesOverdue: Number(x.minutes_overdue ?? 0),
+    nextDue: x.next_due, lastReportOn: x.last_report_on, lastDecision: x.last_decision,
+  }));
+}
+
+/** Reports and called reviews the caller owes on projects they lead, due within 30 days or past. */
+export async function myDueSlots(): Promise<DueSlot[]> {
+  const { data, error } = await client().rpc('my_due_project_slots');
+  if (error) return [];
+  return ((data ?? []) as any[]).map((x): DueSlot => ({
+    slotId: x.slot_id, projectId: x.project_id, projectNo: x.project_no, kind: x.kind,
+    body: x.body, periodLabel: x.period_label, dueDate: x.due_date,
+  }));
 }

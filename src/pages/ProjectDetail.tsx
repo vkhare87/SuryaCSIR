@@ -14,6 +14,7 @@ import { FundsPanel } from '../components/projects/FundsPanel';
 import { MilestonesPanel } from '../components/projects/MilestonesPanel';
 import { OutputsPanel } from '../components/projects/OutputsPanel';
 import { TimelinePanel } from '../components/projects/TimelinePanel';
+import { MonitoringPanel } from '../components/projects/MonitoringPanel';
 import { loadProjectFile } from '../lib/projects/projectFileApi';
 import { useUrlTab } from '../utils/useUrlTab';
 import { friendlyError } from '../lib/errors';
@@ -25,7 +26,7 @@ import { RequestUpdateButton } from '../components/RequestUpdateButton';
 import { useBack } from '../utils/useBack';
 import { isActiveProject, isCompletedProject, projectStatusLabel } from '../lib/projects/stage';
 
-const TABS = ['overview', 'funds', 'milestones', 'outputs', 'timeline'] as const;
+const TABS = ['overview', 'monitoring', 'funds', 'milestones', 'outputs', 'timeline'] as const;
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
@@ -155,6 +156,7 @@ export default function ProjectDetail() {
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="flex-wrap">
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="monitoring">Monitoring{file && file.slots.some(s => s.status === 'PENDING' && s.dueDate < new Date().toISOString().slice(0, 10)) ? ' •' : ''}</TabsTrigger>
           <TabsTrigger value="funds">Funds</TabsTrigger>
           <TabsTrigger value="milestones">Milestones{file && file.milestones.length > 0 ? ` (${file.milestones.length})` : ''}</TabsTrigger>
           <TabsTrigger value="outputs">Outputs</TabsTrigger>
@@ -162,6 +164,11 @@ export default function ProjectDetail() {
         </TabsList>
       </Tabs>
       {fileError && tab !== 'overview' && <p role="alert" className="text-sm text-danger">{fileError}</p>}
+      {tab === 'monitoring' && file && (
+        <MonitoringPanel project={project} file={file} isOffice={isOffice} isParty={isParty}
+          canCall={!isParty && !!user && (user.roles.includes('Director') || user.roles.includes('PME') || user.roles.includes('MasterAdmin'))}
+          onChanged={onFileChanged} />
+      )}
       {tab === 'funds' && file && <FundsPanel project={project} file={file} isOffice={isOffice} onChanged={onFileChanged} />}
       {tab === 'milestones' && file && (
         <MilestonesPanel project={project} startDate={/^\d{4}-\d{2}-\d{2}$/.test(project.StartDate) ? project.StartDate : null}

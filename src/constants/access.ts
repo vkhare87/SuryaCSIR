@@ -55,6 +55,7 @@ export const ACCESS_MAP = {
   '/facilities':              ['Director', ...DIV_MANAGERS, 'Technician', ...MASTER] as Role[],
   '/partnerships':            ['Director', ...DIV_MANAGERS, 'FinanceAdmin', ...PME, ...MASTER] as Role[],
   '/rnd-monitor':             ['Director', ...DIV_MANAGERS, 'FinanceAdmin', ...PME, ...MASTER] as Role[],
+  '/portfolio':               ['Director', ...DIV_MANAGERS, 'FinanceAdmin', ...PME, ...MASTER] as Role[],
   '/committees':              STAFF,
   '/helpdesk':                ALL_ROLES,
   '/pms':                     [...PMS_AUTHORS, 'EmpoweredCommittee', ...HR] as Role[],
@@ -100,6 +101,7 @@ export const FEATURE_LABELS: Record<AccessPath, string> = {
   '/facilities':              'Instruments',
   '/partnerships':            'Partnerships',
   '/rnd-monitor':             'R&D Monitor',
+  '/portfolio':               'Project Portfolio',
   '/committees':              'Committees',
   '/helpdesk':                'Helpdesk',
   '/pms':                     'Performance Mgmt',
@@ -126,7 +128,7 @@ export const FEATURE_LABELS: Record<AccessPath, string> = {
 // (ACCESS_MAP / grants + Feature Controls).
 const RESEARCHER_NAV: AccessPath[] = ['/', '/pms', '/projects', '/reports', '/ask', '/calendar'];
 const MANAGER_NAV: AccessPath[] = ['/', '/staff', '/reports', '/pms', '/ask', '/calendar'];
-const LEADERSHIP_NAV: AccessPath[] = ['/', '/pms', '/intelligence', '/projects', '/ask'];
+const LEADERSHIP_NAV: AccessPath[] = ['/', '/portfolio', '/pms', '/intelligence', '/projects', '/ask'];
 const ADMIN_NAV: AccessPath[] = ['/', '/data', '/admin/access-requests', '/staff', '/admin/rag'];
 
 export const PRIMARY_NAV: Record<Role, AccessPath[]> = {
@@ -141,7 +143,7 @@ export const PRIMARY_NAV: Record<Role, AccessPath[]> = {
   FinanceAdmin:       ADMIN_NAV,
   SystemAdmin:        ADMIN_NAV,
   MasterAdmin:        ADMIN_NAV,
-  PME:                ['/', '/projects', '/proposals', '/reports', '/calendar'],
+  PME:                ['/', '/portfolio', '/projects', '/proposals', '/reports', '/calendar'],
   Technician:         ['/'],
   Guest:              ['/'],
   DefaultUser:        ['/'],

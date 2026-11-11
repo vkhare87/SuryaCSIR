@@ -356,6 +356,17 @@ project's PI, author or a co-PI (`project_caller_is_party`).
 | `project_milestone_decide(p_id, p_decision, p_note)` | the office | `ACCEPT` (proposed → planned), `CONFIRM` (reported → achieved), `RETURN` (→ planned, reason required), `DROP` (reason required) |
 | `project_link_output(p_kind, p_output_id, p_project_id)` | PME, MasterAdmin or the project's PI | Links (or, with NULL, unlinks) a publication, patent or instrument |
 
+### Project monitoring (`src/lib/projects/projectFileApi.ts`, `20261111000003`)
+
+| RPC / view | Who | Effect |
+|---|---|---|
+| `project_slot_schedule(p_slot_id, p_meeting_id)` | the office | Puts a pending review (not a progress report) on a meeting; adds an agenda item linked by `subject_type = 'project_review'`, replacing any earlier one |
+| `project_slot_record(p_slot_id, p_held_on, p_decision, p_outcome, p_minutes_document_id)` | the office | Marks the review `DONE`. Stage gate: `GO · CONDITIONAL_GO · HOLD · KILL · RECYCLE`; other reviews: `CONTINUE · CONTINUE_WITH_CHANGES · HOLD · FORECLOSURE_RECOMMENDED`. `HOLD` moves the project to `ON_HOLD`; a go-ahead on an `ON_HOLD` project moves it back to `ACTIVE`. Without minutes, `minutes_due = held_on + minutes_days` |
+| `project_slot_add_minutes(p_slot_id, p_document_id)` | the office | Files a `minutes` document on a held review; clears `minutes_due` |
+| `project_call_review(p_project_id, p_due_date, p_reason) → uuid` | Director, PME or MasterAdmin, not a party to the project | Adds a `CALLED_REVIEW` slot to a running project and notifies the PI (`project_review_called`, link `/projects/<id>?tab=monitoring`) |
+| `my_due_project_slots()` | any signed-in user | Pending progress reports and called reviews due within 30 days on projects where the caller is PI, author or co-PI |
+| `project_portfolio` (view) | read through projects RLS | One health row per running project (Portfolio page, PME desk) |
+
 **Retired:** `proposal_set_under_review`, `proposal_request_revision`, `proposal_reject`,
 `proposal_recommend`, `proposal_approve`, `proposal_issue_om` — EXECUTE revoked; each let an
 admin move a proposal past the chain.

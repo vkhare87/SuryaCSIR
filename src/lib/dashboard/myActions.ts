@@ -2,13 +2,14 @@ import type { ActionItem, Ticket, Role, StaffMember, ContractStaff, Contribution
 import type { PMSReport, PMSEvaluation } from '../../types/pms';
 import type { Proposal } from '../../types/proposal';
 import type { ProjectReport } from '../../types/projectReport';
+import type { DueSlot } from '../../types/projectFile';
 import { staffNameMatchesAuthor } from '../../utils/dateUtils';
 import { retirementDate, yearsUntilRetirement } from '../staff/retirement';
 import { inboxBucket, isReviewer } from '../contributions/state';
 
 export interface MyAction {
   id: string;
-  kind: 'pms-draft' | 'pms-evaluation' | 'proposal' | 'action-item' | 'ticket' | 'progress-report'
+  kind: 'pms-draft' | 'pms-evaluation' | 'proposal' | 'action-item' | 'ticket' | 'progress-report' | 'project-review'
       | 'retirement' | 'contract-end' | 'contribution';
   label: string;
   detail: string;
@@ -59,15 +60,28 @@ export interface MyActionsInput {
   roles: Role[];
   contributions: ContributionRequest[];
   stewards: DataSteward[];
+  /** Reports and called reviews owed on projects the user leads (my_due_project_slots). */
+  dueSlots?: DueSlot[];
 }
 
 /** Pending items requiring the current user's action, most urgent first (nulls-last by due date). */
 export function deriveMyActions(input: MyActionsInput): MyAction[] {
   const {
     userId, staffName, role, reports, evaluations, proposals, progressReports, actionItems, tickets, staff,
-    contractStaff, roles, contributions, stewards,
+    contractStaff, roles, contributions, stewards, dueSlots = [],
   } = input;
   const actions: MyAction[] = [];
+
+  for (const s of dueSlots) {
+    actions.push({
+      id: `slot-${s.slotId}`,
+      kind: 'project-review',
+      label: s.kind === 'PROGRESS_REPORT' ? `Progress report due — ${s.projectNo}` : `Review called — ${s.projectNo}`,
+      detail: `${s.body} · ${s.periodLabel}`,
+      due: s.dueDate,
+      link: s.kind === 'PROGRESS_REPORT' ? '/reports/new' : `/projects/${encodeURIComponent(s.projectId)}?tab=monitoring`,
+    });
+  }
   const now = new Date();
 
   for (const r of reports) {

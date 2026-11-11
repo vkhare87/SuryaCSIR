@@ -178,7 +178,14 @@ Related docs: [app.md](app.md) (product spec), [database_design.md](database_des
   proposal — budget lines, dates and PI included.
 
 ### Project file (`/projects/:id`)
-- Tabs: **Overview** · **Funds** · **Milestones** · **Outputs** · **Timeline**.
+- Tabs: **Overview** · **Monitoring** · **Funds** · **Milestones** · **Outputs** · **Timeline**.
+- **Monitoring:** a review brief (time elapsed, money spent, milestones achieved, overdue)
+  and every review and report due, worked out from the project's track, category and
+  dates — a report nobody filed shows overdue on its own. PME puts a review on a meeting
+  agenda, records the outcome (continue / with changes / hold / recommend foreclosure, or
+  go / conditional go / hold / kill / recycle at a stage gate) and files the minutes,
+  which are flagged when late. The Director or PME can **Call for review** at any time;
+  the PI is notified and it appears in their My Actions.
 - **Funds:** sanctioned · received · spent · balance per financial year, and spend against
   sanction per head (overspend flagged). PME records money received (release order scan;
   IFD reference on the HQ track) and expenditure (signed statement). Entries are never
@@ -197,6 +204,13 @@ Related docs: [app.md](app.md) (product spec), [database_design.md](database_des
   matches with page-level citations (`/similar` endpoint).
 - **Comparable past projects:** the same page ranks completed projects similar in
   domain/division/fund-type, with sanctioned/utilized amounts — evidence for evaluation.
+
+### Project portfolio (`/portfolio`)
+- **Who:** Director, Division Heads / HODs, FinanceAdmin, PME, MasterAdmin.
+- Every running project on one table: time elapsed against money spent and milestones
+  met, overdue items, next due date, last review decision, and a plain **On track /
+  Watch / Behind** reading. Behind first; filter by track or to those needing attention.
+  The PME desk lists overdue reviews and late minutes from the same view.
 
 ### Project progress reports
 - **Routes:** `/reports`, `/reports/new`, `/reports/:id`.

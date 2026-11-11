@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ClipboardList, ChevronRight } from 'lucide-react';
 import clsx from 'clsx';
@@ -11,6 +11,8 @@ import { Card, Badge } from './ui/Cards';
 import { deriveMyActions, dueUrgency, type DueUrgency } from '../lib/dashboard/myActions';
 import { useFeatureControls } from '../contexts/FeatureControlContext';
 import type { AccessPath } from '../constants/access';
+import { myDueSlots } from '../lib/projects/projectFileApi';
+import type { DueSlot } from '../types/projectFile';
 
 const KIND_BADGE: Record<string, { label: string; variant: 'info' | 'warning' | 'success' | 'neutral' }> = {
   'pms-draft':      { label: 'PMS',       variant: 'warning' },
@@ -19,6 +21,7 @@ const KIND_BADGE: Record<string, { label: string; variant: 'info' | 'warning' | 
   'action-item':    { label: 'Committee', variant: 'neutral' },
   'ticket':         { label: 'Helpdesk',  variant: 'warning' },
   'progress-report': { label: 'Progress', variant: 'info' },
+  'project-review': { label: 'Project', variant: 'warning' },
   'retirement':     { label: 'Workforce', variant: 'warning' },
   'contract-end':   { label: 'Contract',  variant: 'warning' },
   'contribution':   { label: 'Request',   variant: 'info' },
@@ -53,6 +56,13 @@ export function MyActions() {
   const { proposals } = useProposals();
   const { reports: progressReports } = useProjectReports();
   const { canAccess } = useFeatureControls();
+  const [dueSlots, setDueSlots] = useState<DueSlot[]>([]);
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    myDueSlots().then((s) => { if (!cancelled) setDueSlots(s); }, () => {});
+    return () => { cancelled = true; };
+  }, [user]);
 
   const staffName = useMemo(
     () => staff.find(s => s.Email === user?.email)?.Name ?? '',
@@ -76,9 +86,10 @@ export function MyActions() {
       roles: user.roles,
       contributions: contributionRequests,
       stewards: dataStewards,
+      dueSlots,
     });
   }, [user, staffName, reports, evaluations, proposals, progressReports, actionItems, tickets, staff, contractStaff,
-      contributionRequests, dataStewards]);
+      contributionRequests, dataStewards, dueSlots]);
 
   const overdueCount = useMemo(() => actions.filter(a => dueUrgency(a.due) === 'overdue').length, [actions]);
 

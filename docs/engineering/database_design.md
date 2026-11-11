@@ -1,7 +1,7 @@
 # SURYA — Database Design
 
 _Complete schema reference for the PostgreSQL 17 database. Supersedes `docs/DATA-MODEL.md`,
-which now points here. Current as of 2026-11-11 (52 migrations, 87 tables in `public`)._
+which now points here. Current as of 2026-11-11 (53 migrations, 88 tables in `public`)._
 
 Companions: [api_spec.md](api_spec.md) (how the schema is called),
 [system_design.md](system_design.md) (state machines),
@@ -695,6 +695,30 @@ or older than the shortest `cadence_days` there — and only when no earlier ref
 that scope is still open. Cron-only: `EXECUTE` revoked from client roles.
 
 ---
+
+### 3.8e Project monitoring — `20261111000003_project_monitoring.sql`
+
+Phase `PL4`. The schedule is **derived, not entered**: a project's reviews and reports are
+generated from its track, category and dates, so a report nobody wrote is overdue without
+anyone having created a record for it.
+
+| Table / view | Shape | Writes |
+|---|---|---|
+| `project_review_slots` | `(id, project_id FK CASCADE, kind ∈ PROGRESS_REPORT · REVIEW_COMMITTEE · RESEARCH_COUNCIL · TASK_FORCE · MONITORING_COMMITTEE · STAGE_GATE · CALLED_REVIEW, body, period_label, period_end, due_date, generated, status ∈ PENDING · DONE · CANCELLED, meeting_id?, held_on?, decision?, outcome?, minutes_days?, minutes_due?, minutes_document_id?, report_id?, notes?, recorded_by?, recorded_at?)`, `UNIQUE (project_id, kind, period_end)` | `project_generate_slots` (trigger), the RPCs below. Clients: SELECT only, through projects RLS |
+| `project_portfolio` (view, `security_invoker`) | one row per running project: `elapsed_pct, sanctioned_cost, received, spent, milestones_total, milestones_achieved, overdue, minutes_overdue, next_due, last_report_on, last_decision` | read-only |
+
+- **Plan.** `project_slot_plan(track, category)`: progress report half-yearly (due 15 days
+  after the half year); ULIP review committee or HQ Research Council half-yearly; HQ Task
+  Force quarterly for MMP/FBR/NCP/FIR/FTT/FTC (half-yearly for FCP), minutes within 7 days;
+  external monitoring committee for FBR/NCP/FIR; stage gates for MMP/FTT/FTC.
+- **Regeneration.** `trg_projects_regenerate_slots` fires on a change to stage, track,
+  dates, status, category or number, deletes the untouched generated `PENDING` slots and
+  rebuilds them. Held, scheduled, report-answered and called reviews are kept.
+- **Reports answer slots.** `project_reports.slot_id` (set by `project_reports_take_slot`);
+  `project_reports_answer_slot` marks the slot `DONE` once the report is submitted.
+- **Agenda link.** `agenda_items.subject_type ∈ project_review · proposal`, `subject_id`.
+- `project_documents.doc_type` adds `minutes`. `project_log_event` also logs review
+  scheduling, outcomes, minutes and called reviews to the timeline.
 
 ## 4. Indexing strategy
 
