@@ -53,6 +53,7 @@ AUTHZ_MARKERS = (
     "pms_caller_track",
     "proposals_caller_",
     "proposal_caller_may_act",
+    "project_change_caller_may_act",
 )
 
 # Functions that legitimately need no caller check. Every entry states why —
@@ -93,6 +94,9 @@ EXEMPT: dict[str, str] = {
     "projects_regenerate_slots": "trigger on projects; the projects write is gated by its RLS. EXECUTE revoked (20261111000003)",
     "project_reports_take_slot": "trigger on project_reports; the report write is gated by its RLS. EXECUTE revoked (20261111000003)",
     "project_reports_answer_slot": "trigger on project_reports; same. EXECUTE revoked (20261111000003)",
+    "project_caller_is_pi": "caller-identity resolver: is the caller this project's PI (20261112000001)",
+    "project_change_apply": "internal: applies an approved change; called only by project_change_record_step after its own check. EXECUTE revoked (20261112000001)",
+    "project_change_log": "trigger on project_change_requests; writes the timeline. EXECUTE revoked (20261112000001)",
     "project_caller_is_party": (
         "caller-identity resolver: is the caller PI, author or co-PI of this "
         "project. Answers only about the caller (20261111000002)."
