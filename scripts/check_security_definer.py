@@ -86,6 +86,18 @@ EXEMPT: dict[str, str] = {
         "becomes unique or shared. The projects write is gated by its RLS; "
         "EXECUTE revoked from clients (20261110000002)."
     ),
+    "project_caller_is_party": (
+        "caller-identity resolver: is the caller PI, author or co-PI of this "
+        "project. Answers only about the caller (20261111000002)."
+    ),
+    "project_log_event": (
+        "trigger; appends the timeline line for a write already authorized by "
+        "its table's RLS or RPC. EXECUTE revoked from clients (20261111000002)."
+    ),
+    "project_expenditure_sync_utilized": (
+        "trigger on project_expenditure, written only by project_record_expenditure "
+        "/ project_reverse_entry; EXECUTE revoked from clients (20261111000002)."
+    ),
     "proposal_open_round": (
         "internal to proposal_submit / proposal_set_track, which authorize first; "
         "EXECUTE revoked from clients (20261111000001)."
