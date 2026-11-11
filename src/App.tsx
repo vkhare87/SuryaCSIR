@@ -68,7 +68,7 @@ const AskSurya          = lazy(() => import('./pages/AskSurya'));
 const HolidaysAdmin     = lazy(() => import('./pages/admin/HolidaysAdmin'));
 const FeatureControlsAdmin = lazy(() => import('./pages/admin/FeatureControls'));
 const Proposals         = lazy(() => import('./pages/proposals/Proposals'));
-const ProposalForm      = lazy(() => import('./pages/proposals/ProposalForm'));
+const ProposalWorkspace = lazy(() => import('./pages/proposals/ProposalWorkspace'));
 const ProposalDetail    = lazy(() => import('./pages/proposals/ProposalDetail'));
 const ProjectReports    = lazy(() => import('./pages/reports/ProjectReports'));
 const ProjectReportForm = lazy(() => import('./pages/reports/ProjectReportForm'));
@@ -226,8 +226,9 @@ function App() {
             <Route path="/admin/access-requests" element={<ProtectedRoute accessPath="/admin/access-requests"><AccessRequests /></ProtectedRoute>} />
             <Route path="/admin/features" element={<ProtectedRoute desktopOnly accessPath="/admin/features"><FeatureControlsAdmin /></ProtectedRoute>} />
             {/* Project Proposals — specific routes first */}
-            <Route path="/proposals/new" element={<ProtectedRoute desktopOnly allowedRoles={['Scientist']}><ProposalForm /></ProtectedRoute>} />
-            <Route path="/proposals/:id/edit" element={<ProtectedRoute desktopOnly accessPath="/proposals"><ProposalForm /></ProtectedRoute>} />
+            {/* Not desktopOnly: the workspace shows notes-only on a phone. */}
+            <Route path="/proposals/new" element={<ProtectedRoute allowedRoles={['Scientist', 'HOD', 'DivisionHead', 'Director']}><ProposalWorkspace /></ProtectedRoute>} />
+            <Route path="/proposals/:id/edit" element={<ProtectedRoute accessPath="/proposals"><ProposalWorkspace /></ProtectedRoute>} />
             <Route path="/proposals/:id" element={<ProtectedRoute accessPath="/proposals"><ProposalDetail /></ProtectedRoute>} />
             <Route path="/proposals" element={<ProtectedRoute accessPath="/proposals"><Proposals /></ProtectedRoute>} />
             {/* Project Progress Reports — specific routes first */}

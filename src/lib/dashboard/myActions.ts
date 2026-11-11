@@ -111,7 +111,7 @@ export function deriveMyActions(input: MyActionsInput): MyAction[] {
         label: 'Draft proposal not yet submitted',
         detail: p.title,
         due: null,
-        link: `/proposals/${p.id}`,
+        link: `/proposals/${p.id}/edit`,
       });
     } else if (PROPOSAL_REVIEWERS.includes(role) && (p.status === 'SUBMITTED' || p.status === 'UNDER_REVIEW')) {
       actions.push({

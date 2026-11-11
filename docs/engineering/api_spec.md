@@ -301,26 +301,34 @@ await supabase.rpc('pms_finalize_report', {
 | `proposal_link_project` | `p_id uuid, p_project_no text` | `OM_ISSUED` → `LINKED` |
 | `proposal_archive` | `p_id uuid` | `OM_ISSUED` → `ARCHIVED` |
 
-`proposal_submit` is PI-only; the rest are admin/review-body actions. All append
+`proposal_submit` is PI-only and checks completeness (below); the rest are admin/review-body actions. All append
 `proposal_status_history`.
 
-### Proposal DTO validation (`src/lib/proposals/validation.ts`, zod)
+### Proposal readiness (`src/lib/proposals/readiness.ts` ↔ `proposal_missing_fields()`)
 
-Two schemas, because a draft may be incomplete and a submission may not:
+A draft needs a title and nothing else: every other column is nullable, and autosave
+writes whatever is there. Completeness is checked once, at submit, **in the database**:
+`proposal_submit` raises `Not ready to submit. Still needed: …` listing what
+`proposal_missing_fields(proposals)` returns, then requires a `signed_proposal` document.
 
-| Field | `draftSchema` | `submitSchema` |
-|---|---|---|
-| `title` | required, ≥1 | required, ≥1 |
-| `piName`, `sponsorName`, `divisionCode`, `abstract`, `problemStatement`, `objectives`, `expectedOutcomes` | nullish | required, ≥1 |
-| `domainTheme`, `fundType`, `sponsorType`, `projectCategory` | nullish enum | required enum |
-| `proposedDurationMonths` | nullish positive int | required positive int |
-| `requestedBudget` | nullish, ≥0 | required, ≥0 |
-| `currentTrl`, `targetTrl` | int 1–9 or null | int 1–9 or null |
-| `coPIs[]` | `{staffId, staffName}` both ≥1 | same |
+The browser shows the same list as the readiness meter. `readiness.ts` and the SQL
+function carry the same rules in the same order, and `scripts/db/proposals.db.test.ts`
+fails if the two lists differ. Required: `title`, `track`, `abstract`, `problem_statement`,
+`domain_theme`, `objectives`, `expected_outcomes`, `project_category`,
+`proposed_start_date`, `proposed_duration_months`, `pi_name`, `division_code`,
+`requested_budget > 0`, `fund_type`, `sponsor_type`, `sponsor_name`.
 
-Mirrored in SQL: `proposed_duration_months > 0`, `requested_budget >= 0`,
-`current_trl/target_trl BETWEEN 1 AND 9`, `proposal_code` unique (assigned by the
-`proposals_set_code` trigger).
+### Workspace RPCs and direct writes (`src/lib/proposals/workspaceApi.ts`)
+
+| Call | Arguments | Who | Effect |
+|---|---|---|---|
+| `proposal_save_version` | `p_id uuid, p_label text` | creator, while `DRAFT` \| `REVISION_REQUESTED` | Snapshots the row and co-PIs as the next `proposal_versions` row (`kind = 'manual'`) |
+| `proposal_restore_version` | `p_version_id uuid` | same | Versions the present state first, then puts the content columns and co-PIs back. Never touches status, review or sanction columns |
+| `proposals` UPDATE | changed columns only | creator, editable statuses (RLS) | Autosave (`ProposalsContext.saveFields`) |
+| `proposal_notes` INSERT / UPDATE / DELETE | — | author only (RLS) | Private notes; `used_in` records the field a note was moved into |
+
+`proposal_submit` also snapshots a `kind = 'submitted'` version and stores its id in
+`proposals.submitted_version_id`.
 
 ## B.4 Project progress reports
 

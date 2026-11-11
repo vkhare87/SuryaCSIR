@@ -5,6 +5,9 @@ import type {
   ProposalStatusEntry,
   ProposalStatus,
   ProposalDocType,
+  ProposalNote,
+  ProposalVersion,
+  NoteTarget,
 } from '../types/proposal';
 
 export function mapProposalRow(row: any): Proposal {
@@ -79,5 +82,63 @@ export function mapHistoryRow(row: any): ProposalStatusEntry {
     payload: row.payload,
     changedBy: row.changed_by,
     changedAt: row.changed_at,
+  };
+}
+
+const PATCH_COLUMNS: Partial<Record<keyof Proposal, string>> = {
+  title: 'title', acronym: 'acronym', track: 'track', domainTheme: 'domain_theme', fundType: 'fund_type',
+  sponsorType: 'sponsor_type', sponsorName: 'sponsor_name', projectCategory: 'project_category',
+  proposedStartDate: 'proposed_start_date', proposedDurationMonths: 'proposed_duration_months',
+  requestedBudget: 'requested_budget', piName: 'pi_name', divisionCode: 'division_code',
+  abstract: 'abstract', problemStatement: 'problem_statement', objectives: 'objectives',
+  expectedOutcomes: 'expected_outcomes', currentTrl: 'current_trl', targetTrl: 'target_trl',
+};
+
+// Columns that are NULL, not '', when empty: a date or number column rejects ''.
+const NULL_WHEN_EMPTY = new Set(['proposed_start_date', 'proposed_duration_months', 'track', 'acronym']);
+
+/** The draft's editable fields as a database row patch. Anything else in the input is ignored. */
+export function toProposalRowPatch(patch: Partial<Proposal>): Record<string, unknown> {
+  const row: Record<string, unknown> = {};
+  for (const [field, value] of Object.entries(patch)) {
+    const column = PATCH_COLUMNS[field as keyof Proposal];
+    if (!column) continue;
+    row[column] = NULL_WHEN_EMPTY.has(column) && (value === '' || value === 0) ? null : value;
+  }
+  return row;
+}
+
+const NOTE_TARGET_COLUMN: Record<NoteTarget, string> = {
+  abstract: 'abstract', problemStatement: 'problem_statement',
+  objectives: 'objectives', expectedOutcomes: 'expected_outcomes',
+};
+const NOTE_TARGET_FIELD = Object.fromEntries(
+  Object.entries(NOTE_TARGET_COLUMN).map(([field, column]) => [column, field]),
+) as Record<string, NoteTarget>;
+
+export const noteTargetColumn = (target: NoteTarget) => NOTE_TARGET_COLUMN[target];
+
+export function mapNoteRow(row: any): ProposalNote {
+  return {
+    id: row.id,
+    proposalId: row.proposal_id,
+    body: row.body,
+    usedIn: row.used_in ? NOTE_TARGET_FIELD[row.used_in] ?? null : null,
+    usedAt: row.used_at,
+    createdAt: row.created_at,
+  };
+}
+
+export function mapVersionRow(row: any): ProposalVersion {
+  const proposal = mapProposalRow(row.snapshot?.proposal ?? {});
+  proposal.coPIs = (row.snapshot?.copis ?? []).map(mapCoPIRow);
+  return {
+    id: row.id,
+    proposalId: row.proposal_id,
+    versionNo: row.version_no,
+    label: row.label,
+    kind: row.kind,
+    createdAt: row.created_at,
+    proposal,
   };
 }

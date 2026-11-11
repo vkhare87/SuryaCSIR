@@ -1,7 +1,7 @@
 # SURYA — Database Design
 
 _Complete schema reference for the PostgreSQL 17 database. Supersedes `docs/DATA-MODEL.md`,
-which now points here. Current as of 2026-11-10 (49 migrations, 75 tables in `public`)._
+which now points here. Current as of 2026-11-11 (50 migrations, 77 tables in `public`)._
 
 Companions: [api_spec.md](api_spec.md) (how the schema is called),
 [system_design.md](system_design.md) (state machines),
@@ -574,14 +574,38 @@ importer writes are otherwise left as entered. The same vocabulary lives in
 `src/lib/projects/stage.ts`. **Indexes:** `("ProjectNo")` (non-unique), `(stage)`.
 
 #### `project_id` beside every project number
-`proposals`, `project_reports`, `project_staff`, `mous`, `tech_transfers` each gain
-`project_id text? FK → projects("ProjectID") SET NULL`, indexed. `"ProjectNo"` is **not
+`proposals`, `project_reports`, `project_staff`, `phd_students`, `mous`, `tech_transfers`
+each gain `project_id text? FK → projects("ProjectID") SET NULL`, indexed. `"ProjectNo"` is **not
 unique** — one umbrella number covers several work packages — so `sync_project_key`
 (BEFORE INSERT OR UPDATE, SECURITY DEFINER) fills `project_id` only when exactly one project
-carries the number, and leaves a shared number unlinked.
+carries the number, and leaves a shared number unlinked. `projects_resync_child_keys`
+(AFTER INSERT OR UPDATE OF "ProjectNo" on `projects`) keeps that true as projects arrive:
+a number that becomes unique links its unlinked children, one that becomes shared (1 → 2)
+unlinks them — so the result does not depend on upload order.
 
 #### `proposals.track`
 `text? FK → project_schemes(code)`.
+
+### 3.8b Proposal workspace — `20261110000003_proposal_workspace.sql`
+
+Phase `PL1`. On `proposals`, every content column except `title` and `pi_name` is now
+nullable (completeness is `proposal_submit`'s job — see api_spec B.3), and
+`submitted_version_id uuid? FK → proposal_versions SET NULL` is added.
+`proposals_set_code` is now SECURITY DEFINER: under the inserter's RLS it could not see
+other people's proposals and reissued `PROP-<year>-0001`.
+
+#### `proposal_notes` — the PI's private scratch
+`(id uuid PK, proposal_id FK CASCADE, author_id uuid FK → auth.users CASCADE DEFAULT auth.uid(), body text CHECK non-blank, used_in text? CHECK ∈ abstract | problem_statement | objectives | expected_outcomes, used_at?, created_at, updated_at)`.
+**Index:** `(proposal_id, created_at DESC)`.
+**RLS:** author only, all four commands; insert only onto a proposal the author created.
+No co-PI, PME, reviewer or admin policy exists, at any stage.
+
+#### `proposal_versions`
+`(id uuid PK, proposal_id FK CASCADE, version_no int, label text, kind text CHECK ∈ manual | submitted, snapshot jsonb, created_by FK, created_at)`. **Unique** `(proposal_id, version_no)`.
+`snapshot` = `{"proposal": <the row>, "copis": [{staff_id, staff_name}]}`.
+**RLS:** the creator reads all; anyone else who may read the proposal reads `submitted`
+versions only. No client writes — `proposal_save_version`, `proposal_restore_version` and
+`proposal_submit` write through the internal `proposal_snapshot_version`.
 
 ### 3.9 Data operations — `20261101000001_contribution_requests.sql`
 

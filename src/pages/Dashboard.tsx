@@ -16,6 +16,7 @@ import { EmpoweredCommitteeView } from './dashboards/EmpoweredCommitteeView';
 import { PMEView }            from './dashboards/PMEView';
 import { MyActions } from '../components/MyActions';
 import { DataHealthDigest } from '../components/DataHealthDigest';
+import { StartIdeaCard } from '../components/proposals/StartIdeaCard';
 
 export default function Dashboard() {
   const { activeRole } = useAuth();
@@ -24,6 +25,8 @@ export default function Dashboard() {
   const withActions = (view: React.ReactNode) => (
     <div className="space-y-6">
       <MyActions />
+      {/* Renders nothing for roles that cannot author a proposal. */}
+      <StartIdeaCard />
       <DataHealthDigest />
       {view}
     </div>

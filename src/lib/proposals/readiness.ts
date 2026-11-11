@@ -69,3 +69,22 @@ export function sectionState(p: Draft, hasSignedScan: boolean, section: SectionK
   if (missing === 0) return 'done';
   return missing < rules.length ? 'started' : 'empty';
 }
+
+/** Where a proposal stands, in the words the home page uses. */
+export function nextStep(p: Draft & Pick<Proposal, 'status'>): string {
+  switch (p.status) {
+    case 'DRAFT': {
+      const first = missingItems(p, true)[0];
+      return first ? first.action : 'Upload the signed proposal and submit';
+    }
+    case 'REVISION_REQUESTED': return 'Revision asked — open to see what to change';
+    case 'SUBMITTED':          return 'Waiting for PME';
+    case 'UNDER_REVIEW':       return 'Under review';
+    case 'RECOMMENDED':        return 'Recommended — awaiting approval';
+    case 'APPROVED':           return 'Approved — sanction order awaited';
+    case 'OM_ISSUED':          return 'Sanctioned — project record being created';
+    case 'LINKED':             return 'Running as a project';
+    case 'REJECTED':           return 'Not approved';
+    case 'ARCHIVED':           return 'Archived';
+  }
+}

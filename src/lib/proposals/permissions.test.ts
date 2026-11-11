@@ -68,8 +68,13 @@ describe('canCreateProposal', () => {
   it('allows Scientist', () => {
     expect(canCreateProposal(makeUser({ roles: ['Scientist'] }))).toBe(true);
   });
-  it('rejects non-Scientist', () => {
-    expect(canCreateProposal(makeUser({ roles: ['Director'] }))).toBe(false);
+  it('allows the other research roles, whichever role is active', () => {
+    for (const role of ['HOD', 'DivisionHead', 'Director'] as const) {
+      expect(canCreateProposal(makeUser({ roles: [role] })), role).toBe(true);
+    }
+  });
+  it('rejects everyone else', () => {
+    expect(canCreateProposal(makeUser({ roles: ['HRAdmin', 'PME', 'Technician'] }))).toBe(false);
   });
 });
 

@@ -102,7 +102,6 @@
     "src/pages/pms/ReportView.tsx",
     "src/pages/pms/Reports.tsx",
     "src/pages/proposals/ProposalDetail.tsx",
-    "src/pages/proposals/ProposalForm.tsx",
     "src/pages/proposals/Proposals.tsx"
   ]
 }

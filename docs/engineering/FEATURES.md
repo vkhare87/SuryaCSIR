@@ -156,11 +156,19 @@ Related docs: [app.md](app.md) (product spec), [database_design.md](database_des
   status) with analytics.
 
 ### Proposals (full lifecycle state machine)
-- **Who:** Scientists draft; review chain up to Director. **Route:** `/proposals`.
+- **Who:** Scientist, HOD, Division Head or Director drafts; review chain up to Director. **Route:** `/proposals`.
+- **Workspace** (`/proposals/new`, `/proposals/:id/edit`): a title starts a private draft —
+  from the "Project ideas" card on the home page or the Proposals list. Sections (Idea ·
+  Plan · Team · Budget · Documents) save as you type; unsaved typing is also kept in the
+  browser and restored after a crash. A private **notes** panel sits beside every section,
+  and a note can be moved or copied into the abstract, problem statement, objectives or
+  expected outcomes. **Versions** can be marked, compared and restored. A **readiness
+  meter** lists what submission still needs and never blocks saving. On a phone the page
+  shows the title and notes only.
 - `DRAFT → SUBMITTED → … → OM_ISSUED → LINKED` (linked = becomes a project). PDF
   uploads up to 25 MB. Transitions run through RPCs — status is never patched from
   the client.
-- **Duplication check:** on a proposal's detail page, "Check for similar work" queries
+- **Duplication check:** in the workspace's Idea section and on a proposal's detail page, "Check for similar work" queries
   the document index for prior/ongoing work similar to the proposal topic and lists
   matches with page-level citations (`/similar` endpoint).
 - **Comparable past projects:** the same page ranks completed projects similar in
