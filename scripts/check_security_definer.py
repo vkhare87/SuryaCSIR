@@ -52,6 +52,7 @@ AUTHZ_MARKERS = (
     "pms_is_grievance_member",
     "pms_caller_track",
     "proposals_caller_",
+    "proposal_caller_may_act",
 )
 
 # Functions that legitimately need no caller check. Every entry states why —
@@ -84,6 +85,10 @@ EXEMPT: dict[str, str] = {
         "trigger on projects; relinks or unlinks child rows when a project number "
         "becomes unique or shared. The projects write is gated by its RLS; "
         "EXECUTE revoked from clients (20261110000002)."
+    ),
+    "proposal_open_round": (
+        "internal to proposal_submit / proposal_set_track, which authorize first; "
+        "EXECUTE revoked from clients (20261111000001)."
     ),
     "proposals_set_code": (
         "trigger; numbers a new proposal PROP-<year>-NNNN across every proposal, "

@@ -76,7 +76,10 @@ describe('submit', () => {
     const row = await one<{ m: string[] }>(db,
       `SELECT public.proposal_missing_fields(p) AS m FROM proposals p WHERE id = $1`, [draftId]);
     // The draft has a title and a PI name; everything else is still missing.
-    expect(row!.m).toEqual(REQUIRED_COLUMNS.filter(c => c !== 'title' && c !== 'pi_name'));
+    // No track yet, so the HQ category is not asked for; no budget lines, so
+    // neither budget rule applies.
+    expect(row!.m).toEqual(REQUIRED_COLUMNS.filter(c =>
+      !['title', 'pi_name', 'category_code', 'equipment_quotation', 'works_not_allowed'].includes(c)));
   });
 
   it('is refused while anything is missing, naming what', async () => {
