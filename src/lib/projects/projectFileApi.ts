@@ -2,7 +2,8 @@ import { supabase } from '../../utils/supabaseClient';
 import { createSignedUrl } from '../documents/registry';
 import { friendlyError } from '../errors';
 import type {
-  ChangeKind, ChangePayload, ChangeRequest, ChangeStep, MyChangeStep, DueSlot, ExpenditurePeriod, PortfolioRow, ProjectDocType, ProjectDocument, ProjectFile, ProjectMilestone,
+  ChangeKind, ChangePayload, ChangeRequest, ChangeStep, ClosureItem, CompletionFields, Lesson,
+  MyChangeStep, DueSlot, ExpenditurePeriod, PortfolioRow, ProjectDocType, ProjectDocument, ProjectFile, ProjectMilestone,
   ReviewDecision, ReviewSlot,
 } from '../../types/projectFile';
 
@@ -22,10 +23,17 @@ const mapSlot = (x: any): ReviewSlot => ({
   minutesDue: x.minutes_due, minutesDocumentId: x.minutes_document_id, reportId: x.report_id, notes: x.notes,
 });
 
+const pickFields = (x: any): CompletionFields => ({
+  summary: x.summary ?? '', objectives_status: x.objectives_status ?? null, objectives_reason: x.objectives_reason ?? '',
+  what_worked: x.what_worked ?? '', what_did_not: x.what_did_not ?? '', reusable_assets: x.reusable_assets ?? '',
+  trl_target: x.trl_target ?? null, trl_reached: x.trl_reached ?? null, recommendations: x.recommendations ?? '',
+  follow_on_ideas: x.follow_on_ideas ?? '',
+});
+
 /** The ledger, plan and history of one project. Tables from 20261111000001/2; empty until applied. */
 export async function loadProjectFile(projectId: string): Promise<ProjectFile> {
   const c = client();
-  const [b, r, e, m, d, ev, sl, cr] = await Promise.all([
+  const [b, r, e, m, d, ev, sl, cr, pc] = await Promise.all([
     c.from('project_budget_lines').select('*').eq('project_id', projectId).order('fiscal_year'),
     c.from('project_fund_receipts').select('*').eq('project_id', projectId).order('received_on').order('recorded_at'),
     c.from('project_expenditure').select('*').eq('project_id', projectId).order('fiscal_year').order('recorded_at'),
@@ -34,7 +42,12 @@ export async function loadProjectFile(projectId: string): Promise<ProjectFile> {
     c.from('project_events').select('*').eq('project_id', projectId).order('at', { ascending: false }).limit(200),
     c.from('project_review_slots').select('*').eq('project_id', projectId).order('due_date'),
     c.from('project_change_requests').select('*').eq('project_id', projectId).order('created_at', { ascending: false }),
+    c.from('project_completion_reports').select('*').eq('project_id', projectId),
   ]);
+  const report = (pc.data ?? [])[0] as any;
+  const pcs = report
+    ? await c.from('project_completion_steps').select('*').eq('report_id', report.id).eq('round', report.round).order('seq')
+    : { data: [] };
   const changeIds = (cr.data ?? []).map((x: any) => x.id as string);
   const cs = changeIds.length
     ? await c.from('project_change_steps').select('*').in('change_id', changeIds).order('seq')
@@ -70,6 +83,14 @@ export async function loadProjectFile(projectId: string): Promise<ProjectFile> {
       createdBy: x.created_by, createdAt: x.created_at, submittedAt: x.submitted_at, decidedAt: x.decided_at,
       steps: steps.filter(st => st.changeId === x.id && st.round === x.round),
     })),
+    completion: report ? {
+      ...pickFields(report),
+      id: report.id, status: report.status, round: report.round,
+      financialStatement: report.financial_statement ?? null, annexures: report.annexures ?? [],
+      decisionNote: report.decision_note, publishedDocumentId: report.published_document_id,
+      createdBy: report.created_by, submittedAt: report.submitted_at, decidedAt: report.decided_at,
+      steps: (pcs.data ?? []).map((x: any) => ({ id: x.id, round: x.round, seq: x.seq, kind: x.kind, status: x.status, notes: x.notes })),
+    } : null,
   };
 }
 
@@ -246,5 +267,43 @@ export async function myChangeSteps(): Promise<MyChangeStep[]> {
   return (data ?? []).map((x: any) => ({
     stepId: x.step_id, changeId: x.change_id, projectId: x.project_id, projectNo: x.project_no,
     changeKind: x.change_kind, stepKind: x.step_kind, submittedAt: x.submitted_at,
+  }));
+}
+
+/** Save the PI's completion report; the first save moves the project to CLOSING (20261112000002). */
+export function saveCompletion(projectId: string, fields: Partial<CompletionFields>) {
+  return rpc<string>('project_completion_save', { p_project_id: projectId, p_fields: fields });
+}
+
+export function submitCompletion(projectId: string, documentId: string) {
+  return rpc('project_completion_submit', { p_project_id: projectId, p_document_id: documentId });
+}
+
+export function recordCompletionStep(stepId: string, decision: 'APPROVE' | 'RETURN', notes: string, documentId: string | null) {
+  return rpc('project_completion_record_step', { p_step_id: stepId, p_decision: decision, p_notes: notes, p_document_id: documentId });
+}
+
+/** Archive a closed project; documentId is the published report (null only for a legacy project). */
+export function archiveProject(projectId: string, documentId: string | null) {
+  return rpc('project_archive', { p_project_id: projectId, p_document_id: documentId });
+}
+
+/** Approved lessons from every project, readable institute-wide. */
+export async function loadLessons(): Promise<Lesson[]> {
+  const { data, error } = await client().from('project_lessons').select('*').order('approved_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map((x: any) => ({
+    ...pickFields(x), projectId: x.project_id, projectNo: x.project_no, projectName: x.project_name ?? '',
+    divisionCode: x.division_code, piName: x.pi_name, track: x.track, stage: x.stage, endDate: x.end_date, approvedAt: x.approved_at,
+  }));
+}
+
+/** Completion steps waiting on the caller, and reports the caller owes; empty until applied. */
+export async function myClosureItems(): Promise<ClosureItem[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase.rpc('my_closure_items');
+  if (error) return [];
+  return (data ?? []).map((x: any) => ({
+    item: x.item, projectId: x.project_id, projectNo: x.project_no, stepId: x.step_id, stepKind: x.step_kind, endDate: x.end_date,
   }));
 }

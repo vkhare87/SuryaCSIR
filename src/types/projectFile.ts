@@ -45,7 +45,7 @@ export interface ProjectMilestone {
 
 export type ProjectDocType =
   | 'receipt_order' | 'expenditure_statement' | 'milestone_evidence' | 'minutes'
-  | 'change_request' | 'change_order' | 'other';
+  | 'change_request' | 'change_order' | 'completion_report' | 'closure_order' | 'other';
 
 export interface ProjectDocument {
   id: string;
@@ -79,6 +79,7 @@ export interface ProjectFile {
   events: ProjectEvent[];
   slots: ReviewSlot[];
   changes: ChangeRequest[];
+  completion: CompletionReport | null;
 }
 
 export type SlotKind =
@@ -203,4 +204,75 @@ export interface MyChangeStep {
   changeKind: ChangeKind;
   stepKind: ChangeStepKind;
   submittedAt: string | null;
+}
+
+export type ObjectivesStatus = 'MET' | 'PARTLY_MET' | 'NOT_MET';
+export type CompletionStatus = 'DRAFT' | 'SUBMITTED' | 'UNDER_REVIEW' | 'RETURNED' | 'APPROVED';
+
+/** The lesson fields (plan §5.4); also the shape project_completion_save takes. */
+export interface CompletionFields {
+  summary: string;
+  objectives_status: ObjectivesStatus | null;
+  objectives_reason: string;
+  what_worked: string;
+  what_did_not: string;
+  reusable_assets: string;
+  trl_target: number | null;
+  trl_reached: number | null;
+  recommendations: string;
+  follow_on_ideas: string;
+}
+
+export interface FinancialStatement {
+  heads: { fiscal_year: string; head: string; sanctioned: number; spent: number }[];
+  received: { fiscal_year: string; amount: number }[];
+  sanctioned: number;
+  received_total: number;
+  spent_total: number;
+}
+
+export interface Annexure { group: string; label: string; date: string | null; document_id?: string | null; missing: boolean }
+
+export interface CompletionStep {
+  id: string;
+  round: number;
+  seq: number;
+  kind: ChangeStepKind;
+  status: 'PENDING' | 'DONE' | 'RETURNED' | 'SKIPPED';
+  notes: string | null;
+}
+
+export interface CompletionReport extends CompletionFields {
+  id: string;
+  status: CompletionStatus;
+  round: number;
+  financialStatement: FinancialStatement | null;
+  annexures: Annexure[];
+  decisionNote: string | null;
+  publishedDocumentId: string | null;
+  createdBy: string;
+  submittedAt: string | null;
+  decidedAt: string | null;
+  steps: CompletionStep[];
+}
+
+export interface Lesson extends CompletionFields {
+  projectId: string;
+  projectNo: string;
+  projectName: string;
+  divisionCode: string | null;
+  piName: string | null;
+  track: string | null;
+  stage: string | null;
+  endDate: string | null;
+  approvedAt: string | null;
+}
+
+export interface ClosureItem {
+  item: 'step' | 'due';
+  projectId: string;
+  projectNo: string;
+  stepId: string | null;
+  stepKind: ChangeStepKind | null;
+  endDate: string | null;
 }

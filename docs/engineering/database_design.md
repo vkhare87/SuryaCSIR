@@ -1,7 +1,7 @@
 # SURYA — Database Design
 
 _Complete schema reference for the PostgreSQL 17 database. Supersedes `docs/DATA-MODEL.md`,
-which now points here. Current as of 2026-11-11 (54 migrations, 90 tables in `public`)._
+which now points here. Current as of 2026-11-11 (55 migrations, 92 tables in `public`)._
 
 Companions: [api_spec.md](api_spec.md) (how the schema is called),
 [system_design.md](system_design.md) (state machines),
@@ -751,6 +751,33 @@ re-appropriation, reallocation).
 - `projects_select_parties` — new permissive read policy: a project's co-PIs, and the PI
   named on its proposal, can read it. Before this a co-PI outside the division managers
   could not open the project at all.
+
+### 3.8g Project closure and memory — `20261112000002_project_closure.sql`
+
+Phase `PL6`. Guidelines §8.
+
+| Table / view | Shape | Writes |
+|---|---|---|
+| `project_completion_reports` | `(id, project_id UNIQUE, status ∈ DRAFT · SUBMITTED · UNDER_REVIEW · RETURNED · APPROVED, round, summary, objectives_status ∈ MET · PARTLY_MET · NOT_MET, objectives_reason, what_worked, what_did_not, reusable_assets, trl_target, trl_reached, recommendations, follow_on_ideas, financial_statement jsonb, annexures jsonb, document_id, decision_note, published_document_id → documents, created_by, timestamps)` | RPCs only. Read: whoever may see the project |
+| `project_completion_steps` | `(id, report_id, round, seq, kind, status ∈ PENDING · DONE · RETURNED · SKIPPED, decided_by, decided_at, notes, document_id)` | `project_completion_record_step` |
+| `project_lessons` (view, **not** `security_invoker`) | approved reports' lesson fields with project number, name, division, PI, track, dates | read-only, **every signed-in user** — lessons are institute memory, so this deliberately bypasses projects RLS, and only for approved reports' lesson fields |
+
+- The first save by the PI moves the project to `CLOSING`. Submission requires the §5.4
+  fields (`project_completion_missing`), the signed report (`completion_report` document)
+  and no change request in review; it snapshots `project_financial_statement` (year ×
+  head allocation vs expenditure, receipts) and `project_completion_annexures` (sanction,
+  approved change orders, minutes of every review held — `missing` where none is on file).
+- Route: ULIP — PME → review committee → Director; HQ — PME → Finance → Research Council
+  (in principle) → Monitoring Committee → DG. Approve or return only. The last approval
+  sets `CLOSED` (a `FORECLOSED` project stays foreclosed).
+- `project_archive` (PME, not a party): `CLOSED` / `FORECLOSED` → `ARCHIVED`, with the
+  published report — a `documents` row (`entity_type = 'project'`, `doc_type =
+  'completion_report'`) uploaded by the same PME, which archiving promotes to the
+  `institute` tier so the RAG worker indexes it. Legacy projects without a proposal are
+  archived without one. `trg_projects_zz_archived_readonly` rejects any change to an
+  archived project.
+- `proposals.parent_project_id` — follow-on lineage.
+- `project_documents.doc_type` adds `completion_report` (PI) and `closure_order` (step owners).
 
 ## 4. Indexing strategy
 

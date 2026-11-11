@@ -7,8 +7,8 @@ import { Card } from '../../components/ui/Cards';
 import { KpiCard } from '../../components/ui/KpiCard';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { pmeDeskItems } from '../../lib/projects/pmeDesk';
-import { loadPortfolio, milestonesAwaitingPme, myChangeSteps } from '../../lib/projects/projectFileApi';
-import type { MyChangeStep, PortfolioRow } from '../../types/projectFile';
+import { loadPortfolio, milestonesAwaitingPme, myChangeSteps, myClosureItems } from '../../lib/projects/projectFileApi';
+import type { ClosureItem, MyChangeStep, PortfolioRow } from '../../types/projectFile';
 import { isActiveProject } from '../../lib/projects/stage';
 
 export function PMEView() {
@@ -18,16 +18,18 @@ export function PMEView() {
   const [milestones, setMilestones] = useState(0);
   const [portfolio, setPortfolio] = useState<PortfolioRow[]>([]);
   const [changeSteps, setChangeSteps] = useState<MyChangeStep[]>([]);
+  const [closure, setClosure] = useState<ClosureItem[]>([]);
   useEffect(() => {
     let cancelled = false;
     milestonesAwaitingPme().then((n) => { if (!cancelled) setMilestones(n); }, () => {});
     loadPortfolio().then((r) => { if (!cancelled) setPortfolio(r); }, () => {});
     myChangeSteps().then((r) => { if (!cancelled) setChangeSteps(r); }, () => {});
+    myClosureItems().then((r) => { if (!cancelled) setClosure(r); }, () => {});
     return () => { cancelled = true; };
   }, []);
   const queue = useMemo(
-    () => pmeDeskItems(proposals, projects, milestones, portfolio, changeSteps),
-    [proposals, projects, milestones, portfolio, changeSteps],
+    () => pmeDeskItems(proposals, projects, milestones, portfolio, changeSteps, closure),
+    [proposals, projects, milestones, portfolio, changeSteps, closure],
   );
   const activeProjects = useMemo(() => projects.filter(isActiveProject).length, [projects]);
   const inReview = useMemo(

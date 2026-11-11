@@ -1,10 +1,10 @@
 import type { ProjectInfo } from '../../types';
 import type { Proposal } from '../../types/proposal';
 import { projectStage } from './stage';
-import type { MyChangeStep, PortfolioRow } from '../../types/projectFile';
+import type { ClosureItem, MyChangeStep, PortfolioRow } from '../../types/projectFile';
 
 export interface PmeDeskItem {
-  key: 'vetting' | 'unclassified' | 'sanction' | 'awaiting-funds' | 'milestones' | 'overdue' | 'minutes' | 'changes' | 'no-stage' | 'no-track';
+  key: 'vetting' | 'unclassified' | 'sanction' | 'awaiting-funds' | 'milestones' | 'overdue' | 'minutes' | 'changes' | 'closure' | 'archive' | 'no-stage' | 'no-track';
   label: string;
   detail: string;
   count: number;
@@ -16,7 +16,9 @@ export function pmeDeskItems(
   proposals: Proposal[], projects: ProjectInfo[], milestonesWaiting = 0,
   portfolio: Pick<PortfolioRow, 'overdue' | 'minutesOverdue'>[] = [],
   changeSteps: Pick<MyChangeStep, 'projectId'>[] = [],
+  closureSteps: Pick<ClosureItem, 'projectId' | 'item'>[] = [],
 ): PmeDeskItem[] {
+  const closing = closureSteps.filter(c => c.item === 'step');
   const items: PmeDeskItem[] = [
     {
       key: 'vetting',
@@ -73,6 +75,20 @@ export function pmeDeskItems(
       detail: 'Vet the request, or record the committee or HQ decision with its signed scan',
       count: changeSteps.length,
       to: changeSteps.length === 1 ? `/projects/${encodeURIComponent(changeSteps[0].projectId)}?tab=changes` : '/projects',
+    },
+    {
+      key: 'closure',
+      label: 'Completion reports waiting on PME',
+      detail: 'Vet the report, or record the committee or approving authority\'s decision',
+      count: closing.length,
+      to: closing.length === 1 ? `/projects/${encodeURIComponent(closing[0].projectId)}?tab=closure` : '/projects',
+    },
+    {
+      key: 'archive',
+      label: 'Closed projects to archive',
+      detail: 'Publish the approved completion report to the archive and Ask SURYA',
+      count: projects.filter(p => projectStage(p) === 'CLOSED' || projectStage(p) === 'FORECLOSED').length,
+      to: '/projects',
     },
     {
       key: 'no-stage',

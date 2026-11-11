@@ -11,8 +11,8 @@ import { Card, Badge } from './ui/Cards';
 import { deriveMyActions, dueUrgency, type DueUrgency } from '../lib/dashboard/myActions';
 import { useFeatureControls } from '../contexts/FeatureControlContext';
 import type { AccessPath } from '../constants/access';
-import { myChangeSteps, myDueSlots } from '../lib/projects/projectFileApi';
-import type { DueSlot, MyChangeStep } from '../types/projectFile';
+import { myChangeSteps, myClosureItems, myDueSlots } from '../lib/projects/projectFileApi';
+import type { ClosureItem, DueSlot, MyChangeStep } from '../types/projectFile';
 
 const KIND_BADGE: Record<string, { label: string; variant: 'info' | 'warning' | 'success' | 'neutral' }> = {
   'pms-draft':      { label: 'PMS',       variant: 'warning' },
@@ -23,6 +23,7 @@ const KIND_BADGE: Record<string, { label: string; variant: 'info' | 'warning' | 
   'progress-report': { label: 'Progress', variant: 'info' },
   'project-review': { label: 'Project', variant: 'warning' },
   'project-change': { label: 'Change', variant: 'info' },
+  'project-closure': { label: 'Closure', variant: 'info' },
   'retirement':     { label: 'Workforce', variant: 'warning' },
   'contract-end':   { label: 'Contract',  variant: 'warning' },
   'contribution':   { label: 'Request',   variant: 'info' },
@@ -59,11 +60,13 @@ export function MyActions() {
   const { canAccess } = useFeatureControls();
   const [dueSlots, setDueSlots] = useState<DueSlot[]>([]);
   const [changeSteps, setChangeSteps] = useState<MyChangeStep[]>([]);
+  const [closureItems, setClosureItems] = useState<ClosureItem[]>([]);
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
     myDueSlots().then((s) => { if (!cancelled) setDueSlots(s); }, () => {});
     myChangeSteps().then((s) => { if (!cancelled) setChangeSteps(s); }, () => {});
+    myClosureItems().then((s) => { if (!cancelled) setClosureItems(s); }, () => {});
     return () => { cancelled = true; };
   }, [user]);
 
@@ -91,9 +94,10 @@ export function MyActions() {
       stewards: dataStewards,
       dueSlots,
       changeSteps,
+      closureItems,
     });
   }, [user, staffName, reports, evaluations, proposals, progressReports, actionItems, tickets, staff, contractStaff,
-      contributionRequests, dataStewards, dueSlots, changeSteps]);
+      contributionRequests, dataStewards, dueSlots, changeSteps, closureItems]);
 
   const overdueCount = useMemo(() => actions.filter(a => dueUrgency(a.due) === 'overdue').length, [actions]);
 

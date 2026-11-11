@@ -16,6 +16,7 @@ import { OutputsPanel } from '../components/projects/OutputsPanel';
 import { TimelinePanel } from '../components/projects/TimelinePanel';
 import { MonitoringPanel } from '../components/projects/MonitoringPanel';
 import { ChangesPanel } from '../components/projects/ChangesPanel';
+import { ClosurePanel } from '../components/projects/ClosurePanel';
 import { loadProjectFile } from '../lib/projects/projectFileApi';
 import { useUrlTab } from '../utils/useUrlTab';
 import { friendlyError } from '../lib/errors';
@@ -27,7 +28,7 @@ import { RequestUpdateButton } from '../components/RequestUpdateButton';
 import { useBack } from '../utils/useBack';
 import { isActiveProject, isCompletedProject, projectStatusLabel } from '../lib/projects/stage';
 
-const TABS = ['overview', 'monitoring', 'funds', 'milestones', 'changes', 'outputs', 'timeline'] as const;
+const TABS = ['overview', 'monitoring', 'funds', 'milestones', 'changes', 'closure', 'outputs', 'timeline'] as const;
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
@@ -161,6 +162,7 @@ export default function ProjectDetail() {
           <TabsTrigger value="funds">Funds</TabsTrigger>
           <TabsTrigger value="milestones">Milestones{file && file.milestones.length > 0 ? ` (${file.milestones.length})` : ''}</TabsTrigger>
           <TabsTrigger value="changes">Changes{file && file.changes.some(c => c.status === 'SUBMITTED' || c.status === 'UNDER_REVIEW' || c.status === 'RETURNED') ? ' •' : ''}</TabsTrigger>
+          <TabsTrigger value="closure">Closure</TabsTrigger>
           <TabsTrigger value="outputs">Outputs</TabsTrigger>
           <TabsTrigger value="timeline">Timeline</TabsTrigger>
         </TabsList>
@@ -174,6 +176,9 @@ export default function ProjectDetail() {
       {tab === 'changes' && file && (
         <ChangesPanel project={project} file={file} isPi={isParty} isOffice={isOffice}
           userId={user?.id ?? null} roles={user?.roles ?? []} onChanged={onFileChanged} />
+      )}
+      {tab === 'closure' && file && (
+        <ClosurePanel project={project} file={file} isPi={isParty} isOffice={isOffice} roles={user?.roles ?? []} onChanged={onFileChanged} />
       )}
       {tab === 'funds' && file && <FundsPanel project={project} file={file} isOffice={isOffice} onChanged={onFileChanged} />}
       {tab === 'milestones' && file && (

@@ -18,7 +18,7 @@ interface ProposalsContextType {
   error: string | null;
   refresh: () => Promise<void>;
   getProposal: (id: string) => Promise<Proposal>;
-  startIdea: (title: string, piName: string) => Promise<Proposal>;
+  startIdea: (title: string, piName: string, parentProjectId?: string | null) => Promise<Proposal>;
   saveFields: (id: string, patch: Partial<Proposal>) => Promise<void>;
   saveCoPIs: (id: string, coPIs: ProposalCoPI[]) => Promise<void>;
 }
@@ -94,7 +94,7 @@ export function ProposalsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // A private draft from a title alone. Everything else is optional until submit.
-  const startIdea = useCallback(async (title: string, piName: string): Promise<Proposal> => {
+  const startIdea = useCallback(async (title: string, piName: string, parentProjectId: string | null = null): Promise<Proposal> => {
     if (!supabase || !user) throw new Error('Not authenticated');
     const { data, error: err } = await supabase
       .from('proposals')
@@ -106,6 +106,7 @@ export function ProposalsProvider({ children }: { children: ReactNode }) {
         status: 'DRAFT',
         track: 'ULIP',
         division_code: user.divisionCode,
+        ...(parentProjectId ? { parent_project_id: parentProjectId } : {}),
       })
       .select()
       .single();

@@ -33,6 +33,7 @@ const ExploreGraph      = lazy(() => import('./pages/ExploreGraph'));
 const Partnerships      = lazy(() => import('./pages/Partnerships'));
 const RnDMonitor        = lazy(() => import('./pages/RnDMonitor'));
 const Portfolio         = lazy(() => import('./pages/Portfolio'));
+const Lessons           = lazy(() => import('./pages/Lessons'));
 const Facilities        = lazy(() => import('./pages/Facilities'));
 const InstrumentDetail  = lazy(() => import('./pages/InstrumentDetail'));
 const CommitteeList     = lazy(() => import('./pages/committees/CommitteeList'));
@@ -186,6 +187,7 @@ function App() {
             <Route path="/facilities" element={<ProtectedRoute accessPath="/facilities"><Facilities /></ProtectedRoute>} />
             <Route path="/partnerships" element={<ProtectedRoute accessPath="/partnerships"><Partnerships /></ProtectedRoute>} />
             <Route path="/portfolio" element={<ProtectedRoute accessPath="/portfolio"><Portfolio /></ProtectedRoute>} />
+            <Route path="/lessons" element={<ProtectedRoute accessPath="/lessons"><Lessons /></ProtectedRoute>} />
             <Route path="/rnd-monitor" element={<ProtectedRoute accessPath="/rnd-monitor"><RnDMonitor /></ProtectedRoute>} />
             <Route path="/facilities/:uInsID" element={<ProtectedRoute allowedRoles={VERIFIED}><InstrumentDetail /></ProtectedRoute>} />
             {/* Committee Management — specific routes first (Pitfall 6) */}

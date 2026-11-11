@@ -56,6 +56,9 @@ export const ACCESS_MAP = {
   '/partnerships':            ['Director', ...DIV_MANAGERS, 'FinanceAdmin', ...PME, ...MASTER] as Role[],
   '/rnd-monitor':             ['Director', ...DIV_MANAGERS, 'FinanceAdmin', ...PME, ...MASTER] as Role[],
   '/portfolio':               ['Director', ...DIV_MANAGERS, 'FinanceAdmin', ...PME, ...MASTER] as Role[],
+  // What closed projects learned is institute memory for everyone doing or
+  // steering research (the view behind it is institute-wide).
+  '/lessons':                 ['Director', ...DIV_MANAGERS, 'Scientist', 'Technician', 'FinanceAdmin', ...PME, ...MASTER] as Role[],
   '/committees':              STAFF,
   '/helpdesk':                ALL_ROLES,
   '/pms':                     [...PMS_AUTHORS, 'EmpoweredCommittee', ...HR] as Role[],
@@ -102,6 +105,7 @@ export const FEATURE_LABELS: Record<AccessPath, string> = {
   '/partnerships':            'Partnerships',
   '/rnd-monitor':             'R&D Monitor',
   '/portfolio':               'Project Portfolio',
+  '/lessons':                 'Lessons Learned',
   '/committees':              'Committees',
   '/helpdesk':                'Helpdesk',
   '/pms':                     'Performance Mgmt',

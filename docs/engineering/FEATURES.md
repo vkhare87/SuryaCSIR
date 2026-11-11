@@ -178,7 +178,15 @@ Related docs: [app.md](app.md) (product spec), [database_design.md](database_des
   proposal — budget lines, dates and PI included.
 
 ### Project file (`/projects/:id`)
-- Tabs: **Overview** · **Monitoring** · **Funds** · **Milestones** · **Changes** · **Outputs** · **Timeline**.
+- Tabs: **Overview** · **Monitoring** · **Funds** · **Milestones** · **Changes** · **Closure** · **Outputs** · **Timeline**.
+- **Closure:** the PI writes the completion report — what the project did, whether the
+  objectives were met (and why not), what worked, what did not, reusable assets and where
+  they are, readiness level, advice to a future team, follow-on ideas. Submitting with the
+  signed report compiles the financial statement and the annexure list from the file
+  (missing minutes flagged) and sends it on its closure route; the last approval closes
+  the project. PME then **publishes and archives**: the report becomes a PDF in the
+  institute archive that Ask SURYA indexes, and the file turns read-only. Each follow-on
+  idea can be started as a new draft linked back to the project.
 - **Changes:** the PI asks for more time, a revised cost estimate, carrying money forward,
   moving money between heads or (HQ) to or from another laboratory, or early closure.
   The form offers only what the guidelines allow (no rephasing of travel or manpower, no
@@ -220,6 +228,12 @@ Related docs: [app.md](app.md) (product spec), [database_design.md](database_des
   Watch / Behind** reading. Behind first; filter by track or to those needing attention.
   The PME desk lists overdue reviews and late minutes from the same view, and change
   requests waiting on PME; Finance and the Director see their change-request steps in My Actions.
+
+### Lessons learned (`/lessons`)
+- **Who:** Director, Division Heads / HODs, Scientists, Technicians, FinanceAdmin, PME, MasterAdmin.
+- Every approved completion report's lessons, searchable and filterable by outcome — what
+  worked, what did not and why, reusable assets, advice to a future team. Readable even
+  for projects the reader cannot otherwise open.
 
 ### Project progress reports
 - **Routes:** `/reports`, `/reports/new`, `/reports/:id`.

@@ -51,6 +51,7 @@ export function mapProposalRow(row: any): Proposal {
     track: row.track ?? null,
     categoryCode: row.category_code ?? null,
     projectId: row.project_id ?? null,
+    parentProjectId: row.parent_project_id ?? null,
     submittedVersionId: row.submitted_version_id ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,

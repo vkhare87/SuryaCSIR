@@ -164,6 +164,17 @@ describe('deriveMyActions', () => {
     ]);
   });
 
+  it('reminds a PI of a completion report due, and a reviewer of a step to record', () => {
+    const out = deriveMyActions({ ...base, closureItems: [
+      { item: 'due', projectId: 'P1', projectNo: 'ULIP-1', stepId: null, stepKind: null, endDate: '2026-03-31' },
+      { item: 'step', projectId: 'P2', projectNo: 'FTT040511', stepId: 's9', stepKind: 'COMPETENT_AUTHORITY', endDate: null },
+    ] });
+    expect(out.map(a => [a.label, a.detail, a.due])).toEqual([
+      ['Completion report due — ULIP-1', 'Write what the project did and learned; it closes the project', '2026-03-31'],
+      ['Completion report to record — FTT040511', 'DG, CSIR closure', null],
+    ]);
+  });
+
   it('surfaces own draft/revision progress reports; review queue only for reviewers', () => {
     const progressReports = [
       progressReport({}),

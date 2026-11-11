@@ -81,6 +81,8 @@ export interface Proposal {
   categoryCode: string | null;
   /** Set once sanctioned: the project created from this proposal. */
   projectId: string | null;
+  /** A follow-on idea: the closed project it grew out of (20261112000002). */
+  parentProjectId: string | null;
   /** The version the reviewers were given; set by proposal_submit. */
   submittedVersionId: string | null;
 

@@ -2,7 +2,8 @@ import type { ActionItem, Ticket, Role, StaffMember, ContractStaff, Contribution
 import type { PMSReport, PMSEvaluation } from '../../types/pms';
 import type { Proposal } from '../../types/proposal';
 import type { ProjectReport } from '../../types/projectReport';
-import type { DueSlot, MyChangeStep } from '../../types/projectFile';
+import type { ChangeStepKind, ClosureItem, DueSlot, MyChangeStep } from '../../types/projectFile';
+import { CLOSURE_STEP_LABELS } from '../projects/closure';
 import { STEP_LABELS, changeKindInfo } from '../projects/changes';
 import { staffNameMatchesAuthor } from '../../utils/dateUtils';
 import { retirementDate, yearsUntilRetirement } from '../staff/retirement';
@@ -11,7 +12,7 @@ import { inboxBucket, isReviewer } from '../contributions/state';
 export interface MyAction {
   id: string;
   kind: 'pms-draft' | 'pms-evaluation' | 'proposal' | 'action-item' | 'ticket' | 'progress-report' | 'project-review'
-      | 'project-change' | 'retirement' | 'contract-end' | 'contribution';
+      | 'project-change' | 'project-closure' | 'retirement' | 'contract-end' | 'contribution';
   label: string;
   detail: string;
   due: string | null;
@@ -65,13 +66,15 @@ export interface MyActionsInput {
   dueSlots?: DueSlot[];
   /** Change-request steps waiting on the user (my_change_steps). */
   changeSteps?: MyChangeStep[];
+  /** Completion steps waiting on the user, and reports the user owes (my_closure_items). */
+  closureItems?: ClosureItem[];
 }
 
 /** Pending items requiring the current user's action, most urgent first (nulls-last by due date). */
 export function deriveMyActions(input: MyActionsInput): MyAction[] {
   const {
     userId, staffName, role, reports, evaluations, proposals, progressReports, actionItems, tickets, staff,
-    contractStaff, roles, contributions, stewards, dueSlots = [], changeSteps = [],
+    contractStaff, roles, contributions, stewards, dueSlots = [], changeSteps = [], closureItems = [],
   } = input;
   const actions: MyAction[] = [];
 
@@ -93,6 +96,17 @@ export function deriveMyActions(input: MyActionsInput): MyAction[] {
       detail: `${changeKindInfo(c.changeKind).label} · ${STEP_LABELS[c.stepKind]}`,
       due: null,
       link: `/projects/${encodeURIComponent(c.projectId)}?tab=changes`,
+    });
+  }
+  for (const c of closureItems) {
+    actions.push({
+      id: `closure-${c.item}-${c.stepId ?? c.projectId}`,
+      kind: 'project-closure',
+      label: c.item === 'due' ? `Completion report due — ${c.projectNo}` : `Completion report to record — ${c.projectNo}`,
+      detail: c.item === 'due' ? 'Write what the project did and learned; it closes the project'
+        : CLOSURE_STEP_LABELS[c.stepKind as ChangeStepKind] ?? '',
+      due: c.item === 'due' ? c.endDate : null,
+      link: `/projects/${encodeURIComponent(c.projectId)}?tab=closure`,
     });
   }
   const now = new Date();

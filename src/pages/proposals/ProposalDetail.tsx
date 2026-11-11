@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
 import { useProposals } from '../../contexts/ProposalsContext';
@@ -88,6 +88,14 @@ export default function ProposalDetail() {
           <p className="text-xs text-text-muted">{proposal.proposalCode}</p>
           <h1 className="text-2xl font-semibold text-text">{proposal.title}</h1>
           {proposal.acronym && <p className="text-text-muted text-sm">({proposal.acronym})</p>}
+          {proposal.parentProjectId && (
+            <p className="text-sm text-text-muted">
+              Follows on from{' '}
+              <Link className="text-brand-blue underline" to={`/projects/${encodeURIComponent(proposal.parentProjectId)}?tab=closure`}>
+                {projects.find(p => p.ProjectID === proposal.parentProjectId)?.ProjectNo ?? proposal.parentProjectId}
+              </Link>
+            </p>
+          )}
           <div className="mt-2">
             <Badge variant={STATUS_BADGE_VARIANT[proposal.status]}>
               {STATUS_LABELS[proposal.status]}

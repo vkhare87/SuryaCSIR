@@ -43,6 +43,12 @@ describe('pmeDeskItems', () => {
     expect(items.map(i => [i.key, i.count, i.to])).toEqual([['changes', 1, '/projects/PRJ%201?tab=changes']]);
   });
 
+  it('lists completion reports waiting on PME and closed projects to archive', () => {
+    const items = pmeDeskItems([], [project({ stage: 'CLOSED' })], 0, [], [],
+      [{ projectId: 'P9', item: 'step' }, { projectId: 'P8', item: 'due' }]);
+    expect(items.map(i => [i.key, i.count])).toEqual([['closure', 1], ['archive', 1]]);
+  });
+
   it('trusts a stored stage over the status text', () => {
     const items = pmeDeskItems([], [project({ ProjectStatus: 'whatever', stage: 'ACTIVE' })]);
     expect(items).toEqual([]);

@@ -385,6 +385,18 @@ Cost Committee; rephasing / re-appropriation / reallocation: PME → Finance →
 forwards → Monitoring Committee → competent authority; foreclosure: PME → Monitoring
 Committee → Research Council.
 
+### Project closure (`src/lib/projects/projectFileApi.ts`, `20261112000002`)
+
+| RPC / view | Who | Effect |
+|---|---|---|
+| `project_completion_save(p_project_id, p_fields jsonb) → uuid` | the PI | Creates or updates the report while `DRAFT` / `RETURNED`; the first save moves a running project to `CLOSING` |
+| `project_completion_submit(p_project_id, p_document_id)` | the PI | Needs the lessons, the signed report and no change in review; compiles the financial statement and annexures; opens the route |
+| `project_completion_record_step(p_step_id, p_decision, p_notes, p_document_id)` | the step owner (as for change requests), never a party | `APPROVE` (with a `closure_order` scan) or `RETURN` (with a note); the last approval closes the project; the author is notified (`project_completion_decided`) |
+| `project_archive(p_project_id, p_document_id)` | PME / MasterAdmin, not a party | Archives a closed or foreclosed project with its published report (promoted to the institute tier); read-only afterwards |
+| `my_closure_items()` | any signed-in user | Steps waiting on the caller (`item = 'step'`) and reports the caller owes as PI (`'due'`) |
+| `project_financial_statement(project)` · `project_completion_annexures(project)` | signed-in | What submission will compile; read-only |
+| `project_lessons` (view) | every signed-in user | Approved lessons, institute-wide |
+
 **Retired:** `proposal_set_under_review`, `proposal_request_revision`, `proposal_reject`,
 `proposal_recommend`, `proposal_approve`, `proposal_issue_om` — EXECUTE revoked; each let an
 admin move a proposal past the chain.
