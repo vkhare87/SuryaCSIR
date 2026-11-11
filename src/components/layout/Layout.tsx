@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useLocation, useNavigate, useOutlet } from 'react-router-dom';
 import { Search, Menu, AlertCircle, ChevronDown, ChevronRight, LayoutDashboard, Sparkles, Calendar as CalendarIcon } from 'lucide-react';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -206,7 +206,7 @@ export function Layout() {
                >
                  {/* Keyed on the route: leaving a crashed page clears the error. */}
                  <ErrorBoundary key={pathname} fallback={<PageErrorCard />}>
-                   <Outlet />
+                   <FrozenOutlet />
                  </ErrorBoundary>
                </motion.div>
              </AnimatePresence>
@@ -259,4 +259,14 @@ export function Layout() {
       />
     </div>
   );
+}
+
+// The page this wrapper was created for. A plain <Outlet /> always renders
+// the current route, so while AnimatePresence keeps the outgoing wrapper on
+// screen it mounted the incoming page there too — every navigation loaded the
+// new page twice and dropped anything typed in its first moments.
+function FrozenOutlet() {
+  const outlet = useOutlet();
+  const [page] = useState(outlet);
+  return page;
 }
