@@ -38,6 +38,11 @@ describe('pmeDeskItems', () => {
     expect(items.map(i => [i.key, i.count])).toEqual([['overdue', 3], ['minutes', 1]]);
   });
 
+  it('counts change-request steps waiting on PME, linking straight to the one project when there is one', () => {
+    const items = pmeDeskItems([], [], 0, [], [{ projectId: 'PRJ 1' }]);
+    expect(items.map(i => [i.key, i.count, i.to])).toEqual([['changes', 1, '/projects/PRJ%201?tab=changes']]);
+  });
+
   it('trusts a stored stage over the status text', () => {
     const items = pmeDeskItems([], [project({ ProjectStatus: 'whatever', stage: 'ACTIVE' })]);
     expect(items).toEqual([]);

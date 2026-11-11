@@ -7,8 +7,8 @@ import { Card } from '../../components/ui/Cards';
 import { KpiCard } from '../../components/ui/KpiCard';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { pmeDeskItems } from '../../lib/projects/pmeDesk';
-import { loadPortfolio, milestonesAwaitingPme } from '../../lib/projects/projectFileApi';
-import type { PortfolioRow } from '../../types/projectFile';
+import { loadPortfolio, milestonesAwaitingPme, myChangeSteps } from '../../lib/projects/projectFileApi';
+import type { MyChangeStep, PortfolioRow } from '../../types/projectFile';
 import { isActiveProject } from '../../lib/projects/stage';
 
 export function PMEView() {
@@ -17,13 +17,18 @@ export function PMEView() {
 
   const [milestones, setMilestones] = useState(0);
   const [portfolio, setPortfolio] = useState<PortfolioRow[]>([]);
+  const [changeSteps, setChangeSteps] = useState<MyChangeStep[]>([]);
   useEffect(() => {
     let cancelled = false;
     milestonesAwaitingPme().then((n) => { if (!cancelled) setMilestones(n); }, () => {});
     loadPortfolio().then((r) => { if (!cancelled) setPortfolio(r); }, () => {});
+    myChangeSteps().then((r) => { if (!cancelled) setChangeSteps(r); }, () => {});
     return () => { cancelled = true; };
   }, []);
-  const queue = useMemo(() => pmeDeskItems(proposals, projects, milestones, portfolio), [proposals, projects, milestones, portfolio]);
+  const queue = useMemo(
+    () => pmeDeskItems(proposals, projects, milestones, portfolio, changeSteps),
+    [proposals, projects, milestones, portfolio, changeSteps],
+  );
   const activeProjects = useMemo(() => projects.filter(isActiveProject).length, [projects]);
   const inReview = useMemo(
     () => proposals.filter(p => ['SUBMITTED', 'UNDER_REVIEW', 'RECOMMENDED', 'APPROVED', 'OM_ISSUED'].includes(p.status)).length,

@@ -1,10 +1,10 @@
 import type { ProjectInfo } from '../../types';
 import type { Proposal } from '../../types/proposal';
 import { projectStage } from './stage';
-import type { PortfolioRow } from '../../types/projectFile';
+import type { MyChangeStep, PortfolioRow } from '../../types/projectFile';
 
 export interface PmeDeskItem {
-  key: 'vetting' | 'unclassified' | 'sanction' | 'awaiting-funds' | 'milestones' | 'overdue' | 'minutes' | 'no-stage' | 'no-track';
+  key: 'vetting' | 'unclassified' | 'sanction' | 'awaiting-funds' | 'milestones' | 'overdue' | 'minutes' | 'changes' | 'no-stage' | 'no-track';
   label: string;
   detail: string;
   count: number;
@@ -15,6 +15,7 @@ export interface PmeDeskItem {
 export function pmeDeskItems(
   proposals: Proposal[], projects: ProjectInfo[], milestonesWaiting = 0,
   portfolio: Pick<PortfolioRow, 'overdue' | 'minutesOverdue'>[] = [],
+  changeSteps: Pick<MyChangeStep, 'projectId'>[] = [],
 ): PmeDeskItem[] {
   const items: PmeDeskItem[] = [
     {
@@ -65,6 +66,13 @@ export function pmeDeskItems(
       detail: 'Reviews held without their signed minutes filed in time',
       count: portfolio.reduce((n, r) => n + r.minutesOverdue, 0),
       to: '/portfolio',
+    },
+    {
+      key: 'changes',
+      label: 'Change requests waiting on PME',
+      detail: 'Vet the request, or record the committee or HQ decision with its signed scan',
+      count: changeSteps.length,
+      to: changeSteps.length === 1 ? `/projects/${encodeURIComponent(changeSteps[0].projectId)}?tab=changes` : '/projects',
     },
     {
       key: 'no-stage',

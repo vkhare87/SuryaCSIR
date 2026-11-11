@@ -178,7 +178,15 @@ Related docs: [app.md](app.md) (product spec), [database_design.md](database_des
   proposal — budget lines, dates and PI included.
 
 ### Project file (`/projects/:id`)
-- Tabs: **Overview** · **Monitoring** · **Funds** · **Milestones** · **Outputs** · **Timeline**.
+- Tabs: **Overview** · **Monitoring** · **Funds** · **Milestones** · **Changes** · **Outputs** · **Timeline**.
+- **Changes:** the PI asks for more time, a revised cost estimate, carrying money forward,
+  moving money between heads or (HQ) to or from another laboratory, or early closure.
+  The form offers only what the guidelines allow (no rephasing of travel or manpower, no
+  Capital ↔ Revenue moves, no extra travel) and shows what is unspent; the database checks
+  again on submission and on the final approval. Each request follows its route for the
+  track, one signed scan per step; the final HQ order must carry the IFD concurrence
+  reference. On approval the funds table, end date, schedule or stage change at once.
+  Co-PIs can read the file; they do not raise requests.
 - **Monitoring:** a review brief (time elapsed, money spent, milestones achieved, overdue)
   and every review and report due, worked out from the project's track, category and
   dates — a report nobody filed shows overdue on its own. PME puts a review on a meeting
@@ -210,7 +218,8 @@ Related docs: [app.md](app.md) (product spec), [database_design.md](database_des
 - Every running project on one table: time elapsed against money spent and milestones
   met, overdue items, next due date, last review decision, and a plain **On track /
   Watch / Behind** reading. Behind first; filter by track or to those needing attention.
-  The PME desk lists overdue reviews and late minutes from the same view.
+  The PME desk lists overdue reviews and late minutes from the same view, and change
+  requests waiting on PME; Finance and the Director see their change-request steps in My Actions.
 
 ### Project progress reports
 - **Routes:** `/reports`, `/reports/new`, `/reports/:id`.

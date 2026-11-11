@@ -2,7 +2,8 @@ import type { ActionItem, Ticket, Role, StaffMember, ContractStaff, Contribution
 import type { PMSReport, PMSEvaluation } from '../../types/pms';
 import type { Proposal } from '../../types/proposal';
 import type { ProjectReport } from '../../types/projectReport';
-import type { DueSlot } from '../../types/projectFile';
+import type { DueSlot, MyChangeStep } from '../../types/projectFile';
+import { STEP_LABELS, changeKindInfo } from '../projects/changes';
 import { staffNameMatchesAuthor } from '../../utils/dateUtils';
 import { retirementDate, yearsUntilRetirement } from '../staff/retirement';
 import { inboxBucket, isReviewer } from '../contributions/state';
@@ -10,7 +11,7 @@ import { inboxBucket, isReviewer } from '../contributions/state';
 export interface MyAction {
   id: string;
   kind: 'pms-draft' | 'pms-evaluation' | 'proposal' | 'action-item' | 'ticket' | 'progress-report' | 'project-review'
-      | 'retirement' | 'contract-end' | 'contribution';
+      | 'project-change' | 'retirement' | 'contract-end' | 'contribution';
   label: string;
   detail: string;
   due: string | null;
@@ -62,13 +63,15 @@ export interface MyActionsInput {
   stewards: DataSteward[];
   /** Reports and called reviews owed on projects the user leads (my_due_project_slots). */
   dueSlots?: DueSlot[];
+  /** Change-request steps waiting on the user (my_change_steps). */
+  changeSteps?: MyChangeStep[];
 }
 
 /** Pending items requiring the current user's action, most urgent first (nulls-last by due date). */
 export function deriveMyActions(input: MyActionsInput): MyAction[] {
   const {
     userId, staffName, role, reports, evaluations, proposals, progressReports, actionItems, tickets, staff,
-    contractStaff, roles, contributions, stewards, dueSlots = [],
+    contractStaff, roles, contributions, stewards, dueSlots = [], changeSteps = [],
   } = input;
   const actions: MyAction[] = [];
 
@@ -80,6 +83,16 @@ export function deriveMyActions(input: MyActionsInput): MyAction[] {
       detail: `${s.body} · ${s.periodLabel}`,
       due: s.dueDate,
       link: s.kind === 'PROGRESS_REPORT' ? '/reports/new' : `/projects/${encodeURIComponent(s.projectId)}?tab=monitoring`,
+    });
+  }
+  for (const c of changeSteps) {
+    actions.push({
+      id: `change-${c.stepId}`,
+      kind: 'project-change',
+      label: `Change request to record — ${c.projectNo}`,
+      detail: `${changeKindInfo(c.changeKind).label} · ${STEP_LABELS[c.stepKind]}`,
+      due: null,
+      link: `/projects/${encodeURIComponent(c.projectId)}?tab=changes`,
     });
   }
   const now = new Date();

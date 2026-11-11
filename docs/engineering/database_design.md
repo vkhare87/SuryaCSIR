@@ -1,7 +1,7 @@
 # SURYA — Database Design
 
 _Complete schema reference for the PostgreSQL 17 database. Supersedes `docs/DATA-MODEL.md`,
-which now points here. Current as of 2026-11-11 (53 migrations, 88 tables in `public`)._
+which now points here. Current as of 2026-11-11 (54 migrations, 90 tables in `public`)._
 
 Companions: [api_spec.md](api_spec.md) (how the schema is called),
 [system_design.md](system_design.md) (state machines),
@@ -719,6 +719,38 @@ anyone having created a record for it.
 - **Agenda link.** `agenda_items.subject_type ∈ project_review · proposal`, `subject_id`.
 - `project_documents.doc_type` adds `minutes`. `project_log_event` also logs review
   scheduling, outcomes, minutes and called reviews to the timeline.
+
+### 3.8f Project change requests — `20261112000001_project_change_requests.sql`
+
+Phase `PL5`. Guidelines §6.4 (foreclosure, time and cost overrun) and §7.2 (rephasing,
+re-appropriation, reallocation).
+
+| Table | Shape | Writes |
+|---|---|---|
+| `project_change_requests` | `(id, project_id, kind ∈ TIME_OVERRUN · RCE · REPHASING · REAPPROPRIATION · REALLOCATION · FORECLOSURE, status ∈ DRAFT · SUBMITTED · UNDER_REVIEW · RETURNED · APPROVED · REJECTED · WITHDRAWN, round, justification, payload jsonb, increase_pct?, request_document_id, order_no?, order_date?, ifd_file_no?, ifd_date?, decision_note?, created_by, created_at, updated_at, submitted_at?, decided_at?)` | RPCs only. Read: the author always; everyone who may see the project once submitted |
+| `project_change_steps` | `(id, change_id FK CASCADE, round, seq, kind ∈ PME_VETTING · FINANCE · REVIEW_COMMITTEE · RESEARCH_COUNCIL · DIRECTOR_APPROVAL · DIRECTOR_FORWARD · MONITORING_COMMITTEE · REVISED_COST_COMMITTEE · COMPETENT_AUTHORITY, status, decided_by?, decided_at?, notes?, document_id?, meeting_id?)`, `UNIQUE (change_id, round, seq)` | `project_change_record_step` |
+
+- **Payload** by kind: `{new_end_date}` · `{lines[], new_end_date?}` (the whole revised
+  budget) · `{moves: [{head, from_year, to_year, amount}]}` · `{moves: [{fiscal_year,
+  from_head, to_head, amount}]}` · `{lab, direction, lines[]}` · `{effective_date, cost_benefit}`.
+- **Prohibitions** (`project_change_deltas`, run on submit and again on the last approval):
+  no rephasing of TA or Manpower; rephasing only forward; no Capital ↔ Revenue
+  re-appropriation; TA not augmented; reallocation only on HQ, and money coming in only to
+  heads approved under the project; an RCE must raise the total; and in every case **no
+  year and head may end with less sanctioned than already spent there** (only unspent money
+  moves).
+- **Effect** (`project_change_apply`, internal): signed rows on `project_budget_lines` with
+  `source = 'CHANGE'` and `change_request_id` (the `amount >= 0` check now allows negatives
+  only on such rows); `sanctioned_cost` follows the lines after an RCE or reallocation;
+  new `end_date` / `"CompletioDate"` (the review schedule regenerates); foreclosure sets
+  stage `FORECLOSED` and cancels pending review slots.
+- One request in review per project at a time.
+- `project_documents.doc_type` adds `change_request` (the PI) and `change_order` (step
+  owners: PME, FinanceAdmin, Director, scheme leader — never a party), via
+  `project_caller_may_file`, also used by the storage policy.
+- `projects_select_parties` — new permissive read policy: a project's co-PIs, and the PI
+  named on its proposal, can read it. Before this a co-PI outside the division managers
+  could not open the project at all.
 
 ## 4. Indexing strategy
 

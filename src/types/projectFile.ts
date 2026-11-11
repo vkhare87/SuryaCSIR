@@ -43,7 +43,9 @@ export interface ProjectMilestone {
   decisionNote: string | null;
 }
 
-export type ProjectDocType = 'receipt_order' | 'expenditure_statement' | 'milestone_evidence' | 'minutes' | 'other';
+export type ProjectDocType =
+  | 'receipt_order' | 'expenditure_statement' | 'milestone_evidence' | 'minutes'
+  | 'change_request' | 'change_order' | 'other';
 
 export interface ProjectDocument {
   id: string;
@@ -76,6 +78,7 @@ export interface ProjectFile {
   documents: ProjectDocument[];
   events: ProjectEvent[];
   slots: ReviewSlot[];
+  changes: ChangeRequest[];
 }
 
 export type SlotKind =
@@ -137,4 +140,67 @@ export interface DueSlot {
   body: string;
   periodLabel: string;
   dueDate: string;
+}
+
+export type ChangeKind = 'TIME_OVERRUN' | 'RCE' | 'REPHASING' | 'REAPPROPRIATION' | 'REALLOCATION' | 'FORECLOSURE';
+export type ChangeStatus = 'DRAFT' | 'SUBMITTED' | 'UNDER_REVIEW' | 'RETURNED' | 'APPROVED' | 'REJECTED' | 'WITHDRAWN';
+export type ChangeStepKind =
+  | 'PME_VETTING' | 'FINANCE' | 'REVIEW_COMMITTEE' | 'RESEARCH_COUNCIL' | 'DIRECTOR_APPROVAL'
+  | 'DIRECTOR_FORWARD' | 'MONITORING_COMMITTEE' | 'REVISED_COST_COMMITTEE' | 'COMPETENT_AUTHORITY';
+export type ChangeStepStatus = 'PENDING' | 'DONE' | 'RETURNED' | 'REJECTED' | 'SKIPPED';
+
+export interface RephaseMove { head: string; from_year: string; to_year: string; amount: number }
+export interface ReappropriationMove { fiscal_year: string; from_head: string; to_head: string; amount: number }
+export interface ChangeLine { fiscal_year: string; head: string; amount: number }
+
+/** Payload by kind; mirrors the comment on project_change_requests.payload (20261112000001). */
+export interface ChangePayload {
+  new_end_date?: string;
+  lines?: ChangeLine[];
+  moves?: (RephaseMove | ReappropriationMove)[];
+  lab?: string;
+  direction?: 'OUT' | 'IN';
+  effective_date?: string;
+  cost_benefit?: string;
+}
+
+export interface ChangeStep {
+  id: string;
+  round: number;
+  seq: number;
+  kind: ChangeStepKind;
+  status: ChangeStepStatus;
+  decidedAt: string | null;
+  notes: string | null;
+  documentId: string | null;
+}
+
+export interface ChangeRequest {
+  id: string;
+  kind: ChangeKind;
+  status: ChangeStatus;
+  round: number;
+  justification: string;
+  payload: ChangePayload;
+  increasePct: number | null;
+  orderNo: string | null;
+  orderDate: string | null;
+  ifdFileNo: string | null;
+  decisionNote: string | null;
+  createdBy: string;
+  createdAt: string;
+  submittedAt: string | null;
+  decidedAt: string | null;
+  /** Steps of the current round, in order. */
+  steps: ChangeStep[];
+}
+
+export interface MyChangeStep {
+  stepId: string;
+  changeId: string;
+  projectId: string;
+  projectNo: string;
+  changeKind: ChangeKind;
+  stepKind: ChangeStepKind;
+  submittedAt: string | null;
 }

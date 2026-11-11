@@ -155,6 +155,15 @@ describe('deriveMyActions', () => {
     ]);
   });
 
+  it('lists change-request steps the user is to record', () => {
+    const out = deriveMyActions({ ...base, changeSteps: [
+      { stepId: 'c1', changeId: 'r1', projectId: 'P1', projectNo: 'FTT040511', changeKind: 'REAPPROPRIATION', stepKind: 'FINANCE', submittedAt: null },
+    ] });
+    expect(out.map(a => [a.label, a.detail, a.link])).toEqual([
+      ['Change request to record — FTT040511', 'Move money between heads · Finance', '/projects/P1?tab=changes'],
+    ]);
+  });
+
   it('surfaces own draft/revision progress reports; review queue only for reviewers', () => {
     const progressReports = [
       progressReport({}),

@@ -367,6 +367,24 @@ project's PI, author or a co-PI (`project_caller_is_party`).
 | `my_due_project_slots()` | any signed-in user | Pending progress reports and called reviews due within 30 days on projects where the caller is PI, author or co-PI |
 | `project_portfolio` (view) | read through projects RLS | One health row per running project (Portfolio page, PME desk) |
 
+### Project change requests (`src/lib/projects/projectFileApi.ts`, `20261112000001`)
+
+| RPC | Who | Effect |
+|---|---|---|
+| `project_change_save(p_id, p_project_id, p_kind, p_justification, p_payload) → uuid` | the PI (not a co-PI) or the office; then only the author | Creates (`p_id` NULL) or updates a `DRAFT` / `RETURNED` request on a running project |
+| `project_change_submit(p_id, p_document_id)` | the author | Needs a `change_request` scan and a justification; runs every prohibition; opens the route for the track and kind (an HQ RCE above 20% adds the Monitoring and Revised Cost Committees). One open request per project |
+| `project_change_withdraw(p_id)` | the author | Before any step of the round is recorded |
+| `project_change_record_step(p_step_id, p_decision, p_notes, p_document_id, p_meeting_id, p_order_no, p_order_date, p_ifd_file_no, p_ifd_date)` | the step's owner (`project_change_caller_may_act`: PME; FinanceAdmin for `FINANCE`; Director or PME for `DIRECTOR_*`; PME or scheme leader for `REVIEW_COMMITTEE`), never a party | `APPROVE` needs a `change_order` scan; the last HQ step (except foreclosure) needs order no. and date **and** IFD file no. and date. The last approval re-runs the prohibitions and applies the effect. `RETURN` / `REJECT` need a note. The author is notified (`project_change_decided`) |
+| `my_change_steps()` | any signed-in user | The current pending step of each request the caller may record (My Actions, PME desk) |
+| `project_change_deltas(project, kind, payload)` · `project_head_position(project)` | signed-in | Validation and the per-year, per-head position; read-only |
+
+Routes: ULIP — PME vetting → review committee → Director approves. HQ — time overrun: PME
+→ Research Council → Monitoring Committee → competent authority; RCE ≤ 20%: PME → Finance
+→ Director forwards → competent authority; RCE > 20%: adds Monitoring Committee and Revised
+Cost Committee; rephasing / re-appropriation / reallocation: PME → Finance → Director
+forwards → Monitoring Committee → competent authority; foreclosure: PME → Monitoring
+Committee → Research Council.
+
 **Retired:** `proposal_set_under_review`, `proposal_request_revision`, `proposal_reject`,
 `proposal_recommend`, `proposal_approve`, `proposal_issue_om` — EXECUTE revoked; each let an
 admin move a proposal past the chain.

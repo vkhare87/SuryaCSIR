@@ -2,7 +2,7 @@ import { supabase } from '../../utils/supabaseClient';
 import { createSignedUrl } from '../documents/registry';
 import { friendlyError } from '../errors';
 import type {
-  DueSlot, ExpenditurePeriod, PortfolioRow, ProjectDocType, ProjectDocument, ProjectFile, ProjectMilestone,
+  ChangeKind, ChangePayload, ChangeRequest, ChangeStep, MyChangeStep, DueSlot, ExpenditurePeriod, PortfolioRow, ProjectDocType, ProjectDocument, ProjectFile, ProjectMilestone,
   ReviewDecision, ReviewSlot,
 } from '../../types/projectFile';
 
@@ -25,7 +25,7 @@ const mapSlot = (x: any): ReviewSlot => ({
 /** The ledger, plan and history of one project. Tables from 20261111000001/2; empty until applied. */
 export async function loadProjectFile(projectId: string): Promise<ProjectFile> {
   const c = client();
-  const [b, r, e, m, d, ev, sl] = await Promise.all([
+  const [b, r, e, m, d, ev, sl, cr] = await Promise.all([
     c.from('project_budget_lines').select('*').eq('project_id', projectId).order('fiscal_year'),
     c.from('project_fund_receipts').select('*').eq('project_id', projectId).order('received_on').order('recorded_at'),
     c.from('project_expenditure').select('*').eq('project_id', projectId).order('fiscal_year').order('recorded_at'),
@@ -33,7 +33,16 @@ export async function loadProjectFile(projectId: string): Promise<ProjectFile> {
     c.from('project_documents').select('*').eq('project_id', projectId).order('uploaded_at', { ascending: false }),
     c.from('project_events').select('*').eq('project_id', projectId).order('at', { ascending: false }).limit(200),
     c.from('project_review_slots').select('*').eq('project_id', projectId).order('due_date'),
+    c.from('project_change_requests').select('*').eq('project_id', projectId).order('created_at', { ascending: false }),
   ]);
+  const changeIds = (cr.data ?? []).map((x: any) => x.id as string);
+  const cs = changeIds.length
+    ? await c.from('project_change_steps').select('*').in('change_id', changeIds).order('seq')
+    : { data: [] };
+  const steps = (cs.data ?? []).map((x: any): ChangeStep & { changeId: string } => ({
+    id: x.id, changeId: x.change_id, round: x.round, seq: x.seq, kind: x.kind, status: x.status,
+    decidedAt: x.decided_at, notes: x.notes, documentId: x.document_id,
+  }));
   return {
     budgetLines: (b.data ?? []).map((x: any) => ({ fiscalYear: x.fiscal_year, head: x.head, item: x.item ?? '', amount: num(x.amount) })),
     receipts: (r.data ?? []).map((x: any) => ({
@@ -54,6 +63,13 @@ export async function loadProjectFile(projectId: string): Promise<ProjectFile> {
     })),
     events: (ev.data ?? []).map((x: any) => ({ id: x.id, at: x.at, kind: x.kind, summary: x.summary })),
     slots: (sl.data ?? []).map(mapSlot),
+    changes: (cr.data ?? []).map((x: any): ChangeRequest => ({
+      id: x.id, kind: x.kind, status: x.status, round: x.round, justification: x.justification ?? '',
+      payload: x.payload ?? {}, increasePct: x.increase_pct === null ? null : num(x.increase_pct),
+      orderNo: x.order_no, orderDate: x.order_date, ifdFileNo: x.ifd_file_no, decisionNote: x.decision_note,
+      createdBy: x.created_by, createdAt: x.created_at, submittedAt: x.submitted_at, decidedAt: x.decided_at,
+      steps: steps.filter(st => st.changeId === x.id && st.round === x.round),
+    })),
   };
 }
 
@@ -192,5 +208,43 @@ export async function myDueSlots(): Promise<DueSlot[]> {
   return ((data ?? []) as any[]).map((x): DueSlot => ({
     slotId: x.slot_id, projectId: x.project_id, projectNo: x.project_no, kind: x.kind,
     body: x.body, periodLabel: x.period_label, dueDate: x.due_date,
+  }));
+}
+
+/** Create (id null) or update a draft change request; returns its id. */
+export function saveChange(id: string | null, projectId: string, kind: ChangeKind, justification: string, payload: ChangePayload) {
+  return rpc<string>('project_change_save', {
+    p_id: id, p_project_id: projectId, p_kind: kind, p_justification: justification, p_payload: payload,
+  });
+}
+
+export function submitChange(id: string, documentId: string) {
+  return rpc('project_change_submit', { p_id: id, p_document_id: documentId });
+}
+
+export function withdrawChange(id: string) {
+  return rpc('project_change_withdraw', { p_id: id });
+}
+
+export type ChangeDecision = 'APPROVE' | 'RETURN' | 'REJECT';
+
+export interface ChangeOrder { orderNo: string; orderDate: string | null; ifdFileNo: string; ifdDate: string | null }
+
+export function recordChangeStep(stepId: string, decision: ChangeDecision, notes: string, documentId: string | null, order?: ChangeOrder) {
+  return rpc('project_change_record_step', {
+    p_step_id: stepId, p_decision: decision, p_notes: notes, p_document_id: documentId, p_meeting_id: null,
+    p_order_no: order?.orderNo || null, p_order_date: order?.orderDate || null,
+    p_ifd_file_no: order?.ifdFileNo || null, p_ifd_date: order?.ifdDate || null,
+  });
+}
+
+/** Change-request steps waiting on the caller (20261112000001); empty until applied. */
+export async function myChangeSteps(): Promise<MyChangeStep[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase.rpc('my_change_steps');
+  if (error) return [];
+  return (data ?? []).map((x: any) => ({
+    stepId: x.step_id, changeId: x.change_id, projectId: x.project_id, projectNo: x.project_no,
+    changeKind: x.change_kind, stepKind: x.step_kind, submittedAt: x.submitted_at,
   }));
 }
