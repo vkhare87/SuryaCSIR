@@ -14,42 +14,35 @@ export function submitProposal(id: string) {
   return callRpc('proposal_submit', { p_id: id });
 }
 
-export function setUnderReview(id: string, reviewBody: string, sentDate: string) {
-  return callRpc('proposal_set_under_review', {
-    p_id: id, p_body: reviewBody, p_sent_date: sentDate,
+export type StepDecision = 'APPROVE' | 'RETURN' | 'REJECT';
+
+/** Complete, return or reject the current review step (proposal_record_step). */
+export function recordStep(stepId: string, decision: StepDecision, notes: string, documentId: string | null) {
+  return callRpc('proposal_record_step', {
+    p_step_id: stepId, p_decision: decision, p_notes: notes, p_document_id: documentId,
   });
 }
 
-export function requestRevision(id: string, notes: string) {
-  return callRpc('proposal_request_revision', { p_id: id, p_notes: notes });
+/** PME classifies a proposal submitted before tracks existed, and opens its steps. */
+export function setTrack(id: string, track: 'ULIP' | 'HQ') {
+  return callRpc('proposal_set_track', { p_id: id, p_track: track });
 }
 
-export function rejectProposal(id: string, reason: string) {
-  return callRpc('proposal_reject', { p_id: id, p_reason: reason });
+export interface SanctionInput {
+  projectNo: string;
+  sanctionRef: string;
+  sanctionDate: string;
+  amount: number;
+  documentId: string;
 }
 
-export function recommendProposal(id: string) {
-  return callRpc('proposal_recommend', { p_id: id });
-}
-
-export function approveProposal(id: string, amount: number, sanctionDate: string) {
-  return callRpc('proposal_approve', {
-    p_id: id, p_amount: amount, p_date: sanctionDate,
+/** Record the sanction; the database creates the project. Returns its ProjectID. */
+export async function sanctionProposal(id: string, s: SanctionInput): Promise<{ ok: true; projectId: string } | { ok: false; error: string }> {
+  if (!supabase) return { ok: false, error: 'Database not provisioned' };
+  const { data, error } = await supabase.rpc('proposal_sanction', {
+    p_id: id, p_project_no: s.projectNo, p_sanction_ref: s.sanctionRef,
+    p_sanction_date: s.sanctionDate, p_amount: s.amount, p_document_id: s.documentId,
   });
-}
-
-export function issueOM(
-  id: string, omNumber: string, omDate: string, docId: string,
-) {
-  return callRpc('proposal_issue_om', {
-    p_id: id, p_om_no: omNumber, p_om_date: omDate, p_doc_id: docId,
-  });
-}
-
-export function archiveProposal(id: string) {
-  return callRpc('proposal_archive', { p_id: id });
-}
-
-export function linkProject(id: string, projectNo: string) {
-  return callRpc('proposal_link_project', { p_id: id, p_project_no: projectNo });
+  if (error) return { ok: false, error: friendlyError(error) };
+  return { ok: true, projectId: String(data) };
 }

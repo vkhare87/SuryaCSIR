@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Check, History, Monitor } from 'lucide-react';
+import { ArrowLeft, Check, History, Monitor, Printer } from 'lucide-react';
 import clsx from 'clsx';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
@@ -12,10 +12,17 @@ import { NotesPanel } from '../../components/proposals/NotesPanel';
 import { ReadinessMeter } from '../../components/proposals/ReadinessMeter';
 import { VersionsModal } from '../../components/proposals/VersionsModal';
 import { StartIdeaForm } from '../../components/proposals/StartIdeaCard';
+import { BudgetLinesEditor } from '../../components/proposals/BudgetLinesEditor';
+import { SectionComments } from '../../components/proposals/SectionComments';
 import { SimilarWorkPanel } from '../../components/SimilarWorkPanel';
 import { submitProposal } from '../../lib/proposals/api';
 import { uploadProposalDoc } from '../../lib/proposals/storage';
-import { addNote, deleteNote, listNotes, markNoteUsed } from '../../lib/proposals/workspaceApi';
+import {
+  addBudgetLine, addNote, deleteBudgetLine, deleteNote, listNotes, listVersions, markNoteUsed, saveVersion,
+  setCommentResolved, updateBudgetLine,
+} from '../../lib/proposals/workspaceApi';
+import { HQ_CATEGORIES, durationNote } from '../../lib/proposals/categories';
+import { fiscalYearsFor, rupees } from '../../lib/projects/heads';
 import { readPending } from '../../lib/proposals/autosave';
 import { useDraftAutosave, type SaveState } from '../../lib/proposals/useDraftAutosave';
 import {
@@ -26,7 +33,9 @@ import {
 } from '../../lib/proposals/constants';
 import { canEditProposal } from '../../lib/proposals/permissions';
 import { friendlyError } from '../../lib/errors';
-import type { NoteTarget, Proposal, ProposalCoPI, ProposalNote } from '../../types/proposal';
+import type {
+  NoteTarget, Proposal, ProposalBudgetLine, ProposalCoPI, ProposalNote, ReviewComment,
+} from '../../types/proposal';
 import type { StaffMember } from '../../types';
 
 const TRACKS = [
@@ -116,11 +125,22 @@ function Workspace({ id }: { id: string }) {
     autosave.queue({ [field]: value });
   }, [autosave]);
 
-  const hasSignedScan = useMemo(
-    () => !!draft?.documents?.some((d) => d.docType === 'signed_proposal'),
+  const ctx = useMemo(() => ({
+    hasSignedScan: !!draft?.documents?.some((d) => d.docType === 'signed_proposal'),
+    hasQuotation: !!draft?.documents?.some((d) => d.docType === 'quotation'),
+    lines: draft?.budgetLines ?? [],
+  }), [draft]);
+  const missing = useMemo(() => (draft ? missingItems(draft, ctx) : []), [draft, ctx]);
+  const years = useMemo(
+    () => (draft ? fiscalYearsFor(draft.proposedStartDate, draft.proposedDurationMonths) : []),
     [draft],
   );
-  const missing = useMemo(() => (draft ? missingItems(draft, hasSignedScan) : []), [draft, hasSignedScan]);
+  const openComments = useMemo(() => {
+    const m: Partial<Record<SectionKey, number>> = {};
+    for (const c of draft?.comments ?? []) if (!c.resolvedAt) m[c.section] = (m[c.section] ?? 0) + 1;
+    return m;
+  }, [draft]);
+  const [printing, setPrinting] = useState(false);
 
   // --- 3. Actions ---
 
@@ -182,9 +202,71 @@ function Workspace({ id }: { id: string }) {
     }
   }
 
-  async function onUploadSigned(file: File) {
+  // Lines change the requested total in the database (a trigger sums them);
+  // mirror it here so the meter and the header agree without a refetch.
+  function setLines(update: (lines: ProposalBudgetLine[]) => ProposalBudgetLine[]) {
+    setDraft((d) => {
+      if (!d) return d;
+      const budgetLines = update(d.budgetLines ?? []);
+      return { ...d, budgetLines, requestedBudget: budgetLines.reduce((s, l) => s + l.amount, 0) };
+    });
+  }
+  async function onAddLine(line: Omit<ProposalBudgetLine, 'id'>) {
+    setActionError('');
+    try { const added = await addBudgetLine(id, line); setLines((ls) => [...ls, added]); }
+    catch (e) { setActionError(friendlyError(e)); }
+  }
+  async function onUpdateLine(lineId: string, patch: Partial<Omit<ProposalBudgetLine, 'id'>>) {
+    setActionError('');
+    try { await updateBudgetLine(lineId, patch); setLines((ls) => ls.map((l) => (l.id === lineId ? { ...l, ...patch } : l))); }
+    catch (e) { setActionError(friendlyError(e)); }
+  }
+  async function onDeleteLine(lineId: string) {
+    setActionError('');
+    try { await deleteBudgetLine(lineId); setLines((ls) => ls.filter((l) => l.id !== lineId)); }
+    catch (e) { setActionError(friendlyError(e)); }
+  }
+
+  async function onResolveComment(c: ReviewComment, resolved: boolean) {
+    setActionError('');
+    try {
+      await setCommentResolved(c.id, resolved);
+      const at = resolved ? new Date().toISOString() : null;
+      setDraft((d) => (d ? { ...d, comments: (d.comments ?? []).map((x) => (x.id === c.id ? { ...x, resolvedAt: at } : x)) } : d));
+    } catch (e) {
+      setActionError(friendlyError(e));
+    }
+  }
+
+  // Marks a version, so the signed scan can be matched to exactly what was printed.
+  async function onPrint() {
+    if (!draft) return;
+    setPrinting(true); setActionError('');
+    try {
+      await autosave.flush();
+      await saveVersion(id, 'Printed for signature');
+      const versionNo = (await listVersions(id))[0]?.versionNo ?? 1;
+      // Loaded on demand: the PDF renderer is large and most visits never print.
+      const [{ pdf }, { ProposalPDF }] = await Promise.all([
+        import('@react-pdf/renderer'), import('../../components/proposals/ProposalPDF'),
+      ]);
+      const blob = await pdf(<ProposalPDF proposal={draft} versionNo={versionNo} printedAt={new Date()} />).toBlob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${draft.proposalCode}_v${versionNo}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setActionError(friendlyError(e));
+    } finally {
+      setPrinting(false);
+    }
+  }
+
+  async function onUploadDoc(type: 'signed_proposal' | 'quotation', file: File) {
     setBusy(true); setActionError('');
-    const res = await uploadProposalDoc(id, 'signed_proposal', file);
+    const res = await uploadProposalDoc(id, type, file);
     if (!res.ok) setActionError(res.error);
     else {
       const fresh = await getProposal(id);
@@ -287,7 +369,8 @@ function Workspace({ id }: { id: string }) {
       <div className="grid gap-6 lg:grid-cols-[11rem_minmax(0,1fr)_20rem]">
         <nav aria-label="Proposal sections" className="flex lg:flex-col gap-1 overflow-x-auto">
           {SECTIONS.map((s) => {
-            const state = sectionState(draft, hasSignedScan, s.key);
+            const state = sectionState(draft, ctx, s.key);
+            const open = openComments[s.key] ?? 0;
             return (
               <button
                 key={s.key}
@@ -299,7 +382,10 @@ function Workspace({ id }: { id: string }) {
                   section === s.key ? 'bg-surface-hover text-text font-medium' : 'text-text-muted hover:text-text hover:bg-surface-hover',
                 )}
               >
-                {s.label}
+                <span>
+                  {s.label}
+                  {open > 0 && <span className="ml-1.5 text-[11px] font-mono text-turmeric" aria-label={`${open} comments to address`}>{open}</span>}
+                </span>
                 {state === 'done' && <Check size={14} className="text-archive-green" aria-label="complete" />}
                 {state === 'started' && <span className="w-1.5 h-1.5 rounded-full bg-turmeric" aria-label="started" />}
               </button>
@@ -313,6 +399,7 @@ function Workspace({ id }: { id: string }) {
         </nav>
 
         <Card className="space-y-4 min-w-0">
+          <SectionComments section={section} comments={draft.comments ?? []} mode="author" onResolve={onResolveComment} />
           {section === 'idea' && (
             <>
               <fieldset>
@@ -369,12 +456,21 @@ function Workspace({ id }: { id: string }) {
                 <textarea rows={5} className={inputCls} value={draft.expectedOutcomes} onChange={(e) => set('expectedOutcomes', e.target.value)} />
               </Field>
               <div className="grid sm:grid-cols-3 gap-4">
-                <Field label="Category">
-                  <select className={inputCls} value={draft.projectCategory} onChange={(e) => set('projectCategory', e.target.value)}>
-                    <option value="">Select…</option>
-                    {PROJECT_CATEGORIES.map((c) => <option key={c}>{c}</option>)}
-                  </select>
-                </Field>
+                {draft.track === 'HQ' ? (
+                  <Field label="HQ category">
+                    <select className={inputCls} value={draft.categoryCode ?? ''} onChange={(e) => set('categoryCode', e.target.value || null)}>
+                      <option value="">Select…</option>
+                      {HQ_CATEGORIES.map((c) => <option key={c.code} value={c.code}>{c.code} — {c.name}</option>)}
+                    </select>
+                  </Field>
+                ) : (
+                  <Field label="Category">
+                    <select className={inputCls} value={draft.projectCategory} onChange={(e) => set('projectCategory', e.target.value)}>
+                      <option value="">Select…</option>
+                      {PROJECT_CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+                    </select>
+                  </Field>
+                )}
                 <Field label="Proposed start">
                   <input type="date" className={inputCls} value={draft.proposedStartDate} onChange={(e) => set('proposedStartDate', e.target.value)} />
                 </Field>
@@ -386,6 +482,15 @@ function Workspace({ id }: { id: string }) {
                   />
                 </Field>
               </div>
+              {draft.track === 'HQ' && draft.categoryCode && (() => {
+                const cat = HQ_CATEGORIES.find((c) => c.code === draft.categoryCode);
+                const note = durationNote(draft.categoryCode, draft.proposedDurationMonths);
+                return (
+                  <p className={clsx('text-xs', note ? 'text-turmeric' : 'text-text-muted')}>
+                    {note ?? `${cat?.code}: target ${cat?.trl}${cat?.months ? `, normally ${cat.months[0] === cat.months[1] ? cat.months[0] : `${cat.months[0]}–${cat.months[1]}`} months` : ''}.`}
+                  </p>
+                );
+              })()}
               <div className="grid sm:grid-cols-2 gap-4">
                 <Field label="Readiness level now (TRL 1–9)">
                   <input
@@ -431,13 +536,16 @@ function Workspace({ id }: { id: string }) {
 
           {section === 'budget' && (
             <>
-              <Field label="Requested budget (₹)">
-                <input
-                  type="number" min={0} className={clsx(inputCls, 'font-mono tabular-nums sm:max-w-xs')}
-                  value={draft.requestedBudget || ''}
-                  onChange={(e) => set('requestedBudget', Number(e.target.value) || 0)}
-                />
-              </Field>
+              <BudgetLinesEditor
+                lines={draft.budgetLines ?? []} years={years} editable
+                onAdd={onAddLine} onUpdate={onUpdateLine} onDelete={onDeleteLine}
+              />
+              {(draft.budgetLines ?? []).length === 0 && draft.requestedBudget > 0 && (
+                <p className="text-xs text-text-muted">
+                  A total of {rupees(draft.requestedBudget)} was entered before budget lines existed. Add lines to break it down;
+                  the total then follows them.
+                </p>
+              )}
               <div className="grid sm:grid-cols-3 gap-4">
                 <Field label="Fund type">
                   <select className={inputCls} value={draft.fundType} onChange={(e) => set('fundType', e.target.value)}>
@@ -460,22 +568,45 @@ function Workspace({ id }: { id: string }) {
 
           {section === 'documents' && (
             <>
+              <ol className="text-sm text-text space-y-1 list-decimal pl-5">
+                <li>Print the proposal. A version is marked, and its number is on every page.</li>
+                <li>Have it signed on paper.</li>
+                <li>Scan it and upload the scan below, then submit.</li>
+              </ol>
+              <div>
+                <Button variant="secondary" onClick={() => void onPrint()} isLoading={printing}>
+                  <Printer size={14} className="mr-2" /> Print for signature
+                </Button>
+              </div>
+              {ctx.lines.some((l) => l.head === 'EQUIPMENT' && l.amount >= 500000) && (
+                <Field label="Quotations for equipment of ₹5 lakh or more (PDF)">
+                  <input
+                    type="file" accept="application/pdf" disabled={busy}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = '';
+                      if (file) void onUploadDoc('quotation', file);
+                    }}
+                    className="text-sm text-text"
+                  />
+                </Field>
+              )}
               <Field label="Signed proposal (PDF)">
                 <input
                   type="file" accept="application/pdf" disabled={busy}
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     e.target.value = '';
-                    if (file) void onUploadSigned(file);
+                    if (file) void onUploadDoc('signed_proposal', file);
                   }}
                   className="text-sm text-text"
                 />
               </Field>
               <ul className="text-sm text-text space-y-1">
-                {(draft.documents ?? []).filter((d) => d.docType === 'signed_proposal').map((d) => (
+                {(draft.documents ?? []).filter((d) => d.docType === 'signed_proposal' || d.docType === 'quotation').map((d) => (
                   <li key={d.id} className="flex items-center gap-2">
                     <Check size={14} className="text-archive-green" />
-                    <span className="truncate">{d.fileName}</span>
+                    <span className="truncate">{d.docType === 'quotation' ? 'Quotation — ' : ''}{d.fileName}</span>
                     <span className="font-mono text-xs text-text-muted">
                       {new Date(d.uploadedAt).toLocaleDateString('en-IN')}
                     </span>
@@ -483,8 +614,7 @@ function Workspace({ id }: { id: string }) {
                 ))}
               </ul>
               <p className="text-xs text-text-muted">
-                Print the proposal, have it signed, scan it and upload the scan. Submitting sends it to PME; the draft
-                then becomes read-only unless a revision is asked.
+                Submitting sends it to PME; the draft then becomes read-only unless a revision is asked.
               </p>
               <div>
                 <Button onClick={() => void onSubmit()} isLoading={busy} disabled={missing.length > 0}>

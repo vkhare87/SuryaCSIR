@@ -135,8 +135,13 @@ describe('deriveMyActions', () => {
     const scientist = deriveMyActions({ ...base, proposals });
     expect(scientist.map(a => a.id).sort()).toEqual(['prop-p1', 'prop-p2']);
 
-    const admin = deriveMyActions({ ...base, role: 'HRAdmin', proposals });
-    expect(admin.map(a => a.id)).toContain('prop-review-p3');
+    const pme = deriveMyActions({ ...base, role: 'PME', proposals });
+    expect(pme.map(a => a.id)).toContain('prop-review-p3');
+    // HR no longer reviews proposals: the chain is PME's (20261111000001).
+    expect(deriveMyActions({ ...base, role: 'HRAdmin', proposals }).map(a => a.id)).not.toContain('prop-review-p3');
+
+    const recommended = [proposal({ id: 'p4', piUserId: 'u2', status: 'RECOMMENDED', track: 'ULIP' })];
+    expect(deriveMyActions({ ...base, role: 'Director', proposals: recommended }).map(a => a.id)).toEqual(['prop-review-p4']);
   });
 
   it('surfaces own draft/revision progress reports; review queue only for reviewers', () => {

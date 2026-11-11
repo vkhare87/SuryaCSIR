@@ -16,7 +16,9 @@ export interface MyAction {
   link: string;
 }
 
-const PROPOSAL_REVIEWERS: Role[] = ['HRAdmin', 'MasterAdmin'];
+// Who picks a proposal up at each stage (20261111000001). The step list on
+// the proposal page says exactly whose turn it is; this is the inbox nudge.
+const PROPOSAL_DESK: Role[] = ['PME', 'MasterAdmin'];
 const PROGRESS_REVIEWERS: Role[] = ['HOD', 'DivisionHead', 'Director', 'HRAdmin', 'MasterAdmin'];
 // Roles that steward workforce continuity. Their `staff` list is already
 // division-scoped by RLS, so a DivisionHead only sees their own division's
@@ -113,14 +115,20 @@ export function deriveMyActions(input: MyActionsInput): MyAction[] {
         due: null,
         link: `/proposals/${p.id}/edit`,
       });
-    } else if (PROPOSAL_REVIEWERS.includes(role) && (p.status === 'SUBMITTED' || p.status === 'UNDER_REVIEW')) {
+    } else if (PROPOSAL_DESK.includes(role) && p.status === 'SUBMITTED') {
       actions.push({
-        id: `prop-review-${p.id}`,
-        kind: 'proposal',
-        label: 'Proposal awaiting review',
-        detail: p.title,
-        due: null,
-        link: `/proposals/${p.id}`,
+        id: `prop-review-${p.id}`, kind: 'proposal', label: 'Proposal awaiting vetting',
+        detail: p.title, due: null, link: `/proposals/${p.id}`,
+      });
+    } else if (PROPOSAL_DESK.includes(role) && (p.status === 'APPROVED' || p.status === 'OM_ISSUED')) {
+      actions.push({
+        id: `prop-sanction-${p.id}`, kind: 'proposal', label: 'Approved — record the sanction',
+        detail: p.title, due: null, link: `/proposals/${p.id}`,
+      });
+    } else if (role === 'Director' && p.status === 'RECOMMENDED' && p.track === 'ULIP') {
+      actions.push({
+        id: `prop-review-${p.id}`, kind: 'proposal', label: 'Recommended — awaiting your approval',
+        detail: p.title, due: null, link: `/proposals/${p.id}`,
       });
     }
   }

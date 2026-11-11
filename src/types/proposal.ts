@@ -10,7 +10,7 @@ export type ProposalStatus =
   | 'ARCHIVED'
   | 'LINKED';
 
-export type ProposalDocType = 'signed_proposal' | 'om_document';
+export type ProposalDocType = 'signed_proposal' | 'om_document' | 'quotation' | 'step_scan' | 'sanction_order';
 
 export interface ProposalCoPI {
   staffId: string;
@@ -77,6 +77,10 @@ export interface Proposal {
   archived: boolean;
   /** project_schemes.code — 'ULIP' | 'HQ'. */
   track: string | null;
+  /** HQ-scheme category (FIR, FBR, …, guidelines §2.1); null on the ULIP track. */
+  categoryCode: string | null;
+  /** Set once sanctioned: the project created from this proposal. */
+  projectId: string | null;
   /** The version the reviewers were given; set by proposal_submit. */
   submittedVersionId: string | null;
 
@@ -91,6 +95,44 @@ export interface Proposal {
   coPIs?: ProposalCoPI[];
   documents?: ProposalDocument[];
   history?: ProposalStatusEntry[];
+  budgetLines?: ProposalBudgetLine[];
+  steps?: ReviewStep[];
+  comments?: ReviewComment[];
+}
+
+export interface ProposalBudgetLine {
+  id: string;
+  fiscalYear: string;
+  head: string;
+  item: string;
+  amount: number;
+}
+
+export type ReviewStepKind =
+  | 'PME_VETTING' | 'FINANCE' | 'REVIEW_COMMITTEE' | 'DIRECTOR_APPROVAL'
+  | 'DIRECTOR_FORWARD' | 'HQ_SCREENING' | 'HQ_EXPERT' | 'COMPETENT_AUTHORITY';
+
+export interface ReviewStep {
+  id: string;
+  round: number;
+  seq: number;
+  kind: ReviewStepKind;
+  status: 'PENDING' | 'DONE' | 'RETURNED' | 'REJECTED' | 'SKIPPED';
+  decidedBy: string | null;
+  decidedAt: string | null;
+  notes: string | null;
+  documentId: string | null;
+}
+
+export type ProposalSection = 'idea' | 'plan' | 'team' | 'budget' | 'documents';
+
+export interface ReviewComment {
+  id: string;
+  section: ProposalSection;
+  body: string;
+  authorId: string;
+  createdAt: string;
+  resolvedAt: string | null;
 }
 
 /** A PI's private note on a proposal. Never shown to anyone else. */

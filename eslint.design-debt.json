@@ -37,7 +37,6 @@
     "src/components/pms/ReportWizard.tsx",
     "src/components/pms/SignatureUpload.tsx",
     "src/components/pms/WordCountTextarea.tsx",
-    "src/components/proposals/StatusUpdateModal.tsx",
     "src/components/ui/Cards.tsx",
     "src/components/ui/DataTable.tsx",
     "src/components/ui/DocumentPanel.tsx",

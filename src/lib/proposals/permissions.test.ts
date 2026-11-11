@@ -2,8 +2,6 @@ import { describe, it, expect } from 'vitest';
 import {
   canCreateProposal,
   canEditProposal,
-  canUpdateStatus,
-  nextAllowedTransitions,
 } from './permissions';
 import type { UserAccount } from '../../types';
 import type { Proposal } from '../../types/proposal';
@@ -96,34 +94,4 @@ describe('canEditProposal', () => {
   });
 });
 
-describe('canUpdateStatus', () => {
-  it('allows HRAdmin', () => {
-    expect(canUpdateStatus(makeUser({ roles: ['HRAdmin'] }))).toBe(true);
-  });
-  it('allows SystemAdmin', () => {
-    expect(canUpdateStatus(makeUser({ roles: ['SystemAdmin'] }))).toBe(true);
-  });
-  it('allows MasterAdmin', () => {
-    expect(canUpdateStatus(makeUser({ roles: ['MasterAdmin'] }))).toBe(true);
-  });
-  it('rejects Scientist', () => {
-    expect(canUpdateStatus(makeUser({ roles: ['Scientist'] }))).toBe(false);
-  });
-});
 
-describe('nextAllowedTransitions', () => {
-  it('returns admin transitions from SUBMITTED', () => {
-    expect(nextAllowedTransitions('SUBMITTED')).toEqual(['UNDER_REVIEW']);
-  });
-  it('returns three options from UNDER_REVIEW', () => {
-    expect(nextAllowedTransitions('UNDER_REVIEW')).toEqual([
-      'REVISION_REQUESTED', 'REJECTED', 'RECOMMENDED',
-    ]);
-  });
-  it('returns empty for terminal LINKED', () => {
-    expect(nextAllowedTransitions('LINKED')).toEqual([]);
-  });
-  it('returns empty for REVISION_REQUESTED (scientist-driven)', () => {
-    expect(nextAllowedTransitions('REVISION_REQUESTED')).toEqual([]);
-  });
-});

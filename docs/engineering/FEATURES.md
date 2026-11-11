@@ -165,6 +165,17 @@ Related docs: [app.md](app.md) (product spec), [database_design.md](database_des
   expected outcomes. **Versions** can be marked, compared and restored. A **readiness
   meter** lists what submission still needs and never blocks saving. On a phone the page
   shows the title and notes only.
+- **Budget** is entered as year × head lines; the requested total follows them. The
+  Documents section prints the proposal as a PDF (its version number on every page) for
+  signature; the signed scan is uploaded before submitting. Equipment of ₹5 lakh or more
+  needs a quotation.
+- **Review chain** (proposal page): each track's steps in order — ULIP: PME vetting →
+  review committee → Director; HQ: PME → Finance → Director forwards → two HQ screenings →
+  competent authority. Whoever's turn it is records approve / return / reject, approvals
+  against a signed scan. Reviewers leave comments on a section; the PI ticks them done and
+  resubmits, and the reviewer sees what changed since the last submission.
+- **Sanction:** PME records the sanction order and the project is created from the
+  proposal — budget lines, dates and PI included.
 - `DRAFT → SUBMITTED → … → OM_ISSUED → LINKED` (linked = becomes a project). PDF
   uploads up to 25 MB. Transitions run through RPCs — status is never patched from
   the client.

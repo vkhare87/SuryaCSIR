@@ -327,8 +327,23 @@ fails if the two lists differ. Required: `title`, `track`, `abstract`, `problem_
 | `proposals` UPDATE | changed columns only | creator, editable statuses (RLS) | Autosave (`ProposalsContext.saveFields`) |
 | `proposal_notes` INSERT / UPDATE / DELETE | — | author only (RLS) | Private notes; `used_in` records the field a note was moved into |
 
-`proposal_submit` also snapshots a `kind = 'submitted'` version and stores its id in
-`proposals.submitted_version_id`.
+`proposal_submit` also snapshots a `kind = 'submitted'` version, stores its id in
+`proposals.submitted_version_id`, and opens a round of review steps. Its readiness check is
+`proposal_readiness(id)`: the fields above plus `equipment_quotation` (an EQUIPMENT line of
+₹5 lakh or more needs a `quotation` document) and `works_not_allowed` (HQ track: WORKS lines
+only in MMP or FCP).
+
+### Review chain and sanction (`src/lib/proposals/api.ts`, `20261111000001`)
+
+| RPC | Arguments | Who | Effect |
+|---|---|---|---|
+| `proposal_record_step` | `p_step_id uuid, p_decision text, p_notes text, p_document_id uuid, p_meeting_id uuid = NULL` | `proposal_caller_may_act(p, step.kind)` — never a party to the proposal | `APPROVE` needs a `step_scan` document; status → `proposal_status_after(kind)`. `RETURN` needs a note or an open comment; → `REVISION_REQUESTED`. `REJECT` needs a reason; → `REJECTED`. Steps go in order |
+| `proposal_set_track` | `p_id uuid, p_track text` | PME, on a proposal in review | Classifies a pre-PL2 proposal and opens its steps; steps already passed are `SKIPPED` |
+| `proposal_sanction` | `p_id, p_project_no, p_sanction_ref, p_sanction_date, p_amount, p_document_id, p_project_id = NULL` | PME, not a party | From `APPROVED` \| `OM_ISSUED`, needs a `sanction_order` document; HQ numbers must match guidelines §2.2. Creates the `projects` row (stage `SANCTIONED`, dates, PI, cost in ₹), copies the budget lines, sets the proposal `LINKED`. Returns the ProjectID |
+
+**Retired:** `proposal_set_under_review`, `proposal_request_revision`, `proposal_reject`,
+`proposal_recommend`, `proposal_approve`, `proposal_issue_om` — EXECUTE revoked; each let an
+admin move a proposal past the chain.
 
 ## B.4 Project progress reports
 

@@ -6,6 +6,7 @@ import { supabase, isProvisioned } from '../utils/supabaseClient';
 import { useAuth } from './AuthContext';
 import {
   mapProposalRow, mapCoPIRow, mapDocumentRow, mapHistoryRow, toProposalRowPatch,
+  mapBudgetLineRow, mapReviewStepRow, mapReviewCommentRow,
 } from '../utils/proposalMappers';
 import type { Proposal, ProposalCoPI } from '../types/proposal';
 import { fetchAll } from '../lib/data/fetchAll';
@@ -66,19 +67,29 @@ export function ProposalsProvider({ children }: { children: ReactNode }) {
 
   const getProposal = useCallback(async (id: string): Promise<Proposal> => {
     if (!supabase) throw new Error('Database not provisioned');
-    const [pRes, cRes, dRes, hRes] = await Promise.all([
+    const [pRes, cRes, dRes, hRes, bRes, sRes, kRes] = await Promise.all([
       supabase.from('proposals').select('*').eq('id', id).single(),
       supabase.from('proposal_copis').select('*').eq('proposal_id', id),
       supabase.from('proposal_documents').select('*').eq('proposal_id', id)
         .order('uploaded_at', { ascending: false }),
       supabase.from('proposal_status_history').select('*').eq('proposal_id', id)
         .order('changed_at', { ascending: true }),
+      supabase.from('proposal_budget_lines').select('*').eq('proposal_id', id)
+        .order('fiscal_year').order('created_at'),
+      supabase.from('proposal_review_steps').select('*').eq('proposal_id', id)
+        .order('round').order('seq'),
+      supabase.from('proposal_review_comments').select('*').eq('proposal_id', id)
+        .order('created_at'),
     ]);
     if (pRes.error) throw pRes.error;
     const proposal = mapProposalRow(pRes.data);
     proposal.coPIs     = (cRes.data ?? []).map(mapCoPIRow);
     proposal.documents = (dRes.data ?? []).map(mapDocumentRow);
     proposal.history   = (hRes.data ?? []).map(mapHistoryRow);
+    // Tables from 20261111000001; empty until it is applied.
+    proposal.budgetLines = (bRes.data ?? []).map(mapBudgetLineRow);
+    proposal.steps       = (sRes.data ?? []).map(mapReviewStepRow);
+    proposal.comments    = (kRes.data ?? []).map(mapReviewCommentRow);
     return proposal;
   }, []);
 

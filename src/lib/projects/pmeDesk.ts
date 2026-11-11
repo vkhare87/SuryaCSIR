@@ -3,7 +3,7 @@ import type { Proposal } from '../../types/proposal';
 import { projectStage } from './stage';
 
 export interface PmeDeskItem {
-  key: 'vetting' | 'sanction' | 'no-stage' | 'no-track';
+  key: 'vetting' | 'unclassified' | 'sanction' | 'no-stage' | 'no-track';
   label: string;
   detail: string;
   count: number;
@@ -21,10 +21,17 @@ export function pmeDeskItems(proposals: Proposal[], projects: ProjectInfo[]): Pm
       to: '/proposals',
     },
     {
+      key: 'unclassified',
+      label: 'Proposals in review without a track',
+      detail: 'Submitted before tracks existed — choose ULIP or HQ so review can continue',
+      count: proposals.filter(p => !p.track && ['SUBMITTED', 'UNDER_REVIEW', 'RECOMMENDED', 'APPROVED', 'OM_ISSUED'].includes(p.status)).length,
+      to: '/proposals',
+    },
+    {
       key: 'sanction',
-      label: 'Sanctions awaiting a project record',
-      detail: 'Sanction order issued, project not yet linked',
-      count: proposals.filter(p => p.status === 'OM_ISSUED').length,
+      label: 'Approved proposals to sanction',
+      detail: 'Record the sanction order; the project is created from the proposal',
+      count: proposals.filter(p => p.status === 'APPROVED' || p.status === 'OM_ISSUED').length,
       to: '/proposals',
     },
     {

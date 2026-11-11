@@ -4,7 +4,7 @@ import type { ProjectInfo } from '../../types';
 import type { Proposal } from '../../types/proposal';
 
 const project = (over: Partial<ProjectInfo>) => ({ ProjectStatus: 'Active', track: 'ULIP', ...over }) as ProjectInfo;
-const proposal = (status: Proposal['status']) => ({ status }) as Proposal;
+const proposal = (status: Proposal['status'], track: string | null = 'ULIP') => ({ status, track }) as Proposal;
 
 describe('pmeDeskItems', () => {
   it('is empty when nothing is waiting', () => {
@@ -18,6 +18,13 @@ describe('pmeDeskItems', () => {
     );
     expect(items.map(i => [i.key, i.count])).toEqual([
       ['vetting', 2], ['sanction', 1], ['no-stage', 1], ['no-track', 1],
+    ]);
+  });
+
+  it('counts approved proposals as ready to sanction, and lists legacy ones without a track', () => {
+    const items = pmeDeskItems([proposal('APPROVED'), proposal('UNDER_REVIEW', null)], []);
+    expect(items.map(i => [i.key, i.count])).toEqual([
+      ['unclassified', 1], ['sanction', 1],
     ]);
   });
 

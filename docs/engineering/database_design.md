@@ -1,7 +1,7 @@
 # SURYA — Database Design
 
 _Complete schema reference for the PostgreSQL 17 database. Supersedes `docs/DATA-MODEL.md`,
-which now points here. Current as of 2026-11-11 (50 migrations, 77 tables in `public`)._
+which now points here. Current as of 2026-11-11 (51 migrations, 81 tables in `public`)._
 
 Companions: [api_spec.md](api_spec.md) (how the schema is called),
 [system_design.md](system_design.md) (state machines),
@@ -606,6 +606,24 @@ No co-PI, PME, reviewer or admin policy exists, at any stage.
 **RLS:** the creator reads all; anyone else who may read the proposal reads `submitted`
 versions only. No client writes — `proposal_save_version`, `proposal_restore_version` and
 `proposal_submit` write through the internal `proposal_snapshot_version`.
+
+### 3.8c Proposal review chain and sanction — `20261111000001_proposal_review_chain.sql`
+
+Phase `PL2`. `proposals` gains `category_code` (CHECK ∈ FIR, FBR, NCP, FTT, FTC, MMP, FCP, HCP,
+IST — guidelines §2.1). `projects` gains `proposal_id` (unique when set), `sanction_ref`,
+`sanction_date`. `proposal_documents.doc_type` adds `quotation`, `step_scan`, `sanction_order`.
+
+| Table | Shape | Writes |
+|---|---|---|
+| `proposal_budget_lines` | `(id, proposal_id FK CASCADE, fiscal_year CHECK 'YYYY-YY', head CHECK ∈ EQUIPMENT · WORKS · MANPOWER · CONSUMABLES · TA_INDIA · TA_ABROAD · CONTINGENCY · OUTSOURCING · OTHER, item, amount numeric ≥ 0, created_at)` | Author, directly, while `DRAFT` \| `REVISION_REQUESTED`. A trigger keeps `proposals.requested_budget` = their sum |
+| `proposal_review_steps` | `(id, proposal_id FK CASCADE, round, seq, kind, status ∈ PENDING · DONE · RETURNED · REJECTED · SKIPPED, decided_by, decided_at, notes, document_id FK proposal_documents, meeting_id FK meetings)`, unique `(proposal_id, round, seq)` | RPCs only |
+| `proposal_review_comments` | `(id, proposal_id FK CASCADE, section ∈ idea · plan · team · budget · documents, body, author_id, created_at, resolved_at)` | Reviewers insert while in review; the author of a comment may withdraw it while unresolved; the PI writes `resolved_at` only (column grant) |
+| `project_budget_lines` | `(id, project_id FK projects CASCADE, fiscal_year, head, item, amount, source, created_at)` | `proposal_sanction` only |
+
+**Steps per track** (`proposal_step_kinds`): ULIP — PME_VETTING → REVIEW_COMMITTEE →
+DIRECTOR_APPROVAL. HQ — PME_VETTING → FINANCE → DIRECTOR_FORWARD → HQ_SCREENING → HQ_EXPERT →
+COMPETENT_AUTHORITY. Who may record each: `proposal_caller_may_act(proposal, kind)` — never
+the PI, author or a co-PI. Each submission opens a new round.
 
 ### 3.9 Data operations — `20261101000001_contribution_requests.sql`
 
