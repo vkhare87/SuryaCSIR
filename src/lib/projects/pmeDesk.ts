@@ -1,10 +1,11 @@
 import type { ProjectInfo } from '../../types';
 import type { Proposal } from '../../types/proposal';
 import { projectStage } from './stage';
+import { needsLegacyCompletion } from './legacy';
 import type { ClosureItem, MyChangeStep, PortfolioRow } from '../../types/projectFile';
 
 export interface PmeDeskItem {
-  key: 'vetting' | 'unclassified' | 'sanction' | 'awaiting-funds' | 'milestones' | 'overdue' | 'minutes' | 'changes' | 'closure' | 'archive' | 'no-stage' | 'no-track';
+  key: 'vetting' | 'unclassified' | 'sanction' | 'awaiting-funds' | 'milestones' | 'overdue' | 'minutes' | 'changes' | 'closure' | 'archive' | 'legacy' | 'no-stage' | 'no-track';
   label: string;
   detail: string;
   count: number;
@@ -88,6 +89,13 @@ export function pmeDeskItems(
       label: 'Closed projects to archive',
       detail: 'Publish the approved completion report to the archive and Ask SURYA',
       count: projects.filter(p => projectStage(p) === 'CLOSED' || projectStage(p) === 'FORECLOSED').length,
+      to: '/projects',
+    },
+    {
+      key: 'legacy',
+      label: 'Legacy projects to bring in',
+      detail: 'Running projects from before SURYA: enter the sanction by head and money to date, once',
+      count: projects.filter(needsLegacyCompletion).length,
       to: '/projects',
     },
     {

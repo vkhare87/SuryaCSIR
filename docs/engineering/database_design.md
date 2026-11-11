@@ -1,7 +1,7 @@
 # SURYA — Database Design
 
 _Complete schema reference for the PostgreSQL 17 database. Supersedes `docs/DATA-MODEL.md`,
-which now points here. Current as of 2026-11-11 (55 migrations, 92 tables in `public`)._
+which now points here. Current as of 2026-11-11 (56 migrations, 92 tables in `public`)._
 
 Companions: [api_spec.md](api_spec.md) (how the schema is called),
 [system_design.md](system_design.md) (state machines),
@@ -778,6 +778,28 @@ Phase `PL6`. Guidelines §8.
   archived project.
 - `proposals.parent_project_id` — follow-on lineage.
 - `project_documents.doc_type` adds `completion_report` (PI) and `closure_order` (step owners).
+
+### 3.8h Legacy projects and rollout — `20261112000003_project_legacy_rollout.sql`
+
+Phase `PL7` (plan §10). No new tables.
+
+- `project_infer_track(no, category, fund_type)` — `HQ` for an HQ code in the number
+  (`FTT040511`) or the category; `ULIP` for a `ULIP…` number or an in-house marker; else
+  NULL. Applied once to projects with no track.
+- `projects.legacy_completed_at` / `legacy_completed_by`; `project_fund_receipts` and
+  `project_expenditure` gain `opening_balance boolean`; `project_documents.doc_type` adds
+  `sanction_order`.
+- `project_legacy_complete(...)` (PME, not a party): for a running project with no
+  proposal and no money on record — sets track, category, typed dates, sanction reference;
+  inserts budget lines (`source = 'LEGACY'`), receipts dated at each year's end (or the
+  as-of date) and expenditure, all `opening_balance`; cancels generated review slots due
+  before the as-of date; logs a `legacy` timeline event. Once per project.
+- `project_legacy_lessons(project, fields)` (PI or PME): an approved lessons note for a
+  project closed before SURYA, with no approval chain.
+- `project_legacy_pending()` — running legacy projects still to bring in.
+- **Write access:** `projects_write` (HRAdmin / SystemAdmin / MasterAdmin, from the
+  baseline) is replaced by `projects_write_master` (MasterAdmin); PME keeps
+  `projects_write_pme`. Asserted in the migration.
 
 ## 4. Indexing strategy
 

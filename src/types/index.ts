@@ -65,6 +65,8 @@ export interface ProjectInfo {
   piStaffId?: string | null;
   /** The proposal this project was sanctioned from. */
   proposalId?: string | null;
+  /** When PME brought a pre-SURYA project in (sanction by head, money to date). */
+  legacyCompletedAt?: string | null;
 }
 
 export type ProjectStage =

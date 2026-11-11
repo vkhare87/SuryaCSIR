@@ -12,7 +12,7 @@ import {
 import { headLabel, rupees } from '../../lib/projects/heads';
 import { projectStage } from '../../lib/projects/stage';
 import {
-  archiveProject, recordCompletionStep, saveCompletion, submitCompletion, uploadProjectDocument,
+  archiveProject, recordCompletionStep, recordLegacyLessons, saveCompletion, submitCompletion, uploadProjectDocument,
 } from '../../lib/projects/projectFileApi';
 import { uploadDocument } from '../../lib/documents/registry';
 import { friendlyError } from '../../lib/errors';
@@ -44,6 +44,7 @@ export function ClosurePanel({ project, file, isPi, isOffice, roles, onChanged }
   const editable = isPi && (!r || r.status === 'DRAFT' || r.status === 'RETURNED')
     && ['SANCTIONED', 'ACTIVE', 'ON_HOLD', 'CLOSING', 'FORECLOSED'].includes(stage ?? '');
   const [writing, setWriting] = useState(false);
+  const legacyClosed = !project.proposalId && (stage === 'CLOSED' || stage === 'FORECLOSED');
 
   // A display hint only; project_change_caller_may_act() decides.
   const mayAct = (k: ChangeStepKind) => !isPi && (roles.includes('MasterAdmin') || (
@@ -67,7 +68,7 @@ export function ClosurePanel({ project, file, isPi, isOffice, roles, onChanged }
         {!r && editable && !writing && (
           <Button size="sm" onClick={() => setWriting(true)}>Start the completion report</Button>
         )}
-        {!r && !editable && <p className="text-sm text-text-muted">No completion report yet. The PI writes it as the project ends.</p>}
+        {!r && !editable && !legacyClosed && <p className="text-sm text-text-muted">No completion report yet. The PI writes it as the project ends.</p>}
         {r?.status === 'RETURNED' && r.decisionNote && <p className="text-sm text-turmeric">Returned: {r.decisionNote}</p>}
       </Card>
 
@@ -76,6 +77,8 @@ export function ClosurePanel({ project, file, isPi, isOffice, roles, onChanged }
       ) : r ? (
         <ReportView report={r} />
       ) : null}
+
+      {!r && legacyClosed && (isPi || isOffice) && <LegacyLessons project={project} onChanged={onChanged} />}
 
       {r && r.steps.length > 0 && (
         <StepsCard project={project} report={r} mayAct={mayAct} onChanged={onChanged} />
@@ -365,6 +368,53 @@ function ArchiveCard({ project, report, onChanged }: { project: ProjectInfo; rep
           await onChanged();
         } catch (e) { setError(friendlyError(e)); } finally { setBusy(false); }
       }}>{report ? 'Publish and archive' : 'Archive'}</Button>
+      {error && <p role="alert" className="text-xs text-danger">{error}</p>}
+    </Card>
+  );
+}
+
+// --- 4. Projects closed before SURYA ---
+
+function LegacyLessons({ project, onChanged }: { project: ProjectInfo; onChanged: () => Promise<void> }) {
+  const [f, setF] = useState<CompletionFields>({ ...EMPTY_COMPLETION });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const set = (patch: Partial<CompletionFields>) => setF(prev => ({ ...prev, ...patch }));
+  const ready = !!f.summary.trim() && !!f.objectives_status && !!(f.what_worked.trim() || f.what_did_not.trim() || f.recommendations.trim());
+  const keys = ['summary', 'what_worked', 'what_did_not', 'reusable_assets', 'recommendations'] as const;
+
+  return (
+    <Card className="p-4 space-y-3">
+      <div>
+        <h3 className="text-sm font-[500] text-text">Record what this project learned</h3>
+        <p className="text-xs text-text-muted">
+          It closed before SURYA, so no completion report or approval is asked for. A short note keeps its lessons in the
+          institute's memory; fill in what is known.
+        </p>
+      </div>
+      <fieldset className="flex flex-wrap gap-4">
+        <legend className="sr-only">Were the objectives met?</legend>
+        {(Object.keys(OBJECTIVES_LABELS) as ObjectivesStatus[]).map(k => (
+          <label key={k} className="flex items-center gap-1.5 text-sm text-text">
+            <input type="radio" name="legacy-objectives" checked={f.objectives_status === k} onChange={() => set({ objectives_status: k })} />
+            Objectives {OBJECTIVES_LABELS[k].toLowerCase()}
+          </label>
+        ))}
+      </fieldset>
+      {keys.map(k => {
+        const c = COMPLETION_FIELDS.find(x => x.key === k)!;
+        return (
+          <label key={k} className="block text-sm text-text">
+            <span className="font-[500]">{c.label}</span>
+            <textarea aria-label={c.label} rows={2} className={clsx(inputCls, 'mt-1')} value={f[k]} onChange={(e) => set({ [k]: e.target.value })} />
+          </label>
+        );
+      })}
+      <Button size="sm" isLoading={busy} disabled={!ready} onClick={async () => {
+        setBusy(true); setError('');
+        try { await recordLegacyLessons(project.ProjectID, f); await onChanged(); }
+        catch (e) { setError(friendlyError(e)); } finally { setBusy(false); }
+      }}>Record the lessons</Button>
       {error && <p role="alert" className="text-xs text-danger">{error}</p>}
     </Card>
   );

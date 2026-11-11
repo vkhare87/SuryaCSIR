@@ -186,7 +186,14 @@ Related docs: [app.md](app.md) (product spec), [database_design.md](database_des
   (missing minutes flagged) and sends it on its closure route; the last approval closes
   the project. PME then **publishes and archives**: the report becomes a PDF in the
   institute archive that Ask SURYA indexes, and the file turns read-only. Each follow-on
-  idea can be started as a new draft linked back to the project.
+  idea can be started as a new draft linked back to the project. A project closed
+  before SURYA gets a short lessons note instead, with no approval chain.
+- **Bringing in a legacy project:** on the Funds tab of a running project from before
+  SURYA, PME enters once the scheme, dates, sanction order (with scan), the sanction by
+  year and head, and money received and spent to date. These are kept as marked opening
+  balances; reviews that fell due earlier are not shown overdue. The PME desk counts what
+  is left to bring in. Project records are edited by PME (and MasterAdmin) only; the
+  importer's project step is MasterAdmin's, for bulk legacy correction.
 - **Changes:** the PI asks for more time, a revised cost estimate, carrying money forward,
   moving money between heads or (HQ) to or from another laboratory, or early closure.
   The form offers only what the guidelines allow (no rephasing of travel or manpower, no

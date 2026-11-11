@@ -307,3 +307,30 @@ export async function myClosureItems(): Promise<ClosureItem[]> {
     item: x.item, projectId: x.project_id, projectNo: x.project_no, stepId: x.step_id, stepKind: x.step_kind, endDate: x.end_date,
   }));
 }
+
+export interface LegacyInput {
+  track: 'ULIP' | 'HQ';
+  category: string | null;
+  start: string;
+  end: string;
+  sanctionRef: string;
+  sanctionDate: string;
+  lines: { fiscal_year: string; head: string; amount: number }[];
+  received: { fiscal_year: string; amount: number }[];
+  spent: { fiscal_year: string; head: string; amount: number }[];
+  asOf: string;
+}
+
+/** PME brings a pre-SURYA running project in: sanction by head, money to date as opening balances (20261112000003). */
+export function completeLegacy(projectId: string, x: LegacyInput, sanctionDocumentId: string) {
+  return rpc('project_legacy_complete', {
+    p_project_id: projectId, p_track: x.track, p_category: x.category, p_start: x.start, p_end: x.end,
+    p_sanction_ref: x.sanctionRef, p_sanction_date: x.sanctionDate, p_document_id: sanctionDocumentId,
+    p_lines: x.lines, p_received: x.received, p_spent: x.spent, p_as_of: x.asOf,
+  });
+}
+
+/** A lessons note for a project closed before SURYA; no approval chain. */
+export function recordLegacyLessons(projectId: string, fields: Partial<CompletionFields>) {
+  return rpc<string>('project_legacy_lessons', { p_project_id: projectId, p_fields: fields });
+}

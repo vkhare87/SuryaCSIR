@@ -3,7 +3,8 @@ import { pmeDeskItems } from './pmeDesk';
 import type { ProjectInfo } from '../../types';
 import type { Proposal } from '../../types/proposal';
 
-const project = (over: Partial<ProjectInfo>) => ({ ProjectStatus: 'Active', track: 'ULIP', ...over }) as ProjectInfo;
+// Came through SURYA unless a test says otherwise, so the legacy row stays out of the way.
+const project = (over: Partial<ProjectInfo>) => ({ ProjectStatus: 'Active', track: 'ULIP', proposalId: 'p', ...over }) as ProjectInfo;
 const proposal = (status: Proposal['status'], track: string | null = 'ULIP') => ({ status, track }) as Proposal;
 
 describe('pmeDeskItems', () => {
@@ -47,6 +48,14 @@ describe('pmeDeskItems', () => {
     const items = pmeDeskItems([], [project({ stage: 'CLOSED' })], 0, [], [],
       [{ projectId: 'P9', item: 'step' }, { projectId: 'P8', item: 'due' }]);
     expect(items.map(i => [i.key, i.count])).toEqual([['closure', 1], ['archive', 1]]);
+  });
+
+  it('counts running legacy projects not yet brought in', () => {
+    const items = pmeDeskItems([], [
+      project({ proposalId: null }), project({ proposalId: null, legacyCompletedAt: '2026-11-12' }),
+      project({ proposalId: null, stage: 'CLOSED' }),
+    ]);
+    expect(items.map(i => [i.key, i.count])).toEqual([['archive', 1], ['legacy', 1]]);
   });
 
   it('trusts a stored stage over the status text', () => {

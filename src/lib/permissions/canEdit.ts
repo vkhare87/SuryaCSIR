@@ -16,7 +16,7 @@ import { useAuth } from '../../contexts/AuthContext';
 
 export type EditableModule =
   | 'hr'             // HR data: staff, divisions, phd
-  | 'projects'       // project records — PME's domain (HRAdmin until rollout)
+  | 'projects'       // project records — PME's domain (and MasterAdmin), since rollout (PL7)
   | 'pms'            // performance reports
   | 'committees'     // committee governance
   | 'helpdesk'       // ticket management
@@ -26,7 +26,7 @@ const GLOBAL_ADMINS: ReadonlyArray<Role> = ['SystemAdmin', 'MasterAdmin'];
 
 const MODULE_EDITORS: Record<EditableModule, ReadonlyArray<Role>> = {
   hr:         ['HRAdmin'],
-  projects:   ['HRAdmin', 'PME'],
+  projects:   ['PME'],
   pms:        ['HRAdmin'],
   committees: [],
   helpdesk:   [],
@@ -35,6 +35,9 @@ const MODULE_EDITORS: Record<EditableModule, ReadonlyArray<Role>> = {
 
 export function canEdit(user: UserAccount | null, module?: EditableModule): boolean {
   if (!user) return false;
+  // Projects are PME's since rollout; SystemAdmin is platform-only there too
+  // (20261112000003 withdraws its write policy).
+  if (module === 'projects') return user.activeRole === 'MasterAdmin' || user.activeRole === 'PME';
   if (GLOBAL_ADMINS.includes(user.activeRole)) return true;
   if (module && MODULE_EDITORS[module].includes(user.activeRole)) return true;
   return false;

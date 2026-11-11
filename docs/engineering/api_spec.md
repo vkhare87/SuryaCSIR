@@ -397,6 +397,15 @@ Committee → Research Council.
 | `project_financial_statement(project)` · `project_completion_annexures(project)` | signed-in | What submission will compile; read-only |
 | `project_lessons` (view) | every signed-in user | Approved lessons, institute-wide |
 
+### Legacy projects (`src/lib/projects/projectFileApi.ts`, `20261112000003`)
+
+| RPC | Who | Effect |
+|---|---|---|
+| `project_legacy_complete(p_project_id, p_track, p_category, p_start, p_end, p_sanction_ref, p_sanction_date, p_document_id, p_lines, p_received, p_spent, p_as_of)` | PME / MasterAdmin, not a party | Brings a running pre-SURYA project in once: sanction by head, money to date as opening balances (needs a `sanction_order` scan); earlier reviews are not overdue |
+| `project_legacy_lessons(p_project_id, p_fields)` | the PI or PME | Lessons for a project closed before SURYA; approved directly |
+| `project_legacy_pending()` | signed-in | Running legacy projects not yet brought in |
+| `project_infer_track(no, category, fund_type)` | — | Pure; used by the migration |
+
 **Retired:** `proposal_set_under_review`, `proposal_request_revision`, `proposal_reject`,
 `proposal_recommend`, `proposal_approve`, `proposal_issue_om` — EXECUTE revoked; each let an
 admin move a proposal past the chain.

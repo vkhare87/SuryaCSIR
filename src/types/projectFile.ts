@@ -45,7 +45,7 @@ export interface ProjectMilestone {
 
 export type ProjectDocType =
   | 'receipt_order' | 'expenditure_statement' | 'milestone_evidence' | 'minutes'
-  | 'change_request' | 'change_order' | 'completion_report' | 'closure_order' | 'other';
+  | 'change_request' | 'change_order' | 'completion_report' | 'closure_order' | 'sanction_order' | 'other';
 
 export interface ProjectDocument {
   id: string;

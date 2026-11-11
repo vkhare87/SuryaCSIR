@@ -72,6 +72,7 @@ export const mapProjectRow = (row: any): ProjectInfo => {
     track: row.track ?? null,
     piStaffId: row.pi_staff_id ?? null,
     proposalId: row.proposal_id ?? null,
+    legacyCompletedAt: row.legacy_completed_at ?? null,
   };
 };
 

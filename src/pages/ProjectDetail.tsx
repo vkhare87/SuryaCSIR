@@ -17,6 +17,8 @@ import { TimelinePanel } from '../components/projects/TimelinePanel';
 import { MonitoringPanel } from '../components/projects/MonitoringPanel';
 import { ChangesPanel } from '../components/projects/ChangesPanel';
 import { ClosurePanel } from '../components/projects/ClosurePanel';
+import { LegacyPanel } from '../components/projects/LegacyPanel';
+import { needsLegacyCompletion } from '../lib/projects/legacy';
 import { loadProjectFile } from '../lib/projects/projectFileApi';
 import { useUrlTab } from '../utils/useUrlTab';
 import { friendlyError } from '../lib/errors';
@@ -180,6 +182,7 @@ export default function ProjectDetail() {
       {tab === 'closure' && file && (
         <ClosurePanel project={project} file={file} isPi={isParty} isOffice={isOffice} roles={user?.roles ?? []} onChanged={onFileChanged} />
       )}
+      {tab === 'funds' && isOffice && needsLegacyCompletion(project) && <LegacyPanel project={project} onChanged={onFileChanged} />}
       {tab === 'funds' && file && <FundsPanel project={project} file={file} isOffice={isOffice} onChanged={onFileChanged} />}
       {tab === 'milestones' && file && (
         <MilestonesPanel project={project} startDate={/^\d{4}-\d{2}-\d{2}$/.test(project.StartDate) ? project.StartDate : null}
