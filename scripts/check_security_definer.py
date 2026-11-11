@@ -97,6 +97,7 @@ EXEMPT: dict[str, str] = {
     "project_caller_is_pi": "caller-identity resolver: is the caller this project's PI (20261112000001)",
     "project_change_apply": "internal: applies an approved change; called only by project_change_record_step after its own check. EXECUTE revoked (20261112000001)",
     "project_change_log": "trigger on project_change_requests; writes the timeline. EXECUTE revoked (20261112000001)",
+    "project_completion_log": "trigger on project_completion_reports; writes the timeline. EXECUTE revoked (20261112000002)",
     "project_caller_is_party": (
         "caller-identity resolver: is the caller PI, author or co-PI of this "
         "project. Answers only about the caller (20261111000002)."
