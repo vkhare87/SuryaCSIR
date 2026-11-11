@@ -28,6 +28,11 @@ describe('pmeDeskItems', () => {
     ]);
   });
 
+  it('lists sanctioned projects awaiting money and milestones awaiting PME', () => {
+    const items = pmeDeskItems([], [project({ stage: 'SANCTIONED' })], 3);
+    expect(items.map(i => [i.key, i.count])).toEqual([['awaiting-funds', 1], ['milestones', 3]]);
+  });
+
   it('trusts a stored stage over the status text', () => {
     const items = pmeDeskItems([], [project({ ProjectStatus: 'whatever', stage: 'ACTIVE' })]);
     expect(items).toEqual([]);

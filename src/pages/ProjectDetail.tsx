@@ -7,7 +7,17 @@ import {
   CopyCheck, UserPlus, Users, GraduationCap, ChevronRight,
   Clock, AlertTriangle, Edit,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { Tabs, TabsList, TabsTrigger } from '../components/ui/Tabs';
+import { FundsPanel } from '../components/projects/FundsPanel';
+import { MilestonesPanel } from '../components/projects/MilestonesPanel';
+import { OutputsPanel } from '../components/projects/OutputsPanel';
+import { TimelinePanel } from '../components/projects/TimelinePanel';
+import { loadProjectFile } from '../lib/projects/projectFileApi';
+import { useUrlTab } from '../utils/useUrlTab';
+import { friendlyError } from '../lib/errors';
+import type { ProjectFile } from '../types/projectFile';
 import { parseDate, diffInDays, isWithinMonths } from '../utils/dateUtils';
 import { useCanEdit } from '../lib/permissions/canEdit';
 import { ProjectFormModal } from '../components/ProjectFormModal';
@@ -15,15 +25,35 @@ import { RequestUpdateButton } from '../components/RequestUpdateButton';
 import { useBack } from '../utils/useBack';
 import { isActiveProject, isCompletedProject, projectStatusLabel } from '../lib/projects/stage';
 
+const TABS = ['overview', 'funds', 'milestones', 'outputs', 'timeline'] as const;
+
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const goBack = useBack('/projects');
-  const { projects, projectStaff, phDStudents, staff, divisions } = useData();
+  const { projects, projectStaff, phDStudents, staff, divisions, refreshData } = useData();
+  const { user } = useAuth();
   const canEdit = useCanEdit('projects');
   const [editOpen, setEditOpen] = useState(false);
+  const [tab, setTab] = useUrlTab(TABS);
+  const [file, setFile] = useState<ProjectFile | null>(null);
+  const [fileError, setFileError] = useState('');
 
   const project = projects.find(p => p.ProjectID === id);
+
+  const reloadFile = useCallback(async () => {
+    if (!id) return;
+    try { setFile(await loadProjectFile(id)); setFileError(''); }
+    catch (e) { setFileError(friendlyError(e)); }
+  }, [id]);
+  useEffect(() => { void reloadFile(); }, [reloadFile]);
+
+  // A display hint for which controls to show. The database decides
+  // (project_caller_is_party / project_caller_is_office).
+  const myStaffId = useMemo(() => staff.find(s => s.user_id === user?.id)?.ID ?? null, [staff, user]);
+  const isParty = !!project && !!myStaffId && project.piStaffId === myStaffId;
+  const isOffice = !!user && !isParty && (user.roles.includes('PME') || user.roles.includes('MasterAdmin'));
+  const onFileChanged = useCallback(async () => { await Promise.all([reloadFile(), refreshData()]); }, [reloadFile, refreshData]);
 
   // --- All hooks must be called unconditionally before any early return ---
 
@@ -122,6 +152,25 @@ export default function ProjectDetail() {
         )}
       </div>
 
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList className="flex-wrap">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="funds">Funds</TabsTrigger>
+          <TabsTrigger value="milestones">Milestones{file && file.milestones.length > 0 ? ` (${file.milestones.length})` : ''}</TabsTrigger>
+          <TabsTrigger value="outputs">Outputs</TabsTrigger>
+          <TabsTrigger value="timeline">Timeline</TabsTrigger>
+        </TabsList>
+      </Tabs>
+      {fileError && tab !== 'overview' && <p role="alert" className="text-sm text-danger">{fileError}</p>}
+      {tab === 'funds' && file && <FundsPanel project={project} file={file} isOffice={isOffice} onChanged={onFileChanged} />}
+      {tab === 'milestones' && file && (
+        <MilestonesPanel project={project} startDate={/^\d{4}-\d{2}-\d{2}$/.test(project.StartDate) ? project.StartDate : null}
+          milestones={file.milestones} isOffice={isOffice} isParty={isParty} onChanged={onFileChanged} />
+      )}
+      {tab === 'outputs' && <OutputsPanel project={project} canLink={isOffice || isParty || !!user?.roles.includes('PME')} />}
+      {tab === 'timeline' && file && <TimelinePanel events={file.events} documents={file.documents} />}
+
+      {tab === 'overview' && (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {/* ── LEFT COLUMN ── */}
@@ -355,6 +404,7 @@ export default function ProjectDetail() {
 
         </div>
       </div>
+      )}
 
       {canEdit && (
         <ProjectFormModal isOpen={editOpen} onClose={() => setEditOpen(false)} project={project} />

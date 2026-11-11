@@ -61,6 +61,10 @@ export interface ProjectInfo {
   stage?: ProjectStage | null;
   /** project_schemes.code — 'ULIP' | 'HQ'; null until PME classifies a legacy project. */
   track?: string | null;
+  /** staff."ID" of the PI, when the name resolved to one person. */
+  piStaffId?: string | null;
+  /** The proposal this project was sanctioned from. */
+  proposalId?: string | null;
 }
 
 export type ProjectStage =
@@ -107,6 +111,8 @@ export interface PhDMilestone {
 }
 
 export interface Equipment {
+  /** Project this came out of (20261110000002 / 20261111000002); null when not linked. */
+  projectId?: string | null;
   UInsID: string;
   instrument_code?: string;
   Name: string;
@@ -138,6 +144,8 @@ export interface Lab {
 }
 
 export interface ScientificOutput {
+  /** Project this came out of (20261110000002 / 20261111000002); null when not linked. */
+  projectId?: string | null;
   id: string;
   title: string;
   authors: string[];
@@ -150,6 +158,8 @@ export interface ScientificOutput {
 }
 
 export interface IPIntelligence {
+  /** Project this came out of (20261110000002 / 20261111000002); null when not linked. */
+  projectId?: string | null;
   id: string;
   title: string;
   type: 'Patent' | 'Copyright' | 'Design' | 'Trademark';
@@ -161,6 +171,8 @@ export interface IPIntelligence {
 }
 
 export interface MoU {
+  /** Project this came out of (20261110000002 / 20261111000002); null when not linked. */
+  projectId?: string | null;
   id: string;
   partnerName: string;
   partnerType: 'Academic' | 'Industry' | 'Government' | 'International' | 'Other';
@@ -174,6 +186,8 @@ export interface MoU {
 }
 
 export interface TechTransfer {
+  /** Project this came out of (20261110000002 / 20261111000002); null when not linked. */
+  projectId?: string | null;
   id: string;
   technologyTitle: string;
   licensee: string;

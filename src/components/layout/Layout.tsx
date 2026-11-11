@@ -194,8 +194,11 @@ export function Layout() {
         <main className={clsx('flex-1 overflow-auto p-4 md:p-8 bg-background relative', isMobile && 'pb-24')}>
            <div className="mx-auto max-w-7xl w-full">
              <AnimatePresence mode="wait">
+               {/* Keyed on the path, not the hash: the hash carries ?tab= and
+                   ?filter=, and keying on it re-mounted the whole page — losing
+                   anything typed — every time a tab or filter changed. */}
                <motion.div
-                 key={window.location.hash}
+                 key={pathname}
                  initial={{ opacity: 0, y: 10 }}
                  animate={{ opacity: 1, y: 0 }}
                  exit={{ opacity: 0, y: -10 }}

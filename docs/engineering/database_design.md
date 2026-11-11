@@ -1,7 +1,7 @@
 # SURYA — Database Design
 
 _Complete schema reference for the PostgreSQL 17 database. Supersedes `docs/DATA-MODEL.md`,
-which now points here. Current as of 2026-11-11 (51 migrations, 81 tables in `public`)._
+which now points here. Current as of 2026-11-11 (52 migrations, 87 tables in `public`)._
 
 Companions: [api_spec.md](api_spec.md) (how the schema is called),
 [system_design.md](system_design.md) (state machines),
@@ -624,6 +624,26 @@ IST — guidelines §2.1). `projects` gains `proposal_id` (unique when set), `sa
 DIRECTOR_APPROVAL. HQ — PME_VETTING → FINANCE → DIRECTOR_FORWARD → HQ_SCREENING → HQ_EXPERT →
 COMPETENT_AUTHORITY. Who may record each: `proposal_caller_may_act(proposal, kind)` — never
 the PI, author or a co-PI. Each submission opens a new round.
+
+### 3.8d Project execution — `20261111000002_project_execution.sql`
+
+Phase `PL3`. Every table below is readable by whoever may see the project (projects RLS
+inside an `EXISTS`), and written only through RPCs unless stated.
+
+| Table | Shape | Writes |
+|---|---|---|
+| `project_documents` | `(id, project_id FK CASCADE, doc_type ∈ receipt_order · expenditure_statement · milestone_evidence · other, storage_path, file_name, file_size, uploaded_by, uploaded_at)`. Bucket `project-documents`, path `{project_id}/{doc_type}/…` | Client insert: the project office, or the PI for `milestone_evidence`. No update or delete |
+| `project_fund_receipts` | `(id, project_id, received_on, fiscal_year, amount ≠ 0, head?, source, order_no, order_date?, ifd_file_no?, ifd_date?, document_id, notes?, reverses_id UNIQUE?, recorded_by, recorded_at)` | `project_record_receipt`, `project_reverse_entry` |
+| `project_expenditure` | `(id, project_id, fiscal_year, period ∈ Q1–Q4 · H1 · H2 · FY, head, amount ≠ 0, document_id, notes?, reverses_id UNIQUE?, recorded_by, recorded_at)` | `project_record_expenditure`, `project_reverse_entry` |
+| `project_milestones` | `(id, project_id, title, target_date, status ∈ PROPOSED · PLANNED · REPORTED · ACHIEVED · DROPPED, achieved_on?, report_note?, document_id?, decision_note?, created_by, created_at, updated_at)` | `project_milestone_add` / `_report` / `_decide` |
+| `project_events` | `(id bigserial, project_id, at, actor?, kind, summary, ref_id?)` | Triggers only (`project_log_event` on projects, receipts, expenditure, milestones, documents) |
+
+The ledger is **append-only**: no client may update or delete it, PME included. A wrong
+entry is corrected by `project_reverse_entry`, which inserts the negated row with
+`reverses_id`; an entry can be reversed once and a reversal cannot itself be reversed.
+`project_expenditure_sync_utilized` keeps `projects."UtilizedAmount"` equal to the ledger on
+projects created by sanction (legacy rows keep their imported figure). `scientific_outputs`,
+`ip_intelligence` and `equipment` gain `project_id` (FK SET NULL).
 
 ### 3.9 Data operations — `20261101000001_contribution_requests.sql`
 

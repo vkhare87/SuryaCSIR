@@ -341,6 +341,21 @@ only in MMP or FCP).
 | `proposal_set_track` | `p_id uuid, p_track text` | PME, on a proposal in review | Classifies a pre-PL2 proposal and opens its steps; steps already passed are `SKIPPED` |
 | `proposal_sanction` | `p_id, p_project_no, p_sanction_ref, p_sanction_date, p_amount, p_document_id, p_project_id = NULL` | PME, not a party | From `APPROVED` \| `OM_ISSUED`, needs a `sanction_order` document; HQ numbers must match guidelines §2.2. Creates the `projects` row (stage `SANCTIONED`, dates, PI, cost in ₹), copies the budget lines, sets the proposal `LINKED`. Returns the ProjectID |
 
+### Project execution (`src/lib/projects/projectFileApi.ts`, `20261111000002`)
+
+"The office" is `project_caller_is_office(project)`: PME or MasterAdmin, and not the
+project's PI, author or a co-PI (`project_caller_is_party`).
+
+| RPC | Who | Effect |
+|---|---|---|
+| `project_record_receipt(p_project_id, p_received_on, p_amount, p_head, p_source, p_order_no, p_order_date, p_ifd_file_no, p_ifd_date, p_document_id, p_notes)` | the office | Needs a `receipt_order` document. HQ track: IFD file number and date required. A project created by sanction cannot receive more than `sanctioned_cost`. Financial year from the date. The first receipt moves stage `SANCTIONED → ACTIVE` |
+| `project_record_expenditure(p_project_id, p_fiscal_year, p_period, p_head, p_amount, p_document_id, p_notes)` | the office | Needs an `expenditure_statement` document; running projects only. Spending above a head's sanction is recorded, and flagged in the UI |
+| `project_reverse_entry(p_kind, p_entry_id, p_reason)` | the office | Inserts the opposite entry; once per entry |
+| `project_milestone_add(p_project_id, p_title, p_target_date)` | the office (→ `PLANNED`) or the PI (→ `PROPOSED`) | |
+| `project_milestone_report(p_id, p_achieved_on, p_note, p_document_id)` | the PI or a co-PI | `PLANNED → REPORTED`, with `milestone_evidence` |
+| `project_milestone_decide(p_id, p_decision, p_note)` | the office | `ACCEPT` (proposed → planned), `CONFIRM` (reported → achieved), `RETURN` (→ planned, reason required), `DROP` (reason required) |
+| `project_link_output(p_kind, p_output_id, p_project_id)` | PME, MasterAdmin or the project's PI | Links (or, with NULL, unlinks) a publication, patent or instrument |
+
 **Retired:** `proposal_set_under_review`, `proposal_request_revision`, `proposal_reject`,
 `proposal_recommend`, `proposal_approve`, `proposal_issue_om` — EXECUTE revoked; each let an
 admin move a proposal past the chain.

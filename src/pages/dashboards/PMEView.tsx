@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Briefcase, ChevronRight, ClipboardCheck, FileText, Inbox } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
@@ -7,13 +7,20 @@ import { Card } from '../../components/ui/Cards';
 import { KpiCard } from '../../components/ui/KpiCard';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { pmeDeskItems } from '../../lib/projects/pmeDesk';
+import { milestonesAwaitingPme } from '../../lib/projects/projectFileApi';
 import { isActiveProject } from '../../lib/projects/stage';
 
 export function PMEView() {
   const { projects } = useData();
   const { proposals } = useProposals();
 
-  const queue = useMemo(() => pmeDeskItems(proposals, projects), [proposals, projects]);
+  const [milestones, setMilestones] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    milestonesAwaitingPme().then((n) => { if (!cancelled) setMilestones(n); }, () => {});
+    return () => { cancelled = true; };
+  }, []);
+  const queue = useMemo(() => pmeDeskItems(proposals, projects, milestones), [proposals, projects, milestones]);
   const activeProjects = useMemo(() => projects.filter(isActiveProject).length, [projects]);
   const inReview = useMemo(
     () => proposals.filter(p => ['SUBMITTED', 'UNDER_REVIEW', 'RECOMMENDED', 'APPROVED', 'OM_ISSUED'].includes(p.status)).length,

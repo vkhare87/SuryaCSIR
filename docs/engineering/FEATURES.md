@@ -176,6 +176,19 @@ Related docs: [app.md](app.md) (product spec), [database_design.md](database_des
   resubmits, and the reviewer sees what changed since the last submission.
 - **Sanction:** PME records the sanction order and the project is created from the
   proposal — budget lines, dates and PI included.
+
+### Project file (`/projects/:id`)
+- Tabs: **Overview** · **Funds** · **Milestones** · **Outputs** · **Timeline**.
+- **Funds:** sanctioned · received · spent · balance per financial year, and spend against
+  sanction per head (overspend flagged). PME records money received (release order scan;
+  IFD reference on the HQ track) and expenditure (signed statement). Entries are never
+  edited — a wrong one is reversed. The first receipt makes the project active.
+- **Milestones:** in six-month sub-stages. The PI proposes and reports done with
+  evidence; PME accepts, confirms, sends back or drops.
+- **Outputs:** publications, patents and equipment linked by PME or the PI, plus MoUs
+  and technology transfers on the project.
+- **Timeline:** every receipt, expenditure, reversal, milestone change, stage change and
+  filed document, with the documents list.
 - `DRAFT → SUBMITTED → … → OM_ISSUED → LINKED` (linked = becomes a project). PDF
   uploads up to 25 MB. Transitions run through RPCs — status is never patched from
   the client.

@@ -11,7 +11,7 @@ describe('mapMoURow', () => {
     expect(m).toEqual({
       id: 'u1', partnerName: 'IIT Indore', partnerType: 'Academic',
       purpose: 'Joint research', signedDate: '2025-04-01', validUntil: '2028-03-31',
-      status: 'Active', divisionCode: 'LWMD', linkedProjectNo: 'GAP-101', remarks: undefined,
+      status: 'Active', divisionCode: 'LWMD', linkedProjectNo: 'GAP-101', remarks: undefined, projectId: null,
     });
   });
 

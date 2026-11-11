@@ -3,7 +3,7 @@ import type { Proposal } from '../../types/proposal';
 import { projectStage } from './stage';
 
 export interface PmeDeskItem {
-  key: 'vetting' | 'unclassified' | 'sanction' | 'no-stage' | 'no-track';
+  key: 'vetting' | 'unclassified' | 'sanction' | 'awaiting-funds' | 'milestones' | 'no-stage' | 'no-track';
   label: string;
   detail: string;
   count: number;
@@ -11,7 +11,7 @@ export interface PmeDeskItem {
 }
 
 /** The PME work queue. Every row is a count of things waiting on PME; rows with nothing waiting are dropped. */
-export function pmeDeskItems(proposals: Proposal[], projects: ProjectInfo[]): PmeDeskItem[] {
+export function pmeDeskItems(proposals: Proposal[], projects: ProjectInfo[], milestonesWaiting = 0): PmeDeskItem[] {
   const items: PmeDeskItem[] = [
     {
       key: 'vetting',
@@ -33,6 +33,20 @@ export function pmeDeskItems(proposals: Proposal[], projects: ProjectInfo[]): Pm
       detail: 'Record the sanction order; the project is created from the proposal',
       count: proposals.filter(p => p.status === 'APPROVED' || p.status === 'OM_ISSUED').length,
       to: '/proposals',
+    },
+    {
+      key: 'awaiting-funds',
+      label: 'Sanctioned projects with no money received yet',
+      detail: 'Record the first release; the project then becomes active',
+      count: projects.filter(p => projectStage(p) === 'SANCTIONED').length,
+      to: '/projects',
+    },
+    {
+      key: 'milestones',
+      label: 'Milestones waiting on PME',
+      detail: 'Proposed by a PI, or reported done',
+      count: milestonesWaiting,
+      to: '/projects',
     },
     {
       key: 'no-stage',
