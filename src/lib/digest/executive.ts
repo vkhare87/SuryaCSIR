@@ -1,6 +1,7 @@
 import { parseDate } from '../../utils/dateUtils';
 import type { Role, ProjectInfo, PhDMilestone, VacancyAdvertisement } from '../../types';
 import type { DigestItem } from './dataHealth';
+import { isFinishedProject } from '../projects/stage';
 
 const STEWARD_ROLES: Role[] = ['Director', 'HRAdmin', 'SystemAdmin', 'MasterAdmin'];
 const DAY_MS = 86_400_000;
@@ -10,9 +11,6 @@ function daysUntil(raw: string | undefined, today: Date): number | null {
   const d = raw ? parseDate(raw) : null;
   return d ? Math.floor((d.getTime() - today.getTime()) / DAY_MS) : null;
 }
-
-const isClosed = (status: string) =>
-  ['completed', 'closed'].includes(status.trim().toLowerCase());
 
 export interface ExecutiveDigestData {
   projects: ProjectInfo[];
@@ -43,7 +41,7 @@ export function buildExecutiveDigest(
   const overdue: ProjectInfo[] = [];
   const ending: ProjectInfo[] = [];
   for (const p of projects) {
-    if (isClosed(p.ProjectStatus)) continue;
+    if (isFinishedProject(p)) continue;
     const days = daysUntil(p.CompletioDate, today);
     if (days === null) continue;
     if (days < 0) overdue.push(p);

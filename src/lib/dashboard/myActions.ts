@@ -2,21 +2,26 @@ import type { ActionItem, Ticket, Role, StaffMember, ContractStaff, Contribution
 import type { PMSReport, PMSEvaluation } from '../../types/pms';
 import type { Proposal } from '../../types/proposal';
 import type { ProjectReport } from '../../types/projectReport';
+import type { ChangeStepKind, ClosureItem, DueSlot, MyChangeStep } from '../../types/projectFile';
+import { CLOSURE_STEP_LABELS } from '../projects/closure';
+import { STEP_LABELS, changeKindInfo } from '../projects/changes';
 import { staffNameMatchesAuthor } from '../../utils/dateUtils';
 import { retirementDate, yearsUntilRetirement } from '../staff/retirement';
 import { inboxBucket, isReviewer } from '../contributions/state';
 
 export interface MyAction {
   id: string;
-  kind: 'pms-draft' | 'pms-evaluation' | 'proposal' | 'action-item' | 'ticket' | 'progress-report'
-      | 'retirement' | 'contract-end' | 'contribution';
+  kind: 'pms-draft' | 'pms-evaluation' | 'proposal' | 'action-item' | 'ticket' | 'progress-report' | 'project-review'
+      | 'project-change' | 'project-closure' | 'retirement' | 'contract-end' | 'contribution';
   label: string;
   detail: string;
   due: string | null;
   link: string;
 }
 
-const PROPOSAL_REVIEWERS: Role[] = ['HRAdmin', 'MasterAdmin'];
+// Who picks a proposal up at each stage (20261111000001). The step list on
+// the proposal page says exactly whose turn it is; this is the inbox nudge.
+const PROPOSAL_DESK: Role[] = ['PME', 'MasterAdmin'];
 const PROGRESS_REVIEWERS: Role[] = ['HOD', 'DivisionHead', 'Director', 'HRAdmin', 'MasterAdmin'];
 // Roles that steward workforce continuity. Their `staff` list is already
 // division-scoped by RLS, so a DivisionHead only sees their own division's
@@ -57,15 +62,53 @@ export interface MyActionsInput {
   roles: Role[];
   contributions: ContributionRequest[];
   stewards: DataSteward[];
+  /** Reports and called reviews owed on projects the user leads (my_due_project_slots). */
+  dueSlots?: DueSlot[];
+  /** Change-request steps waiting on the user (my_change_steps). */
+  changeSteps?: MyChangeStep[];
+  /** Completion steps waiting on the user, and reports the user owes (my_closure_items). */
+  closureItems?: ClosureItem[];
 }
 
 /** Pending items requiring the current user's action, most urgent first (nulls-last by due date). */
 export function deriveMyActions(input: MyActionsInput): MyAction[] {
   const {
     userId, staffName, role, reports, evaluations, proposals, progressReports, actionItems, tickets, staff,
-    contractStaff, roles, contributions, stewards,
+    contractStaff, roles, contributions, stewards, dueSlots = [], changeSteps = [], closureItems = [],
   } = input;
   const actions: MyAction[] = [];
+
+  for (const s of dueSlots) {
+    actions.push({
+      id: `slot-${s.slotId}`,
+      kind: 'project-review',
+      label: s.kind === 'PROGRESS_REPORT' ? `Progress report due — ${s.projectNo}` : `Review called — ${s.projectNo}`,
+      detail: `${s.body} · ${s.periodLabel}`,
+      due: s.dueDate,
+      link: s.kind === 'PROGRESS_REPORT' ? '/reports/new' : `/projects/${encodeURIComponent(s.projectId)}?tab=monitoring`,
+    });
+  }
+  for (const c of changeSteps) {
+    actions.push({
+      id: `change-${c.stepId}`,
+      kind: 'project-change',
+      label: `Change request to record — ${c.projectNo}`,
+      detail: `${changeKindInfo(c.changeKind).label} · ${STEP_LABELS[c.stepKind]}`,
+      due: null,
+      link: `/projects/${encodeURIComponent(c.projectId)}?tab=changes`,
+    });
+  }
+  for (const c of closureItems) {
+    actions.push({
+      id: `closure-${c.item}-${c.stepId ?? c.projectId}`,
+      kind: 'project-closure',
+      label: c.item === 'due' ? `Completion report due — ${c.projectNo}` : `Completion report to record — ${c.projectNo}`,
+      detail: c.item === 'due' ? 'Write what the project did and learned; it closes the project'
+        : CLOSURE_STEP_LABELS[c.stepKind as ChangeStepKind] ?? '',
+      due: c.item === 'due' ? c.endDate : null,
+      link: `/projects/${encodeURIComponent(c.projectId)}?tab=closure`,
+    });
+  }
   const now = new Date();
 
   for (const r of reports) {
@@ -111,16 +154,22 @@ export function deriveMyActions(input: MyActionsInput): MyAction[] {
         label: 'Draft proposal not yet submitted',
         detail: p.title,
         due: null,
-        link: `/proposals/${p.id}`,
+        link: `/proposals/${p.id}/edit`,
       });
-    } else if (PROPOSAL_REVIEWERS.includes(role) && (p.status === 'SUBMITTED' || p.status === 'UNDER_REVIEW')) {
+    } else if (PROPOSAL_DESK.includes(role) && p.status === 'SUBMITTED') {
       actions.push({
-        id: `prop-review-${p.id}`,
-        kind: 'proposal',
-        label: 'Proposal awaiting review',
-        detail: p.title,
-        due: null,
-        link: `/proposals/${p.id}`,
+        id: `prop-review-${p.id}`, kind: 'proposal', label: 'Proposal awaiting vetting',
+        detail: p.title, due: null, link: `/proposals/${p.id}`,
+      });
+    } else if (PROPOSAL_DESK.includes(role) && (p.status === 'APPROVED' || p.status === 'OM_ISSUED')) {
+      actions.push({
+        id: `prop-sanction-${p.id}`, kind: 'proposal', label: 'Approved — record the sanction',
+        detail: p.title, due: null, link: `/proposals/${p.id}`,
+      });
+    } else if (role === 'Director' && p.status === 'RECOMMENDED' && p.track === 'ULIP') {
+      actions.push({
+        id: `prop-review-${p.id}`, kind: 'proposal', label: 'Recommended — awaiting your approval',
+        detail: p.title, due: null, link: `/proposals/${p.id}`,
       });
     }
   }

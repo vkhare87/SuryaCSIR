@@ -1,6 +1,7 @@
 import type { Proposal, ProposalStatus } from '../../types/proposal';
 import type { ProjectInfo } from '../../types';
 import type { ProjectReport } from '../../types/projectReport';
+import { isCompletedProject } from '../projects/stage';
 
 export type LifecycleStage =
   | 'Concept' | 'Under Evaluation' | 'Sanctioned' | 'Execution' | 'Completed' | 'Dropped';
@@ -33,8 +34,6 @@ export function stageOfProposal(status: ProposalStatus): LifecycleStage {
   return STAGE_MAP[status] ?? 'Concept';
 }
 
-const isCompleted = (p: ProjectInfo) => /complete/i.test(p.ProjectStatus);
-
 export function lifecycleThreads(
   proposals: Proposal[], projects: ProjectInfo[], reports: ProjectReport[],
 ): LifecycleThread[] {
@@ -56,7 +55,7 @@ export function lifecycleThreads(
       key: `prop-${prop.id}`,
       title: prop.title,
       divisionCode: prop.divisionCode,
-      stage: project && isCompleted(project) ? 'Completed' : stageOfProposal(prop.status),
+      stage: project && isCompletedProject(project) ? 'Completed' : stageOfProposal(prop.status),
       proposalStatus: prop.status,
       projectNo: project?.ProjectNo,
       reportCount: reps.length,
@@ -71,7 +70,7 @@ export function lifecycleThreads(
       key: `proj-${p.ProjectNo}`,
       title: p.ProjectName,
       divisionCode: p.DivisionCode,
-      stage: isCompleted(p) ? 'Completed' : 'Execution',
+      stage: isCompletedProject(p) ? 'Completed' : 'Execution',
       projectNo: p.ProjectNo,
       reportCount: reps.length,
       lastReport: reps.length ? reps[reps.length - 1].periodLabel : undefined,

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
 import { useProposals } from '../../contexts/ProposalsContext';
@@ -7,15 +7,26 @@ import { Card, Badge } from '../../components/ui/Cards';
 import { Button } from '../../components/ui/Button';
 import { getDownloadUrl } from '../../lib/proposals/storage';
 import { openDocumentUrl } from '../../lib/documents/registry';
-import {
-  STATUS_LABELS, STATUS_BADGE_VARIANT, TERMINAL_STATUSES,
-} from '../../lib/proposals/constants';
-import { canEditProposal, canUpdateStatus, nextAllowedTransitions } from '../../lib/proposals/permissions';
-import StatusUpdateModal from '../../components/proposals/StatusUpdateModal';
+import { STATUS_LABELS, STATUS_BADGE_VARIANT } from '../../lib/proposals/constants';
+import { canEditProposal } from '../../lib/proposals/permissions';
+import { ReviewPanel } from '../../components/proposals/ReviewPanel';
+import { BudgetLinesEditor } from '../../components/proposals/BudgetLinesEditor';
+import { listVersions } from '../../lib/proposals/workspaceApi';
+import { diffProposals, type FieldChange } from '../../lib/proposals/versionDiff';
+import { HQ_CATEGORIES } from '../../lib/proposals/categories';
+import { rupees } from '../../lib/projects/heads';
 import { SimilarWorkPanel } from '../../components/SimilarWorkPanel';
 import { findComparables } from '../../lib/proposals/comparables';
 import { piTrackRecord } from '../../lib/proposals/trackRecord';
-import type { Proposal } from '../../types/proposal';
+import type { Proposal, ProposalDocType } from '../../types/proposal';
+
+const DOC_LABELS: Record<ProposalDocType, string> = {
+  signed_proposal: 'Signed proposal',
+  om_document: 'OM document',
+  quotation: 'Quotation',
+  step_scan: 'Review step scan',
+  sanction_order: 'Sanction order',
+};
 import { friendlyError } from '../../lib/errors';
 
 export default function ProposalDetail() {
@@ -26,7 +37,7 @@ export default function ProposalDetail() {
   const { projects } = useData();
   const [proposal, setProposal] = useState<Proposal | null>(null);
   const [error, setError] = useState('');
-  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [changes, setChanges] = useState<FieldChange[]>([]);
 
   const comparables = useMemo(
     () => proposal
@@ -51,6 +62,13 @@ export default function ProposalDetail() {
     } catch (e) {
       setError(friendlyError(e));
     }
+    // A resubmission: show the reviewer what changed since the last submission.
+    try {
+      const submitted = (await listVersions(id)).filter(v => v.kind === 'submitted');
+      setChanges(submitted.length >= 2 ? diffProposals(submitted[1].proposal, submitted[0].proposal) : []);
+    } catch {
+      setChanges([]);
+    }
   }, [id, getProposal]);
 
   useEffect(() => { reload(); }, [reload]);
@@ -59,9 +77,9 @@ export default function ProposalDetail() {
   if (!proposal) return <div className="p-6 text-text-muted">Loading…</div>;
 
   const editable = user ? canEditProposal(user, proposal) : false;
-  const adminMayUpdate = user ? canUpdateStatus(user) : false;
-  const transitions = nextAllowedTransitions(proposal.status);
-  const showAdminPanel = adminMayUpdate && !TERMINAL_STATUSES.includes(proposal.status);
+  const category = proposal.track === 'HQ'
+    ? HQ_CATEGORIES.find(c => c.code === proposal.categoryCode)?.name ?? proposal.categoryCode ?? '—'
+    : proposal.projectCategory;
 
   return (
     <div className="max-w-5xl mx-auto p-6 space-y-6">
@@ -70,6 +88,14 @@ export default function ProposalDetail() {
           <p className="text-xs text-text-muted">{proposal.proposalCode}</p>
           <h1 className="text-2xl font-semibold text-text">{proposal.title}</h1>
           {proposal.acronym && <p className="text-text-muted text-sm">({proposal.acronym})</p>}
+          {proposal.parentProjectId && (
+            <p className="text-sm text-text-muted">
+              Follows on from{' '}
+              <Link className="text-brand-blue underline" to={`/projects/${encodeURIComponent(proposal.parentProjectId)}?tab=closure`}>
+                {projects.find(p => p.ProjectID === proposal.parentProjectId)?.ProjectNo ?? proposal.parentProjectId}
+              </Link>
+            </p>
+          )}
           <div className="mt-2">
             <Badge variant={STATUS_BADGE_VARIANT[proposal.status]}>
               {STATUS_LABELS[proposal.status]}
@@ -92,14 +118,42 @@ export default function ProposalDetail() {
           <Row label="Division" value={proposal.divisionCode} />
           <Row label="Fund Type" value={proposal.fundType} />
           <Row label="Sponsor" value={`${proposal.sponsorType} — ${proposal.sponsorName}`} />
-          <Row label="Category" value={proposal.projectCategory} />
+          <Row label="Track" value={proposal.track === 'HQ' ? 'CSIR HQ scheme' : proposal.track === 'ULIP' ? 'In-house (ULIP)' : '—'} />
+          <Row label="Category" value={category} />
           <Row label="Domain" value={proposal.domainTheme} />
           <Row label="Start Date" value={proposal.proposedStartDate} />
           <Row label="Duration" value={`${proposal.proposedDurationMonths} months`} />
-          <Row label="Requested Budget" value={`₹${proposal.requestedBudget.toLocaleString('en-IN')}`} />
+          <Row label="Requested Budget" value={rupees(proposal.requestedBudget)} />
           <Row label="TRL" value={`${proposal.currentTrl ?? '-'} → ${proposal.targetTrl ?? '-'}`} />
         </dl>
       </Card>
+
+      {user && <ReviewPanel proposal={proposal} user={user} onChanged={reload} />}
+
+      {changes.length > 0 && (
+        <Card className="p-4 space-y-2">
+          <h2 className="text-sm font-medium text-text">Changed since the last submission</h2>
+          <table className="w-full text-sm">
+            <tbody>
+              {changes.map(c => (
+                <tr key={c.label} className="border-t border-border align-top">
+                  <td className="py-1.5 pr-3 text-text-muted w-40">{c.label}</td>
+                  <td className="py-1.5 pr-3 text-text-muted whitespace-pre-wrap line-through">{c.before || '—'}</td>
+                  <td className="py-1.5 text-text whitespace-pre-wrap">{c.after || '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
+      )}
+
+      {(proposal.budgetLines ?? []).length > 0 && (
+        <Card className="p-4 space-y-2">
+          <h2 className="text-sm font-medium text-text">Budget</h2>
+          <BudgetLinesEditor lines={proposal.budgetLines ?? []} years={[]} editable={false}
+            onAdd={async () => {}} onUpdate={async () => {}} onDelete={async () => {}} />
+        </Card>
+      )}
 
       <Card className="p-4 space-y-3">
         <h2 className="text-sm font-medium text-text">Technical</h2>
@@ -196,7 +250,7 @@ export default function ProposalDetail() {
         <ul className="text-sm space-y-1">
           {(proposal.documents ?? []).map((d) => (
             <li key={d.id} className="flex items-center justify-between">
-              <span>{d.docType === 'signed_proposal' ? 'Signed Proposal' : 'OM Document'} — {d.fileName}</span>
+              <span>{DOC_LABELS[d.docType] ?? d.docType} — {d.fileName}</span>
               <button
                 className="text-brand-blue underline"
                 onClick={async () => {
@@ -233,24 +287,6 @@ export default function ProposalDetail() {
         </ol>
       </Card>
 
-      {showAdminPanel && (
-        <Card className="p-4">
-          <h2 className="text-sm font-medium text-text mb-3">Admin: Update Status</h2>
-          {transitions.length === 0 ? (
-            <p className="text-text-muted text-sm">No admin transitions available from this state.</p>
-          ) : (
-            <Button onClick={() => setShowStatusModal(true)}>Update Status</Button>
-          )}
-        </Card>
-      )}
-
-      {showStatusModal && (
-        <StatusUpdateModal
-          proposal={proposal}
-          onClose={() => setShowStatusModal(false)}
-          onUpdated={async () => { setShowStatusModal(false); await reload(); }}
-        />
-      )}
     </div>
   );
 }

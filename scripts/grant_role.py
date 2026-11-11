@@ -21,7 +21,7 @@ RAG_ENV = Path(__file__).resolve().parent.parent / "rag" / ".env"
 ROLES = [
     "Director", "DivisionHead", "HOD", "Scientist", "Technician", "HRAdmin",
     "FinanceAdmin", "SystemAdmin", "MasterAdmin", "Student", "ProjectStaff",
-    "Guest", "DefaultUser", "EmpoweredCommittee",
+    "Guest", "DefaultUser", "EmpoweredCommittee", "PME",
 ]
 
 

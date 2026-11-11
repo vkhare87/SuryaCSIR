@@ -10,6 +10,7 @@ import { ResearchSection } from '../../components/dashboard/ResearchSection';
 import { EquipmentOpsSection } from '../../components/dashboard/EquipmentOpsSection';
 import { DEFAULT_THRESHOLDS } from '../../utils/directorMetrics';
 import { useDirectorThresholds } from '../../hooks/useDirectorThresholds';
+import { isActiveProject, projectStatusLabel } from '../../lib/projects/stage';
 
 export function DivisionHeadView() {
   const { staff, projects, phDStudents, equipment, scientificOutputs } = useData();
@@ -20,7 +21,7 @@ export function DivisionHeadView() {
   // (attention flags, finance, research, equipment) reads division-only data.
   const { thresholds, setThresholds } = useDirectorThresholds();
 
-  const activeProjects = projects.filter(p => p.ProjectStatus === 'Active').length;
+  const activeProjects = projects.filter(isActiveProject).length;
 
   // PhD students whose supervisor is in this division's staff
   const divisionStaffNames = staff.map(s => s.Name);
@@ -140,11 +141,11 @@ export function DivisionHeadView() {
                     <td className="px-6 py-3 text-[#4d4c48] font-medium max-w-[180px] truncate">{p.ProjectName}</td>
                     <td className="px-6 py-3">
                       <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
-                        p.ProjectStatus === 'Active'
+                        isActiveProject(p)
                           ? 'bg-[#f0f8f0] text-[#3a7a3a]'
                           : 'bg-[#f5f4ed] text-[#87867f]'
                       }`}>
-                        {p.ProjectStatus}
+                        {projectStatusLabel(p)}
                       </span>
                     </td>
                     <td className="px-6 py-3 text-[#87867f] max-w-[150px] truncate">{p.PrincipalInvestigator}</td>

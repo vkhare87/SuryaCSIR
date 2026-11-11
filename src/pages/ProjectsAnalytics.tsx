@@ -12,6 +12,7 @@ import { parseCost } from '../utils/parseCost';
 import { budgetWatch, type BudgetFlag } from '../lib/projects/budgetWatch';
 import { Badge } from '../components/ui/Cards';
 import { matchesProjectFilter } from '../lib/projects/projectFilter';
+import { projectStatusLabel } from '../lib/projects/stage';
 
 const FLAG_LABEL: Record<BudgetFlag, string> = {
   overrun: 'Overrun', exhaustion: 'Near exhaustion', ahead: 'Ahead of burn', behind: 'Behind burn',
@@ -46,7 +47,8 @@ export default function ProjectsAnalytics() {
     const src = filter && filter.dim === 'status' ? projects : filteredProjects;
     const counts = new Map<string, number>();
     for (const p of src) {
-      counts.set(p.ProjectStatus, (counts.get(p.ProjectStatus) ?? 0) + 1);
+      const label = projectStatusLabel(p) || 'Unspecified';
+      counts.set(label, (counts.get(label) ?? 0) + 1);
     }
     return Array.from(counts, ([label, value]) => ({ label, value }));
   }, [projects, filteredProjects, filter]);

@@ -1,6 +1,7 @@
 import type { ProjectInfo, StaffMember } from '../../types';
 import { parseDate, getRetirementDate } from '../../utils/dateUtils';
 import type { CalEvent } from './types';
+import { isFinishedProject } from '../projects/stage';
 
 function isLeapYear(year: number): boolean {
   return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
@@ -69,7 +70,7 @@ export function deriveProjectClosingEvents(
   const fromTime = new Date(from.getFullYear(), from.getMonth(), from.getDate()).getTime();
   const toTime = new Date(to.getFullYear(), to.getMonth(), to.getDate()).getTime();
   for (const p of projects) {
-    if ((p.ProjectStatus || '').toLowerCase() === 'completed') continue;
+    if (isFinishedProject(p)) continue;
     const closeDate = parseDate(p.CompletioDate);
     if (!closeDate) continue;
     const t = new Date(

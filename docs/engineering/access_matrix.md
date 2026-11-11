@@ -37,52 +37,54 @@ Source of truth: `ACCESS_MAP` in `src/constants/access.ts`. This table is genera
 | MasterAdmin | Superuser | Every feature (38 of 38), whatever the switches; Feature Controls |
 | Student / ProjectStaff | Scholar / project hire | Own dashboard, Ask, calendar, helpdesk |
 | EmpoweredCommittee | PMS final scoring | PMS + committee queue |
+| PME | Project monitoring office | Projects, proposals, progress reports, project staff, partnerships, R&D monitor, committees. Not an admin: no HR, appraisal or account pages |
 | Guest / DefaultUser | Not yet approved | Dashboard (pending view) and helpdesk only |
 
 ## Matrix
 
 ● = role has it by default · = MasterAdmin grant needed
 
-| Feature | Path | Dir | DivH | HOD | Sci | Tech | HR | Fin | Sys | Mstr | Stu | PStf | Gst | Pend | EC |
-|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
-| Dashboard | `/` | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● |
-| Ask SURYA | `/ask` | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | · | · | ● |
-| My Work | `/work` | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | · | · | ● |
-| Calendar | `/calendar` | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | · | · | ● |
-| Intelligence | `/intelligence` | ● | ● | ● | · | · | · | · | · | ● | · | · | · | · | · |
-| Explore Graph | `/explore` | ● | ● | ● | · | · | · | · | · | ● | · | · | · | · | · |
-| Human Capital | `/staff` | ● | ● | ● | · | · | ● | · | · | ● | · | · | · | · | · |
-| Staff Analytics | `/staff/analytics` | ● | ● | ● | · | · | ● | · | · | ● | · | · | · | · | · |
-| Project Staff | `/staff/project` | ● | ● | ● | · | · | ● | · | · | ● | · | · | · | · | · |
-| PhD Tracker | `/phd` | ● | ● | ● | ● | · | · | · | · | ● | · | · | · | · | · |
-| Divisions | `/divisions` | ● | ● | ● | · | · | · | · | · | ● | · | · | · | · | · |
-| Recruitment | `/recruitment` | · | · | · | · | · | ● | · | · | ● | · | · | · | · | · |
-| Projects | `/projects` | ● | ● | ● | ● | · | · | ● | · | ● | · | · | · | · | · |
-| Proposals | `/proposals` | ● | ● | ● | ● | · | ● | ● | · | ● | · | · | · | · | · |
-| Progress Reports | `/reports` | ● | ● | ● | ● | · | ● | · | · | ● | · | · | · | · | · |
-| Progress Report Authoring | `/reports/new` | ● | ● | ● | ● | · | · | · | · | · | · | · | · | · | · |
-| Instruments | `/facilities` | ● | ● | ● | · | ● | · | · | · | ● | · | · | · | · | · |
-| Partnerships | `/partnerships` | ● | ● | ● | · | · | · | ● | · | ● | · | · | · | · | · |
-| R&D Monitor | `/rnd-monitor` | ● | ● | ● | · | · | · | ● | · | ● | · | · | · | · | · |
-| Committees | `/committees` | ● | ● | ● | ● | ● | ● | ● | ● | ● | · | · | · | · | ● |
-| Helpdesk | `/helpdesk` | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● |
-| Performance Mgmt | `/pms` | ● | ● | ● | ● | · | ● | · | · | ● | · | · | · | · | ● |
-| PMS Cycles | `/pms/cycles` | · | · | · | · | · | ● | · | · | ● | · | · | · | · | · |
-| PMS Evaluation Committees | `/pms/evaluation-committees` | · | · | · | · | · | ● | · | · | ● | · | · | · | · | · |
-| PMS Report Authoring | `/pms/reports/new` | ● | ● | ● | ● | · | · | · | · | · | · | · | · | · | · |
-| PMS Evaluator Assignment | `/pms/assign` | · | · | · | · | · | ● | · | · | ● | · | · | · | · | · |
-| PMS Committee Queue | `/pms/committee` | · | · | · | · | · | · | · | · | · | · | · | · | · | ● |
-| PMS Audit Log | `/pms/audit` | · | · | · | · | · | ● | · | · | ● | · | · | · | · | · |
-| My Annual Work Plan | `/pms/awp` | ● | ● | ● | ● | · | · | · | · | · | · | · | · | · | · |
-| AWP Inbox | `/pms/awp/inbox` | ● | ● | ● | ● | · | ● | · | · | ● | · | · | · | · | · |
-| AWP Import | `/pms/awp/import` | · | · | · | · | · | ● | · | · | ● | · | · | · | · | · |
-| AWP Register | `/pms/awp/register` | ● | · | · | · | · | ● | · | · | ● | · | · | · | · | · |
-| Access Requests | `/admin/access-requests` | · | · | · | · | · | · | · | ● | ● | · | · | · | · | · |
-| Feature Controls | `/admin/features` | · | · | · | · | · | · | · | · | ● | · | · | · | · | · |
-| Data Management | `/data` | · | · | · | · | · | ● | · | ● | ● | · | · | · | · | · |
-| IRINS Sync | `/irins-sync` | · | · | · | · | · | · | · | ● | ● | · | · | · | · | · |
-| RAG Ingestion | `/admin/rag` | · | · | · | · | · | · | · | ● | ● | · | · | · | · | · |
-| Holidays | `/admin/holidays` | · | · | · | · | · | · | · | ● | ● | · | · | · | · | · |
+| Feature | Path | Dir | DivH | HOD | Sci | Tech | HR | Fin | Sys | Mstr | Stu | PStf | Gst | Pend | EC | PME |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| Dashboard | `/` | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● |
+| Ask SURYA | `/ask` | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | · | · | ● | ● |
+| My Work | `/work` | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | · | · | ● | ● |
+| Calendar | `/calendar` | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | · | · | ● | ● |
+| Intelligence | `/intelligence` | ● | ● | ● | · | · | · | · | · | ● | · | · | · | · | · | · |
+| Explore Graph | `/explore` | ● | ● | ● | · | · | · | · | · | ● | · | · | · | · | · | · |
+| Human Capital | `/staff` | ● | ● | ● | · | · | ● | · | · | ● | · | · | · | · | · | · |
+| Staff Analytics | `/staff/analytics` | ● | ● | ● | · | · | ● | · | · | ● | · | · | · | · | · | · |
+| Project Staff | `/staff/project` | ● | ● | ● | · | · | ● | · | · | ● | · | · | · | · | · | ● |
+| PhD Tracker | `/phd` | ● | ● | ● | ● | · | · | · | · | ● | · | · | · | · | · | · |
+| Divisions | `/divisions` | ● | ● | ● | · | · | · | · | · | ● | · | · | · | · | · | · |
+| Recruitment | `/recruitment` | · | · | · | · | · | ● | · | · | ● | · | · | · | · | · | · |
+| Projects | `/projects` | ● | ● | ● | ● | · | · | ● | · | ● | · | · | · | · | · | ● |
+| Proposals | `/proposals` | ● | ● | ● | ● | · | ● | ● | · | ● | · | · | · | · | · | ● |
+| Progress Reports | `/reports` | ● | ● | ● | ● | · | ● | · | · | ● | · | · | · | · | · | ● |
+| Progress Report Authoring | `/reports/new` | ● | ● | ● | ● | · | · | · | · | · | · | · | · | · | · | · |
+| Instruments | `/facilities` | ● | ● | ● | · | ● | · | · | · | ● | · | · | · | · | · | · |
+| Partnerships | `/partnerships` | ● | ● | ● | · | · | · | ● | · | ● | · | · | · | · | · | ● |
+| R&D Monitor | `/rnd-monitor` | ● | ● | ● | · | · | · | ● | · | ● | · | · | · | · | · | ● |
+| Project Portfolio | `/portfolio` | ● | ● | ● | · | · | · | ● | · | ● | · | · | · | · | · | ● |
+| Committees | `/committees` | ● | ● | ● | ● | ● | ● | ● | ● | ● | · | · | · | · | ● | ● |
+| Helpdesk | `/helpdesk` | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● |
+| Performance Mgmt | `/pms` | ● | ● | ● | ● | · | ● | · | · | ● | · | · | · | · | ● | · |
+| PMS Cycles | `/pms/cycles` | · | · | · | · | · | ● | · | · | ● | · | · | · | · | · | · |
+| PMS Evaluation Committees | `/pms/evaluation-committees` | · | · | · | · | · | ● | · | · | ● | · | · | · | · | · | · |
+| PMS Report Authoring | `/pms/reports/new` | ● | ● | ● | ● | · | · | · | · | · | · | · | · | · | · | · |
+| PMS Evaluator Assignment | `/pms/assign` | · | · | · | · | · | ● | · | · | ● | · | · | · | · | · | · |
+| PMS Committee Queue | `/pms/committee` | · | · | · | · | · | · | · | · | · | · | · | · | · | ● | · |
+| PMS Audit Log | `/pms/audit` | · | · | · | · | · | ● | · | · | ● | · | · | · | · | · | · |
+| My Annual Work Plan | `/pms/awp` | ● | ● | ● | ● | · | · | · | · | · | · | · | · | · | · | · |
+| AWP Inbox | `/pms/awp/inbox` | ● | ● | ● | ● | · | ● | · | · | ● | · | · | · | · | · | · |
+| AWP Import | `/pms/awp/import` | · | · | · | · | · | ● | · | · | ● | · | · | · | · | · | · |
+| AWP Register | `/pms/awp/register` | ● | · | · | · | · | ● | · | · | ● | · | · | · | · | · | · |
+| Access Requests | `/admin/access-requests` | · | · | · | · | · | · | · | ● | ● | · | · | · | · | · | · |
+| Feature Controls | `/admin/features` | · | · | · | · | · | · | · | · | ● | · | · | · | · | · | · |
+| Data Management | `/data` | · | · | · | · | · | ● | · | ● | ● | · | · | · | · | · | · |
+| IRINS Sync | `/irins-sync` | · | · | · | · | · | · | · | ● | ● | · | · | · | · | · | · |
+| RAG Ingestion | `/admin/rag` | · | · | · | · | · | · | · | ● | ● | · | · | · | · | · | · |
+| Holidays | `/admin/holidays` | · | · | · | · | · | · | · | ● | ● | · | · | · | · | · | · |
 
 ## What changed on 2026-10-20
 
@@ -96,6 +98,19 @@ Source of truth: `ACCESS_MAP` in `src/constants/access.ts`. This table is genera
 Also fixed: PMS sub-pages (`/pms/reports`, `/pms/evaluate`, `/pms/grievance`), proposal
 detail/edit and meeting detail had a feature key but **no role check** — any signed-in role
 could open them by URL. Every route with an `accessPath` now checks role + grant + switches.
+
+## What changed on 2026-11-10 / 11
+
+`/portfolio` (Project Portfolio) added for Director, Division Head, HOD, FinanceAdmin, PME and
+MasterAdmin; the view behind it is row-scoped by RLS, so a division manager sees their division.
+
+
+| Role | Added | Why |
+|---|---|---|
+| PME (new) | Projects, Proposals, Progress Reports, Project Staff, Partnerships, R&D Monitor, Project Portfolio | Carries a project file from submission to archive — `docs/roadmap/sources/PROJECT-LIFECYCLE-PLAN.md` §4 |
+
+A `DRAFT` proposal is no longer readable by Director, division managers or admins: RLS
+(`proposals_can_read`, 20261110000002) limits it to its PI and named co-PIs.
 
 ## Regenerate the matrix
 

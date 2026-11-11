@@ -7,22 +7,58 @@ import {
   CopyCheck, UserPlus, Users, GraduationCap, ChevronRight,
   Clock, AlertTriangle, Edit,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { Tabs, TabsList, TabsTrigger } from '../components/ui/Tabs';
+import { FundsPanel } from '../components/projects/FundsPanel';
+import { MilestonesPanel } from '../components/projects/MilestonesPanel';
+import { OutputsPanel } from '../components/projects/OutputsPanel';
+import { TimelinePanel } from '../components/projects/TimelinePanel';
+import { MonitoringPanel } from '../components/projects/MonitoringPanel';
+import { ChangesPanel } from '../components/projects/ChangesPanel';
+import { ClosurePanel } from '../components/projects/ClosurePanel';
+import { LegacyPanel } from '../components/projects/LegacyPanel';
+import { needsLegacyCompletion } from '../lib/projects/legacy';
+import { loadProjectFile } from '../lib/projects/projectFileApi';
+import { useUrlTab } from '../utils/useUrlTab';
+import { friendlyError } from '../lib/errors';
+import type { ProjectFile } from '../types/projectFile';
 import { parseDate, diffInDays, isWithinMonths } from '../utils/dateUtils';
 import { useCanEdit } from '../lib/permissions/canEdit';
 import { ProjectFormModal } from '../components/ProjectFormModal';
 import { RequestUpdateButton } from '../components/RequestUpdateButton';
 import { useBack } from '../utils/useBack';
+import { isActiveProject, isCompletedProject, projectStatusLabel } from '../lib/projects/stage';
+
+const TABS = ['overview', 'monitoring', 'funds', 'milestones', 'changes', 'closure', 'outputs', 'timeline'] as const;
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const goBack = useBack('/projects');
-  const { projects, projectStaff, phDStudents, staff, divisions } = useData();
-  const canEdit = useCanEdit('hr');
+  const { projects, projectStaff, phDStudents, staff, divisions, refreshData } = useData();
+  const { user } = useAuth();
+  const canEdit = useCanEdit('projects');
   const [editOpen, setEditOpen] = useState(false);
+  const [tab, setTab] = useUrlTab(TABS);
+  const [file, setFile] = useState<ProjectFile | null>(null);
+  const [fileError, setFileError] = useState('');
 
   const project = projects.find(p => p.ProjectID === id);
+
+  const reloadFile = useCallback(async () => {
+    if (!id) return;
+    try { setFile(await loadProjectFile(id)); setFileError(''); }
+    catch (e) { setFileError(friendlyError(e)); }
+  }, [id]);
+  useEffect(() => { void reloadFile(); }, [reloadFile]);
+
+  // A display hint for which controls to show. The database decides
+  // (project_caller_is_party / project_caller_is_office).
+  const myStaffId = useMemo(() => staff.find(s => s.user_id === user?.id)?.ID ?? null, [staff, user]);
+  const isParty = !!project && !!myStaffId && project.piStaffId === myStaffId;
+  const isOffice = !!user && !isParty && (user.roles.includes('PME') || user.roles.includes('MasterAdmin'));
+  const onFileChanged = useCallback(async () => { await Promise.all([reloadFile(), refreshData()]); }, [reloadFile, refreshData]);
 
   // --- All hooks must be called unconditionally before any early return ---
 
@@ -62,8 +98,8 @@ export default function ProjectDetail() {
   }
 
   let statusVariant: 'success' | 'warning' | 'danger' | 'neutral' | 'info' = 'neutral';
-  if (project.ProjectStatus === 'Active') statusVariant = 'success';
-  if (project.ProjectStatus === 'Completed') statusVariant = 'info';
+  if (isActiveProject(project)) statusVariant = 'success';
+  if (isCompletedProject(project)) statusVariant = 'info';
 
   const sCost = parseFloat(project.SanctionedCost?.replace(/[^0-9.-]+/g, '') ?? '') || 0;
   const currCost = parseFloat(project.UtilizedAmount?.replace(/[^0-9.-]+/g, '') ?? '') || 0;
@@ -95,7 +131,7 @@ export default function ProjectDetail() {
         <div className="flex-1">
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-2xl font-[500] text-text font-serif">{project.ProjectNo}</h1>
-            <Badge variant={statusVariant}>{project.ProjectStatus}</Badge>
+            <Badge variant={statusVariant}>{projectStatusLabel(project)}</Badge>
             {daysLeft !== null && daysLeft > 0 && daysLeft <= 30 && (
               <Badge variant="danger" className="flex items-center gap-1">
                 <AlertTriangle size={10} /> {daysLeft}d left
@@ -121,6 +157,41 @@ export default function ProjectDetail() {
         )}
       </div>
 
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList className="flex-wrap">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="monitoring">Monitoring{file && file.slots.some(s => s.status === 'PENDING' && s.dueDate < new Date().toISOString().slice(0, 10)) ? ' •' : ''}</TabsTrigger>
+          <TabsTrigger value="funds">Funds</TabsTrigger>
+          <TabsTrigger value="milestones">Milestones{file && file.milestones.length > 0 ? ` (${file.milestones.length})` : ''}</TabsTrigger>
+          <TabsTrigger value="changes">Changes{file && file.changes.some(c => c.status === 'SUBMITTED' || c.status === 'UNDER_REVIEW' || c.status === 'RETURNED') ? ' •' : ''}</TabsTrigger>
+          <TabsTrigger value="closure">Closure</TabsTrigger>
+          <TabsTrigger value="outputs">Outputs</TabsTrigger>
+          <TabsTrigger value="timeline">Timeline</TabsTrigger>
+        </TabsList>
+      </Tabs>
+      {fileError && tab !== 'overview' && <p role="alert" className="text-sm text-danger">{fileError}</p>}
+      {tab === 'monitoring' && file && (
+        <MonitoringPanel project={project} file={file} isOffice={isOffice} isParty={isParty}
+          canCall={!isParty && !!user && (user.roles.includes('Director') || user.roles.includes('PME') || user.roles.includes('MasterAdmin'))}
+          onChanged={onFileChanged} />
+      )}
+      {tab === 'changes' && file && (
+        <ChangesPanel project={project} file={file} isPi={isParty} isOffice={isOffice}
+          userId={user?.id ?? null} roles={user?.roles ?? []} onChanged={onFileChanged} />
+      )}
+      {tab === 'closure' && file && (
+        <ClosurePanel project={project} file={file} isPi={isParty} isOffice={isOffice} roles={user?.roles ?? []} onChanged={onFileChanged} />
+      )}
+      {tab === 'funds' && isOffice && needsLegacyCompletion(project) && <LegacyPanel project={project} onChanged={onFileChanged} />}
+      {tab === 'funds' && file && <FundsPanel project={project} file={file} isOffice={isOffice} onChanged={onFileChanged} />}
+      {tab === 'milestones' && file && (
+        <MilestonesPanel project={project} startDate={/^\d{4}-\d{2}-\d{2}$/.test(project.StartDate) ? project.StartDate : null}
+          milestones={file.milestones} isOffice={isOffice} isParty={isParty} onChanged={onFileChanged} />
+      )}
+      {tab === 'outputs' && <OutputsPanel project={project} canLink={isOffice || isParty || !!user?.roles.includes('PME')} />}
+      {tab === 'timeline' && file && <TimelinePanel events={file.events} documents={file.documents} />}
+
+      {tab === 'overview' && (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {/* ── LEFT COLUMN ── */}
@@ -354,6 +425,7 @@ export default function ProjectDetail() {
 
         </div>
       </div>
+      )}
 
       {canEdit && (
         <ProjectFormModal isOpen={editOpen} onClose={() => setEditOpen(false)} project={project} />

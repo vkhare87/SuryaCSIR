@@ -29,7 +29,16 @@ Related docs: [app.md](app.md) (product spec), [database_design.md](database_des
   current dashboard and nav. Switch roles from the role switcher in the top layout bar.
 - Roles: `Director`, `DivisionHead`, `HOD`, `Scientist`, `Technician`, `HRAdmin`,
   `FinanceAdmin`, `SystemAdmin`, `MasterAdmin`, `Student`, `ProjectStaff`, `Guest`,
-  `DefaultUser`, `EmpoweredCommittee`.
+  `DefaultUser`, `EmpoweredCommittee`, `PME`.
+
+### PME desk
+- **Who:** `PME`. **Route:** `/pme`.
+- Work queue for the project monitoring office: proposals awaiting vetting, sanctions
+  awaiting a project record, projects whose status maps to no stage, projects not yet
+  classified as ULIP or HQ scheme. PME edits project records; it is not an admin.
+- A proposal in `DRAFT` is private to its PI and named co-PIs; PME and everyone else
+  see it from submission onward.
+- First phase (`PL0`) of `docs/roadmap/sources/PROJECT-LIFECYCLE-PLAN.md`.
 
 ### Access requests
 - **Who:** new users request; `SystemAdmin`/`MasterAdmin` approve. **Route:** `/admin/access-requests`.
@@ -147,15 +156,91 @@ Related docs: [app.md](app.md) (product spec), [database_design.md](database_des
   status) with analytics.
 
 ### Proposals (full lifecycle state machine)
-- **Who:** Scientists draft; review chain up to Director. **Route:** `/proposals`.
+- **Who:** Scientist, HOD, Division Head or Director drafts; review chain up to Director. **Route:** `/proposals`.
+- **Workspace** (`/proposals/new`, `/proposals/:id/edit`): a title starts a private draft —
+  from the "Project ideas" card on the home page or the Proposals list. Sections (Idea ·
+  Plan · Team · Budget · Documents) save as you type; unsaved typing is also kept in the
+  browser and restored after a crash. A private **notes** panel sits beside every section,
+  and a note can be moved or copied into the abstract, problem statement, objectives or
+  expected outcomes. **Versions** can be marked, compared and restored. A **readiness
+  meter** lists what submission still needs and never blocks saving. On a phone the page
+  shows the title and notes only.
+- **Budget** is entered as year × head lines; the requested total follows them. The
+  Documents section prints the proposal as a PDF (its version number on every page) for
+  signature; the signed scan is uploaded before submitting. Equipment of ₹5 lakh or more
+  needs a quotation.
+- **Review chain** (proposal page): each track's steps in order — ULIP: PME vetting →
+  review committee → Director; HQ: PME → Finance → Director forwards → two HQ screenings →
+  competent authority. Whoever's turn it is records approve / return / reject, approvals
+  against a signed scan. Reviewers leave comments on a section; the PI ticks them done and
+  resubmits, and the reviewer sees what changed since the last submission.
+- **Sanction:** PME records the sanction order and the project is created from the
+  proposal — budget lines, dates and PI included.
+
+### Project file (`/projects/:id`)
+- Tabs: **Overview** · **Monitoring** · **Funds** · **Milestones** · **Changes** · **Closure** · **Outputs** · **Timeline**.
+- **Closure:** the PI writes the completion report — what the project did, whether the
+  objectives were met (and why not), what worked, what did not, reusable assets and where
+  they are, readiness level, advice to a future team, follow-on ideas. Submitting with the
+  signed report compiles the financial statement and the annexure list from the file
+  (missing minutes flagged) and sends it on its closure route; the last approval closes
+  the project. PME then **publishes and archives**: the report becomes a PDF in the
+  institute archive that Ask SURYA indexes, and the file turns read-only. Each follow-on
+  idea can be started as a new draft linked back to the project. A project closed
+  before SURYA gets a short lessons note instead, with no approval chain.
+- **Bringing in a legacy project:** on the Funds tab of a running project from before
+  SURYA, PME enters once the scheme, dates, sanction order (with scan), the sanction by
+  year and head, and money received and spent to date. These are kept as marked opening
+  balances; reviews that fell due earlier are not shown overdue. The PME desk counts what
+  is left to bring in. Project records are edited by PME (and MasterAdmin) only; the
+  importer's project step is MasterAdmin's, for bulk legacy correction.
+- **Changes:** the PI asks for more time, a revised cost estimate, carrying money forward,
+  moving money between heads or (HQ) to or from another laboratory, or early closure.
+  The form offers only what the guidelines allow (no rephasing of travel or manpower, no
+  Capital ↔ Revenue moves, no extra travel) and shows what is unspent; the database checks
+  again on submission and on the final approval. Each request follows its route for the
+  track, one signed scan per step; the final HQ order must carry the IFD concurrence
+  reference. On approval the funds table, end date, schedule or stage change at once.
+  Co-PIs can read the file; they do not raise requests.
+- **Monitoring:** a review brief (time elapsed, money spent, milestones achieved, overdue)
+  and every review and report due, worked out from the project's track, category and
+  dates — a report nobody filed shows overdue on its own. PME puts a review on a meeting
+  agenda, records the outcome (continue / with changes / hold / recommend foreclosure, or
+  go / conditional go / hold / kill / recycle at a stage gate) and files the minutes,
+  which are flagged when late. The Director or PME can **Call for review** at any time;
+  the PI is notified and it appears in their My Actions.
+- **Funds:** sanctioned · received · spent · balance per financial year, and spend against
+  sanction per head (overspend flagged). PME records money received (release order scan;
+  IFD reference on the HQ track) and expenditure (signed statement). Entries are never
+  edited — a wrong one is reversed. The first receipt makes the project active.
+- **Milestones:** in six-month sub-stages. The PI proposes and reports done with
+  evidence; PME accepts, confirms, sends back or drops.
+- **Outputs:** publications, patents and equipment linked by PME or the PI, plus MoUs
+  and technology transfers on the project.
+- **Timeline:** every receipt, expenditure, reversal, milestone change, stage change and
+  filed document, with the documents list.
 - `DRAFT → SUBMITTED → … → OM_ISSUED → LINKED` (linked = becomes a project). PDF
   uploads up to 25 MB. Transitions run through RPCs — status is never patched from
   the client.
-- **Duplication check:** on a proposal's detail page, "Check for similar work" queries
+- **Duplication check:** in the workspace's Idea section and on a proposal's detail page, "Check for similar work" queries
   the document index for prior/ongoing work similar to the proposal topic and lists
   matches with page-level citations (`/similar` endpoint).
 - **Comparable past projects:** the same page ranks completed projects similar in
   domain/division/fund-type, with sanctioned/utilized amounts — evidence for evaluation.
+
+### Project portfolio (`/portfolio`)
+- **Who:** Director, Division Heads / HODs, FinanceAdmin, PME, MasterAdmin.
+- Every running project on one table: time elapsed against money spent and milestones
+  met, overdue items, next due date, last review decision, and a plain **On track /
+  Watch / Behind** reading. Behind first; filter by track or to those needing attention.
+  The PME desk lists overdue reviews and late minutes from the same view, and change
+  requests waiting on PME; Finance and the Director see their change-request steps in My Actions.
+
+### Lessons learned (`/lessons`)
+- **Who:** Director, Division Heads / HODs, Scientists, Technicians, FinanceAdmin, PME, MasterAdmin.
+- Every approved completion report's lessons, searchable and filterable by outcome — what
+  worked, what did not and why, reusable assets, advice to a future team. Readable even
+  for projects the reader cannot otherwise open.
 
 ### Project progress reports
 - **Routes:** `/reports`, `/reports/new`, `/reports/:id`.

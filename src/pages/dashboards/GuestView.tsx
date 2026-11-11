@@ -2,12 +2,13 @@ import { Building2, Users, Briefcase, Microscope } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
 import { KpiCard } from '../../components/ui/KpiCard';
 import { Card } from '../../components/ui/Cards';
+import { isActiveProject } from '../../lib/projects/stage';
 
 export function GuestView() {
   const { divisions, staff, projects, scientificOutputs } = useData();
 
   const activeDivisions = divisions.filter(d => d.divStatus === 'Active').length;
-  const activeProjects = projects.filter(p => p.ProjectStatus === 'Active').length;
+  const activeProjects = projects.filter(isActiveProject).length;
 
   return (
     <div className="space-y-8 pb-12">

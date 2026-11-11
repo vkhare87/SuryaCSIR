@@ -33,10 +33,12 @@ describe('ACCESS_MAP ↔ App.tsx route consistency', () => {
 
   it('authoring and admin pages are desktop-only; review pages stay on phones', () => {
     const line = (p: string) => appSource.split('\n').find((l) => l.includes(`path="${p}"`)) ?? '';
-    for (const p of ['/data', '/pms/reports/:id/edit', '/proposals/new', '/reports/new', '/explore', '/irins-sync']) {
+    // The proposal workspace is deliberately not here: it handles phones itself
+    // (title and private notes only), so an idea can be jotted from anywhere.
+    for (const p of ['/data', '/pms/reports/:id/edit', '/reports/new', '/explore', '/irins-sync']) {
       expect(line(p)).toContain('desktopOnly');
     }
-    for (const p of ['/pms/reports/:id', '/proposals/:id', '/reports/:id', '/pms/evaluate/:evaluationId', '/admin/access-requests']) {
+    for (const p of ['/pms/reports/:id', '/proposals/:id', '/proposals/new', '/proposals/:id/edit', '/reports/:id', '/pms/evaluate/:evaluationId', '/admin/access-requests']) {
       expect(line(p)).not.toContain('desktopOnly');
     }
   });

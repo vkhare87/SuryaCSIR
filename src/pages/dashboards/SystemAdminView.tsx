@@ -16,6 +16,7 @@ import { useFeatureControls } from '../../contexts/FeatureControlContext';
 import { Card } from '../../components/ui/Cards';
 import { KpiCard } from '../../components/ui/KpiCard';
 import type { ReportStatus } from '../../types/pms';
+import { isActiveProject } from '../../lib/projects/stage';
 
 interface UserRoleRow {
   user_id: string;
@@ -101,7 +102,7 @@ export function SystemAdminView() {
   }, [provisioned]);
 
   // ── Derived metrics ───────────────────────────────────────────────
-  const activeProjects   = useMemo(() => projects.filter(p => p.ProjectStatus === 'Active').length, [projects]);
+  const activeProjects   = useMemo(() => projects.filter(isActiveProject).length, [projects]);
   const equipmentDown    = useMemo(() => equipment.filter(e => isEquipmentDown(e.WorkingStatus)).length, [equipment]);
   const openTickets      = useMemo(() => tickets.filter(t => t.status === 'Open' || t.status === 'InProgress').length, [tickets]);
   const criticalTickets  = useMemo(() => tickets.filter(t => t.urgency === 'Critical' && t.status !== 'Closed').length, [tickets]);

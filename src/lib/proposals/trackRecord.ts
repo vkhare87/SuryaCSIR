@@ -1,6 +1,7 @@
 import { personNamesMatch } from '../../utils/analytics';
 import { parseCost } from '../../utils/parseCost';
 import type { ProjectInfo } from '../../types';
+import { isCompletedProject } from '../projects/stage';
 
 // Descriptive facts only — deliberately NO composite score. Small-n (a PI may
 // have 3 past projects) makes a score noise, and scoring scientists creates
@@ -40,7 +41,7 @@ export function piTrackRecord(projects: ProjectInfo[], piName: string): PiTrackR
   if (rows.length === 0) return null;
   return {
     rows,
-    completedCount: rows.filter(r => r.project.ProjectStatus.trim().toLowerCase() === 'completed').length,
+    completedCount: rows.filter(r => isCompletedProject(r.project)).length,
     extendedCount: rows.filter(r => r.extended).length,
   };
 }

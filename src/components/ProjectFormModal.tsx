@@ -5,6 +5,7 @@ import { Button } from './ui/Button';
 import { supabase } from '../utils/supabaseClient';
 import type { ProjectInfo } from '../types';
 import { friendlyError } from '../lib/errors';
+import { PROJECT_STAGES, STAGE_LABELS, projectStatusLabel } from '../lib/projects/stage';
 
 interface Props {
   isOpen: boolean;
@@ -12,7 +13,7 @@ interface Props {
   project?: ProjectInfo | null;
 }
 
-const STATUSES = ['Ongoing', 'Completed', 'Approved', 'Submitted', 'Rejected', 'On Hold'];
+const STATUSES = PROJECT_STAGES.map(s => STAGE_LABELS[s]);
 const CATEGORIES = ['Sponsored', 'Consultancy', 'In-house', 'Collaborative'];
 const FUND_TYPES = ['CSIR', 'External', 'Industrial', 'Government', 'International'];
 const SPONSOR_TYPES = ['Government', 'Industry', 'PSU', 'Academic', 'International'];
@@ -25,7 +26,7 @@ const EMPTY: ProjectInfo = {
   SponsorerType: '',
   SponsorerName: '',
   ProjectCategory: '',
-  ProjectStatus: 'Ongoing',
+  ProjectStatus: STAGE_LABELS.ACTIVE,
   StartDate: '',
   CompletioDate: '',
   SanctionedCost: '',
@@ -48,7 +49,8 @@ export function ProjectFormModal({ isOpen, onClose, project }: Props) {
 
   useEffect(() => {
     if (!isOpen) return;
-    setForm(project ? { ...project } : { ...EMPTY });
+    // A legacy status ("Ongoing") opens on its stage label; an unrecognised one is kept as entered.
+    setForm(project ? { ...project, ProjectStatus: projectStatusLabel(project) } : { ...EMPTY });
     setErrors({});
     setSubmitError(null);
     setShowDeleteConfirm(false);
@@ -60,6 +62,7 @@ export function ProjectFormModal({ isOpen, onClose, project }: Props) {
 
   function validate(): boolean {
     const next: Record<string, string> = {};
+    if (!form.ProjectID.trim()) next.ProjectID = 'Required';
     if (!form.ProjectNo.trim()) next.ProjectNo = 'Required';
     if (!form.ProjectName.trim()) next.ProjectName = 'Required';
     setErrors(next);
@@ -75,9 +78,16 @@ export function ProjectFormModal({ isOpen, onClose, project }: Props) {
     setSubmitting(true);
     setSubmitError(null);
 
-    const { error } = isEdit
-      ? await supabase.from('projects').update(form).eq('ProjectNo', form.ProjectNo)
-      : await supabase.from('projects').insert(form);
+    // stage is derived by the database from the status text; track is PME's to set elsewhere.
+    const payload: Partial<ProjectInfo> = { ...form };
+    delete payload.stage;
+    delete payload.track;
+
+    // Keyed on ProjectID: one ProjectNo can cover several work packages, so
+    // a ProjectNo match would rewrite (or delete) all of them.
+    const { error } = project
+      ? await supabase.from('projects').update(payload).eq('ProjectID', project.ProjectID)
+      : await supabase.from('projects').insert(payload);
 
     setSubmitting(false);
     if (error) {
@@ -92,7 +102,7 @@ export function ProjectFormModal({ isOpen, onClose, project }: Props) {
     if (!supabase || !project) return;
     setSubmitting(true);
     setSubmitError(null);
-    const { error } = await supabase.from('projects').delete().eq('ProjectNo', project.ProjectNo);
+    const { error } = await supabase.from('projects').delete().eq('ProjectID', project.ProjectID);
     setSubmitting(false);
     if (error) {
       setSubmitError(friendlyError(error));
@@ -109,8 +119,8 @@ export function ProjectFormModal({ isOpen, onClose, project }: Props) {
           <Field label="Project No" error={errors.ProjectNo}>
             <input type="text" value={form.ProjectNo} onChange={(e) => update('ProjectNo', e.target.value)} disabled={isEdit} placeholder="PRJ-2026-001" className={inputCls + ' disabled:opacity-60'} />
           </Field>
-          <Field label="Project ID">
-            <input type="text" value={form.ProjectID} onChange={(e) => update('ProjectID', e.target.value)} placeholder="Internal ID" className={inputCls} />
+          <Field label="Project ID" error={errors.ProjectID}>
+            <input type="text" value={form.ProjectID} onChange={(e) => update('ProjectID', e.target.value)} disabled={isEdit} placeholder="Internal ID" className={inputCls + ' disabled:opacity-60'} />
           </Field>
         </div>
 

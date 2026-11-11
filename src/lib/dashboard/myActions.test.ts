@@ -135,8 +135,44 @@ describe('deriveMyActions', () => {
     const scientist = deriveMyActions({ ...base, proposals });
     expect(scientist.map(a => a.id).sort()).toEqual(['prop-p1', 'prop-p2']);
 
-    const admin = deriveMyActions({ ...base, role: 'HRAdmin', proposals });
-    expect(admin.map(a => a.id)).toContain('prop-review-p3');
+    const pme = deriveMyActions({ ...base, role: 'PME', proposals });
+    expect(pme.map(a => a.id)).toContain('prop-review-p3');
+    // HR no longer reviews proposals: the chain is PME's (20261111000001).
+    expect(deriveMyActions({ ...base, role: 'HRAdmin', proposals }).map(a => a.id)).not.toContain('prop-review-p3');
+
+    const recommended = [proposal({ id: 'p4', piUserId: 'u2', status: 'RECOMMENDED', track: 'ULIP' })];
+    expect(deriveMyActions({ ...base, role: 'Director', proposals: recommended }).map(a => a.id)).toEqual(['prop-review-p4']);
+  });
+
+  it('lists progress reports and called reviews owed on the user\'s projects, with their due date', () => {
+    const out = deriveMyActions({ ...base, dueSlots: [
+      { slotId: 's1', projectId: 'P1', projectNo: 'ULIP-1', kind: 'PROGRESS_REPORT', body: 'Progress report', periodLabel: 'H1 2027-28', dueDate: '2027-10-15' },
+      { slotId: 's2', projectId: 'P1', projectNo: 'ULIP-1', kind: 'CALLED_REVIEW', body: 'Review called by the Director', periodLabel: 'Called', dueDate: '2027-10-20' },
+    ] });
+    expect(out.map(a => [a.id, a.label, a.due])).toEqual([
+      ['slot-s1', 'Progress report due — ULIP-1', '2027-10-15'],
+      ['slot-s2', 'Review called — ULIP-1', '2027-10-20'],
+    ]);
+  });
+
+  it('lists change-request steps the user is to record', () => {
+    const out = deriveMyActions({ ...base, changeSteps: [
+      { stepId: 'c1', changeId: 'r1', projectId: 'P1', projectNo: 'FTT040511', changeKind: 'REAPPROPRIATION', stepKind: 'FINANCE', submittedAt: null },
+    ] });
+    expect(out.map(a => [a.label, a.detail, a.link])).toEqual([
+      ['Change request to record — FTT040511', 'Move money between heads · Finance', '/projects/P1?tab=changes'],
+    ]);
+  });
+
+  it('reminds a PI of a completion report due, and a reviewer of a step to record', () => {
+    const out = deriveMyActions({ ...base, closureItems: [
+      { item: 'due', projectId: 'P1', projectNo: 'ULIP-1', stepId: null, stepKind: null, endDate: '2026-03-31' },
+      { item: 'step', projectId: 'P2', projectNo: 'FTT040511', stepId: 's9', stepKind: 'COMPETENT_AUTHORITY', endDate: null },
+    ] });
+    expect(out.map(a => [a.label, a.detail, a.due])).toEqual([
+      ['Completion report due — ULIP-1', 'Write what the project did and learned; it closes the project', '2026-03-31'],
+      ['Completion report to record — FTT040511', 'DG, CSIR closure', null],
+    ]);
   });
 
   it('surfaces own draft/revision progress reports; review queue only for reviewers', () => {

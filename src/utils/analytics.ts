@@ -8,6 +8,7 @@ import type {
   ScientificOutput,
   StaffMember,
 } from '../types';
+import { isActiveProject } from '../lib/projects/stage';
 
 export interface DivisionMetric {
   divCode: string;
@@ -72,7 +73,7 @@ export function getDivisionMetrics(params: {
       divCode: division.divCode,
       divName: division.divName,
       staffCount: divisionStaff.length,
-      activeProjectCount: divisionProjects.filter(item => item.ProjectStatus === 'Active').length,
+      activeProjectCount: divisionProjects.filter(isActiveProject).length,
       projectCount: divisionProjects.length,
       scientificOutputCount: scientificOutputs.filter(item => item.divisionCode === division.divCode).length,
       phdStudentCount: divisionPhDs.length,

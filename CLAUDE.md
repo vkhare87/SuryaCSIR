@@ -15,7 +15,9 @@ Two halves of the same app:
 Every staff member logs in and sees their role-scoped slice of the institute.
 
 **User roles** (composite — a user can hold multiple, with one `active_role` driving the current dashboard):
-`Director`, `DivisionHead`, `HOD`, `Scientist`, `Technician`, `HRAdmin`, `FinanceAdmin`, `SystemAdmin`, `MasterAdmin`, `Student`, `ProjectStaff`, `Guest`, `DefaultUser`, `EmpoweredCommittee`.
+`Director`, `DivisionHead`, `HOD`, `Scientist`, `Technician`, `HRAdmin`, `FinanceAdmin`, `SystemAdmin`, `MasterAdmin`, `Student`, `ProjectStaff`, `Guest`, `DefaultUser`, `EmpoweredCommittee`, `PME`.
+
+`PME` (project monitoring office) owns the project lifecycle but is **not an admin** — it has its own `caller_is_pme()` and must never be added to `proposals_caller_is_admin()`. Plan: `docs/roadmap/sources/PROJECT-LIFECYCLE-PLAN.md`.
 
 ---
 
@@ -48,7 +50,7 @@ any code that doesn't match DESIGN.md.
 | `docs/engineering/architecture_addendum.md` | Architecture, layers, folder map, security, extension points |
 | `docs/engineering/system_design.md` | Flows, all state machines, deployment, failure/scaling |
 | `docs/engineering/api_spec.md` | PostgREST + every RPC signature + Ask SURYA HTTP endpoints |
-| `docs/engineering/database_design.md` | All 65 tables, ER diagrams, indexes, migrations, retention |
+| `docs/engineering/database_design.md` | All 92 tables, ER diagrams, indexes, migrations, retention |
 | `docs/engineering/development_guide.md` | Setup, branching, testing, commits, PR checklist, debugging |
 | `docs/engineering/coding_standards.md` | Expanded TS / Python / SQL conventions |
 | `docs/engineering/FEATURES.md` · `STACK.md` | Feature catalogue · versions |
@@ -206,7 +208,7 @@ No path aliases. Always relative imports.
 - typecheck: `npm run build` — **`npx tsc --noEmit` passes vacuously** under the
   project-references layout, so it proves nothing. `npm run build` runs `tsc -b`.
 - lint: `npm run lint` (`eslint .` — covers `scripts/` and configs too, not just `src/`)
-- test: `npm test` — 92 files, 864 tests (as of 2026-11-01). Includes `scripts/db/*.test.ts`: every
+- test: `npm test` — 129 files, 1151 tests (as of 2026-11-12). Includes `scripts/db/*.test.ts`: every
   migration applied to an in-process Postgres (PGlite + Supabase shims, `scripts/db/pgliteHarness.ts`),
   then RLS/RPC tests and `supabase/tests/*.sql` — no Docker or Supabase CLI needed
 - python: `python -m pytest` in `rag/` and in `ingest/`

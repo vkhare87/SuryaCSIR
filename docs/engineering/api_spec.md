@@ -161,7 +161,7 @@ is the RLS policy, not a query parameter.
 | `committees`, `committee_members`, `meetings`, `agenda_items`, `action_items`, `meeting_documents` | All authenticated | Chair/secretary + admins; minutes lock after finalization (`unlock_meeting_minutes` to reopen) |
 | `tickets`, `ticket_responses`, `ticket_events` | Submitter + assignee + admins | **RPC only** |
 | `calendar_events`, `holidays` | By `visibility` (`OrgWide` / `Division` / `Personal`) | Creator + admins |
-| `proposals`, `proposal_copis`, `proposal_documents`, `proposal_status_history` | `proposals_can_read` — PI, co-PIs, same division, admins | Editable statuses only; transitions via RPC |
+| `proposals`, `proposal_copis`, `proposal_documents`, `proposal_status_history` | `proposals_can_read` — a `DRAFT`: PI, creator and named co-PIs only. From submission: also the division's managers, Director, admins, PME and the track's scheme leader | Editable statuses only; transitions via RPC |
 | `project_reports`, `project_report_history` | `project_reports_can_read` | Editable statuses only; transitions via RPC |
 | `pms_reports` and children | Owner + admins + assigned evaluators + committee + grievance members | Owner in `DRAFT` only; transitions via RPC |
 | `documents` | `documents_can_read` — four-tier ladder | Insert: `owner_id = auth.uid()`. Update: admins only |
@@ -301,26 +301,114 @@ await supabase.rpc('pms_finalize_report', {
 | `proposal_link_project` | `p_id uuid, p_project_no text` | `OM_ISSUED` → `LINKED` |
 | `proposal_archive` | `p_id uuid` | `OM_ISSUED` → `ARCHIVED` |
 
-`proposal_submit` is PI-only; the rest are admin/review-body actions. All append
+`proposal_submit` is PI-only and checks completeness (below); the rest are admin/review-body actions. All append
 `proposal_status_history`.
 
-### Proposal DTO validation (`src/lib/proposals/validation.ts`, zod)
+### Proposal readiness (`src/lib/proposals/readiness.ts` ↔ `proposal_missing_fields()`)
 
-Two schemas, because a draft may be incomplete and a submission may not:
+A draft needs a title and nothing else: every other column is nullable, and autosave
+writes whatever is there. Completeness is checked once, at submit, **in the database**:
+`proposal_submit` raises `Not ready to submit. Still needed: …` listing what
+`proposal_missing_fields(proposals)` returns, then requires a `signed_proposal` document.
 
-| Field | `draftSchema` | `submitSchema` |
+The browser shows the same list as the readiness meter. `readiness.ts` and the SQL
+function carry the same rules in the same order, and `scripts/db/proposals.db.test.ts`
+fails if the two lists differ. Required: `title`, `track`, `abstract`, `problem_statement`,
+`domain_theme`, `objectives`, `expected_outcomes`, `project_category`,
+`proposed_start_date`, `proposed_duration_months`, `pi_name`, `division_code`,
+`requested_budget > 0`, `fund_type`, `sponsor_type`, `sponsor_name`.
+
+### Workspace RPCs and direct writes (`src/lib/proposals/workspaceApi.ts`)
+
+| Call | Arguments | Who | Effect |
+|---|---|---|---|
+| `proposal_save_version` | `p_id uuid, p_label text` | creator, while `DRAFT` \| `REVISION_REQUESTED` | Snapshots the row and co-PIs as the next `proposal_versions` row (`kind = 'manual'`) |
+| `proposal_restore_version` | `p_version_id uuid` | same | Versions the present state first, then puts the content columns and co-PIs back. Never touches status, review or sanction columns |
+| `proposals` UPDATE | changed columns only | creator, editable statuses (RLS) | Autosave (`ProposalsContext.saveFields`) |
+| `proposal_notes` INSERT / UPDATE / DELETE | — | author only (RLS) | Private notes; `used_in` records the field a note was moved into |
+
+`proposal_submit` also snapshots a `kind = 'submitted'` version, stores its id in
+`proposals.submitted_version_id`, and opens a round of review steps. Its readiness check is
+`proposal_readiness(id)`: the fields above plus `equipment_quotation` (an EQUIPMENT line of
+₹5 lakh or more needs a `quotation` document) and `works_not_allowed` (HQ track: WORKS lines
+only in MMP or FCP).
+
+### Review chain and sanction (`src/lib/proposals/api.ts`, `20261111000001`)
+
+| RPC | Arguments | Who | Effect |
+|---|---|---|---|
+| `proposal_record_step` | `p_step_id uuid, p_decision text, p_notes text, p_document_id uuid, p_meeting_id uuid = NULL` | `proposal_caller_may_act(p, step.kind)` — never a party to the proposal | `APPROVE` needs a `step_scan` document; status → `proposal_status_after(kind)`. `RETURN` needs a note or an open comment; → `REVISION_REQUESTED`. `REJECT` needs a reason; → `REJECTED`. Steps go in order |
+| `proposal_set_track` | `p_id uuid, p_track text` | PME, on a proposal in review | Classifies a pre-PL2 proposal and opens its steps; steps already passed are `SKIPPED` |
+| `proposal_sanction` | `p_id, p_project_no, p_sanction_ref, p_sanction_date, p_amount, p_document_id, p_project_id = NULL` | PME, not a party | From `APPROVED` \| `OM_ISSUED`, needs a `sanction_order` document; HQ numbers must match guidelines §2.2. Creates the `projects` row (stage `SANCTIONED`, dates, PI, cost in ₹), copies the budget lines, sets the proposal `LINKED`. Returns the ProjectID |
+
+### Project execution (`src/lib/projects/projectFileApi.ts`, `20261111000002`)
+
+"The office" is `project_caller_is_office(project)`: PME or MasterAdmin, and not the
+project's PI, author or a co-PI (`project_caller_is_party`).
+
+| RPC | Who | Effect |
 |---|---|---|
-| `title` | required, ≥1 | required, ≥1 |
-| `piName`, `sponsorName`, `divisionCode`, `abstract`, `problemStatement`, `objectives`, `expectedOutcomes` | nullish | required, ≥1 |
-| `domainTheme`, `fundType`, `sponsorType`, `projectCategory` | nullish enum | required enum |
-| `proposedDurationMonths` | nullish positive int | required positive int |
-| `requestedBudget` | nullish, ≥0 | required, ≥0 |
-| `currentTrl`, `targetTrl` | int 1–9 or null | int 1–9 or null |
-| `coPIs[]` | `{staffId, staffName}` both ≥1 | same |
+| `project_record_receipt(p_project_id, p_received_on, p_amount, p_head, p_source, p_order_no, p_order_date, p_ifd_file_no, p_ifd_date, p_document_id, p_notes)` | the office | Needs a `receipt_order` document. HQ track: IFD file number and date required. A project created by sanction cannot receive more than `sanctioned_cost`. Financial year from the date. The first receipt moves stage `SANCTIONED → ACTIVE` |
+| `project_record_expenditure(p_project_id, p_fiscal_year, p_period, p_head, p_amount, p_document_id, p_notes)` | the office | Needs an `expenditure_statement` document; running projects only. Spending above a head's sanction is recorded, and flagged in the UI |
+| `project_reverse_entry(p_kind, p_entry_id, p_reason)` | the office | Inserts the opposite entry; once per entry |
+| `project_milestone_add(p_project_id, p_title, p_target_date)` | the office (→ `PLANNED`) or the PI (→ `PROPOSED`) | |
+| `project_milestone_report(p_id, p_achieved_on, p_note, p_document_id)` | the PI or a co-PI | `PLANNED → REPORTED`, with `milestone_evidence` |
+| `project_milestone_decide(p_id, p_decision, p_note)` | the office | `ACCEPT` (proposed → planned), `CONFIRM` (reported → achieved), `RETURN` (→ planned, reason required), `DROP` (reason required) |
+| `project_link_output(p_kind, p_output_id, p_project_id)` | PME, MasterAdmin or the project's PI | Links (or, with NULL, unlinks) a publication, patent or instrument |
 
-Mirrored in SQL: `proposed_duration_months > 0`, `requested_budget >= 0`,
-`current_trl/target_trl BETWEEN 1 AND 9`, `proposal_code` unique (assigned by the
-`proposals_set_code` trigger).
+### Project monitoring (`src/lib/projects/projectFileApi.ts`, `20261111000003`)
+
+| RPC / view | Who | Effect |
+|---|---|---|
+| `project_slot_schedule(p_slot_id, p_meeting_id)` | the office | Puts a pending review (not a progress report) on a meeting; adds an agenda item linked by `subject_type = 'project_review'`, replacing any earlier one |
+| `project_slot_record(p_slot_id, p_held_on, p_decision, p_outcome, p_minutes_document_id)` | the office | Marks the review `DONE`. Stage gate: `GO · CONDITIONAL_GO · HOLD · KILL · RECYCLE`; other reviews: `CONTINUE · CONTINUE_WITH_CHANGES · HOLD · FORECLOSURE_RECOMMENDED`. `HOLD` moves the project to `ON_HOLD`; a go-ahead on an `ON_HOLD` project moves it back to `ACTIVE`. Without minutes, `minutes_due = held_on + minutes_days` |
+| `project_slot_add_minutes(p_slot_id, p_document_id)` | the office | Files a `minutes` document on a held review; clears `minutes_due` |
+| `project_call_review(p_project_id, p_due_date, p_reason) → uuid` | Director, PME or MasterAdmin, not a party to the project | Adds a `CALLED_REVIEW` slot to a running project and notifies the PI (`project_review_called`, link `/projects/<id>?tab=monitoring`) |
+| `my_due_project_slots()` | any signed-in user | Pending progress reports and called reviews due within 30 days on projects where the caller is PI, author or co-PI |
+| `project_portfolio` (view) | read through projects RLS | One health row per running project (Portfolio page, PME desk) |
+
+### Project change requests (`src/lib/projects/projectFileApi.ts`, `20261112000001`)
+
+| RPC | Who | Effect |
+|---|---|---|
+| `project_change_save(p_id, p_project_id, p_kind, p_justification, p_payload) → uuid` | the PI (not a co-PI) or the office; then only the author | Creates (`p_id` NULL) or updates a `DRAFT` / `RETURNED` request on a running project |
+| `project_change_submit(p_id, p_document_id)` | the author | Needs a `change_request` scan and a justification; runs every prohibition; opens the route for the track and kind (an HQ RCE above 20% adds the Monitoring and Revised Cost Committees). One open request per project |
+| `project_change_withdraw(p_id)` | the author | Before any step of the round is recorded |
+| `project_change_record_step(p_step_id, p_decision, p_notes, p_document_id, p_meeting_id, p_order_no, p_order_date, p_ifd_file_no, p_ifd_date)` | the step's owner (`project_change_caller_may_act`: PME; FinanceAdmin for `FINANCE`; Director or PME for `DIRECTOR_*`; PME or scheme leader for `REVIEW_COMMITTEE`), never a party | `APPROVE` needs a `change_order` scan; the last HQ step (except foreclosure) needs order no. and date **and** IFD file no. and date. The last approval re-runs the prohibitions and applies the effect. `RETURN` / `REJECT` need a note. The author is notified (`project_change_decided`) |
+| `my_change_steps()` | any signed-in user | The current pending step of each request the caller may record (My Actions, PME desk) |
+| `project_change_deltas(project, kind, payload)` · `project_head_position(project)` | signed-in | Validation and the per-year, per-head position; read-only |
+
+Routes: ULIP — PME vetting → review committee → Director approves. HQ — time overrun: PME
+→ Research Council → Monitoring Committee → competent authority; RCE ≤ 20%: PME → Finance
+→ Director forwards → competent authority; RCE > 20%: adds Monitoring Committee and Revised
+Cost Committee; rephasing / re-appropriation / reallocation: PME → Finance → Director
+forwards → Monitoring Committee → competent authority; foreclosure: PME → Monitoring
+Committee → Research Council.
+
+### Project closure (`src/lib/projects/projectFileApi.ts`, `20261112000002`)
+
+| RPC / view | Who | Effect |
+|---|---|---|
+| `project_completion_save(p_project_id, p_fields jsonb) → uuid` | the PI | Creates or updates the report while `DRAFT` / `RETURNED`; the first save moves a running project to `CLOSING` |
+| `project_completion_submit(p_project_id, p_document_id)` | the PI | Needs the lessons, the signed report and no change in review; compiles the financial statement and annexures; opens the route |
+| `project_completion_record_step(p_step_id, p_decision, p_notes, p_document_id)` | the step owner (as for change requests), never a party | `APPROVE` (with a `closure_order` scan) or `RETURN` (with a note); the last approval closes the project; the author is notified (`project_completion_decided`) |
+| `project_archive(p_project_id, p_document_id)` | PME / MasterAdmin, not a party | Archives a closed or foreclosed project with its published report (promoted to the institute tier); read-only afterwards |
+| `my_closure_items()` | any signed-in user | Steps waiting on the caller (`item = 'step'`) and reports the caller owes as PI (`'due'`) |
+| `project_financial_statement(project)` · `project_completion_annexures(project)` | signed-in | What submission will compile; read-only |
+| `project_lessons` (view) | every signed-in user | Approved lessons, institute-wide |
+
+### Legacy projects (`src/lib/projects/projectFileApi.ts`, `20261112000003`)
+
+| RPC | Who | Effect |
+|---|---|---|
+| `project_legacy_complete(p_project_id, p_track, p_category, p_start, p_end, p_sanction_ref, p_sanction_date, p_document_id, p_lines, p_received, p_spent, p_as_of)` | PME / MasterAdmin, not a party | Brings a running pre-SURYA project in once: sanction by head, money to date as opening balances (needs a `sanction_order` scan); earlier reviews are not overdue |
+| `project_legacy_lessons(p_project_id, p_fields)` | the PI or PME | Lessons for a project closed before SURYA; approved directly |
+| `project_legacy_pending()` | signed-in | Running legacy projects not yet brought in |
+| `project_infer_track(no, category, fund_type)` | — | Pure; used by the migration |
+
+**Retired:** `proposal_set_under_review`, `proposal_request_revision`, `proposal_reject`,
+`proposal_recommend`, `proposal_approve`, `proposal_issue_om` — EXECUTE revoked; each let an
+admin move a proposal past the chain.
 
 ## B.4 Project progress reports
 

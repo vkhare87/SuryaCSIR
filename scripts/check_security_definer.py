@@ -52,6 +52,8 @@ AUTHZ_MARKERS = (
     "pms_is_grievance_member",
     "pms_caller_track",
     "proposals_caller_",
+    "proposal_caller_may_act",
+    "project_change_caller_may_act",
 )
 
 # Functions that legitimately need no caller check. Every entry states why —
@@ -79,6 +81,53 @@ EXEMPT: dict[str, str] = {
         "trigger; resolves an unambiguous display name to staff.\"ID\" on write. "
         "Whether the write happens at all is decided by the table's RLS "
         "(HRAdmin/SystemAdmin/MasterAdmin) before this runs."
+    ),
+    "projects_resync_child_keys": (
+        "trigger on projects; relinks or unlinks child rows when a project number "
+        "becomes unique or shared. The projects write is gated by its RLS; "
+        "EXECUTE revoked from clients (20261110000002)."
+    ),
+    "project_generate_slots": (
+        "internal schedule builder; called only by the projects trigger and the "
+        "migration backfill. EXECUTE revoked from clients (20261111000003)."
+    ),
+    "projects_regenerate_slots": "trigger on projects; the projects write is gated by its RLS. EXECUTE revoked (20261111000003)",
+    "project_reports_take_slot": "trigger on project_reports; the report write is gated by its RLS. EXECUTE revoked (20261111000003)",
+    "project_reports_answer_slot": "trigger on project_reports; same. EXECUTE revoked (20261111000003)",
+    "project_caller_is_pi": "caller-identity resolver: is the caller this project's PI (20261112000001)",
+    "project_change_apply": "internal: applies an approved change; called only by project_change_record_step after its own check. EXECUTE revoked (20261112000001)",
+    "project_change_log": "trigger on project_change_requests; writes the timeline. EXECUTE revoked (20261112000001)",
+    "project_completion_log": "trigger on project_completion_reports; writes the timeline. EXECUTE revoked (20261112000002)",
+    "project_caller_is_party": (
+        "caller-identity resolver: is the caller PI, author or co-PI of this "
+        "project. Answers only about the caller (20261111000002)."
+    ),
+    "project_log_event": (
+        "trigger; appends the timeline line for a write already authorized by "
+        "its table's RLS or RPC. EXECUTE revoked from clients (20261111000002)."
+    ),
+    "project_expenditure_sync_utilized": (
+        "trigger on project_expenditure, written only by project_record_expenditure "
+        "/ project_reverse_entry; EXECUTE revoked from clients (20261111000002)."
+    ),
+    "proposal_open_round": (
+        "internal to proposal_submit / proposal_set_track, which authorize first; "
+        "EXECUTE revoked from clients (20261111000001)."
+    ),
+    "proposals_set_code": (
+        "trigger; numbers a new proposal PROP-<year>-NNNN across every proposal, "
+        "which the inserting user cannot see under RLS. The insert itself is gated "
+        "by proposals_insert; EXECUTE revoked from clients (20261110000003)."
+    ),
+    "sync_project_key": (
+        "trigger; resolves a project number to projects.\"ProjectID\" when exactly "
+        "one project carries it. The write itself is gated by the table's RLS or "
+        "RPC; EXECUTE revoked from clients (20261110000002)."
+    ),
+    "proposal_caller_is_copi": (
+        "caller-identity resolver: is the caller a named co-PI of this proposal. "
+        "Keyed on caller_staff_id(); answers only about the caller. Definer "
+        "because proposal_copis's own policy calls proposals_can_read()."
     ),
     "pms_awp_sync_staff_user": (
         "trigger on staff UPDATE OF user_id; mirrors the link onto pms_awps. "

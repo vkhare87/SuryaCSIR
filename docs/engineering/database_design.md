@@ -1,7 +1,7 @@
 # SURYA — Database Design
 
 _Complete schema reference for the PostgreSQL 17 database. Supersedes `docs/DATA-MODEL.md`,
-which now points here. Current as of 2026-11-01 (37 migrations, 73 tables in `public`)._
+which now points here. Current as of 2026-11-11 (56 migrations, 92 tables in `public`)._
 
 Companions: [api_spec.md](api_spec.md) (how the schema is called),
 [system_design.md](system_design.md) (state machines),
@@ -150,7 +150,7 @@ Notation: **PK** primary key · **FK** foreign key · **U** unique · `?` nullab
 | Column | Type | Notes |
 |---|---|---|
 | `user_id` | `uuid` | **PK** (composite), FK → `auth.users` ON DELETE CASCADE |
-| `role` | `text` | **PK** (composite). CHECK ∈ the 14 roles |
+| `role` | `text` | **PK** (composite). CHECK ∈ the 15 roles (`PME` added by `20261110000001`) |
 | `division_code` | `text?` | NULL for cross-division roles |
 | `must_change_password` | `boolean` | default `true` |
 
@@ -549,6 +549,102 @@ examples in the routing prompt — a human-in-the-loop quality feedback path.
 | `import_field_mappings` | `20260719000003` | `(id uuid PK, file_type, header_fingerprint text, mapping jsonb, confirmed_by FK, confirmed_at, use_count int)`. Fingerprint = SHA-256 of sorted normalized headers; remembers a human-confirmed mapping so the same layout needs no model call again |
 
 
+### 3.8a Project lifecycle foundations — `20261110000001_pme_role.sql`, `20261110000002_project_lifecycle_foundations.sql`
+
+Phase `PL0` of [`../roadmap/sources/PROJECT-LIFECYCLE-PLAN.md`](../roadmap/sources/PROJECT-LIFECYCLE-PLAN.md).
+
+#### `project_schemes` — tracks
+`(code text PK, name, leader_user_id uuid? FK → auth.users SET NULL, review_committee_id uuid? FK → committees SET NULL, created_at, updated_at)`.
+Ships with `ULIP` and `HQ` (structural rows, inserted by the migration). `leader_user_id` is
+the scheme leader (ULIP: Head RPBD) — a setting, not a role.
+**RLS:** verified users read; MasterAdmin writes.
+
+#### Columns added to `projects`
+| Column | Type | Notes |
+|---|---|---|
+| `stage` | `text?` | CHECK ∈ `SANCTIONED` \| `ACTIVE` \| `ON_HOLD` \| `CLOSING` \| `CLOSED` \| `ARCHIVED` \| `FORECLOSED`. NULL = the status text maps to no stage |
+| `track` | `text?` | FK → `project_schemes(code)`. Backfilled only from an unambiguous number prefix; otherwise NULL for PME to set |
+| `sanctioned_cost` | `numeric?` | Typed twin of `"SanctionedCost"` |
+| `start_date`, `end_date` | `date?` | Typed twins of `"StartDate"`, `"CompletioDate"` |
+
+`trg_projects_derive_columns` (BEFORE INSERT OR UPDATE) keeps each pair in step: a changed
+`stage` rewrites `"ProjectStatus"` to its label; a changed status text re-derives `stage`
+(`project_stage_of_status` — `Ongoing` and `Active` are both `ACTIVE`); the text columns the
+importer writes are otherwise left as entered. The same vocabulary lives in
+`src/lib/projects/stage.ts`. **Indexes:** `("ProjectNo")` (non-unique), `(stage)`.
+
+#### `project_id` beside every project number
+`proposals`, `project_reports`, `project_staff`, `phd_students`, `mous`, `tech_transfers`
+each gain `project_id text? FK → projects("ProjectID") SET NULL`, indexed. `"ProjectNo"` is **not
+unique** — one umbrella number covers several work packages — so `sync_project_key`
+(BEFORE INSERT OR UPDATE, SECURITY DEFINER) fills `project_id` only when exactly one project
+carries the number, and leaves a shared number unlinked. `projects_resync_child_keys`
+(AFTER INSERT OR UPDATE OF "ProjectNo" on `projects`) keeps that true as projects arrive:
+a number that becomes unique links its unlinked children, one that becomes shared (1 → 2)
+unlinks them — so the result does not depend on upload order.
+
+#### `proposals.track`
+`text? FK → project_schemes(code)`.
+
+### 3.8b Proposal workspace — `20261110000003_proposal_workspace.sql`
+
+Phase `PL1`. On `proposals`, every content column except `title` and `pi_name` is now
+nullable (completeness is `proposal_submit`'s job — see api_spec B.3), and
+`submitted_version_id uuid? FK → proposal_versions SET NULL` is added.
+`proposals_set_code` is now SECURITY DEFINER: under the inserter's RLS it could not see
+other people's proposals and reissued `PROP-<year>-0001`.
+
+#### `proposal_notes` — the PI's private scratch
+`(id uuid PK, proposal_id FK CASCADE, author_id uuid FK → auth.users CASCADE DEFAULT auth.uid(), body text CHECK non-blank, used_in text? CHECK ∈ abstract | problem_statement | objectives | expected_outcomes, used_at?, created_at, updated_at)`.
+**Index:** `(proposal_id, created_at DESC)`.
+**RLS:** author only, all four commands; insert only onto a proposal the author created.
+No co-PI, PME, reviewer or admin policy exists, at any stage.
+
+#### `proposal_versions`
+`(id uuid PK, proposal_id FK CASCADE, version_no int, label text, kind text CHECK ∈ manual | submitted, snapshot jsonb, created_by FK, created_at)`. **Unique** `(proposal_id, version_no)`.
+`snapshot` = `{"proposal": <the row>, "copis": [{staff_id, staff_name}]}`.
+**RLS:** the creator reads all; anyone else who may read the proposal reads `submitted`
+versions only. No client writes — `proposal_save_version`, `proposal_restore_version` and
+`proposal_submit` write through the internal `proposal_snapshot_version`.
+
+### 3.8c Proposal review chain and sanction — `20261111000001_proposal_review_chain.sql`
+
+Phase `PL2`. `proposals` gains `category_code` (CHECK ∈ FIR, FBR, NCP, FTT, FTC, MMP, FCP, HCP,
+IST — guidelines §2.1). `projects` gains `proposal_id` (unique when set), `sanction_ref`,
+`sanction_date`. `proposal_documents.doc_type` adds `quotation`, `step_scan`, `sanction_order`.
+
+| Table | Shape | Writes |
+|---|---|---|
+| `proposal_budget_lines` | `(id, proposal_id FK CASCADE, fiscal_year CHECK 'YYYY-YY', head CHECK ∈ EQUIPMENT · WORKS · MANPOWER · CONSUMABLES · TA_INDIA · TA_ABROAD · CONTINGENCY · OUTSOURCING · OTHER, item, amount numeric ≥ 0, created_at)` | Author, directly, while `DRAFT` \| `REVISION_REQUESTED`. A trigger keeps `proposals.requested_budget` = their sum |
+| `proposal_review_steps` | `(id, proposal_id FK CASCADE, round, seq, kind, status ∈ PENDING · DONE · RETURNED · REJECTED · SKIPPED, decided_by, decided_at, notes, document_id FK proposal_documents, meeting_id FK meetings)`, unique `(proposal_id, round, seq)` | RPCs only |
+| `proposal_review_comments` | `(id, proposal_id FK CASCADE, section ∈ idea · plan · team · budget · documents, body, author_id, created_at, resolved_at)` | Reviewers insert while in review; the author of a comment may withdraw it while unresolved; the PI writes `resolved_at` only (column grant) |
+| `project_budget_lines` | `(id, project_id FK projects CASCADE, fiscal_year, head, item, amount, source, created_at)` | `proposal_sanction` only |
+
+**Steps per track** (`proposal_step_kinds`): ULIP — PME_VETTING → REVIEW_COMMITTEE →
+DIRECTOR_APPROVAL. HQ — PME_VETTING → FINANCE → DIRECTOR_FORWARD → HQ_SCREENING → HQ_EXPERT →
+COMPETENT_AUTHORITY. Who may record each: `proposal_caller_may_act(proposal, kind)` — never
+the PI, author or a co-PI. Each submission opens a new round.
+
+### 3.8d Project execution — `20261111000002_project_execution.sql`
+
+Phase `PL3`. Every table below is readable by whoever may see the project (projects RLS
+inside an `EXISTS`), and written only through RPCs unless stated.
+
+| Table | Shape | Writes |
+|---|---|---|
+| `project_documents` | `(id, project_id FK CASCADE, doc_type ∈ receipt_order · expenditure_statement · milestone_evidence · other, storage_path, file_name, file_size, uploaded_by, uploaded_at)`. Bucket `project-documents`, path `{project_id}/{doc_type}/…` | Client insert: the project office, or the PI for `milestone_evidence`. No update or delete |
+| `project_fund_receipts` | `(id, project_id, received_on, fiscal_year, amount ≠ 0, head?, source, order_no, order_date?, ifd_file_no?, ifd_date?, document_id, notes?, reverses_id UNIQUE?, recorded_by, recorded_at)` | `project_record_receipt`, `project_reverse_entry` |
+| `project_expenditure` | `(id, project_id, fiscal_year, period ∈ Q1–Q4 · H1 · H2 · FY, head, amount ≠ 0, document_id, notes?, reverses_id UNIQUE?, recorded_by, recorded_at)` | `project_record_expenditure`, `project_reverse_entry` |
+| `project_milestones` | `(id, project_id, title, target_date, status ∈ PROPOSED · PLANNED · REPORTED · ACHIEVED · DROPPED, achieved_on?, report_note?, document_id?, decision_note?, created_by, created_at, updated_at)` | `project_milestone_add` / `_report` / `_decide` |
+| `project_events` | `(id bigserial, project_id, at, actor?, kind, summary, ref_id?)` | Triggers only (`project_log_event` on projects, receipts, expenditure, milestones, documents) |
+
+The ledger is **append-only**: no client may update or delete it, PME included. A wrong
+entry is corrected by `project_reverse_entry`, which inserts the negated row with
+`reverses_id`; an entry can be reversed once and a reversal cannot itself be reversed.
+`project_expenditure_sync_utilized` keeps `projects."UtilizedAmount"` equal to the ledger on
+projects created by sanction (legacy rows keep their imported figure). `scientific_outputs`,
+`ip_intelligence` and `equipment` gain `project_id` (FK SET NULL).
+
 ### 3.9 Data operations — `20261101000001_contribution_requests.sql`
 
 All three tables are **read-only to clients** (`GRANT SELECT` to `authenticated`, nothing
@@ -599,6 +695,111 @@ or older than the shortest `cadence_days` there — and only when no earlier ref
 that scope is still open. Cron-only: `EXECUTE` revoked from client roles.
 
 ---
+
+### 3.8e Project monitoring — `20261111000003_project_monitoring.sql`
+
+Phase `PL4`. The schedule is **derived, not entered**: a project's reviews and reports are
+generated from its track, category and dates, so a report nobody wrote is overdue without
+anyone having created a record for it.
+
+| Table / view | Shape | Writes |
+|---|---|---|
+| `project_review_slots` | `(id, project_id FK CASCADE, kind ∈ PROGRESS_REPORT · REVIEW_COMMITTEE · RESEARCH_COUNCIL · TASK_FORCE · MONITORING_COMMITTEE · STAGE_GATE · CALLED_REVIEW, body, period_label, period_end, due_date, generated, status ∈ PENDING · DONE · CANCELLED, meeting_id?, held_on?, decision?, outcome?, minutes_days?, minutes_due?, minutes_document_id?, report_id?, notes?, recorded_by?, recorded_at?)`, `UNIQUE (project_id, kind, period_end)` | `project_generate_slots` (trigger), the RPCs below. Clients: SELECT only, through projects RLS |
+| `project_portfolio` (view, `security_invoker`) | one row per running project: `elapsed_pct, sanctioned_cost, received, spent, milestones_total, milestones_achieved, overdue, minutes_overdue, next_due, last_report_on, last_decision` | read-only |
+
+- **Plan.** `project_slot_plan(track, category)`: progress report half-yearly (due 15 days
+  after the half year); ULIP review committee or HQ Research Council half-yearly; HQ Task
+  Force quarterly for MMP/FBR/NCP/FIR/FTT/FTC (half-yearly for FCP), minutes within 7 days;
+  external monitoring committee for FBR/NCP/FIR; stage gates for MMP/FTT/FTC.
+- **Regeneration.** `trg_projects_regenerate_slots` fires on a change to stage, track,
+  dates, status, category or number, deletes the untouched generated `PENDING` slots and
+  rebuilds them. Held, scheduled, report-answered and called reviews are kept.
+- **Reports answer slots.** `project_reports.slot_id` (set by `project_reports_take_slot`);
+  `project_reports_answer_slot` marks the slot `DONE` once the report is submitted.
+- **Agenda link.** `agenda_items.subject_type ∈ project_review · proposal`, `subject_id`.
+- `project_documents.doc_type` adds `minutes`. `project_log_event` also logs review
+  scheduling, outcomes, minutes and called reviews to the timeline.
+
+### 3.8f Project change requests — `20261112000001_project_change_requests.sql`
+
+Phase `PL5`. Guidelines §6.4 (foreclosure, time and cost overrun) and §7.2 (rephasing,
+re-appropriation, reallocation).
+
+| Table | Shape | Writes |
+|---|---|---|
+| `project_change_requests` | `(id, project_id, kind ∈ TIME_OVERRUN · RCE · REPHASING · REAPPROPRIATION · REALLOCATION · FORECLOSURE, status ∈ DRAFT · SUBMITTED · UNDER_REVIEW · RETURNED · APPROVED · REJECTED · WITHDRAWN, round, justification, payload jsonb, increase_pct?, request_document_id, order_no?, order_date?, ifd_file_no?, ifd_date?, decision_note?, created_by, created_at, updated_at, submitted_at?, decided_at?)` | RPCs only. Read: the author always; everyone who may see the project once submitted |
+| `project_change_steps` | `(id, change_id FK CASCADE, round, seq, kind ∈ PME_VETTING · FINANCE · REVIEW_COMMITTEE · RESEARCH_COUNCIL · DIRECTOR_APPROVAL · DIRECTOR_FORWARD · MONITORING_COMMITTEE · REVISED_COST_COMMITTEE · COMPETENT_AUTHORITY, status, decided_by?, decided_at?, notes?, document_id?, meeting_id?)`, `UNIQUE (change_id, round, seq)` | `project_change_record_step` |
+
+- **Payload** by kind: `{new_end_date}` · `{lines[], new_end_date?}` (the whole revised
+  budget) · `{moves: [{head, from_year, to_year, amount}]}` · `{moves: [{fiscal_year,
+  from_head, to_head, amount}]}` · `{lab, direction, lines[]}` · `{effective_date, cost_benefit}`.
+- **Prohibitions** (`project_change_deltas`, run on submit and again on the last approval):
+  no rephasing of TA or Manpower; rephasing only forward; no Capital ↔ Revenue
+  re-appropriation; TA not augmented; reallocation only on HQ, and money coming in only to
+  heads approved under the project; an RCE must raise the total; and in every case **no
+  year and head may end with less sanctioned than already spent there** (only unspent money
+  moves).
+- **Effect** (`project_change_apply`, internal): signed rows on `project_budget_lines` with
+  `source = 'CHANGE'` and `change_request_id` (the `amount >= 0` check now allows negatives
+  only on such rows); `sanctioned_cost` follows the lines after an RCE or reallocation;
+  new `end_date` / `"CompletioDate"` (the review schedule regenerates); foreclosure sets
+  stage `FORECLOSED` and cancels pending review slots.
+- One request in review per project at a time.
+- `project_documents.doc_type` adds `change_request` (the PI) and `change_order` (step
+  owners: PME, FinanceAdmin, Director, scheme leader — never a party), via
+  `project_caller_may_file`, also used by the storage policy.
+- `projects_select_parties` — new permissive read policy: a project's co-PIs, and the PI
+  named on its proposal, can read it. Before this a co-PI outside the division managers
+  could not open the project at all.
+
+### 3.8g Project closure and memory — `20261112000002_project_closure.sql`
+
+Phase `PL6`. Guidelines §8.
+
+| Table / view | Shape | Writes |
+|---|---|---|
+| `project_completion_reports` | `(id, project_id UNIQUE, status ∈ DRAFT · SUBMITTED · UNDER_REVIEW · RETURNED · APPROVED, round, summary, objectives_status ∈ MET · PARTLY_MET · NOT_MET, objectives_reason, what_worked, what_did_not, reusable_assets, trl_target, trl_reached, recommendations, follow_on_ideas, financial_statement jsonb, annexures jsonb, document_id, decision_note, published_document_id → documents, created_by, timestamps)` | RPCs only. Read: whoever may see the project |
+| `project_completion_steps` | `(id, report_id, round, seq, kind, status ∈ PENDING · DONE · RETURNED · SKIPPED, decided_by, decided_at, notes, document_id)` | `project_completion_record_step` |
+| `project_lessons` (view, **not** `security_invoker`) | approved reports' lesson fields with project number, name, division, PI, track, dates | read-only, **every signed-in user** — lessons are institute memory, so this deliberately bypasses projects RLS, and only for approved reports' lesson fields |
+
+- The first save by the PI moves the project to `CLOSING`. Submission requires the §5.4
+  fields (`project_completion_missing`), the signed report (`completion_report` document)
+  and no change request in review; it snapshots `project_financial_statement` (year ×
+  head allocation vs expenditure, receipts) and `project_completion_annexures` (sanction,
+  approved change orders, minutes of every review held — `missing` where none is on file).
+- Route: ULIP — PME → review committee → Director; HQ — PME → Finance → Research Council
+  (in principle) → Monitoring Committee → DG. Approve or return only. The last approval
+  sets `CLOSED` (a `FORECLOSED` project stays foreclosed).
+- `project_archive` (PME, not a party): `CLOSED` / `FORECLOSED` → `ARCHIVED`, with the
+  published report — a `documents` row (`entity_type = 'project'`, `doc_type =
+  'completion_report'`) uploaded by the same PME, which archiving promotes to the
+  `institute` tier so the RAG worker indexes it. Legacy projects without a proposal are
+  archived without one. `trg_projects_zz_archived_readonly` rejects any change to an
+  archived project.
+- `proposals.parent_project_id` — follow-on lineage.
+- `project_documents.doc_type` adds `completion_report` (PI) and `closure_order` (step owners).
+
+### 3.8h Legacy projects and rollout — `20261112000003_project_legacy_rollout.sql`
+
+Phase `PL7` (plan §10). No new tables.
+
+- `project_infer_track(no, category, fund_type)` — `HQ` for an HQ code in the number
+  (`FTT040511`) or the category; `ULIP` for a `ULIP…` number or an in-house marker; else
+  NULL. Applied once to projects with no track.
+- `projects.legacy_completed_at` / `legacy_completed_by`; `project_fund_receipts` and
+  `project_expenditure` gain `opening_balance boolean`; `project_documents.doc_type` adds
+  `sanction_order`.
+- `project_legacy_complete(...)` (PME, not a party): for a running project with no
+  proposal and no money on record — sets track, category, typed dates, sanction reference;
+  inserts budget lines (`source = 'LEGACY'`), receipts dated at each year's end (or the
+  as-of date) and expenditure, all `opening_balance`; cancels generated review slots due
+  before the as-of date; logs a `legacy` timeline event. Once per project.
+- `project_legacy_lessons(project, fields)` (PI or PME): an approved lessons note for a
+  project closed before SURYA, with no approval chain.
+- `project_legacy_pending()` — running legacy projects still to bring in.
+- **Write access:** `projects_write` (HRAdmin / SystemAdmin / MasterAdmin, from the
+  baseline) is replaced by `projects_write_master` (MasterAdmin); PME keeps
+  `projects_write_pme`. Asserted in the migration.
 
 ## 4. Indexing strategy
 

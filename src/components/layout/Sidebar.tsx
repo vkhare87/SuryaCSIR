@@ -5,8 +5,7 @@ import {
   Settings as SettingsIcon, LayoutDashboard, Calendar as CalendarIcon,
   Building2, Handshake, Activity, FileText, Database, Network, Cloud, X,
   ClipboardCheck, Ticket as TicketIcon, CalendarDays, UserCog, UserCheck,
-  ScanText, Sparkles, Share2, Microscope, SlidersHorizontal, ChevronDown, MoreHorizontal, Inbox,
-} from 'lucide-react';
+  ScanText, Sparkles, Share2, Microscope, SlidersHorizontal, ChevronDown, MoreHorizontal, Inbox, Gauge, Lightbulb } from 'lucide-react';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { LucideIcon } from 'lucide-react';
@@ -58,6 +57,8 @@ const NAV_SECTIONS: NavSection[] = [
       { path: '/facilities',   label: 'Instruments',     icon: Building2 },
       { path: '/partnerships', label: 'Partnerships',    icon: Handshake },
       { path: '/rnd-monitor',  label: 'R&D Monitor',     icon: Activity },
+      { path: '/portfolio',    label: 'Project Portfolio', icon: Gauge },
+      { path: '/lessons',      label: 'Lessons Learned', icon: Lightbulb },
     ],
   },
   {

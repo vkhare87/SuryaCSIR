@@ -68,6 +68,11 @@ export const mapProjectRow = (row: any): ProjectInfo => {
     DivisionCode: row.DivisionCode || row.division_code || '',
     Extension: row.Extension || row.extension || '',
     ApprovalAuthority: row.ApprovalAuthority || row.approval_authority || '',
+    stage: row.stage ?? null,
+    track: row.track ?? null,
+    piStaffId: row.pi_staff_id ?? null,
+    proposalId: row.proposal_id ?? null,
+    legacyCompletedAt: row.legacy_completed_at ?? null,
   };
 };
 
@@ -118,6 +123,7 @@ export const mapEquipmentRow = (row: any): Equipment => ({
   procurement_date: row.procurement_date || undefined,
   Justification: row.Justification || row.justification || '',
   Remark: row.Remark || row.remark || '',
+  projectId: row.project_id ?? null,
 });
 
 export const mapLabRow = (row: any): import('../types').Lab => ({
@@ -137,6 +143,7 @@ export const mapScientificOutputRow = (row: any): ScientificOutput => ({
   impactFactor: row.impact_factor != null ? parseFloat(row.impact_factor) : undefined,
   citationCount: row.citation_count != null ? parseInt(row.citation_count, 10) : undefined,
   divisionCode: row.division_code || '',
+  projectId: row.project_id ?? null,
 });
 
 export const mapIPIntelligenceRow = (row: any): IPIntelligence => ({
@@ -148,6 +155,7 @@ export const mapIPIntelligenceRow = (row: any): IPIntelligence => ({
   grantDate: row.grant_date || undefined,
   inventors: Array.isArray(row.inventors) ? row.inventors : [],
   divisionCode: row.division_code || '',
+  projectId: row.project_id ?? null,
 });
 
 export const mapPhDMilestoneRow = (row: any): PhDMilestone => ({
@@ -170,6 +178,7 @@ export const mapMoURow = (row: any): MoU => ({
   divisionCode: row.division_code || '',
   linkedProjectNo: row.linked_project_no || undefined,
   remarks: row.remarks || undefined,
+  projectId: row.project_id ?? null,
 });
 
 export const mapTechTransferRow = (row: any): TechTransfer => ({
@@ -185,6 +194,7 @@ export const mapTechTransferRow = (row: any): TechTransfer => ({
   linkedIpId: row.linked_ip_id || undefined,
   divisionCode: row.division_code || '',
   remarks: row.remarks || undefined,
+  projectId: row.project_id ?? null,
 });
 
 export const mapContractStaffRow = (row: any): ContractStaff => ({

@@ -15,6 +15,7 @@ import type {
   ActionItem,
   TicketUrgency,
 } from '../types';
+import { isActiveProject } from '../lib/projects/stage';
 
 export interface DirectorThresholds {
   lowBurnPct: number;
@@ -47,7 +48,7 @@ export function getProjectFlags(
   const endingSoon: ProjectInfo[] = [];
   const lowBurn: ProjectInfo[] = [];
   for (const p of projects) {
-    if (p.ProjectStatus !== 'Active') continue;
+    if (!isActiveProject(p)) continue;
     const end = parseDate(p.CompletioDate);
     if (end) {
       const days = diffInDays(end, now);
@@ -102,7 +103,7 @@ export function getGanttWindow(years: number, now: Date = new Date()): GanttWind
 
 export function getActiveProjectGantt(projects: ProjectInfo[], window?: GanttWindow): GanttItem[] {
   const items = projects
-    .filter((p) => p.ProjectStatus === 'Active')
+    .filter(isActiveProject)
     .map((p): { name: string; start: Date; end: Date } | null => {
       const s = parseDate(p.StartDate);
       const e = parseDate(p.CompletioDate);

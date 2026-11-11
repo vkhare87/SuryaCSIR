@@ -13,8 +13,10 @@ import { ProjectStaffView }   from './dashboards/ProjectStaffView';
 import { GuestView }          from './dashboards/GuestView';
 import { PendingAccessView }  from './dashboards/PendingAccessView';
 import { EmpoweredCommitteeView } from './dashboards/EmpoweredCommitteeView';
+import { PMEView }            from './dashboards/PMEView';
 import { MyActions } from '../components/MyActions';
 import { DataHealthDigest } from '../components/DataHealthDigest';
+import { StartIdeaCard } from '../components/proposals/StartIdeaCard';
 
 export default function Dashboard() {
   const { activeRole } = useAuth();
@@ -23,6 +25,8 @@ export default function Dashboard() {
   const withActions = (view: React.ReactNode) => (
     <div className="space-y-6">
       <MyActions />
+      {/* Renders nothing for roles that cannot author a proposal. */}
+      <StartIdeaCard />
       <DataHealthDigest />
       {view}
     </div>
@@ -43,6 +47,7 @@ export default function Dashboard() {
     case 'Guest':        return <GuestView />;
     case 'DefaultUser':         return <PendingAccessView />;
     case 'EmpoweredCommittee':  return withActions(<EmpoweredCommitteeView />);
+    case 'PME':                 return withActions(<PMEView />);
     default:
       return (
         <div className="flex flex-col items-center justify-center h-64 gap-4 text-[#87867f]">

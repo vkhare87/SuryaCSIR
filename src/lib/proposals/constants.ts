@@ -10,21 +10,6 @@ export const TERMINAL_STATUSES: ProposalStatus[] = ['REJECTED', 'ARCHIVED', 'LIN
 
 export const EDITABLE_STATUSES: ProposalStatus[] = ['DRAFT', 'REVISION_REQUESTED'];
 
-// Allowed next statuses for admin transitions (from current status).
-// DRAFT and REVISION_REQUESTED transitions are scientist-driven via proposal_submit.
-export const NEXT_ADMIN_TRANSITIONS: Record<ProposalStatus, ProposalStatus[]> = {
-  DRAFT: [],
-  SUBMITTED: ['UNDER_REVIEW'],
-  UNDER_REVIEW: ['REVISION_REQUESTED', 'REJECTED', 'RECOMMENDED'],
-  REVISION_REQUESTED: [],
-  REJECTED: [],
-  RECOMMENDED: ['APPROVED'],
-  APPROVED: ['OM_ISSUED'],
-  OM_ISSUED: ['ARCHIVED', 'LINKED'],
-  ARCHIVED: [],
-  LINKED: [],
-};
-
 export const STATUS_LABELS: Record<ProposalStatus, string> = {
   DRAFT: 'Draft',
   SUBMITTED: 'Submitted',

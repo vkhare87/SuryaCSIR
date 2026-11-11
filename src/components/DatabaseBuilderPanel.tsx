@@ -5,6 +5,7 @@ import { Card } from './ui/Cards';
 import { Button } from './ui/Button';
 import { ImportFlow } from './ImportFlow';
 import { ManualEntryGrid } from './ManualEntryGrid';
+import { useAuth } from '../contexts/AuthContext';
 import { generateTemplate, FILE_TYPE_LABELS, type FileType } from '../utils/dataMigration';
 import { isProvisioned } from '../utils/supabaseClient';
 import { useData } from '../contexts/DataContext';
@@ -38,6 +39,7 @@ function downloadTemplate(type: FileType, format: 'xlsx' | 'csv') {
 export function DatabaseBuilderPanel() {
   const data = useData();
   const { divisions, staff, projects, projectStaff, phDStudents, equipment, contractStaff, refreshData } = data;
+  const { user } = useAuth();
 
   const counts: Record<FileType, number> = {
     divisions: divisions.length,
@@ -179,7 +181,14 @@ export function DatabaseBuilderPanel() {
             </div>
           </Card>
 
-          {mode === 'upload' ? (
+          {active.type === 'projects' && user?.activeRole !== 'MasterAdmin' ? (
+            <Card>
+              <p className="text-sm text-text">
+                Project records are kept by the project monitoring office (PME) through each project's file. A bulk
+                correction of legacy projects is done by MasterAdmin.
+              </p>
+            </Card>
+          ) : mode === 'upload' ? (
             <ImportFlow key={`import-${active.type}`} type={active.type} onComplete={advance} />
           ) : (
             <Card>

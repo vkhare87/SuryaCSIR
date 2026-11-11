@@ -4,6 +4,7 @@ import { useData } from '../../contexts/DataContext';
 import { Card } from '../../components/ui/Cards';
 import { KpiCard } from '../../components/ui/KpiCard';
 import { parseCost } from '../../utils/parseCost';
+import { isActiveProject, projectStatusLabel } from '../../lib/projects/stage';
 
 // Utilization outlier thresholds — low burn suggests underspend risk,
 // near-100%+ suggests overrun risk. Both worth a finance officer's attention.
@@ -13,7 +14,7 @@ const HIGH_UTILIZATION_PCT = 95;
 export function FinanceAdminView() {
   const { projects } = useData();
 
-  const activeProjects = projects.filter(p => p.ProjectStatus === 'Active').length;
+  const activeProjects = projects.filter(isActiveProject).length;
 
   const totalSanctioned = projects.reduce((sum, p) => sum + (parseFloat(p.SanctionedCost) || 0), 0);
   const sanctionedDisplay = projects.some(p => isNaN(parseFloat(p.SanctionedCost)))
@@ -22,7 +23,7 @@ export function FinanceAdminView() {
 
   const utilizationOutliers = useMemo(() => {
     return projects
-      .filter(p => p.ProjectStatus === 'Active')
+      .filter(isActiveProject)
       .map(p => {
         const sanctioned = parseCost(p.SanctionedCost);
         const utilized = parseCost(p.UtilizedAmount);
@@ -144,11 +145,11 @@ export function FinanceAdminView() {
                   <td className="px-6 py-3 text-[#87867f]">{p.SponsorerName}</td>
                   <td className="px-6 py-3">
                     <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
-                      p.ProjectStatus === 'Active'
+                      isActiveProject(p)
                         ? 'bg-[#f0f8f0] text-[#3a7a3a]'
                         : 'bg-[#f5f4ed] text-[#87867f]'
                     }`}>
-                      {p.ProjectStatus}
+                      {projectStatusLabel(p)}
                     </span>
                   </td>
                   <td className="px-6 py-3 text-right text-[#4d4c48] font-mono text-xs">

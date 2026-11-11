@@ -32,6 +32,8 @@ const Intelligence      = lazy(() => import('./pages/Intelligence'));
 const ExploreGraph      = lazy(() => import('./pages/ExploreGraph'));
 const Partnerships      = lazy(() => import('./pages/Partnerships'));
 const RnDMonitor        = lazy(() => import('./pages/RnDMonitor'));
+const Portfolio         = lazy(() => import('./pages/Portfolio'));
+const Lessons           = lazy(() => import('./pages/Lessons'));
 const Facilities        = lazy(() => import('./pages/Facilities'));
 const InstrumentDetail  = lazy(() => import('./pages/InstrumentDetail'));
 const CommitteeList     = lazy(() => import('./pages/committees/CommitteeList'));
@@ -68,7 +70,7 @@ const AskSurya          = lazy(() => import('./pages/AskSurya'));
 const HolidaysAdmin     = lazy(() => import('./pages/admin/HolidaysAdmin'));
 const FeatureControlsAdmin = lazy(() => import('./pages/admin/FeatureControls'));
 const Proposals         = lazy(() => import('./pages/proposals/Proposals'));
-const ProposalForm      = lazy(() => import('./pages/proposals/ProposalForm'));
+const ProposalWorkspace = lazy(() => import('./pages/proposals/ProposalWorkspace'));
 const ProposalDetail    = lazy(() => import('./pages/proposals/ProposalDetail'));
 const ProjectReports    = lazy(() => import('./pages/reports/ProjectReports'));
 const ProjectReportForm = lazy(() => import('./pages/reports/ProjectReportForm'));
@@ -169,6 +171,7 @@ function App() {
             <Route path="/student"       element={<ProtectedRoute allowedRoles={['Student']}><Dashboard /></ProtectedRoute>} />
             <Route path="/project-staff" element={<ProtectedRoute allowedRoles={['ProjectStaff']}><Dashboard /></ProtectedRoute>} />
             <Route path="/guest"         element={<ProtectedRoute allowedRoles={['Guest']}><Dashboard /></ProtectedRoute>} />
+            <Route path="/pme"           element={<ProtectedRoute allowedRoles={['PME']}><Dashboard /></ProtectedRoute>} />
             <Route path="/pending"       element={<ProtectedRoute allowedRoles={['DefaultUser']}><Dashboard /></ProtectedRoute>} />
             <Route path="/staff" element={<ProtectedRoute accessPath="/staff"><HumanCapital /></ProtectedRoute>} />
             <Route path="/staff/analytics" element={<ProtectedRoute accessPath="/staff/analytics"><StaffAnalytics /></ProtectedRoute>} />
@@ -183,6 +186,8 @@ function App() {
             <Route path="/explore" element={<ProtectedRoute desktopOnly accessPath="/explore"><ExploreGraph /></ProtectedRoute>} />
             <Route path="/facilities" element={<ProtectedRoute accessPath="/facilities"><Facilities /></ProtectedRoute>} />
             <Route path="/partnerships" element={<ProtectedRoute accessPath="/partnerships"><Partnerships /></ProtectedRoute>} />
+            <Route path="/portfolio" element={<ProtectedRoute accessPath="/portfolio"><Portfolio /></ProtectedRoute>} />
+            <Route path="/lessons" element={<ProtectedRoute accessPath="/lessons"><Lessons /></ProtectedRoute>} />
             <Route path="/rnd-monitor" element={<ProtectedRoute accessPath="/rnd-monitor"><RnDMonitor /></ProtectedRoute>} />
             <Route path="/facilities/:uInsID" element={<ProtectedRoute allowedRoles={VERIFIED}><InstrumentDetail /></ProtectedRoute>} />
             {/* Committee Management — specific routes first (Pitfall 6) */}
@@ -225,8 +230,9 @@ function App() {
             <Route path="/admin/access-requests" element={<ProtectedRoute accessPath="/admin/access-requests"><AccessRequests /></ProtectedRoute>} />
             <Route path="/admin/features" element={<ProtectedRoute desktopOnly accessPath="/admin/features"><FeatureControlsAdmin /></ProtectedRoute>} />
             {/* Project Proposals — specific routes first */}
-            <Route path="/proposals/new" element={<ProtectedRoute desktopOnly allowedRoles={['Scientist']}><ProposalForm /></ProtectedRoute>} />
-            <Route path="/proposals/:id/edit" element={<ProtectedRoute desktopOnly accessPath="/proposals"><ProposalForm /></ProtectedRoute>} />
+            {/* Not desktopOnly: the workspace shows notes-only on a phone. */}
+            <Route path="/proposals/new" element={<ProtectedRoute allowedRoles={['Scientist', 'HOD', 'DivisionHead', 'Director']}><ProposalWorkspace /></ProtectedRoute>} />
+            <Route path="/proposals/:id/edit" element={<ProtectedRoute accessPath="/proposals"><ProposalWorkspace /></ProtectedRoute>} />
             <Route path="/proposals/:id" element={<ProtectedRoute accessPath="/proposals"><ProposalDetail /></ProtectedRoute>} />
             <Route path="/proposals" element={<ProtectedRoute accessPath="/proposals"><Proposals /></ProtectedRoute>} />
             {/* Project Progress Reports — specific routes first */}
