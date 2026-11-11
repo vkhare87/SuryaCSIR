@@ -157,6 +157,34 @@ describe('project_id beside a project number', () => {
   });
 });
 
+describe('project_id follows the project set, not the upload order', () => {
+  const link = async (id: string) =>
+    (await one<{ p: string | null }>(db, `SELECT project_id AS p FROM mous WHERE id = $1`, [id]))!.p;
+  const M = '72000000-0000-0000-0000-000000000001';
+
+  it('a child filed before its project exists is linked when the project arrives', async () => {
+    await db.exec(`INSERT INTO mous (id, partner_name, partner_type, purpose, status, linked_project_no)
+                   VALUES ('${M}', 'Early', 'Industry', 'x', 'Active', 'UMB-9')`);
+    expect(await link(M)).toBeNull();
+    await db.exec(`INSERT INTO projects ("ProjectID", "ProjectNo") VALUES ('W1', 'UMB-9')`);
+    expect(await link(M)).toBe('W1');
+  });
+
+  it('and unlinked again when a second work package takes the same number', async () => {
+    await db.exec(`INSERT INTO phd_students ("EnrollmentNo", "StudentName", "ProjectNo") VALUES ('E-9', 'Scholar', 'UMB-9')`);
+    expect((await one<{ p: string }>(db, `SELECT project_id AS p FROM phd_students WHERE "EnrollmentNo" = 'E-9'`))!.p).toBe('W1');
+    await db.exec(`INSERT INTO projects ("ProjectID", "ProjectNo") VALUES ('W2', 'UMB-9')`);
+    expect(await link(M)).toBeNull();
+    expect((await one<{ p: string | null }>(db, `SELECT project_id AS p FROM phd_students WHERE "EnrollmentNo" = 'E-9'`))!.p).toBeNull();
+  });
+
+  it('a link someone set between work packages survives a third arriving', async () => {
+    await db.exec(`UPDATE mous SET project_id = 'W2' WHERE id = '${M}'`);
+    await db.exec(`INSERT INTO projects ("ProjectID", "ProjectNo") VALUES ('W3', 'UMB-9')`);
+    expect(await link(M)).toBe('W2');
+  });
+});
+
 describe('private drafts', () => {
   const sees = (uid: string, id: string) => count(uid, 'proposals WHERE id = $1', [id]).then(n => n === 1);
 

@@ -80,6 +80,11 @@ EXEMPT: dict[str, str] = {
         "Whether the write happens at all is decided by the table's RLS "
         "(HRAdmin/SystemAdmin/MasterAdmin) before this runs."
     ),
+    "projects_resync_child_keys": (
+        "trigger on projects; relinks or unlinks child rows when a project number "
+        "becomes unique or shared. The projects write is gated by its RLS; "
+        "EXECUTE revoked from clients (20261110000002)."
+    ),
     "proposals_set_code": (
         "trigger; numbers a new proposal PROP-<year>-NNNN across every proposal, "
         "which the inserting user cannot see under RLS. The insert itself is gated "

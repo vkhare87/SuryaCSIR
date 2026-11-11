@@ -9,7 +9,9 @@
 --   3. Typed twins      — sanctioned_cost / start_date / end_date beside
 --                         the text columns the Excel importer writes.
 --   4. track            — on projects and proposals.
---   5. project_id       — beside every project-NUMBER column. "ProjectNo"
+--   5. project_id       — beside every project-NUMBER column (proposals,
+--                         reports, project staff, PhD students, MoUs, tech
+--                         transfers), kept true as projects come and go. "ProjectNo"
 --                         is not unique (one umbrella number, several work
 --                         packages — see 20261102000006 §6a); "ProjectID"
 --                         is the key.
@@ -199,6 +201,8 @@ ALTER TABLE public.project_reports
     ADD COLUMN IF NOT EXISTS project_id text REFERENCES public.projects("ProjectID") ON DELETE SET NULL;
 ALTER TABLE public.project_staff
     ADD COLUMN IF NOT EXISTS project_id text REFERENCES public.projects("ProjectID") ON DELETE SET NULL;
+ALTER TABLE public.phd_students
+    ADD COLUMN IF NOT EXISTS project_id text REFERENCES public.projects("ProjectID") ON DELETE SET NULL;
 ALTER TABLE public.mous
     ADD COLUMN IF NOT EXISTS project_id text REFERENCES public.projects("ProjectID") ON DELETE SET NULL;
 ALTER TABLE public.tech_transfers
@@ -207,6 +211,7 @@ ALTER TABLE public.tech_transfers
 CREATE INDEX IF NOT EXISTS proposals_project_id_idx       ON public.proposals (project_id);
 CREATE INDEX IF NOT EXISTS project_reports_project_id_idx ON public.project_reports (project_id);
 CREATE INDEX IF NOT EXISTS project_staff_project_id_idx   ON public.project_staff (project_id);
+CREATE INDEX IF NOT EXISTS phd_students_project_id_idx   ON public.phd_students (project_id);
 CREATE INDEX IF NOT EXISTS mous_project_id_idx            ON public.mous (project_id);
 CREATE INDEX IF NOT EXISTS tech_transfers_project_id_idx  ON public.tech_transfers (project_id);
 
@@ -259,6 +264,11 @@ CREATE TRIGGER trg_project_staff_project_key
     BEFORE INSERT OR UPDATE ON public.project_staff
     FOR EACH ROW EXECUTE FUNCTION public.sync_project_key('ProjectNo');
 
+DROP TRIGGER IF EXISTS trg_phd_students_project_key ON public.phd_students;
+CREATE TRIGGER trg_phd_students_project_key
+    BEFORE INSERT OR UPDATE ON public.phd_students
+    FOR EACH ROW EXECUTE FUNCTION public.sync_project_key('ProjectNo');
+
 DROP TRIGGER IF EXISTS trg_mous_project_key ON public.mous;
 CREATE TRIGGER trg_mous_project_key
     BEFORE INSERT OR UPDATE ON public.mous
@@ -287,6 +297,8 @@ r AS (UPDATE public.project_reports t SET project_id = u.id FROM uniq u
        WHERE t.project_id IS NULL AND btrim(t.project_no) = u.no RETURNING 1),
 s AS (UPDATE public.project_staff t   SET project_id = u.id FROM uniq u
        WHERE t.project_id IS NULL AND btrim(t."ProjectNo") = u.no RETURNING 1),
+h AS (UPDATE public.phd_students t    SET project_id = u.id FROM uniq u
+       WHERE t.project_id IS NULL AND btrim(t."ProjectNo") = u.no RETURNING 1),
 m AS (UPDATE public.mous t            SET project_id = u.id FROM uniq u
        WHERE t.project_id IS NULL AND btrim(t.linked_project_no) = u.no RETURNING 1)
 UPDATE public.tech_transfers t SET project_id = u.id FROM uniq u
@@ -294,6 +306,51 @@ UPDATE public.tech_transfers t SET project_id = u.id FROM uniq u
 
 ALTER TABLE public.mous           ENABLE TRIGGER trg_mous_updated_at;
 ALTER TABLE public.tech_transfers ENABLE TRIGGER trg_tech_transfers_updated_at;
+
+-- The other half: the PROJECT set changes after the children are in.
+-- sync_project_key only looks when a child row is written, so a link made
+-- while a number was unique would survive that number becoming shared — the
+-- staff of four work packages all filed under whichever was uploaded first.
+-- This keeps the links a function of the current data, not of upload order:
+--   number now carried by exactly one project → link its unlinked children
+--   number just became shared (1 → 2)         → unlink them; PME decides
+-- Beyond two, links are left alone: by then any that exist were set by a
+-- person choosing between work packages, not inferred.
+CREATE OR REPLACE FUNCTION public.projects_resync_child_keys()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+    v_no text := nullif(btrim(NEW."ProjectNo"), '');
+    v_n  int;
+    v_id text;
+BEGIN
+    IF v_no IS NULL OR (TG_OP = 'UPDATE' AND NEW."ProjectNo" IS NOT DISTINCT FROM OLD."ProjectNo") THEN
+        RETURN NULL;
+    END IF;
+
+    SELECT count(*), min("ProjectID") INTO v_n, v_id FROM public.projects WHERE "ProjectNo" = v_no;
+    IF v_n > 2 THEN
+        RETURN NULL;
+    END IF;
+    IF v_n = 2 THEN
+        v_id := NULL;
+    END IF;
+
+    UPDATE public.proposals       SET project_id = v_id WHERE btrim(linked_project_no) = v_no AND project_id IS DISTINCT FROM v_id;
+    UPDATE public.project_reports SET project_id = v_id WHERE btrim(project_no) = v_no        AND project_id IS DISTINCT FROM v_id;
+    UPDATE public.project_staff   SET project_id = v_id WHERE btrim("ProjectNo") = v_no       AND project_id IS DISTINCT FROM v_id;
+    UPDATE public.phd_students    SET project_id = v_id WHERE btrim("ProjectNo") = v_no       AND project_id IS DISTINCT FROM v_id;
+    UPDATE public.mous            SET project_id = v_id WHERE btrim(linked_project_no) = v_no AND project_id IS DISTINCT FROM v_id;
+    UPDATE public.tech_transfers  SET project_id = v_id WHERE btrim(linked_project_no) = v_no AND project_id IS DISTINCT FROM v_id;
+    RETURN NULL;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.projects_resync_child_keys() FROM PUBLIC, anon, authenticated;
+
+DROP TRIGGER IF EXISTS trg_projects_resync_child_keys ON public.projects;
+CREATE TRIGGER trg_projects_resync_child_keys
+    AFTER INSERT OR UPDATE OF "ProjectNo" ON public.projects
+    FOR EACH ROW EXECUTE FUNCTION public.projects_resync_child_keys();
 
 -- ── 6. Private drafts ──────────────────────────────────────────────────
 -- Is the caller a named co-PI? SECURITY DEFINER because proposal_copis's own
