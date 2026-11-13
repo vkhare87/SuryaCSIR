@@ -550,7 +550,7 @@ Code checked against this plan. Migration `20261113000011_bridges_and_locks.sql`
 | P7 | `metric_table()` | 12 × (divisions + 1) dynamic calls per load. Not measured on live; make it set-based only if it is slow there |
 | P8 | OM reader on the sanction form | Receipt form only |
 | P5 | Acting HoD on proposals | `proposals_caller_has_role` does not see an acting charge; proposal review by an acting HoD is refused |
-| All | Push | `20261113000009`–`11` are not on live |
+| All | Push | Done 2026-11-13: every migration through `20261113000011` is on live (`supabase migration list`) |
 
 No concurrency test: the PGlite harness has one connection.
 
