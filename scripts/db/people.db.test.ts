@@ -76,6 +76,21 @@ describe('workload, outlook, careers', () => {
     expect(w).toEqual({ active_projects: 2, as_pi: 2, overload: false });
   });
 
+  it('the summary view gives the numbers of the profile facts, for exactly the staff the caller may read (20261113000011)', async () => {
+    for (const uid of [U.hr, U.sci, U.hod]) {
+      const diff = await call(uid, `
+        SELECT s."ID" FROM staff s LEFT JOIN staff_research_summary r ON r.staff_id = s."ID"
+         WHERE r.staff_id IS NULL
+            OR r.active_projects <> (SELECT count(*) FROM staff_profile_facts(s."ID") f WHERE f.section = 'PROJECT'
+                  AND (f.date_from IS NULL OR f.date_from <= ist_today()) AND (f.date_to IS NULL OR f.date_to >= ist_today()))
+            OR r.ip <> (SELECT count(*) FROM staff_profile_facts(s."ID") f WHERE f.section = 'IP')
+            OR r.students <> (SELECT count(*) FROM staff_profile_facts(s."ID") f WHERE f.section = 'STUDENT')
+        UNION ALL
+        SELECT r.staff_id FROM staff_research_summary r WHERE NOT EXISTS (SELECT 1 FROM staff s WHERE s."ID" = r.staff_id)`);
+      expect(diff).toEqual([]);
+    }
+  });
+
   it('the outlook lists retirements, flags the only holder of a core area, and lists vacant posts', async () => {
     const rows = await asOn(U.hr, T, tx => q<{ kind: string; ref: string; single_holder: boolean }>(tx,
       `SELECT kind, ref, single_holder FROM workforce_outlook(5) ORDER BY kind, ref`));

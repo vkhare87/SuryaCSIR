@@ -916,6 +916,15 @@ Plan: `docs/superpowers/plans/2026-11-12-enterprise-phases.md` P1.
   `sanctioned_post_events` append-only. View **`division_strength`** (sanctioned · filled ·
   vacant · advertised · oldest vacancy). The two integers on `divisions` are no longer read:
   `DataContext` fills those fields from the view.
+- **Bridge views** (`20261113000011`, both `security_invoker`): **`staff_project_links`**
+  (`staff_id`, `project_id`, `role` — PI from `projects.pi_staff_id`, Co-PI from
+  `proposal_copis`, team from `project_staff`) and **`staff_research_summary`** (one row per
+  readable staff member: `active_projects`, `as_pi`, `sanctioned_value`, `outputs`, `ip`,
+  `students`, `confirmed_terms`, `retires_on`). `staff_workload()` and `expertise_find()` read
+  them; a query that needs a person's counts joins the summary and does not call
+  `staff_profile_facts()` per row. Indexes added: `proposal_copis(staff_id)`,
+  `phd_students(cosupervisor_staff_id)`. `metrics` and `metric_snapshots` are read by verified
+  users only.
 - **`staff_workload(staff)`**, **`workforce_outlook(years)`**, **`staff_career_events`**
   (`…02`, unique `(staff_id, kind, effective_on)`; joins `entity_timeline`).
 - **Project staff** (`…03`): `project_staff_persons`, `project_selections`

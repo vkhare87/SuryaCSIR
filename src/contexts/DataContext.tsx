@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef, type ReactNode } from 'react';
 import type {
   DivisionInfo,
   StaffMember,
@@ -237,7 +237,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setDataStewards([]);
   }, []);
 
+  // Only the newest load may write state. A role switch, a division change or
+  // a sign-out during a load starts a new one; the older answer (rows scoped
+  // for the previous role or user) must not land after it.
+  const loadSeq = useRef(0);
+
   const loadData = useCallback(async () => {
+    const seq = ++loadSeq.current;
     setIsLoading(true);
     setError(null);
     try {
@@ -258,7 +264,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         divRes, staffRes, projRes, psRes, phdRes, equipRes, labsRes, soRes, ipRes, csRes,
         vaRes, vpRes, vappRes,
         cmtRes, cmmRes, mtgRes, agiRes, actRes, mdcRes, tktRes, trsRes, tevRes, hrtRes,
-        ceRes, holRes, mouRes, ttRes, phmRes, ieRes, crRes, dsRes,
+        ceRes, holRes, mouRes, ttRes, phmRes, ieRes, crRes, dsRes, strengthRes,
       ] = await Promise.all([
         // Every read is paged (fetchAll) — an unbounded select is capped at
         // db-max-rows silently, with no error and no flag, so the aggregates
@@ -299,7 +305,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
         loadDataOps ? fetchAll(supabase.from('import_events').select('*').order('uploaded_at', { ascending: false }).order('id')) : skipped,
         fetchAll(supabase.from('contribution_requests').select('*').order('created_at', { ascending: false }).order('id')),
         fetchAll(supabase.from('data_stewards').select('*').order('id')),
+        // Strength comes from the post register (division_strength, 20261113000001),
+        // never the two integers kept on divisions: every page reads these fields.
+        supabase.from('division_strength').select('division_code, sanctioned, filled'),
       ]);
+      if (seq !== loadSeq.current) return;
 
       // Surface per-table errors — Promise.all hides them as empty data
       const tableErrors: { table: string; message: string }[] = [];
@@ -349,10 +359,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const rawProjects = projRes.data ? projRes.data.map(mapProjectRow) : [];
       const rawEquipment = equipRes.data ? equipRes.data.map(mapEquipmentRow) : [];
 
-      // Strength comes from the post register (division_strength, 20261113000001),
-      // never the two integers kept on divisions: every page reads these fields.
-      const { data: strengthRows } = await supabase.from('division_strength').select('division_code, sanctioned, filled');
-      const strength = new Map(((strengthRows ?? []) as { division_code: string; sanctioned: number; filled: number }[]).map(r => [r.division_code, r]));
+      const strength = new Map(((strengthRes.data ?? []) as { division_code: string; sanctioned: number; filled: number }[]).map(r => [r.division_code, r]));
       setDivisions(divRes.data ? divRes.data.map(mapDivisionRow).map(d => ({
         ...d,
         divSanctionedstrength: strength.get(d.divCode)?.sanctioned ?? 0,
@@ -388,13 +395,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setContributionRequests(crRes.data ? crRes.data.map(mapContributionRow) : []);
       setDataStewards(dsRes.data ? dsRes.data.map(mapStewardRow) : []);
     } catch (err) {
+      if (seq !== loadSeq.current) return;
       const message = friendlyError(err, 'Failed to load data');
       setError(message);
       logger.error('data_load_failed', err, { role, divisionCode });
       pushToast(`Data load failed: ${message}`, 'error');
       resetAll();
     } finally {
-      setIsLoading(false);
+      if (seq === loadSeq.current) setIsLoading(false);
     }
   }, [provisioned, isAuthenticated, role, divisionCode, loadRecruitment, loadDataOps, loadContracts, pushToast, resetAll]);
 

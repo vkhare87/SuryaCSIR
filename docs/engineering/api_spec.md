@@ -462,6 +462,7 @@ Committee → Research Council.
 | `post_create(code, group, level, designation, discipline, division, category, sanction_ref)` | HRAdmin, MasterAdmin | Adds a VACANT post |
 | `post_fill(post, staff_id, on, order_ref)` · `post_vacate(post, on, reason, order_ref)` · `post_set_state(post, state, order_ref)` | HRAdmin, MasterAdmin | Moves a post; each move is an event |
 | `staff_workload(staff DEFAULT NULL)` · `workforce_outlook(years)` | invoker | Workload with overload (> 4 running projects); retirements + vacancies by year |
+| view `staff_project_links` · view `staff_research_summary` | invoker (RLS of the tables under them) | Who is on which project and as what; one row of counts per staff member (`20261113000011`) |
 | `career_events_import(rows jsonb)` | HRAdmin, MasterAdmin | Loads establishment events; unknown staff IDs refused |
 | `project_staff_person_save(id, p)` · `project_selection_create(…)` · `project_engage(selection, person, from, to, emoluments)` · `project_staff_leave_add(engagement, kind, from, to)` | PME, HRAdmin, MasterAdmin | Engagement under §3.3; `project_engage` refuses any failed rule |
 | `project_engagement_check(person, project, position, from, to, selection)` → `(rule, ok, detail)` | invoker | age, tenure, selection, quorum, ncs_posting / waitlist / direct, antecedents; `ok` NULL = not checkable (catalogue missing) |

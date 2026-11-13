@@ -15,7 +15,11 @@ export default function WorkforcePlanning() {
   const [years, setYears] = useState(5);
 
   useEffect(() => { loadWorkload().then(setWorkload).catch(e => push(friendlyError(e), 'error')); }, [push]);
-  useEffect(() => { loadOutlook(years).then(setOutlook).catch(e => push(friendlyError(e), 'error')); }, [years, push]);
+  useEffect(() => {
+    let live = true;
+    loadOutlook(years).then(r => { if (live) setOutlook(r); }).catch(e => { if (live) push(friendlyError(e), 'error'); });
+    return () => { live = false; };
+  }, [years, push]);
 
   // --- 1. Outlook by year: retirements (flag the only holder of an area) and vacancies ---
   const byYear = useMemo(() => {

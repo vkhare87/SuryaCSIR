@@ -63,6 +63,14 @@ describe('registry', () => {
     await expect(call(U.sci, `SELECT metric_snapshot_run('2026-04-30')`)).rejects.toThrow(/Only MasterAdmin/);
     await expect(call(U.master, `UPDATE metric_snapshots SET value = 0`)).rejects.toThrow(/permission denied/);
   });
+
+  it('an account with no role yet reads no numbers (20261113000011)', async () => {
+    const nobody = u('09');
+    await db.exec(`INSERT INTO auth.users (id, email) VALUES ('${nobody}', '09@m.local')`);
+    expect(await call(nobody, `SELECT 1 FROM metric_snapshots`)).toEqual([]);
+    expect(await call(nobody, `SELECT 1 FROM metrics`)).toEqual([]);
+    expect((await call(U.sci, `SELECT 1 FROM metrics`)).length).toBeGreaterThan(0);
+  });
 });
 
 describe('project lens', () => {

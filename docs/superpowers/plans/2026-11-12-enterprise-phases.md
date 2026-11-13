@@ -522,6 +522,40 @@ table.
 
 ---
 
+## Review 2026-11-13 (after P9)
+
+Code checked against this plan. Migration `20261113000011_bridges_and_locks.sql`.
+
+**Fixed**
+
+- `staff_workload()` and `expertise_find()` called `staff_profile_facts()` once per staff row.
+  They now read two bridge views, `staff_project_links` and `staff_research_summary`. A db test
+  asserts the view and the facts give the same counts.
+- `project_engage()` and `project_staff_leave_add()` checked a cap, then inserted, with no lock.
+  Each now locks the person / the engagement first.
+- `metrics` and `metric_snapshots` were readable by an account with no role. Verified users only.
+- Browser: `DataContext` let an older load overwrite a newer one (role switch, sign-out);
+  `StaffDetail` could show one person's facts under the next person's name; `AuthContext` could
+  set a user after sign-out. `division_strength` now loads with the other tables, not after.
+- `src/test/setup.ts`: Node 25+ hides jsdom's `localStorage`; five autosave tests failed.
+
+**Still open against this plan**
+
+| Phase | Item | State |
+|---|---|---|
+| P1 | Delete the browser name-match fallback | Still used by `lib/scientist/dossier.ts`, `lib/dashboard/{myActions,scientistData}.ts`, `ScientistView.tsx`, `utils/analytics.ts` |
+| P3 | Review slots from `csir_rule('committee…')` | Not done; cadence still from `20261111000003` |
+| P7 | `Dossier` on project, division and instrument pages | Not done |
+| P7 | Analytics pages on `metric_value` | Scorecard only |
+| P7 | `metric_table()` | 12 × (divisions + 1) dynamic calls per load. Not measured on live; make it set-based only if it is slow there |
+| P8 | OM reader on the sanction form | Receipt form only |
+| P5 | Acting HoD on proposals | `proposals_caller_has_role` does not see an acting charge; proposal review by an acting HoD is refused |
+| All | Push | `20261113000009`–`11` are not on live |
+
+No concurrency test: the PGlite harness has one connection.
+
+---
+
 ## Self-review
 
 - **Coverage:** 44 of 44 `Now` and `Next` items are placed (P1 5 · P2 5 · P3 5 · P4 5 · P5 7 ·

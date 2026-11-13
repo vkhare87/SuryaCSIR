@@ -73,5 +73,6 @@
       "Bash(/c/Users/HP/.claude/skills/gstack/browse/dist/browse goto *)",
       "Bash(xargs -I{} sed -n '{},+30p' irins2.html)"
     ]
-  }
+  },
+  "outputStyle": "ELI5"
 }

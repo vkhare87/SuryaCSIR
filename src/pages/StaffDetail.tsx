@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   Mail, Phone, MapPin, Award, BookOpen, ChevronRight, GitBranch, FileText, TrendingUp, Edit, FileDown, AlertCircle,
@@ -162,11 +162,20 @@ export default function StaffDetail() {
   const isOwn = Boolean(member?.user_id && user?.id && member.user_id === user.id);
 
   // --- 3. Load the person's record and, for them or HR, what to confirm ---
+  // Keyed on the id, not the member object: a data refresh must not refetch,
+  // and going from one person to the next must never show the first one's
+  // record under the second one's name.
+  const memberId = member?.ID;
+  const shown = useRef<string | undefined>(undefined);
   const reload = useCallback(() => {
-    if (!member) return;
-    loadFacts(member.ID).then(f => { setFacts(f); setFactsError(''); }).catch(e => setFactsError(friendlyError(e)));
-    if (isOwn || canEdit) loadIssues(member.ID).then(setIssues).catch(() => setIssues([]));
-  }, [member, isOwn, canEdit, loadFacts, loadIssues]);
+    if (!memberId) return;
+    if (shown.current !== memberId) { setFacts(null); setIssues([]); }
+    shown.current = memberId;
+    const current = () => shown.current === memberId;
+    loadFacts(memberId).then(f => { if (current()) { setFacts(f); setFactsError(''); } })
+      .catch(e => { if (current()) setFactsError(friendlyError(e)); });
+    if (isOwn || canEdit) loadIssues(memberId).then(i => { if (current()) setIssues(i); }).catch(() => { if (current()) setIssues([]); });
+  }, [memberId, isOwn, canEdit, loadFacts, loadIssues]);
   useEffect(() => { reload(); }, [reload]);
 
   const dossier = useMemo(() => id ? buildScientistDossier({
