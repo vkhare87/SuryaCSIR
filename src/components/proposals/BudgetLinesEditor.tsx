@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { Button } from '../ui/Button';
-import { BUDGET_HEADS, EQUIPMENT_QUOTATION_THRESHOLD, headLabel, rupees } from '../../lib/projects/heads';
+import { BUDGET_HEADS, headLabel, rupees } from '../../lib/projects/heads';
+import { useRules } from '../../contexts/RulesContext';
+import { RULE, ruleNumber } from '../../lib/rules/csirRules';
 import type { ProposalBudgetLine } from '../../types/proposal';
 
 interface BudgetLinesEditorProps {
@@ -112,7 +114,9 @@ function BudgetRow({
 }) {
   const [item, setItem] = useState(line.item);
   const [amount, setAmount] = useState(line.amount ? String(line.amount) : '');
-  const big = line.head === 'EQUIPMENT' && line.amount >= EQUIPMENT_QUOTATION_THRESHOLD;
+  const { rules } = useRules();
+  const threshold = useMemo(() => ruleNumber(rules, RULE.majorEquipmentInr), [rules]);
+  const big = line.head === 'EQUIPMENT' && threshold !== null && line.amount >= threshold;
 
   return (
     <tr className="align-top">
@@ -137,7 +141,7 @@ function BudgetRow({
           onChange={(e) => setItem(e.target.value)}
           onBlur={() => { if (item !== line.item) void onUpdate(line.id, { item }); }}
         />
-        {big && <p className="text-[11px] text-turmeric mt-0.5">₹5 lakh or more: attach a quotation under Documents.</p>}
+        {big && <p className="text-[11px] text-turmeric mt-0.5">{rupees(threshold!)} or more: attach a quotation under Documents.</p>}
       </td>
       <td className="py-1 pr-2">
         <input

@@ -8,7 +8,7 @@ const DOC_LABEL: Record<ProjectDocument['docType'], string> = {
   receipt_order: 'Release order', expenditure_statement: 'Expenditure statement',
   milestone_evidence: 'Milestone evidence', minutes: 'Review minutes', change_request: 'Change request (signed)',
   change_order: 'Change order / approval', completion_report: 'Completion report (signed)',
-  closure_order: 'Closure approval', sanction_order: 'Sanction order', other: 'Document',
+  closure_order: 'Closure approval', sanction_order: 'Sanction order', stage_deliverable: 'Stage-gate deliverable', other: 'Document',
 };
 
 export function TimelinePanel({ events, documents }: { events: ProjectEvent[]; documents: ProjectDocument[] }) {

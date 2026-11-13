@@ -1,11 +1,6 @@
 import { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import {
-  Users, Briefcase, BookOpen, LogOut, PanelLeftClose, PanelLeftOpen,
-  Settings as SettingsIcon, LayoutDashboard, Calendar as CalendarIcon,
-  Building2, Handshake, Activity, FileText, Database, Network, Cloud, X,
-  ClipboardCheck, Ticket as TicketIcon, CalendarDays, UserCog, UserCheck,
-  ScanText, Sparkles, Share2, Microscope, SlidersHorizontal, ChevronDown, MoreHorizontal, Inbox, Gauge, Lightbulb } from 'lucide-react';
+import {Users, Briefcase, BookOpen, LogOut, PanelLeftClose, PanelLeftOpen, Settings as SettingsIcon, LayoutDashboard, Calendar as CalendarIcon, Building2, Handshake, Activity, FileText, Database, Network, Cloud, X, ClipboardCheck, Ticket as TicketIcon, CalendarDays, UserCog, UserCheck, ScanText, Sparkles, Share2, Microscope, SlidersHorizontal, ChevronDown, MoreHorizontal, Inbox, Gauge, Lightbulb, Link2, Scale, ClipboardList, TrendingUp, GraduationCap} from 'lucide-react';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { LucideIcon } from 'lucide-react';
@@ -32,8 +27,10 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { path: '/',             label: 'Dashboard',       icon: LayoutDashboard },
       { path: '/work',         label: 'My Work',         icon: Inbox },
+      { path: '/me',           label: 'My Profile',      icon: UserCog },
       { path: '/ask',          label: 'Ask SURYA',       icon: Sparkles },
       { path: '/intelligence', label: 'Intelligence',    icon: Microscope },
+      { path: '/publication-files', label: 'Publication Files', icon: FileText },
       { path: '/explore',      label: 'Explore Graph',   icon: Share2 },
       { path: '/calendar',     label: 'Calendar',        icon: CalendarIcon },
     ],
@@ -43,6 +40,10 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { path: '/staff',        label: 'Human Capital',   icon: Users },
       { path: '/staff/project', label: 'Project Staff',   icon: UserCog },
+      { path: '/staff/posts',  label: 'Sanctioned Posts', icon: ClipboardList },
+      { path: '/staff/planning', label: 'Workforce Planning', icon: TrendingUp },
+      { path: '/expertise', label: 'Expertise Finder', icon: GraduationCap },
+      { path: '/admin/acting', label: 'Acting Charges',  icon: UserCheck },
       { path: '/phd',          label: 'PhD Tracker',     icon: BookOpen },
       { path: '/divisions',    label: 'Divisions',       icon: Network },
       { path: '/recruitment',  label: 'Recruitment',     icon: FileText },
@@ -75,6 +76,8 @@ const NAV_SECTIONS: NavSection[] = [
       { path: '/admin/access-requests', label: 'Access Requests', icon: UserCheck },
       { path: '/admin/features', label: 'Feature Controls', icon: SlidersHorizontal },
       { path: '/data',         label: 'Data Management', icon: Database },
+      { path: '/data/links',   label: 'People Links',    icon: Link2 },
+      { path: '/admin/rules',  label: 'CSIR Rules',      icon: Scale },
       { path: '/irins-sync',   label: 'IRINS Sync',      icon: Cloud },
       { path: '/admin/rag',    label: 'RAG Ingestion',   icon: ScanText },
       { path: '/admin/holidays', label: 'Holidays',        icon: CalendarDays },

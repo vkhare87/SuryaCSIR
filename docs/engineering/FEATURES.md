@@ -392,6 +392,121 @@ Example questions:
 
 ---
 
+### CSIR rules and people links (enterprise P1)
+- **CSIR Rules** (`/admin/rules`, MasterAdmin) — every guideline number (₹5 lakh major
+  equipment, 20% cost overrun, project-staff tenure, leave, age relaxation …) as a dated
+  row with its OM paragraph and an "unverified" mark until checked. A new value starts on
+  a date; old files keep the old value. The proposal budget hint and readiness read it.
+- **People Links** (`/data/links`, admins and Director) — authors, inventors, PIs and
+  supervisors SURYA could not tie to one person. Pick the person once; the automatic pass
+  never guesses between two people with the same name.
+- Deadlines in My Actions also arrive as notifications from the nightly sweep, so nobody
+  needs to log in for a reminder to exist.
+
+### Research profile (enterprise P2)
+- **My Profile** (`/me`) opens the person's own profile. Every line under **Record** opens
+  the project, paper, patent, student or committee behind it.
+- The person edits five fields themselves (expertise, core area, extension, ORCID, Vidwan
+  ID); everything else stays HR's. Changes show on the **Timeline** tab.
+- **To confirm** lists papers on IRINS that SURYA lacks and names that may be the person.
+  "This is me" links a paper at once; the rest goes to HR. A weekly sweep puts the same
+  list into My Work.
+- **CV** (one page) and **Nomination brief** PDFs, built only from the linked record.
+- A division head sees profiles of their own division; others see none.
+
+### Project compliance (enterprise P3)
+- **Conflict of interest** on every meeting page: members record Format 1 or 2; the chair
+  decides continue or recuse; chair and convener print **Annexure 3**. Only they and the
+  member see a declaration.
+- **Paper packs for HQ** on an HQ project's Funds and Changes tabs: first release, next-year
+  release, rephasing, re-appropriation — one PDF from the file, with Checklist B shown
+  before a change pack prints.
+- **Half-yearly report to CPD** on the PME desk, for the half-year ending 31 March or
+  30 September.
+- **Stage gates** for FTT / FTC / MMP projects on the Monitoring tab; a transfer without the
+  stage VI papers shows on the PME desk.
+- **Usage logbook** on major project instruments (above the major-equipment limit).
+- The PME desk counts meetings with declarations missing, transfers without stage VI
+  papers, and logbooks idle for 30 days.
+
+### PMS 2026 assessment (enterprise P4)
+- **The year's work, from the records.** A 2026 report opens with "Fill from my records":
+  projects, papers, patents, students and committees of the reporting year, each linked.
+  The scientist confirms, corrects, removes or adds lines; committees see only confirmed lines.
+- **Part I** filled by Establishment from the staff record; the scientist reports what is
+  wrong; Establishment verifies.
+- **One panel score.** The Reporting Officer records the Evaluation Committee's single score
+  with integrity, adverse remarks, critical assessment and quorum. The report goes only to the
+  committee of the scientist's grade.
+- **Empowered Committee** concurs, upgrades or downgrades, with reasons and quorum.
+- **Annexure-B timeline** on each open cycle: nine steps, overdue counts, Part I pre-fill and a
+  delay report to the DG. Scores not contested in 15 days are recorded as deemed accepted.
+- **PMS record** on a profile — score, grade, lab average — for the person, the Director, the
+  Empowered Committee and the person's current RO / RvO only.
+- **The 2026 form** follows Annexure-A of the guideline: Part I, Questionnaire A (two questions,
+  everyone), Questionnaire B (three questions, Pay Level 13 and above only), Appendix-A
+  sections I–V with the printed word limits (I.4 150, I.5 100, III and IV 300 in all).
+- **Pen picture:** the guideline's 15 behavioural items, no marks; integrity as a written
+  entry per Appendix-B.
+
+### Posts and people (enterprise P5)
+- **Sanctioned Posts** (`/staff/posts`): one row per post; HR fills, vacates, advertises,
+  keeps in abeyance or abolishes it with the order. Strength on every page now comes from
+  here. HR also loads career events (appointments, promotions, transfers …) from an
+  Excel or CSV export.
+- **Workforce Planning** (`/staff/planning`): retirements and vacant posts by year, flagging
+  the only holder of a core area; workload per person with overload and idle capacity.
+- **Project staff engagements** (Project Staff → Engagements, PME and HR): every §3.3 rule
+  is checked before an engagement is recorded — age with relaxation, the 6-year cap less
+  the PhD period, committee quorum, NCS posting, waitlist, direct engagement, a fresh
+  selection for another project, antecedents. Leave within its limits. Older rows come
+  in by themselves where the name is unique; repeated names wait for PME.
+- **Recruitment drives** move one stage at a time, logged; the browser cannot skip stages.
+- **Acting Charges** (`/admin/acting`): "X acts as HoD of D1 from … to …". The acting
+  officer holds the role for those days only; the timeline shows the capacity.
+
+### Expertise (enterprise P6)
+- **Expertise Finder** (`/expertise`): "Who can do X?" by free text or vocabulary terms.
+  People with confirmed expertise first, then people whose projects, papers, patents or
+  expertise note mention it. Each card shows the proof with links, running projects,
+  overload and the retirement date. One-page shortlist PDF. HR keeps the vocabulary here
+  (add, merge).
+- **Expertise tab** on every staff profile: confirmed tags for all; on your own profile,
+  suggestions from your records and HR proposals to confirm, and terms to add.
+- Ask SURYA "who works on X" gives the same people as the page; succession risk uses
+  confirmed tags when a person has any.
+
+### Numbers and screens (enterprise P7)
+- **Metric registry**: 12 defined numbers (staff, posts, active projects and value,
+  utilisation, overdue reports and reviews, publications, patents, PhD students). The
+  scorecard, the pack and Ask SURYA all read `metric_value`, so they agree.
+- **Division scorecard** (Divisions → Analytics): every metric by division, with the change
+  since the last monthly snapshot. **Pack PDF** "as on" a snapshot date for the Research
+  Council and the annual report; it prints the same on any day.
+- **Theme and TRL** on each project (PME or PI); Projects → Analytics shows Theme × TRL.
+- **Weekly digest**: Monday notification with the role's numbers and their change.
+- **Menus**: at most six primary items per role (tested).
+
+### AI actions (enterprise P8)
+- **Ask about this** on project and staff pages: Ask SURYA answers about that record, from
+  its own documents first.
+- **Suggestions in the bell**: "Is this paper yours?" and "Confirm expertise: …". The button
+  runs one allowed action as you, and the action is logged. Anything else only opens a page.
+- **Release order reading**: attach the order on Funds → Money received; SURYA reads order
+  number, date, IFD file and date, and amounts (OCR for scans) into empty fields. You check
+  and save. A file with no text says so and fills nothing.
+
+### Project breadth (enterprise P9)
+- **Schemes**: externally funded (EFP) and lab seed / own (OLP) projects, each with its own
+  review route.
+- **Multi-lab projects** (project → Funds → Labs): add partner labs with the RC approval;
+  book money to a lab; sanctioned · received · spent · balance per lab, also in the release
+  packs. A running multi-lab project without a signed IP agreement is flagged.
+- **Publication Files** (`/publication-files`): open a file with the author list; ethics and
+  similarity check; the HoD clears it and the communication number is issued; every in-house
+  author consents before submission; on publication the paper joins the publication record
+  with its authors linked.
+
 ## 8. Documents & RAG operations
 
 ### Unified document registry

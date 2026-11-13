@@ -5,6 +5,7 @@ Security: every read uses the caller's JWT via a scoped client, so RLS is the on
 doc-scoping gate. Structured questions run only whitelisted analytics functions."""
 
 import dataclasses
+from typing import Literal
 import json
 import os
 import time
@@ -54,9 +55,16 @@ class HistoryTurn(BaseModel):
     answer: str = Field(max_length=8000)
 
 
+class ContextEntity(BaseModel):
+    type: Literal["project", "staff", "division", "instrument"]
+    id: str = Field(min_length=1, max_length=100)
+
+
 class QueryIn(BaseModel):
     question: str = Field(max_length=MAX_QUESTION_CHARS)
     history: list[HistoryTurn] | None = Field(default=None, max_length=MAX_HISTORY_TURNS)
+    # EI3: the record the question was asked from; read with the caller's RLS.
+    context_entity: ContextEntity | None = None
 
 
 def _gate_open(client, fn: str) -> bool:
@@ -98,8 +106,11 @@ def query(body: QueryIn, authorization: str | None = Header(default=None)):
 
     started = time.perf_counter()
     history = [t.model_dump() for t in body.history] if body.history else None
+    entity = body.context_entity.model_dump() if body.context_entity else None
     try:
-        answer = handle_query(question, client, _LLM, history=history)
+        answer = handle_query(question, client, _LLM, history=history, entity=entity)
+    except LookupError:
+        raise HTTPException(status_code=404, detail="record not found")
     except (TimeoutError, urllib.error.URLError):
         raise HTTPException(status_code=504, detail="model timeout")
     latency_ms = int((time.perf_counter() - started) * 1000)
@@ -112,11 +123,12 @@ def query(body: QueryIn, authorization: str | None = Header(default=None)):
 def query_stream(body: QueryIn, authorization: str | None = Header(default=None)):
     question, client = _authed_client(body.question, authorization)
     history = [t.model_dump() for t in body.history] if body.history else None
+    entity = body.context_entity.model_dump() if body.context_entity else None
 
     def events():
         started = time.perf_counter()
         try:
-            for kind, value in stream_query(question, client, _LLM, history=history):
+            for kind, value in stream_query(question, client, _LLM, history=history, entity=entity):
                 if kind == "token":
                     yield f"data: {json.dumps({'token': value})}\n\n"
                 else:
@@ -125,6 +137,8 @@ def query_stream(body: QueryIn, authorization: str | None = Header(default=None)
                     payload["query_id"] = log_query(client, question, value,
                                                     latency_ms=latency_ms)
                     yield f"data: {json.dumps({'done': payload})}\n\n"
+        except LookupError:
+            yield f"data: {json.dumps({'error': 'record not found'})}\n\n"
         except (TimeoutError, urllib.error.URLError):
             yield f"data: {json.dumps({'error': 'model timeout'})}\n\n"
 

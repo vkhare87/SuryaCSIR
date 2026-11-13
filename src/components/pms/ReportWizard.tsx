@@ -6,6 +6,7 @@ import { usePMS } from '../../contexts/PMSContext';
 import { PERIOD_SECTION_KEYS, wizardStepsFor } from '../../lib/pms/constants';
 import { basicInfoFromSection } from '../../lib/pms/basicInfo';
 import { ANNEXURE_SPECS } from '../../lib/pms/annexureSpecs';
+import { P2026_SPECS, wizardSteps2026 } from '../../lib/pms/proforma2026';
 import type { SectionSpec } from '../../lib/pms/annexureSpecs';
 import { canSubmitReport } from '../../lib/pms/permissions';
 import { SpecSection } from './SpecSection';
@@ -56,7 +57,10 @@ export function ReportWizard({ report: initialReport, cycleOpen }: Props) {
   const { saveSection, saveBasicInfo, uploadSignature, uploadAnnexure, deleteAnnexure, submitReport } = usePMS();
   const navigate = useNavigate();
 
-  const steps = useMemo(() => wizardStepsFor(initialReport.track), [initialReport.track]);
+  const steps = useMemo(
+    () => initialReport.proformaVersion === '2026' ? wizardSteps2026(initialReport.questionnaireB) : wizardStepsFor(initialReport.track),
+    [initialReport.proformaVersion, initialReport.questionnaireB, initialReport.track],
+  );
 
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -233,7 +237,7 @@ export function ReportWizard({ report: initialReport, cycleOpen }: Props) {
           </div>
         ) : (
           <div className="space-y-8">
-            {currentStepDef.keys.includes('summary') && (
+            {(currentStepDef.keys.includes('summary') || currentStepDef.keys.includes('p26_part1')) && (
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -277,7 +281,8 @@ export function ReportWizard({ report: initialReport, cycleOpen }: Props) {
               </div>
             )}
             {currentStepDef.keys.map(key => {
-              const spec: SectionSpec | undefined = ANNEXURE_SPECS[key as keyof typeof ANNEXURE_SPECS];
+              const spec: SectionSpec | undefined = ANNEXURE_SPECS[key as keyof typeof ANNEXURE_SPECS]
+                ?? P2026_SPECS[key as keyof typeof P2026_SPECS];
               const FormComponent = FORM_MAP[key];
               return (
                 <div key={key}>

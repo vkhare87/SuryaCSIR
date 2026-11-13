@@ -10,6 +10,7 @@ import { Skeleton } from '../../components/ui/Skeleton';
 import { EvidencePanel } from '../../components/pms/EvidencePanel';
 import { PenPictureForm } from '../../components/pms/PenPictureForm';
 import { ReportAWPSection } from '../../components/pms/ReportAWPSection';
+import { PanelScore2026 } from '../../components/pms/Assessment2026Forms';
 import type { PenPicture, PMSReportSection, PMSAnnexure, PMSReport } from '../../types/pms';
 import { friendlyError } from '../../lib/errors';
 
@@ -159,6 +160,16 @@ export default function EvaluateReport() {
   };
 
   const isCompleted = evaluation.status === 'COMPLETED';
+
+  // A 2026 report gets one panel score, not one per member.
+  if (report?.proformaVersion === '2026' && !isCompleted) {
+    return (
+      <div className="space-y-6 max-w-3xl">
+        <h1 className="text-2xl font-serif font-medium text-text">Evaluation Committee Appraisal</h1>
+        <PanelScore2026 report={report} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 max-w-3xl">

@@ -71,6 +71,49 @@ def read_docs(client, entity_types=None):
         page += 1
 
 
+# EI3 — ask from a record. Each kind: table, key column, columns that name it.
+_ENTITIES = {
+    "project": ("projects", "ProjectID", ("ProjectNo", "ProjectName", "DivisionCode", "PrincipalInvestigator")),
+    "staff": ("staff", "ID", ("Name", "Designation", "Division")),
+    "division": ("divisions", "divCode", ("divName",)),
+    "instrument": ("equipment", "UInsID", ("Name", "Division")),
+}
+
+
+def entity_context(client, entity):
+    """(preamble, docs) for a question asked from a record page. The record is
+    read with the caller's client, so a record they may not see raises
+    LookupError. docs: that record's indexed documents (for a project, also its
+    progress reports), or None when it has none; the caller then searches the
+    whole corpus."""
+    kind, rid = entity.get("type"), str(entity.get("id") or "")
+    if kind not in _ENTITIES or not rid:
+        raise LookupError("unknown record")
+    table, key, cols = _ENTITIES[kind]
+    rows = (client.table(table).select(", ".join((key,) + cols)).eq(key, rid).limit(1).execute().data) or []
+    if not rows:
+        raise LookupError("record not found")
+    row = rows[0]
+    named = " · ".join(str(row[c]) for c in cols if row.get(c))
+    preamble = f"This question is about {kind} {rid}" + (f" ({named})" if named else "") + "."
+
+    ids = [rid]
+    if kind == "project":
+        reports = (client.table("project_reports").select("id").eq("project_id", rid).execute().data) or []
+        ids += [r["id"] for r in reports]
+    rows = (client.table("doc_indexes")
+            .select("document_id, tree, documents!inner(id, title, storage_path, entity_id)")
+            .in_("documents.entity_id", ids).execute().data) or []
+    docs = []
+    for r in rows:
+        doc = r.get("documents") or {}
+        if isinstance(doc, list):
+            doc = doc[0] if doc else {}
+        docs.append({"id": doc.get("id", r["document_id"]), "title": doc.get("title", "Document"),
+                     "storage_path": doc.get("storage_path", ""), "tree": r["tree"]})
+    return preamble, (docs or None)
+
+
 def read_collections(client):
     """collection_indexes rows for the collection-stage pick. Empty when the
     worker hasn't built collections yet — callers fall back to the flat corpus."""
@@ -156,9 +199,14 @@ def _with_history(question, history):
     return "Earlier in this conversation:\n" + "\n".join(turns) + f"\n\nCurrent question: {question}"
 
 
-def handle_query(question, client, llm, history=None):
+def handle_query(question, client, llm, history=None, entity=None):
     """Route and answer. client must be the caller's RLS-scoped client.
-    history: optional [{'question','answer'}] recent turns for follow-ups."""
+    history: optional [{'question','answer'}] recent turns for follow-ups.
+    entity: optional {'type','id'}, the record the question was asked from."""
+    entity_docs = None
+    if entity:
+        preamble, entity_docs = entity_context(client, entity)
+        question = preamble + "\n" + question
     if history:
         question = _with_history(question, history)
     decision = decide(question, llm, CATALOG, examples=read_route_labels(client))
@@ -172,30 +220,35 @@ def handle_query(question, client, llm, history=None):
                 structured.trace = trace
                 return structured
             merged = _merge_hybrid(
-                structured, traverse(select_corpus(question, client, llm), question, llm, fetch_texts))
+                structured, traverse(entity_docs or select_corpus(question, client, llm), question, llm, fetch_texts))
             merged.trace = trace
             return merged
         trace["fallback"] = True
-    answer = traverse(select_corpus(question, client, llm), question, llm, fetch_texts)
+    answer = traverse(entity_docs or select_corpus(question, client, llm), question, llm, fetch_texts)
     answer.trace = trace
     return answer
 
 
-def stream_query(question, client, llm, history=None):
+def stream_query(question, client, llm, history=None, entity=None):
     """Streaming variant of handle_query: yields ('token', str) chunks, then one
     ('done', Answer). Only the document path truly streams; structured/hybrid
     answers arrive as a single token. Grounding invariant matches traverse:
     NOT_FOUND / blank answers become the refusal with zero citations."""
-    q = _with_history(question, history) if history else question
+    entity_docs = None
+    q = question
+    if entity:
+        preamble, entity_docs = entity_context(client, entity)
+        q = preamble + "\n" + q
+    q = _with_history(q, history) if history else q
     decision = decide(q, llm, CATALOG, examples=read_route_labels(client))
     if decision["route"] in ("structured", "hybrid"):
-        answer = handle_query(question, client, llm, history=history)
+        answer = handle_query(question, client, llm, history=history, entity=entity)
         yield ("token", answer.text)
         yield ("done", answer)
         return
 
     trace = {"route": "document", "function": None, "params": None}
-    pc = pick_context(select_corpus(q, client, llm), q, llm, make_fetch_texts(client))
+    pc = pick_context(entity_docs or select_corpus(q, client, llm), q, llm, make_fetch_texts(client))
     if pc is None:
         yield ("token", REFUSAL_TEXT)
         yield ("done", Answer(REFUSAL_TEXT, "document", [], trace=trace))

@@ -25,12 +25,36 @@ interface QueryResponse {
   query_id: string | null;
 }
 
+/** EI3: the record a question is asked from (rag/api.py ContextEntity). */
+export type AskEntityType = 'project' | 'staff' | 'division' | 'instrument';
+export interface AskEntity { type: AskEntityType; id: string }
+const ENTITY_TYPES: AskEntityType[] = ['project', 'staff', 'division', 'instrument'];
+
+/** "project:P-1" (the ?entity= value) → { type, id }; null for anything else. */
+export function parseAskEntity(value: string | null): AskEntity | null {
+  const i = value?.indexOf(':') ?? -1;
+  if (!value || i < 1) return null;
+  const type = value.slice(0, i) as AskEntityType;
+  const id = value.slice(i + 1).trim();
+  return ENTITY_TYPES.includes(type) && id ? { type, id } : null;
+}
+
+export const askAboutHref = (e: AskEntity) => `/ask?entity=${encodeURIComponent(`${e.type}:${e.id}`)}`;
+
+function queryBody(question: string, history?: AskHistoryTurn[], entity?: AskEntity | null) {
+  return JSON.stringify({
+    question,
+    ...(history?.length ? { history } : {}),
+    ...(entity ? { context_entity: entity } : {}),
+  });
+}
+
 export interface AskHistoryTurn {
   question: string;
   answer: string;
 }
 
-export async function askSurya(question: string, history?: AskHistoryTurn[]): Promise<AskAnswer> {
+export async function askSurya(question: string, history?: AskHistoryTurn[], entity?: AskEntity | null): Promise<AskAnswer> {
   const base = import.meta.env.VITE_RAG_URL;
   if (!base) throw new Error('VITE_RAG_URL is not configured');
 
@@ -39,7 +63,7 @@ export async function askSurya(question: string, history?: AskHistoryTurn[]): Pr
   const res = await fetch(`${base}/query`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify(history?.length ? { question, history } : { question }),
+    body: queryBody(question, history, entity),
   });
   if (!res.ok) throw new Error(`Ask SURYA failed (${res.status})`);
 
@@ -59,6 +83,7 @@ export async function askSuryaStream(
   question: string,
   history: AskHistoryTurn[],
   onToken: (text: string) => void,
+  entity?: AskEntity | null,
 ): Promise<AskAnswer> {
   const base = import.meta.env.VITE_RAG_URL;
   if (!base) throw new Error('VITE_RAG_URL is not configured');
@@ -68,9 +93,11 @@ export async function askSuryaStream(
   const res = await fetch(`${base}/query/stream`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify(history.length ? { question, history } : { question }),
+    body: queryBody(question, history, entity),
   });
-  if (res.status === 404 || res.status === 405) return askSurya(question, history);
+  if (res.status === 405) return askSurya(question, history, entity);
+  if (res.status === 404 && !entity) return askSurya(question, history);
+  if (res.status === 404) throw new Error('That record is not available to you.');
   if (!res.ok || !res.body) throw new Error(`Ask SURYA failed (${res.status})`);
 
   const reader = res.body.getReader();

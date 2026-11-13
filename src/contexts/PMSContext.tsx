@@ -12,7 +12,7 @@ import { useAuth } from './AuthContext';
 import { registerDocument, unregisterDocument } from '../lib/documents/registry';
 import { fileFinalizedReport } from '../lib/pms/fileFinalized';
 import type { BasicInfoPayload } from '../lib/pms/basicInfo';
-import { mapAppNotificationRow, updateNotificationStatus } from '../lib/notifications/notifications';
+import { acceptNotification, mapAppNotificationRow, updateNotificationStatus } from '../lib/notifications/notifications';
 import type { AppNotification, NotificationStatus } from '../types';
 import { SCORE_RANGE } from '../lib/pms/constants';
 import { isValidScore, requiresBelowThresholdReasons, requiresOutstandingReasons } from '../lib/pms/scoring';
@@ -148,6 +148,8 @@ interface PMSContextType {
   markNotificationRead: (id: string) => Promise<void>;
   /** Move one of my notifications to read / accepted / dismissed. */
   setAppNotificationStatus: (id: string, status: NotificationStatus) => Promise<void>;
+  /** Run a suggestion's whitelisted action as the user (notification_accept); returns its link. */
+  acceptAppNotification: (id: string) => Promise<string | null>;
 }
 
 const PMSContext = createContext<PMSContextType | undefined>(undefined);
@@ -714,6 +716,12 @@ export function PMSProvider({ children }: { children: ReactNode }) {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
   }, []);
 
+  const acceptAppNotification = useCallback(async (id: string): Promise<string | null> => {
+    const link = await acceptNotification(id);
+    setAppNotifications(prev => prev.map(n => n.id === id ? { ...n, status: 'accepted' } : n));
+    return link;
+  }, []);
+
   const setAppNotificationStatus = useCallback(async (id: string, status: NotificationStatus): Promise<void> => {
     await updateNotificationStatus(id, status);
     setAppNotifications(prev => prev.map(n => n.id === id ? { ...n, status } : n));
@@ -734,7 +742,7 @@ export function PMSProvider({ children }: { children: ReactNode }) {
     getReportEvaluations,
     getCommitteeDecision, finalizeReport, refileFinalizedReport, finalizeSeniorReport,
     submitRepresentation, resolveRepresentation,
-    markNotificationRead, setAppNotificationStatus,
+    markNotificationRead, setAppNotificationStatus, acceptAppNotification,
     refreshData: loadData,
   }), [
     cycles, reports, committees, empoweredMembers, grievanceMembers, evaluations, representations,
@@ -745,7 +753,7 @@ export function PMSProvider({ children }: { children: ReactNode }) {
     setDutyDays, markNotAssessed, recordNonSubmission, condoneDelay, assignEvaluators,
     saveEvaluationScores, completeEvaluation, savePenPicture, getReportEvaluations,
     getCommitteeDecision, finalizeReport, refileFinalizedReport, finalizeSeniorReport,
-    submitRepresentation, resolveRepresentation, markNotificationRead, setAppNotificationStatus,
+    submitRepresentation, resolveRepresentation, markNotificationRead, setAppNotificationStatus, acceptAppNotification,
     loadData,
   ]);
 

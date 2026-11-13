@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Sparkles, Send, ThumbsUp, ThumbsDown, FileText, CalendarClock } from 'lucide-react';
 import { Card, Badge } from '../components/ui/Cards';
 import { Sheet } from '../components/ui/Sheet';
 import { useAuth } from '../contexts/AuthContext';
-import { askSuryaStream, sendFeedback, scheduleBrief } from '../lib/ask/client';
+import { askSuryaStream, parseAskEntity, sendFeedback, scheduleBrief } from '../lib/ask/client';
 import type { AskAnswer } from '../lib/ask/client';
 import { citationHref } from '../lib/ask/citations';
 import { friendlyError } from '../lib/errors';
@@ -29,6 +29,7 @@ export default function AskSurya() {
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const [question, setQuestion] = useState(() => searchParams.get('q') ?? '');
+  const entity = useMemo(() => parseAskEntity(searchParams.get('entity')), [searchParams]);
   const [turns, setTurns] = useState<Turn[]>([]);
   const [loading, setLoading] = useState(false);
   const [streamText, setStreamText] = useState('');
@@ -48,7 +49,7 @@ export default function AskSurya() {
         .slice(-HISTORY_TURNS)
         .map((t) => ({ question: t.question, answer: t.answer.answer }));
       const answer = await askSuryaStream(q, history, (chunk) =>
-        setStreamText((prev) => prev + chunk));
+        setStreamText((prev) => prev + chunk), entity);
       setTurns((prev) => [...prev, { question: q, answer, rated: false }]);
       setQuestion('');
     } catch (err) {
@@ -184,6 +185,11 @@ export default function AskSurya() {
         </Card>
       )}
 
+      {entity && (
+        <p className="text-xs text-text-muted">
+          Asking about {entity.type} <span className="font-mono text-text">{entity.id}</span>. Answers use its records and documents first.
+        </p>
+      )}
       <form onSubmit={submit} className="flex gap-2">
         <input
           value={question}

@@ -217,8 +217,8 @@ describe('private drafts', () => {
 });
 
 describe('project_schemes', () => {
-  it('ships ULIP and HQ; verified users read, only MasterAdmin writes', async () => {
-    expect(await count(U.pi, 'project_schemes')).toBe(2);
+  it('ships ULIP, HQ, EFP and OLP; verified users read, only MasterAdmin writes', async () => {
+    expect(await count(U.pi, 'project_schemes')).toBe(4);
     expect(await count(U.pending, 'project_schemes')).toBe(0);
     const byPme = await as(db, U.pme, async tx =>
       (await tx.query(`UPDATE project_schemes SET name = 'x' WHERE code = 'ULIP'`)).affectedRows);

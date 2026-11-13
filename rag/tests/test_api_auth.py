@@ -106,3 +106,16 @@ def test_empty_question_is_400(gates):
 
 def test_no_token_is_401_before_any_gate(gates):
     assert http.post("/query", json={"question": "x"}).status_code == 401
+
+
+def test_context_entity_unknown_type_is_422(gates):
+    body = {"question": "x", "context_entity": {"type": "salary", "id": "1"}}
+    assert http.post("/query", json=body, headers=AUTH).status_code == 422
+
+
+def test_context_entity_record_not_visible_is_404(gates, monkeypatch):
+    def hidden(*a, **k):
+        raise LookupError("record not found")
+    monkeypatch.setattr(api, "handle_query", hidden)
+    body = {"question": "x", "context_entity": {"type": "project", "id": "P-1"}}
+    assert http.post("/query", json=body, headers=AUTH).status_code == 404

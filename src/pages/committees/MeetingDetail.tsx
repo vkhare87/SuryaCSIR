@@ -11,6 +11,7 @@ import { AgendaEditor } from '../../components/committees/AgendaEditor';
 import { MinutesEditor } from '../../components/committees/MinutesEditor';
 import { DocumentUploader } from '../../components/committees/DocumentUploader';
 import { ActionItemModal } from '../../components/committees/ActionItemModal';
+import { DeclarationsPanel } from '../../components/committees/DeclarationsPanel';
 import type { ActionItem } from '../../types';
 import { useBack } from '../../utils/useBack';
 import {
@@ -69,7 +70,7 @@ export default function MeetingDetail() {
   const { id, meetId } = useParams<{ id: string; meetId: string }>();
   const navigate = useNavigate();
   const goBack = useBack(`/committees/${id}`);
-  const { committees, meetings, agendaItems, actionItems, meetingDocs, staff, isLoading, refreshData } = useData();
+  const { committees, committeeMembers, meetings, agendaItems, actionItems, meetingDocs, staff, isLoading, refreshData } = useData();
   const { user } = useAuth();
   const [showActionModal, setShowActionModal] = useState(false);
 
@@ -244,6 +245,11 @@ export default function MeetingDetail() {
           </p>
         ) : null}
       </Card>
+
+      {committee && (
+        <DeclarationsPanel meeting={meeting} committee={committee}
+          members={committeeMembers.filter(m => m.committee_id === committee.id)} staff={staff} />
+      )}
 
       {/* --- Section 2: Agenda Items --- */}
       <Card className="p-4">

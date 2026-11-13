@@ -70,7 +70,8 @@ export const CHANGE_STATUS: Record<ChangeStatus, { label: string; variant: 'neut
 
 /** The route a request will take; mirrors project_change_step_kinds(). */
 export function changeRoute(track: string | null | undefined, kind: ChangeKind, increasePct: number | null = null): ChangeStepKind[] {
-  if (track === 'ULIP') return ['PME_VETTING', 'REVIEW_COMMITTEE', 'DIRECTOR_APPROVAL'];
+  if (track === 'ULIP' || track === 'OLP') return ['PME_VETTING', 'REVIEW_COMMITTEE', 'DIRECTOR_APPROVAL'];
+  if (track === 'EFP') return ['PME_VETTING', 'DIRECTOR_FORWARD', 'COMPETENT_AUTHORITY'];
   switch (kind) {
     case 'TIME_OVERRUN': return ['PME_VETTING', 'RESEARCH_COUNCIL', 'MONITORING_COMMITTEE', 'COMPETENT_AUTHORITY'];
     case 'RCE': return (increasePct ?? 0) <= 20

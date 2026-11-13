@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import clsx from 'clsx';
 import { Card, Badge } from '../ui/Cards';
 import { Button } from '../ui/Button';
@@ -8,6 +8,9 @@ import {
   recordExpenditure, recordReceipt, reverseEntry, uploadProjectDocument,
 } from '../../lib/projects/projectFileApi';
 import { friendlyError } from '../../lib/errors';
+import { describeOm, extractOmFields } from '../../lib/documents/omExtract';
+import { HOME_LAB, ipAgreementMissing, loadLabMoney, setEntryLab, type LabMoney } from '../../lib/projects/labs';
+import { LabsPanel } from './LabsPanel';
 import type { ProjectInfo } from '../../types';
 import type { ExpenditurePeriod, ProjectFile } from '../../types/projectFile';
 
@@ -25,6 +28,16 @@ interface FundsPanelProps {
 export function FundsPanel({ project, file, isOffice, onChanged }: FundsPanelProps) {
   const summary = useMemo(() => fundSummary(file.budgetLines, file.receipts, file.expenditure), [file]);
   const [form, setForm] = useState<'receipt' | 'expenditure' | null>(null);
+  const [labs, setLabs] = useState<LabMoney[]>([]);
+  const [ipMissing, setIpMissing] = useState(false);
+  const loadLabs = useCallback(async () => {
+    try {
+      const [l, m] = await Promise.all([loadLabMoney(project.ProjectID), ipAgreementMissing(project.ProjectID)]);
+      setLabs(l); setIpMissing(m);
+    } catch { setLabs([]); }
+  }, [project.ProjectID]);
+  useEffect(() => { void loadLabs(); }, [loadLabs, file]);
+  const labCodes = useMemo(() => labs.map(l => l.lab_code), [labs]);
   const reversed = useMemo(
     () => new Set([...file.receipts, ...file.expenditure].map(e => e.reversesId).filter(Boolean) as string[]),
     [file],
@@ -103,6 +116,9 @@ export function FundsPanel({ project, file, isOffice, onChanged }: FundsPanelPro
         )}
       </Card>
 
+      <LabsPanel projectId={project.ProjectID} labs={labs} ipMissing={ipMissing} isOffice={isOffice}
+        onChanged={async () => { await loadLabs(); await onChanged(); }} />
+
       {isOffice && (
         <div className="flex gap-2">
           <Button variant={form === 'receipt' ? 'primary' : 'secondary'} onClick={() => setForm(form === 'receipt' ? null : 'receipt')}>
@@ -114,10 +130,10 @@ export function FundsPanel({ project, file, isOffice, onChanged }: FundsPanelPro
         </div>
       )}
       {isOffice && form === 'receipt' && (
-        <ReceiptForm project={project} onDone={async () => { setForm(null); await onChanged(); }} />
+        <ReceiptForm project={project} labs={labCodes} onDone={async () => { setForm(null); await onChanged(); }} />
       )}
       {isOffice && form === 'expenditure' && (
-        <ExpenditureForm project={project} years={years} defaultYear={defaultYear} onDone={async () => { setForm(null); await onChanged(); }} />
+        <ExpenditureForm project={project} labs={labCodes} years={years} defaultYear={defaultYear} onDone={async () => { setForm(null); await onChanged(); }} />
       )}
 
       <Ledger
@@ -193,23 +209,52 @@ function Ledger({ title, rows, reversed, canReverse, onReverse }: {
   );
 }
 
-function ReceiptForm({ project, onDone }: { project: ProjectInfo; onDone: () => Promise<void> }) {
+function ReceiptForm({ project, labs, onDone }: { project: ProjectInfo; labs: string[]; onDone: () => Promise<void> }) {
+  const [lab, setLab] = useState(HOME_LAB);
   const hq = project.track === 'HQ';
   const [v, setV] = useState({ receivedOn: '', amount: '', head: '', source: hq ? 'CSIR HQ' : 'Director, CSIR-AMPRI', orderNo: '', orderDate: '', ifdFileNo: '', ifdDate: '', notes: '' });
   const [scan, setScan] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const set = (k: keyof typeof v) => (e: { target: { value: string } }) => setV(s => ({ ...s, [k]: e.target.value }));
+  const [readNote, setReadNote] = useState('');
+
+  // EI7: read the order and fill the empty fields. A person checks and saves.
+  async function readOrder(f: File | null) {
+    setScan(f); setReadNote('');
+    if (!f) return;
+    setReadNote('Reading the order…');
+    try {
+      const { extractPdfText } = await import('../../lib/pms/awpOcr');
+      const { text, usedOcr } = await extractPdfText(f);
+      const om = extractOmFields(text);
+      const found = describeOm(om);
+      if (!found.length) { setReadNote('No text could be read from this file. Fill the form by hand.'); return; }
+      const heads = Object.keys(om.byHead);
+      setV(s => ({
+        ...s,
+        orderNo: s.orderNo || om.orderNo || '',
+        orderDate: s.orderDate || om.orderDate || '',
+        ifdFileNo: s.ifdFileNo || om.ifdFileNo || '',
+        ifdDate: s.ifdDate || om.ifdDate || '',
+        amount: s.amount || (om.total ? String(om.total) : ''),
+        head: s.head || (heads.length === 1 ? heads[0] : ''),
+        notes: s.notes || (heads.length > 1 ? 'By head: ' + heads.map(h => `${headLabel(h)} ${rupees(om.byHead[h as keyof typeof om.byHead] ?? 0)}`).join(', ') : ''),
+      }));
+      setReadNote(`Filled from the order${usedOcr ? ' (scanned, read by OCR)' : ''}: ${found.join(', ')}. Check each field before you save.`);
+    } catch (e) { setReadNote(`Could not read the order: ${friendlyError(e)}`); }
+  }
 
   async function save() {
     setBusy(true); setError('');
     try {
       if (!scan) throw new Error('Attach the scanned release order.');
       const doc = await uploadProjectDocument(project.ProjectID, 'receipt_order', scan);
-      await recordReceipt(project.ProjectID, {
+      const id = await recordReceipt(project.ProjectID, {
         receivedOn: v.receivedOn, amount: Number(v.amount) || 0, head: v.head || null, source: v.source,
         orderNo: v.orderNo, orderDate: v.orderDate || null, ifdFileNo: v.ifdFileNo || null, ifdDate: v.ifdDate || null, notes: v.notes,
       }, doc.id);
+      if (lab !== HOME_LAB) await setEntryLab('receipt', String(id), lab);
       await onDone();
     } catch (e) {
       setError(friendlyError(e));
@@ -241,9 +286,11 @@ function ReceiptForm({ project, onDone }: { project: ProjectInfo; onDone: () => 
         )}
       </div>
       <Field label="Note"><input className={inputCls} value={v.notes} onChange={set('notes')} /></Field>
+      <LabPicker labs={labs} value={lab} onChange={setLab} />
       <Field label="Scanned release order (PDF)">
-        <input type="file" accept="application/pdf" onChange={(e) => setScan(e.target.files?.[0] ?? null)} className="text-sm text-text" />
+        <input type="file" accept="application/pdf" onChange={(e) => void readOrder(e.target.files?.[0] ?? null)} className="text-sm text-text" />
       </Field>
+      {readNote && <p role="status" className="text-xs text-text-muted">{readNote}</p>}
       {hq && <p className="text-xs text-text-muted">An HQ release without the IFD file number and date is invalid (guidelines §7.2).</p>}
       {error && <p role="alert" className="text-sm text-danger">{error}</p>}
       <Button onClick={() => void save()} isLoading={busy}>Record receipt</Button>
@@ -251,7 +298,8 @@ function ReceiptForm({ project, onDone }: { project: ProjectInfo; onDone: () => 
   );
 }
 
-function ExpenditureForm({ project, years, defaultYear, onDone }: { project: ProjectInfo; years: string[]; defaultYear: string; onDone: () => Promise<void> }) {
+function ExpenditureForm({ project, labs, years, defaultYear, onDone }: { project: ProjectInfo; labs: string[]; years: string[]; defaultYear: string; onDone: () => Promise<void> }) {
+  const [lab, setLab] = useState(HOME_LAB);
   const [v, setV] = useState({ fiscalYear: defaultYear, period: 'FY' as ExpenditurePeriod, head: 'CONSUMABLES', amount: '', notes: '' });
   const [scan, setScan] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
@@ -262,7 +310,8 @@ function ExpenditureForm({ project, years, defaultYear, onDone }: { project: Pro
     try {
       if (!scan) throw new Error('Attach the signed expenditure statement.');
       const doc = await uploadProjectDocument(project.ProjectID, 'expenditure_statement', scan);
-      await recordExpenditure(project.ProjectID, { ...v, amount: Number(v.amount) || 0 }, doc.id);
+      const id = await recordExpenditure(project.ProjectID, { ...v, amount: Number(v.amount) || 0 }, doc.id);
+      if (lab !== HOME_LAB) await setEntryLab('expenditure', String(id), lab);
       await onDone();
     } catch (e) {
       setError(friendlyError(e));
@@ -295,6 +344,7 @@ function ExpenditureForm({ project, years, defaultYear, onDone }: { project: Pro
         </Field>
       </div>
       <Field label="Note"><input className={inputCls} value={v.notes} onChange={(e) => setV(s => ({ ...s, notes: e.target.value }))} /></Field>
+      <LabPicker labs={labs} value={lab} onChange={setLab} />
       <Field label="Signed expenditure statement (PDF)">
         <input type="file" accept="application/pdf" onChange={(e) => setScan(e.target.files?.[0] ?? null)} className="text-sm text-text" />
       </Field>
@@ -310,5 +360,17 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <span className="block text-xs font-medium text-text-muted mb-1">{label}</span>
       {children}
     </label>
+  );
+}
+
+// Which lab an entry is booked to — only on a multi-lab project.
+function LabPicker({ labs, value, onChange }: { labs: string[]; value: string; onChange: (lab: string) => void }) {
+  if (labs.length < 2) return null;
+  return (
+    <Field label="Lab">
+      <select className={inputCls} value={value} onChange={(e) => onChange(e.target.value)}>
+        {labs.map(l => <option key={l} value={l}>{l}</option>)}
+      </select>
+    </Field>
   );
 }

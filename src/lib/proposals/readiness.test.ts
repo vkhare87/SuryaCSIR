@@ -34,8 +34,10 @@ describe('missingItems', () => {
 
   it('equipment of ₹5 lakh or more needs a quotation; Works & Services only in MMP or FCP', () => {
     const lines = [{ head: 'EQUIPMENT', amount: 500000 }, { head: 'WORKS', amount: 1 }];
-    expect(missingItems(complete, { hasSignedScan: true, hasQuotation: false, lines }).map(i => i.column))
+    expect(missingItems(complete, { hasSignedScan: true, hasQuotation: false, lines, equipmentThreshold: 500000 }).map(i => i.column))
       .toEqual(['equipment_quotation']);
+    // Rule not loaded: the browser does not guess; the server check still runs.
+    expect(missingItems(complete, { hasSignedScan: true, hasQuotation: false, lines })).toEqual([]);
     const hq = { ...complete, track: 'HQ', categoryCode: 'FTT' } as Proposal;
     expect(missingItems(hq, { hasSignedScan: true, hasQuotation: true, lines }).map(i => i.column))
       .toEqual(['works_not_allowed']);

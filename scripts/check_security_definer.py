@@ -94,7 +94,16 @@ EXEMPT: dict[str, str] = {
     "projects_regenerate_slots": "trigger on projects; the projects write is gated by its RLS. EXECUTE revoked (20261111000003)",
     "project_reports_take_slot": "trigger on project_reports; the report write is gated by its RLS. EXECUTE revoked (20261111000003)",
     "project_reports_answer_slot": "trigger on project_reports; same. EXECUTE revoked (20261111000003)",
-    "project_caller_is_pi": "caller-identity resolver: is the caller this project's PI (20261112000001)",
+    "identity_autolink": (
+        "internal: links a name only when one staff member alone carries it; called "
+        "by identity_link_authors (admin-checked) and the name-sync trigger. "
+        "EXECUTE revoked from clients (20261112000005)."
+    ),
+    "identity_sync_names": (
+        "trigger on scientific_outputs / ip_intelligence; the parent write is gated "
+        "by its RLS. EXECUTE revoked from clients (20261112000005)."
+    ),
+    "project_caller_is_pi":"caller-identity resolver: is the caller this project's PI (20261112000001)",
     "project_change_apply": "internal: applies an approved change; called only by project_change_record_step after its own check. EXECUTE revoked (20261112000001)",
     "project_change_log": "trigger on project_change_requests; writes the timeline. EXECUTE revoked (20261112000001)",
     "project_completion_log": "trigger on project_completion_reports; writes the timeline. EXECUTE revoked (20261112000002)",
@@ -152,6 +161,14 @@ EXEMPT: dict[str, str] = {
     ),
     "contribution_steward_for": "internal resolver; EXECUTE revoked from client roles",
     "contribution_requests_sweep": "cron-only; EXECUTE revoked from client roles",
+    "project_staff_link_rows": "internal to project_staff_link_legacy / project_staff_backfill, which authorize first; EXECUTE revoked from clients (20261113000003)",
+    "caller_acting_as": "caller-identity resolver: does the caller hold this role in acting charge today. Keyed on auth.uid(); answers only about the caller (20261113000004)",
+    "acting_capacity": "returns the office-order fact 'Acting HOD of D1 (order)' for a user on a day, for the timeline; office orders are not confidential within the institute (20261113000004)",
+    "pms_timeline_sweep": "daily cron job: deemed acceptance and overdue reminders across all reports. EXECUTE revoked from client roles (20261112000018)",
+    "pms_reports_set_questionnaire_b": "trigger on pms_reports INSERT; reads the report scientist's designation. The insert itself is gated by reports_insert. EXECUTE revoked (20261112000020)",
+    "pms_own_draft": "internal: returns the caller's own DRAFT report keyed on auth.uid(), else raises. EXECUTE revoked from clients (20261112000021)",
+    "coi_caller_chairs": "caller-identity resolver: is the caller chair or convener of this meeting's committee. Keyed on caller_staff_id(); answers only about the caller (20261112000013)",
+    "profile_consistency_sweep": "weekly cron job; reads every profile to raise requests. EXECUTE revoked from client roles (20261112000012)",
     "contribution_target_can_see": "internal scope check called only by a trigger; EXECUTE revoked from client roles",
 }
 

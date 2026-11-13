@@ -32,6 +32,7 @@ import type {
   ImportEvent,
   ContributionRequest,
   DataSteward,
+  IdentityLinkGap,
 } from '../types';
 import { supabase, isProvisioned } from '../utils/supabaseClient';
 import {
@@ -142,6 +143,12 @@ interface DataContextType {
   isBackendProvisioned: boolean;
   refreshData: () => Promise<void>;
   saveEquipment: (payload: Record<string, unknown>) => Promise<void>;
+  /** Names a person must link to a staff record (admins, Director). */
+  identityLinkGaps: () => Promise<IdentityLinkGap[]>;
+  /** Link (or, with null, unlink) the name at a position of an output or IP record. */
+  setIdentityLink: (kind: 'OUTPUT' | 'IP', recordId: string, pos: number, staffId: string | null) => Promise<void>;
+  /** Re-run the automatic one-match linking; returns the number of names linked. */
+  runIdentityAutolink: () => Promise<number>;
   error: string | null;
 }
 
@@ -342,7 +349,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const rawProjects = projRes.data ? projRes.data.map(mapProjectRow) : [];
       const rawEquipment = equipRes.data ? equipRes.data.map(mapEquipmentRow) : [];
 
-      setDivisions(divRes.data ? divRes.data.map(mapDivisionRow) : []);
+      // Strength comes from the post register (division_strength, 20261113000001),
+      // never the two integers kept on divisions: every page reads these fields.
+      const { data: strengthRows } = await supabase.from('division_strength').select('division_code, sanctioned, filled');
+      const strength = new Map(((strengthRows ?? []) as { division_code: string; sanctioned: number; filled: number }[]).map(r => [r.division_code, r]));
+      setDivisions(divRes.data ? divRes.data.map(mapDivisionRow).map(d => ({
+        ...d,
+        divSanctionedstrength: strength.get(d.divCode)?.sanctioned ?? 0,
+        divCurrentStrength: strength.get(d.divCode)?.filled ?? 0,
+      })) : []);
       setStaff(scopeData(rawStaff, role, divisionCode));
       setProjects(scopeProjects(rawProjects, role, divisionCode));
       setProjectStaff(psRes.data ? psRes.data.map(mapProjectStaffRow) : []);
@@ -441,6 +456,31 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setEquipment(prev => [saved, ...prev.filter(e => e.UInsID !== saved.UInsID)]);
   }, []);
 
+  const identityLinkGaps = useCallback(async (): Promise<IdentityLinkGap[]> => {
+    if (!supabase) return [];
+    const { data, error: err } = await supabase.rpc('identity_link_gaps');
+    if (err) throw err;
+    return ((data ?? []) as Record<string, unknown>[]).map(r => ({
+      kind: String(r.kind), recordId: String(r.record_id), name: String(r.name ?? ''),
+      candidates: Number(r.candidates ?? 0), pos: r.pos == null ? null : Number(r.pos),
+    }));
+  }, []);
+
+  const setIdentityLink = useCallback(async (kind: 'OUTPUT' | 'IP', recordId: string, pos: number, staffId: string | null) => {
+    if (!supabase) throw new Error('Supabase not configured');
+    const { error: err } = await supabase.rpc('identity_set_link', {
+      p_kind: kind, p_record_id: recordId, p_position: pos, p_staff_id: staffId,
+    });
+    if (err) throw err;
+  }, []);
+
+  const runIdentityAutolink = useCallback(async () => {
+    if (!supabase) return 0;
+    const { data, error: err } = await supabase.rpc('identity_link_authors');
+    if (err) throw err;
+    return Number(data ?? 0);
+  }, []);
+
   const value = useMemo(() => ({
     divisions, staff, projects, projectStaff, phDStudents, phdMilestones, contractStaff,
     scientificOutputs, ipIntelligence, mous, techTransfers, equipment, labs, vacancyAdvertisements,
@@ -451,6 +491,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     isBackendProvisioned: provisioned,
     refreshData: loadData,
     saveEquipment,
+    identityLinkGaps, setIdentityLink, runIdentityAutolink,
     error,
   }), [
     divisions, staff, projects, projectStaff, phDStudents, phdMilestones, contractStaff,
@@ -458,7 +499,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
     vacancyApplications, committees, committeeMembers, meetings, agendaItems, actionItems,
     meetingDocs, tickets, ticketResponses, ticketEvents, helpdeskRouting, calendarEvents, holidays,
     importEvents, contributionRequests, dataStewards, refreshContributions, refreshCalendar,
-    refreshHolidays, isLoading, provisioned, loadData, saveEquipment, error,
+    refreshHolidays, isLoading, provisioned, loadData, saveEquipment,
+    identityLinkGaps, setIdentityLink, runIdentityAutolink, error,
   ]);
 
   return (

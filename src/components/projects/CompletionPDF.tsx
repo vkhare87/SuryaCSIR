@@ -1,4 +1,5 @@
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
+import { schemeLabel } from '../../lib/projects/schemes';
 import { COMPLETION_FIELDS, OBJECTIVES_LABELS } from '../../lib/projects/closure';
 import { headLabel } from '../../lib/projects/heads';
 import type { ProjectInfo } from '../../types';
@@ -47,7 +48,7 @@ export function CompletionPDF({ project, report }: { project: ProjectInfo; repor
 
         <Field label="Principal Investigator" value={project.PrincipalInvestigator} />
         <Field label="Division" value={project.DivisionCode} />
-        <Field label="Scheme" value={project.track === 'ULIP' ? 'In-house (ULIP)' : project.track === 'HQ' ? 'CSIR HQ scheme' : project.track} />
+        <Field label="Scheme" value={schemeLabel(project.track)} />
         <Field label="Period" value={`${project.StartDate || '—'} to ${project.CompletioDate || '—'}`} />
         <Field label="Objectives" value={report.objectives_status ? OBJECTIVES_LABELS[report.objectives_status] : null} />
         <Field label="Readiness level" value={report.trl_reached ? `TRL ${report.trl_reached}${report.trl_target ? ` (target ${report.trl_target})` : ''}` : null} />

@@ -7,6 +7,7 @@ import { cycleDeadlines, isSystemLocked } from '../../lib/pms/deadlines';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { TimelineCard } from '../../components/pms/TimelineCard';
 import type { CycleStatus } from '../../types/pms';
 import { friendlyError } from '../../lib/errors';
 
@@ -150,8 +151,8 @@ export default function Cycles() {
             const fmt = (x: Date) => x.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
             const locked = isSystemLocked(c);
             return (
+              <div key={c.id}>
               <div
-                key={c.id}
                 className="flex items-center justify-between px-5 py-4 bg-surface hover:bg-surface-hover transition-colors"
               >
                 <div>
@@ -173,6 +174,8 @@ export default function Cycles() {
                   </span>
                   <Button variant="ghost" size="sm" onClick={() => openEdit(c.id)}>Edit</Button>
                 </div>
+              </div>
+              {c.status === 'OPEN' && <TimelineCard cycle={c} />}
               </div>
             );
           })}

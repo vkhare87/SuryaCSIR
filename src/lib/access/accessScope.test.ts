@@ -23,7 +23,7 @@ describe('least-privilege role scope', () => {
   it('SystemAdmin is platform-only', () => {
     expect(paths('SystemAdmin').sort()).toEqual([
       '/', '/admin/access-requests', '/admin/holidays', '/admin/rag', '/ask', '/calendar',
-      '/committees', '/data', '/helpdesk', '/irins-sync', '/work',
+      '/committees', '/data', '/data/links', '/helpdesk', '/irins-sync', '/me', '/work',
     ]);
   });
 
