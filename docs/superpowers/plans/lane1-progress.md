@@ -10,8 +10,9 @@ Baseline before any change (2026-11-14): `npm run build` passed; `npm test` 148 
 |---|---|---|
 | `SH1` scientist home | **Done** on today's data | Seen in the browser as a Scientist at 1440 px, light and dark theme (2026-11-14): greeting in Fraunces, counts in IBM Plex Mono, one strong button, no console error. The owner agreed to add the Scientist role to the dev login for this check; **the role is still on that login**. Seen at phone width (375 px) too: desk below the role half, no sideways scroll, every link at least 24 px high. Fault found and fixed in the browser check: a role switch counted as work done on the ring (the done-today list is now kept per role) |
 | `CD0` shell | **Done** on today's data | Seen in the browser as MasterAdmin at 1440 px and at phone width: two halves on desktop, desk below the role half on a phone, no sideways scroll, no console error. **Not seen in dark theme** (the app's theme is a class, the browser's colour-scheme switch does not set it). Not seen as other roles |
-| `HH1` head home | **Done** on today's data | **Not seen in the browser**: the dev login has no `HOD` role. Covered by `HoDView.test.tsx` (6 tests) and `division.test.ts` (7 tests). Acting-head scope is not tested here; it rests on the existing RLS (`caller_in_division` has the acting branch) |
-| Rest of wave 2 (`DH1`, `ST1`, `PJ1`, `TS1`, CD phase A, `SH2`) | Next | — |
+| `HH1` head home | **Done** on today's data | Seen in the browser as HOD (2026-11-14), desktop and phone: switch to My own work and back works, no sideways scroll, no console error. The dev login's HOD role has division `DEV`, which has no projects, so the exception rows were seen only in tests (`HoDView.test.tsx`, 6 tests; `division.test.ts`). Acting-head scope is not tested here; it rests on the existing RLS (`caller_in_division` has the acting branch) |
+| `DH1` Director home | **Done** on today's data | Seen in the browser as Director (2026-11-14) on live data, desktop and phone: no sideways scroll, no console error. `DirectorView.test.tsx` (5 tests). Not seen as an acting Director |
+| Rest of wave 2 (`ST1`, `PJ1`, `TS1`, CD phase A, `SH2`) | Next | — |
 
 ## SH1 — what was built
 
@@ -46,6 +47,42 @@ Differences from the plan, on purpose:
   no pre-check line and no days-waiting yet.
 - The old attention strip, staff table and project table are gone from this page; the
   directory and project pages hold them.
+
+## DH1 — what was built
+
+- `src/pages/dashboards/DirectorView.tsx`: greeting, ask box, Waiting on you (one strong
+  button), Divisions by exception, My week, four institute figures that each open their
+  list, one card that names the seven blocks not connected yet, then the existing
+  institute charts.
+- `src/lib/home/division.ts`: `divisionRollup`. `parts.tsx`: `WaitingOnYou`, shared with
+  the head screen.
+
+Found on live data and fixed:
+
+- **No project has a spent amount recorded**, so "money far behind time" flagged every
+  project (19 of 19 in one division). The rule now needs a recorded spent amount; without
+  one the money figure is "—" and there is no flag. The same gap makes the old
+  "low fund burn 82" tile at the bottom of the page meaningless; that tile is old code and
+  was left as it is.
+- After the fix the live figures are 9 of 19, 7 of 16 and so on. These come from real end
+  dates that are past (39 running projects are past their end date). That is a data matter
+  for PME, not a screen fault.
+
+Differences from the plan, on purpose:
+
+- `division_rollup()` is a client function over data the Director already loads, not a
+  database function. Move it to SQL when `DH13` needs it on the server.
+- The head's answer time is not in the division row yet (`HH2`).
+- Posts show "—" because no sanctioned posts are entered on live.
+- The old data-freshness table and the threshold sliders are gone from this page.
+
+## Dev login
+
+The owner agreed (2026-11-14) to add roles to the dev login for browser checks. It now
+holds: `MasterAdmin`, `DefaultUser`, `Scientist`, `HOD`, `Director`, `Student`,
+`ProjectStaff`, `Technician`, and `PME`. **`PME` was not asked for**: it appeared while
+the owner and the agent were both clicking in the same tab. Remove the roles in
+Master Admin → Users & Roles when the checks are done.
 
 ## CD0 — what was built
 
@@ -85,6 +122,13 @@ Left for later, on purpose:
 | Head · Reports that go up from you | `HH4` |
 | Head · Technologies | `HH5` |
 | Head · Outside | `HH6` |
+| Director · Briefing and watch list | `DH13` |
+| Director · How much reaches me (delegation) | `DH2` |
+| Director · From CSIR Headquarters | `DH5` |
+| Director · Fund status by head | `DH10` |
+| Director · The next 12 months | `DH9` |
+| Director · Purchase plan and stuck in offices | `DH11`, `DH6` |
+| Director · Infrastructure | `DH12` |
 
 ## Known limits carried forward
 

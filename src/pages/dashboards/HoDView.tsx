@@ -5,9 +5,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
 import { useHome } from '../../contexts/HomeContext';
 import { Card, Badge } from '../../components/ui/Cards';
-import { Button } from '../../components/ui/Button';
 import {
-  ActionRow, AskBox, BLOCK_TITLE, HomeGreeting, NotConnected, ROW, TITLE_LINK, dueText,
+  AskBox, BLOCK_TITLE, HomeGreeting, NotConnected, ROW, TITLE_LINK, WaitingOnYou, dueText,
 } from '../../components/home/parts';
 import { ProjectFinanceSection } from '../../components/dashboard/ProjectFinanceSection';
 import { ResearchSection } from '../../components/dashboard/ResearchSection';
@@ -157,23 +156,7 @@ export function HoDView() {
       <AskBox placeholder="Ask SURYA: who in my division has worked on fly ash?" />
 
       {/* --- 3. Waiting on you --- */}
-      {first && (
-        <Card className="p-5">
-          <p className={BLOCK_TITLE}>
-            <span>Waiting on you</span>
-            <Link to="/work" className={TITLE_LINK}>See all <span className="font-mono">{actions.length}</span></Link>
-          </p>
-          <div className="flex flex-wrap items-center gap-3 pb-3">
-            <div className="flex-1 min-w-[200px]">
-              <p className="text-base font-medium text-text">{first.label}</p>
-              <p className="text-sm text-text-muted">{first.detail}</p>
-            </div>
-            {(() => { const due = dueText(first.due, now); return due && <Badge variant={due.variant} className="font-mono normal-case">{due.text}</Badge>; })()}
-            <Link to={first.link}><Button type="button">Open</Button></Link>
-          </div>
-          {waiting.map(a => <ActionRow key={a.id} action={a} now={now} />)}
-        </Card>
-      )}
+      <WaitingOnYou actions={actions} now={now} rows={MAX_ROWS} />
 
       {/* --- 4. Division projects, by exception --- */}
       <Card className="p-5">

@@ -47,7 +47,7 @@ export default function Dashboard() {
   const home = (view: React.ReactNode) => twoHalves(<>{view}<DataHealthDigest /></>);
 
   switch (activeRole) {
-    case 'Director':     return withActions(<DirectorView />);
+    case 'Director':     return home(<DirectorView />);
     case 'DivisionHead': return home(<DivisionHeadView />);
     case 'HOD':          return home(<HoDView />);
     case 'Scientist':    return home(<ScientistView />);

@@ -5,6 +5,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Search } from 'lucide-react';
 import clsx from 'clsx';
 import { Card, Badge } from '../ui/Cards';
+import { Button } from '../ui/Button';
 import { dueUrgency } from '../../lib/dashboard/myActions';
 import type { MyAction } from '../../lib/dashboard/myActions';
 import { daysUntil } from '../../lib/home/today';
@@ -96,6 +97,30 @@ export function NotConnected({ title, children }: { title: string; children: Rea
     <Card className="p-5">
       <p className={BLOCK_TITLE}><span>{title}</span></p>
       <p className="text-sm text-text-muted">Not connected yet. {children}</p>
+    </Card>
+  );
+}
+
+/** The first item with the screen's one strong button, then the next few as rows. */
+export function WaitingOnYou({ actions, now, rows = 5 }: { actions: MyAction[]; now: Date; rows?: number }) {
+  const first = actions[0];
+  if (!first) return null;
+  const due = dueText(first.due, now);
+  return (
+    <Card className="p-5">
+      <p className={BLOCK_TITLE}>
+        <span>Waiting on you</span>
+        <Link to="/work" className={TITLE_LINK}>See all <span className="font-mono">{actions.length}</span></Link>
+      </p>
+      <div className="flex flex-wrap items-center gap-3 pb-3">
+        <div className="flex-1 min-w-[200px]">
+          <p className="text-base font-medium text-text">{first.label}</p>
+          <p className="text-sm text-text-muted">{first.detail}</p>
+        </div>
+        {due && <Badge variant={due.variant} className="font-mono normal-case">{due.text}</Badge>}
+        <Link to={first.link}><Button type="button">Open</Button></Link>
+      </div>
+      {actions.slice(1, rows + 1).map(a => <ActionRow key={a.id} action={a} now={now} />)}
     </Card>
   );
 }

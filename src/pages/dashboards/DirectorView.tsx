@@ -1,168 +1,178 @@
-import { useMemo } from 'react';
-import { Users, Briefcase, BookOpen, Wrench, Microscope } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import clsx from 'clsx';
 import { useData } from '../../contexts/DataContext';
-import { Card } from '../../components/ui/Cards';
-import { KpiCard } from '../../components/ui/KpiCard';
-import { fadeUp, staggerChildren } from '../../utils/motion';
-import { useCountUp } from '../../utils/useCountUp';
-import { ThresholdControls } from '../../components/dashboard/ThresholdControls';
+import { useClaim, useHome } from '../../contexts/HomeContext';
+import { Card, Badge } from '../../components/ui/Cards';
+import {
+  AskBox, BLOCK_TITLE, HomeGreeting, ROW, TITLE_LINK, WaitingOnYou, dueText,
+} from '../../components/home/parts';
 import { AttentionStrip } from '../../components/dashboard/AttentionStrip';
 import { ProjectFinanceSection } from '../../components/dashboard/ProjectFinanceSection';
 import { ResearchSection } from '../../components/dashboard/ResearchSection';
 import { EquipmentOpsSection } from '../../components/dashboard/EquipmentOpsSection';
-import { DEFAULT_THRESHOLDS } from '../../utils/directorMetrics';
 import { useDirectorThresholds } from '../../hooks/useDirectorThresholds';
-import { instituteFreshness, type DivisionFreshness } from '../../lib/divisions/freshness';
+import { greeting } from '../../lib/home/greeting';
+import { deskKey } from '../../lib/home/desk';
+import { milestonesFor } from '../../lib/home/api';
+import type { HomeMilestone } from '../../lib/home/api';
+import { divisionRollup } from '../../lib/home/division';
+import { deriveOwnMeetings } from '../../lib/dashboard/scientistData';
 import { isActiveProject } from '../../lib/projects/stage';
+import { useDivisionStrength } from '../../lib/people/useDivisionStrength';
+import { getEquipmentFlags, getInstituteUtilization, DEFAULT_THRESHOLDS } from '../../utils/directorMetrics';
 
-const FRESHNESS_BADGE: Record<DivisionFreshness['staleness'], string> = {
-  fresh: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
-  aging: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
-  stale: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-  empty: 'bg-surface-hover text-text-muted',
-};
+const MAX_ROWS = 5;
+
+// Blocks of the Director's page whose source is a later phase. Each says so until it ships.
+const NOT_CONNECTED: { title: string; waitsOn: string }[] = [
+  { title: 'Briefing and watch list', waitsOn: 'a summary of critical matters from the last days' },
+  { title: 'How much reaches me', waitsOn: 'the delegation order: what you decide, and what your heads decide' },
+  { title: 'From CSIR Headquarters', waitsOn: 'letters and questions with a deadline, logged by your office' },
+  { title: 'Fund status by head', waitsOn: 'figures from Accounts' },
+  { title: 'The next 12 months', waitsOn: 'retirements, contracts, projects and payments by month' },
+  { title: 'Purchase plan and stuck in offices', waitsOn: 'figures from Purchase and Accounts' },
+  { title: 'Infrastructure', waitsOn: 'the works register' },
+];
+
+function Figure({ label, value, note, to }: { label: string; value: string; note: string; to: string }) {
+  return (
+    <Link to={to} className="block rounded-lg bg-surface-hover p-3 hover:shadow-[var(--shadow-e1)] transition-shadow">
+      <p className="text-xs text-text-muted">{label}</p>
+      <p className="font-mono text-xl text-text mt-0.5">{value}</p>
+      <p className="text-xs text-text-muted">{note}</p>
+    </Link>
+  );
+}
 
 export function DirectorView() {
-  const { staff, projects, phDStudents, equipment, scientificOutputs, divisions, ipIntelligence, mous, techTransfers } = useData();
-  const { thresholds, setThresholds } = useDirectorThresholds();
+  const { projects, divisions, equipment, meetings, committeeMembers } = useData();
+  const { staffId, ownStaff, actions, doneCount } = useHome();
+  const { thresholds } = useDirectorThresholds();
+  const { rows: strengthRows, totals } = useDivisionStrength();
 
-  const freshnessByDiv = useMemo(() => {
-    const all = instituteFreshness(divisions, {
-      staff, projects, scientificOutputs, ipIntelligence, mous, techTransfers, phDStudents,
-    });
-    return new Map(all.map((f) => [f.divCode, f]));
-  }, [divisions, staff, projects, scientificOutputs, ipIntelligence, mous, techTransfers, phDStudents]);
+  const now = useMemo(() => new Date(), []);
 
-  const activeProjects = projects.filter(isActiveProject).length;
+  // --- 1. What waits on the Director ---
+  const overdue = useMemo(() => actions.filter(a => dueText(a.due, now)?.variant === 'danger').length, [actions, now]);
+  const sentence = useMemo(
+    () => greeting({ name: ownStaff?.Name ?? '', hour: now.getHours(), left: actions.length, overdue }),
+    [ownStaff, now, actions.length, overdue],
+  );
+  const ownMeetings = useMemo(
+    () => (staffId ? deriveOwnMeetings(meetings, committeeMembers, staffId, now).slice(0, MAX_ROWS) : []),
+    [meetings, committeeMembers, staffId, now],
+  );
+  useClaim(useMemo(() => [
+    ...actions.slice(0, MAX_ROWS + 1).map(a => deskKey.action(a.id)),
+    ...ownMeetings.map(m => deskKey.meeting(m.id)),
+  ], [actions, ownMeetings]));
+
+  // --- 2. Divisions, by exception ---
+  const running = useMemo(() => projects.filter(isActiveProject), [projects]);
+  const runningKey = useMemo(() => running.map(p => p.ProjectID).join('|'), [running]);
+  const [milestones, setMilestones] = useState<HomeMilestone[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    milestonesFor(runningKey ? runningKey.split('|') : []).then((m) => { if (!cancelled) setMilestones(m); });
+    return () => { cancelled = true; };
+  }, [runningKey]);
+  const vacantByDivision = useMemo(() => new Map(strengthRows.map(r => [r.division_code, r.vacant])), [strengthRows]);
+  const rollup = useMemo(
+    () => divisionRollup(projects, milestones, vacantByDivision, now),
+    [projects, milestones, vacantByDivision, now],
+  );
+  const divisionName = useMemo(() => new Map(divisions.map(d => [d.divCode, d.divName])), [divisions]);
+
+  // --- 3. Institute figures, each from a record that can be opened ---
+  const utilization = useMemo(() => getInstituteUtilization(running), [running]);
+  const down = useMemo(() => getEquipmentFlags(equipment, DEFAULT_THRESHOLDS, now).down.length, [equipment, now]);
+
+  const total = actions.length + doneCount;
 
   return (
-    <div className="space-y-8 pb-12">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-[500] text-[#141413] uppercase tracking-tight font-serif">
-          Director's Dashboard
-        </h1>
-        <p className="text-[#87867f] mt-1 text-sm font-medium">
-          CSIR-AMPRI — Institute-Wide Decision Cockpit
-        </p>
-      </div>
-
-      {/* Bento KPI grid — hero tile + supporting counts, staggered entry */}
-      <motion.div
-        variants={staggerChildren}
-        initial="hidden"
-        animate="show"
-        className="grid grid-cols-2 lg:grid-cols-4 gap-4 auto-rows-[minmax(0,1fr)]"
-      >
-        <motion.div variants={fadeUp} className="col-span-2 lg:row-span-2">
-          <HeroTile
-            label="Active Projects"
-            value={activeProjects}
-            total={projects.length}
-          />
-        </motion.div>
-        <motion.div variants={fadeUp}>
-          <KpiCard to="/staff" label="Total Staff" value={staff.length} icon={<Users size={18} />} sublabel="Permanent personnel" />
-        </motion.div>
-        <motion.div variants={fadeUp}>
-          <KpiCard to="/phd" label="PhD Students" value={phDStudents.length} icon={<BookOpen size={18} />} sublabel="Enrolled scholars" />
-        </motion.div>
-        <motion.div variants={fadeUp}>
-          <KpiCard to="/facilities" label="Equipment" value={equipment.length} icon={<Wrench size={18} />} sublabel="Instruments & facilities" />
-        </motion.div>
-        <motion.div variants={fadeUp}>
-          <KpiCard to="/intelligence" label="Scientific Outputs" value={scientificOutputs.length} icon={<Microscope size={18} />} sublabel="Publications & IP" />
-        </motion.div>
-      </motion.div>
-
-      <ThresholdControls
-        thresholds={thresholds}
-        onChange={setThresholds}
-        onReset={() => setThresholds(DEFAULT_THRESHOLDS)}
+    <div className="space-y-4 pb-12">
+      {/* --- 1. Greeting --- */}
+      <HomeGreeting
+        done={doneCount} total={total} sentence={sentence}
+        sub={<>
+          CSIR-AMPRI · <span className="font-mono">{divisions.length}</span> divisions
+          {' · '}<span className="font-mono">{running.length}</span> running projects
+        </>}
       />
 
+      {/* --- 2. Ask --- */}
+      <AskBox placeholder="Ask SURYA: who can speak for us on hydrogen storage?" />
+
+      {/* --- 3. Waiting on you --- */}
+      <WaitingOnYou actions={actions} now={now} rows={MAX_ROWS} />
+
+      {/* --- 4. Divisions and my week --- */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card className="p-5">
+          <p className={BLOCK_TITLE}><span>Divisions · those that need you</span><Link to="/divisions" className={TITLE_LINK}>See all</Link></p>
+          {rollup.rows.slice(0, MAX_ROWS + 1).map(r => (
+            <Link key={r.code} to="/divisions" className={clsx(ROW, 'group')}>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-text truncate group-hover:underline">
+                  <span className="font-mono text-xs text-text-muted mr-2">{r.code}</span>{divisionName.get(r.code) ?? ''}
+                </p>
+              </div>
+              {r.flagged > 0 && <Badge variant="danger" className="font-mono normal-case shrink-0">{r.flagged} of {r.running} projects</Badge>}
+              {(r.vacant ?? 0) > 0 && <Badge variant="warning" className="font-mono normal-case shrink-0">{r.vacant} vacant</Badge>}
+            </Link>
+          ))}
+          <p className={clsx('text-sm text-text-muted', rollup.rows.length > 0 && 'mt-3')}>
+            {rollup.rows.length > MAX_ROWS + 1 && <><span className="font-mono">{rollup.rows.length - MAX_ROWS - 1}</span> more {rollup.rows.length - MAX_ROWS - 1 === 1 ? 'needs' : 'need'} a look. </>}
+            <span className="font-mono">{rollup.onCourse}</span> {rollup.onCourse === 1 ? 'division is' : 'divisions are'} on course.
+          </p>
+          <p className="text-xs text-text-muted mt-1">A project counts when it is past its end date, ends in 60 days, has a late milestone, or its recorded spending is far behind its time.</p>
+        </Card>
+
+        <Card className="p-5">
+          <p className={BLOCK_TITLE}><span>My week · meetings I sit on</span><Link to="/committees" className={TITLE_LINK}>Committees</Link></p>
+          {ownMeetings.length === 0
+            ? <p className="text-sm text-text-muted">No meeting is scheduled for your committees.</p>
+            : ownMeetings.map(m => (
+              <Link key={m.id} to={`/committees/${m.committee_id}/meetings/${m.id}`} className={clsx(ROW, 'group')}>
+                <span className="font-mono text-xs text-text-muted w-20 shrink-0">{m.meeting_date}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-text truncate group-hover:underline">{m.title}</p>
+                  {m.venue && <p className="text-xs text-text-muted truncate">{m.venue}</p>}
+                </div>
+              </Link>
+            ))}
+        </Card>
+      </div>
+
+      {/* --- 5. Institute at a glance: each figure opens its list --- */}
+      <Card className="p-5">
+        <p className={BLOCK_TITLE}><span>Institute · each figure opens its list</span></p>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <Figure to="/projects" label="Running projects" value={String(running.length)} note={`of ${projects.length} on record`} />
+          <Figure to="/portfolio" label="Project money used" value={utilization.utilized > 0 ? `${utilization.pct}%` : '—'} note={utilization.utilized > 0 ? 'of sanctioned cost, running projects' : 'no spent amount is recorded'} />
+          <Figure to="/staff/posts" label="Posts filled" value={totals.sanctioned > 0 ? `${totals.filled} / ${totals.sanctioned}` : '—'} note={totals.sanctioned > 0 ? `${totals.vacant} vacant` : 'no posts are entered'} />
+          <Figure to="/facilities" label="Instruments down" value={String(down)} note={`of ${equipment.length}`} />
+        </div>
+      </Card>
+
+      {/* --- 6. Blocks that wait on other work --- */}
+      <Card className="p-5">
+        <p className={BLOCK_TITLE}><span>Not connected yet</span><span className="font-mono">{NOT_CONNECTED.length}</span></p>
+        {NOT_CONNECTED.map(b => (
+          <div key={b.title} className={ROW}>
+            <p className="text-sm text-text w-56 shrink-0">{b.title}</p>
+            <p className="text-xs text-text-muted flex-1 min-w-0">Will show {b.waitsOn}.</p>
+          </div>
+        ))}
+      </Card>
+
+      {/* --- 7. Institute figures --- */}
+      <h2 className="text-xs font-medium text-text-muted pt-4">Institute figures</h2>
       <AttentionStrip thresholds={thresholds} />
       <ProjectFinanceSection />
       <ResearchSection />
       <EquipmentOpsSection />
-
-      {/* Division breakdown table (retained) */}
-      <Card className="p-0 overflow-hidden">
-        <div className="px-6 py-4 border-b border-[#f0eee6]">
-          <h2 className="text-base font-semibold text-[#4d4c48] uppercase tracking-wide">Division Breakdown</h2>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-[#f5f4ed]">
-                <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-[#87867f]">Division</th>
-                <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-[#87867f]">Name</th>
-                <th className="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-widest text-[#87867f]">Current Strength</th>
-                <th className="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-widest text-[#87867f]">Sanctioned</th>
-                <th className="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-widest text-[#87867f]">Head of Division</th>
-                <th className="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-widest text-[#87867f]">Data Freshness</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#f0eee6]">
-              {divisions.map((div) => (
-                <tr key={div.divCode} className="hover:bg-[#f5f4ed] transition-colors">
-                  <td className="px-6 py-4 font-semibold text-[#c96442] font-mono text-xs">{div.divCode}</td>
-                  <td className="px-6 py-4 text-[#4d4c48] font-medium">{div.divName}</td>
-                  <td className="px-6 py-4 text-right text-[#141413] font-semibold">{div.divCurrentStrength}</td>
-                  <td className="px-6 py-4 text-right text-[#87867f]">{div.divSanctionedstrength}</td>
-                  <td className="px-6 py-4 text-right text-[#4d4c48]">{div.divHoD}</td>
-                  <td className="px-6 py-4 text-right">
-                    {(() => {
-                      const f = freshnessByDiv.get(div.divCode);
-                      if (!f) return <span className="text-[#87867f]">—</span>;
-                      return (
-                        <span
-                          className={`inline-flex text-xs font-semibold px-2 py-0.5 rounded-full ${FRESHNESS_BADGE[f.staleness]}`}
-                          title={f.gaps.join('; ') || 'No gaps'}
-                        >
-                          {f.completeness}% · {f.staleness}
-                        </span>
-                      );
-                    })()}
-                  </td>
-                </tr>
-              ))}
-              {divisions.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-[#87867f] text-xs italic">
-                    No division data available.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </Card>
     </div>
-  );
-}
-
-function HeroTile({ label, value, total }: { label: string; value: number; total: number }) {
-  const counted = useCountUp(value, 1200);
-  const pct = total > 0 ? Math.round((value / total) * 100) : 0;
-  return (
-    <Card variant="interactive" className="relative h-full overflow-hidden flex flex-col justify-between bg-grain">
-      <div className="pointer-events-none absolute inset-0" style={{ background: 'var(--gradient-glow)' }} />
-      <div className="relative flex items-center gap-2 text-terracotta">
-        <Briefcase size={20} />
-        <span className="text-xs font-semibold uppercase tracking-widest">{label}</span>
-      </div>
-      <div className="relative">
-        <div className="font-serif text-6xl lg:text-7xl text-text tabular-nums leading-none">{counted.toLocaleString()}</div>
-        <div className="mt-3 flex items-center gap-3">
-          <div className="flex-1 h-2 rounded-full bg-surface-hover overflow-hidden">
-            <div className="h-full rounded-full [background:var(--gradient-brand)]" style={{ width: `${pct}%` }} />
-          </div>
-          <span className="text-sm font-semibold text-text-muted tabular-nums">{pct}%</span>
-        </div>
-        <div className="mt-1 text-xs text-text-muted">{value} active of {total} total projects</div>
-      </div>
-    </Card>
   );
 }

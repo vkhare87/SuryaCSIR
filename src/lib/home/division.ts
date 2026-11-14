@@ -12,7 +12,7 @@ export const MONEY_GAP_POINTS = 25;
 export interface ProjectReading {
   /** Share of the project's time that is used, 0–100; null when a date is missing. */
   timePct: number | null;
-  /** Share of the sanctioned money that is used, 0–100; null when no sanctioned cost. */
+  /** Share of the sanctioned money that is used, 0–100; null when no sanctioned cost or no spent amount is recorded. */
   moneyPct: number | null;
   /** Why the head should look. Empty when the project is on course. */
   reasons: string[];
@@ -29,7 +29,9 @@ export function readProject(p: ProjectInfo, milestones: HomeMilestone[], now: Da
   const sanctioned = parseCost(p.SanctionedCost);
   const timePct = start && end && end > start
     ? clampPct((diffInDays(now, start) / diffInDays(end, start)) * 100) : null;
-  const moneyPct = sanctioned > 0 ? clampPct((parseCost(p.UtilizedAmount) / sanctioned) * 100) : null;
+  const utilized = parseCost(p.UtilizedAmount);
+  // No spent amount on record is missing data, not zero spending: give no figure and no flag.
+  const moneyPct = sanctioned > 0 && utilized > 0 ? clampPct((utilized / sanctioned) * 100) : null;
 
   const reasons: string[] = [];
   let weight = 0;
@@ -70,4 +72,38 @@ export function projectsByException(
     .filter(f => f.reading.reasons.length > 0)
     .sort((a, b) => b.reading.weight - a.reading.weight);
   return { flagged, onCourse: running.length - flagged.length };
+}
+
+export interface DivisionRow {
+  code: string;
+  running: number;
+  /** Running projects that need attention. */
+  flagged: number;
+  /** Vacant sanctioned posts; null when no posts are entered for the division. */
+  vacant: number | null;
+}
+
+/** One row per division that has a flagged project or a vacant post, worst first, and the count of the rest. */
+export function divisionRollup(
+  projects: ProjectInfo[], milestones: HomeMilestone[], vacantByDivision: ReadonlyMap<string, number>,
+  now: Date = new Date(),
+): { rows: DivisionRow[]; onCourse: number } {
+  const byProject = new Map<string, HomeMilestone[]>();
+  for (const m of milestones) byProject.set(m.projectId, [...(byProject.get(m.projectId) ?? []), m]);
+  const rows = new Map<string, DivisionRow>();
+  const row = (code: string) => {
+    if (!rows.has(code)) rows.set(code, { code, running: 0, flagged: 0, vacant: vacantByDivision.get(code) ?? null });
+    return rows.get(code) as DivisionRow;
+  };
+  for (const code of vacantByDivision.keys()) row(code);
+  for (const p of projects) {
+    if (!isActiveProject(p) || !p.DivisionCode) continue;
+    const r = row(p.DivisionCode);
+    r.running += 1;
+    if (readProject(p, byProject.get(p.ProjectID) ?? [], now).reasons.length > 0) r.flagged += 1;
+  }
+  const all = [...rows.values()];
+  const needs = all.filter(r => r.flagged > 0 || (r.vacant ?? 0) > 0)
+    .sort((a, b) => b.flagged - a.flagged || (b.vacant ?? 0) - (a.vacant ?? 0) || a.code.localeCompare(b.code));
+  return { rows: needs, onCourse: all.length - needs.length };
 }

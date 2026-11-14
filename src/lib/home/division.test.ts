@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ProjectInfo } from '../../types';
 import type { HomeMilestone } from './api';
-import { projectsByException, readProject } from './division';
+import { divisionRollup, projectsByException, readProject } from './division';
 
 const NOW = new Date(2026, 10, 13, 9, 0); // 13 Nov 2026
 const project = (id: string, over: Partial<ProjectInfo> = {}): ProjectInfo => ({
@@ -33,6 +33,10 @@ describe('readProject', () => {
     expect(readProject(project('A', { UtilizedAmount: '10' }), [], NOW).reasons).toEqual(['time 50% used, money 10%']);
     expect(readProject(project('A', { UtilizedAmount: '25' }), [], NOW).reasons).toEqual([]);
   });
+  it('does not flag a project whose spent amount is not recorded', () => {
+    expect(readProject(project('A', { UtilizedAmount: '' }), [], NOW)).toMatchObject({ moneyPct: null, reasons: [] });
+    expect(readProject(project('A', { UtilizedAmount: '0' }), [], NOW)).toMatchObject({ moneyPct: null, reasons: [] });
+  });
   it('gives no figure where the data is missing, and never a reason for a finished project', () => {
     expect(readProject(project('A', { StartDate: '', SanctionedCost: '' }), [], NOW)).toMatchObject({ timePct: null, moneyPct: null });
     expect(readProject(project('A', { stage: 'CLOSED', ProjectStatus: 'Completed', CompletioDate: '2020-01-01' }), [], NOW).reasons).toEqual([]);
@@ -48,6 +52,23 @@ describe('projectsByException', () => {
       project('done', { stage: 'CLOSED', ProjectStatus: 'Completed', CompletioDate: '2020-01-01' }),
     ], [], NOW);
     expect(out.flagged.map(f => f.project.ProjectID)).toEqual(['past', 'soon']);
+    expect(out.onCourse).toBe(1);
+  });
+});
+
+describe('divisionRollup', () => {
+  it('lists divisions with a flagged project or a vacant post, worst first, and counts the rest', () => {
+    const out = divisionRollup([
+      project('a1', { DivisionCode: 'AMD', CompletioDate: '2026-11-03' }),
+      project('a2', { DivisionCode: 'AMD' }),
+      project('c1', { DivisionCode: 'CMD' }),
+      project('g1', { DivisionCode: 'GBMD' }),
+      project('x', { DivisionCode: 'AMD', stage: 'CLOSED', ProjectStatus: 'Completed' }),
+    ], [], new Map([['CMD', 2], ['GBMD', 0]]), NOW);
+    expect(out.rows).toEqual([
+      { code: 'AMD', running: 2, flagged: 1, vacant: null },
+      { code: 'CMD', running: 1, flagged: 0, vacant: 2 },
+    ]);
     expect(out.onCourse).toBe(1);
   });
 });
