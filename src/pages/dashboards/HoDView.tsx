@@ -197,7 +197,7 @@ export function HoDView() {
         ))}
         <p className={clsx('text-sm text-text-muted', exceptions.flagged.length > 0 && 'mt-3')}>
           {runningIds.length === 0
-            ? 'No running project in this division.'
+            ? 'No running project in this division. '
             : <><span className="font-mono">{exceptions.onCourse}</span> {exceptions.onCourse === 1 ? 'project is' : exceptions.flagged.length > 0 ? 'others are' : 'projects are'} on course.{' '}</>}
           <Link to="/projects" className="underline inline-block py-1.5 -my-1.5">See all</Link>
         </p>
