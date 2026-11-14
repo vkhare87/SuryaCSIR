@@ -51,13 +51,13 @@ export default function Dashboard() {
     case 'DivisionHead': return home(<DivisionHeadView />);
     case 'HOD':          return home(<HoDView />);
     case 'Scientist':    return home(<ScientistView />);
-    case 'Technician':   return withActions(<TechnicianView />);
+    case 'Technician':   return home(<TechnicianView />);
     case 'HRAdmin':      return withActions(<HRAdminView />);
     case 'FinanceAdmin': return withActions(<FinanceAdminView />);
     case 'SystemAdmin':  return withActions(<SystemAdminView />);
     case 'MasterAdmin':  return withActions(<MasterAdminView />);
-    case 'Student':      return withActions(<StudentView />);
-    case 'ProjectStaff': return withActions(<ProjectStaffView />);
+    case 'Student':      return home(<StudentView />);
+    case 'ProjectStaff': return home(<ProjectStaffView />);
     case 'Guest':        return <GuestView />;
     case 'DefaultUser':         return <PendingAccessView />;
     case 'EmpoweredCommittee':  return withActions(<EmpoweredCommitteeView />);

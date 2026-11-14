@@ -12,7 +12,10 @@ Baseline before any change (2026-11-14): `npm run build` passed; `npm test` 148 
 | `CD0` shell | **Done** on today's data | Seen in the browser as MasterAdmin at 1440 px and at phone width: two halves on desktop, desk below the role half on a phone, no sideways scroll, no console error. **Not seen in dark theme** (the app's theme is a class, the browser's colour-scheme switch does not set it). Not seen as other roles |
 | `HH1` head home | **Done** on today's data | Seen in the browser as HOD (2026-11-14), desktop and phone: switch to My own work and back works, no sideways scroll, no console error. The dev login's HOD role has division `DEV`, which has no projects, so the exception rows were seen only in tests (`HoDView.test.tsx`, 6 tests; `division.test.ts`). Acting-head scope is not tested here; it rests on the existing RLS (`caller_in_division` has the acting branch) |
 | `DH1` Director home | **Done** on today's data | Seen in the browser as Director (2026-11-14) on live data, desktop and phone: no sideways scroll, no console error. `DirectorView.test.tsx` (5 tests). Not seen as an acting Director |
-| Rest of wave 2 (`ST1`, `PJ1`, `TS1`, CD phase A, `SH2`) | Next | — |
+| `ST1` student home | **Done** on today's data | Seen as Student, desktop (2026-11-14). The dev login has no PhD record, so only the "not linked" path was seen live; the road was seen in tests (`roleHomes.test.tsx`, `people.test.ts`) |
+| `PJ1` project staff home | **Done**, needs a migration on live | Seen as ProjectStaff, desktop. **`20261114000001_project_staff_self_read.sql` is not on live**: the page falls back to "not linked" and logs one console error per load until it is pushed. Clocks and leave seen in tests only. DB test `projectStaffSelf.db.test.ts` (4 tests) |
+| `TS1` technical staff home | **Done** on today's data | Seen as Technician, desktop and phone. The dev login has no instrument in its charge, so the list was seen in tests only |
+| Rest of wave 2 (CD phase A, `SH2`) | Next | — |
 
 ## SH1 — what was built
 
@@ -76,6 +79,35 @@ Differences from the plan, on purpose:
 - Posts show "—" because no sanctioned posts are entered on live.
 - The old data-freshness table and the threshold sliders are gone from this page.
 
+## ST1, PJ1, TS1 — what was built
+
+- `StudentView.tsx`: greeting that names the next PhD step, the road of eight steps,
+  ask box, waiting on you, work record, need-something buttons, and two blocks not
+  connected yet (supervisor meetings, fellowship clock). A student sees only their own road.
+- `ProjectStaffView.tsx`: contract clock and cap clock (cap and leave days read from
+  `csir_rules`, never a constant), leave since 1 April, letter buttons, and two blocks not
+  connected yet (pay, what next).
+- `TechnicianView.tsx`: my instruments, down first, with service-contract dates; links to
+  the instrument page where the logbook already is; three blocks not connected yet
+  (queue, quick entry, my year).
+- `src/lib/home/people.ts` (+ tests): PhD road, leave year, paid leave used, contract
+  clock, tenure in years and months, and the loader for the caller's own engagement.
+- Migration `20261114000001_project_staff_self_read.sql`: `project_staff_persons.user_id`,
+  `project_staff_caller_person()`, a self branch on the engagements read policy (person
+  and leave policies follow it), and `project_staff_link_user()` for PME / HR.
+
+Differences from the plan, on purpose:
+
+- **Students are still matched by name**, the same as the `phd_students` read policy. A
+  login link for students is a later migration.
+- **No screen to link a project staff login yet.** PME / HR can call
+  `project_staff_link_user(person, user)`; a button on the roster page is Lane 2's page.
+- **Technician "my instruments"** = instruments whose owner is the login, or whose operator
+  name matches. The in-charge register is `TS2`.
+- The leave year is 1 April – 31 March until a rule names it.
+- No leave request form and no one-click letters: those are `PJ2` and `PJ3`. The buttons
+  open a helpdesk request today.
+
 ## Dev login
 
 The owner agreed (2026-11-14) to add roles to the dev login for browser checks. It now
@@ -129,6 +161,13 @@ Left for later, on purpose:
 | Director · The next 12 months | `DH9` |
 | Director · Purchase plan and stuck in offices | `DH11`, `DH6` |
 | Director · Infrastructure | `DH12` |
+| Student · Supervisor meetings | `ST3` |
+| Student · Fellowship clock | `ST2` |
+| Project staff · My pay | `SH6` (AMS file) |
+| Project staff · What next for me | `PJ4` |
+| Technician · Today's queue | `TS2` |
+| Technician · Quick entry | `TS3` |
+| Technician · My year | `TS4` |
 
 ## Known limits carried forward
 
