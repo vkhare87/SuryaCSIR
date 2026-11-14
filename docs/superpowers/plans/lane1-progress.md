@@ -18,7 +18,7 @@ Baseline before any change (2026-11-14): `npm run build` passed; `npm test` 148 
 | CD phase A (`CD1`, `CD2`, `CD3`) | **Done**, client version | Seen in the browser (2026-11-14): the door lists ten kinds; "Leave" opens the ticket form with category and subject filled and routing shown; My requests lists proposals and tickets with holder and days. Nothing was submitted |
 | `SH2` report timers | **Done**, client version | Seen in tests only (`requests.test.ts`, `ScientistView.test.tsx`); the dev login owes no dated report |
 | **Wave 2** | **Done** | — |
-| `SH3` priorities + `HH7` | **Done**; migration **not on live** | `20261114120002_work_priorities.sql`: table, `priority_may_pin`, six RPCs, the four rules. DB test `priorities.db.test.ts` (7 tests), parts test `Priorities.test.tsx` (4 tests). Seen in the browser as HOD: the Pin form opens with 18 people; Do first is hidden because the table is not on live (the page logs one load error per visit until it is pushed) |
+| `SH3` priorities + `HH7` | **Done**; migration on live (2026-11-14, owner approved, same scratch-copy push; dry run listed only this file; schema cache reloaded; `work_priorities` read and `priority_may_pin` checked on live) | `20261114120002_work_priorities.sql`: table, `priority_may_pin`, six RPCs, the four rules. DB test `priorities.db.test.ts` (7 tests), parts test `Priorities.test.tsx` (4 tests). Seen in the browser as HOD: the Pin form opens with 18 people; Do first is hidden because the table is not on live (the page logs one load error per visit until it is pushed) |
 | Rest of wave 3 (`HH2`, `CD6`, `SH4`, `CD4`) | Next | — |
 
 ## SH1 — what was built
