@@ -53,6 +53,13 @@ describe('general meetings', () => {
     expect(busy.map(r => r.user_id)).toEqual([U.pi, U.b].sort());
   });
 
+  it('names the organiser in the message, and limits how many meetings one person calls in an hour', async () => {
+    const t = await q<{ title: string }>(db, `SELECT title FROM notifications WHERE dedupe_key = $1 LIMIT 1`, [`gmeeting:${id}`]);
+    expect(t[0].title).toBe('Meeting called by 01@g.local: Team review');
+    for (let i = 0; i < 20; i += 1) await create(U.out, [U.a], `Spam ${i}`);
+    await expect(create(U.out, [U.a], 'Spam 21')).rejects.toThrow(/20 meetings in the last hour/); // the 21st
+  });
+
   it('only the organiser cancels', async () => {
     await expect(call(U.a, `SELECT general_meeting_cancel($1)`, [id])).rejects.toThrow(/Only the organiser/);
     await call(U.pi, `SELECT general_meeting_cancel($1)`, [id]);

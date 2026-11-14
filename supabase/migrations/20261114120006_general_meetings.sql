@@ -9,7 +9,7 @@
 
 CREATE TABLE IF NOT EXISTS public.general_meetings (
     id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    title        text NOT NULL CHECK (btrim(title) <> ''),
+    title        text NOT NULL CHECK (btrim(title) <> '' AND length(title) <= 200),
     organiser    uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     starts_at    timestamptz NOT NULL,
     ends_at      timestamptz NOT NULL,
@@ -55,11 +55,17 @@ CREATE OR REPLACE FUNCTION public.general_meeting_create(
     p_title text, p_starts timestamptz, p_ends timestamptz, p_place text, p_link text, p_agenda text, p_invitees uuid[])
 RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
-    v_me uuid := (SELECT auth.uid());
-    v_id uuid;
+    v_me   uuid := (SELECT auth.uid());
+    v_id   uuid;
+    v_from text;
 BEGIN
     IF v_me IS NULL THEN RAISE EXCEPTION 'not authorized'; END IF;
     IF coalesce(btrim(p_title), '') = '' THEN RAISE EXCEPTION 'Give the meeting a title'; END IF;
+    IF length(btrim(p_title)) > 200 THEN RAISE EXCEPTION 'Keep the title under 200 characters'; END IF;
+    -- Each meeting sends a message to every invitee: limit how fast one person can send them.
+    IF (SELECT count(*) FROM public.general_meetings WHERE organiser = v_me AND created_at > now() - interval '1 hour') >= 20 THEN
+        RAISE EXCEPTION 'You have called 20 meetings in the last hour. Try again later.';
+    END IF;
     IF p_starts IS NULL OR p_ends IS NULL OR p_ends <= p_starts THEN RAISE EXCEPTION 'The meeting must end after it starts'; END IF;
     IF p_ends - p_starts > interval '12 hours' THEN RAISE EXCEPTION 'A meeting lasts at most 12 hours'; END IF;
     IF p_starts < now() - interval '1 hour' THEN RAISE EXCEPTION 'The meeting cannot start in the past'; END IF;
@@ -74,8 +80,11 @@ BEGIN
     SELECT v_id, u FROM (SELECT DISTINCT unnest(p_invitees) u) x
      WHERE u <> v_me AND EXISTS (SELECT 1 FROM auth.users a WHERE a.id = x.u);
 
+    -- The message names who called the meeting, so nobody can pass one off as an office notice.
+    SELECT coalesce((SELECT "Name" FROM public.staff WHERE user_id = v_me LIMIT 1),
+                    (SELECT email FROM auth.users WHERE id = v_me)) INTO v_from;
     INSERT INTO public.notifications (user_id, kind, severity, title, body, link, source, dedupe_key)
-    SELECT i.user_id, 'general_meeting', 'info', 'Meeting: ' || btrim(p_title),
+    SELECT i.user_id, 'general_meeting', 'info', 'Meeting called by ' || v_from || ': ' || btrim(p_title),
            to_char(p_starts AT TIME ZONE 'Asia/Kolkata', 'DD Mon, HH24:MI') || CASE WHEN btrim(coalesce(p_place, '')) <> '' THEN ' · ' || btrim(p_place) ELSE '' END,
            '/', 'rule', 'gmeeting:' || v_id
       FROM public.general_meeting_invitees i WHERE i.meeting_id = v_id
@@ -117,6 +126,8 @@ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
 BEGIN
     IF (SELECT auth.uid()) IS NULL THEN RAISE EXCEPTION 'not authorized'; END IF;
     IF p_to - p_from > interval '31 days' THEN RAISE EXCEPTION 'Look at most 31 days ahead'; END IF;
+    -- Free or busy only, institute-wide, by plan decision (COMMON-DESK-PLAN §7 q8); one look covers at most 200 people.
+    IF cardinality(p_users) > 200 THEN RAISE EXCEPTION 'Look up at most 200 people at once'; END IF;
     RETURN QUERY
     SELECT DISTINCT x.u, m.starts_at, m.ends_at
       FROM public.general_meetings m
