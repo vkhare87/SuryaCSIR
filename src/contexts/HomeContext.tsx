@@ -101,7 +101,8 @@ export function HomeProvider({ children }: { children: ReactNode }) {
   }, [user, ownStaff, reports, evaluations, proposals, progressReports, actionItems, tickets, staff, contractStaff,
       contributionRequests, dataStewards, dueSlots, changeSteps, closureItems]);
 
-  const seenKey = userId ? `surya_home_seen_${userId}_${localIso(new Date())}` : '';
+  // Per role: each role has its own list, so a role switch must not count as work done.
+  const seenKey = user ? `surya_home_seen_${user.id}_${user.activeRole}_${localIso(new Date())}` : '';
   const [seen, setSeen] = useState<string[]>([]);
   useEffect(() => {
     if (!seenKey) return;

@@ -8,7 +8,7 @@ Baseline before any change (2026-11-14): `npm run build` passed; `npm test` 148 
 
 | Phase | Status | Not verified / notes |
 |---|---|---|
-| `SH1` scientist home | **Done** on today's data | **Not seen in the browser as a Scientist.** The signed-in dev account holds only `MasterAdmin` and `DefaultUser`; giving it the Scientist role is a change on the live database, so it was not done. Covered instead by `ScientistView.test.tsx` (5 tests) and `src/lib/home/home.test.ts` (15 tests). As MasterAdmin the page loads with no console error and `MyActions` reads from `HomeContext` |
+| `SH1` scientist home | **Done** on today's data | Seen in the browser as a Scientist at 1440 px, light and dark theme (2026-11-14): greeting in Fraunces, counts in IBM Plex Mono, one strong button, no console error. The owner agreed to add the Scientist role to the dev login for this check; **the role is still on that login**. **Not seen at phone width as a Scientist** — the browser session ended before that check. Fault found and fixed in the browser check: a role switch counted as work done on the ring (the done-today list is now kept per role) |
 | `CD0` shell | **Done** on today's data | Seen in the browser as MasterAdmin at 1440 px and at phone width: two halves on desktop, desk below the role half on a phone, no sideways scroll, no console error. **Not seen in dark theme** (the app's theme is a class, the browser's colour-scheme switch does not set it). Not seen as other roles |
 | Wave 2 (`HH1`, `DH1`, `ST1`, `PJ1`, `TS1`, CD phase A, `SH2`) | Next | — |
 
