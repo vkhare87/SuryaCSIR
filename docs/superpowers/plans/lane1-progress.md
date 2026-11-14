@@ -17,7 +17,9 @@ Baseline before any change (2026-11-14): `npm run build` passed; `npm test` 148 
 | `TS1` technical staff home | **Done** on today's data | Seen as Technician, desktop and phone. The dev login has no instrument in its charge, so the list was seen in tests only |
 | CD phase A (`CD1`, `CD2`, `CD3`) | **Done**, client version | Seen in the browser (2026-11-14): the door lists ten kinds; "Leave" opens the ticket form with category and subject filled and routing shown; My requests lists proposals and tickets with holder and days. Nothing was submitted |
 | `SH2` report timers | **Done**, client version | Seen in tests only (`requests.test.ts`, `ScientistView.test.tsx`); the dev login owes no dated report |
-| **Wave 2** | **Done** | Wave 3 next: `SH3`, `HH7`, `HH2`, `CD6`, `SH4`, `CD4` |
+| **Wave 2** | **Done** | — |
+| `SH3` priorities + `HH7` | **Done**; migration **not on live** | `20261114120002_work_priorities.sql`: table, `priority_may_pin`, six RPCs, the four rules. DB test `priorities.db.test.ts` (7 tests), parts test `Priorities.test.tsx` (4 tests). Seen in the browser as HOD: the Pin form opens with 18 people; Do first is hidden because the table is not on live (the page logs one load error per visit until it is pushed) |
+| Rest of wave 3 (`HH2`, `CD6`, `SH4`, `CD4`) | Next | — |
 
 ## SH1 — what was built
 
@@ -131,6 +133,28 @@ Differences from the plan, on purpose (each can move to SQL when Ask SURYA needs
   **it is not confidential yet** (the plan's confidential rule needs a migration).
 - `SH2` has no `my_report_timers()` function and no "lines left": timers come from the
   open actions that carry a due date.
+
+## SH3 and HH7 — what was built
+
+- Migration `20261114120002_work_priorities.sql`: `work_priorities` (read by the person
+  and the asker only; no direct writes), `priority_may_pin()` (Director; head of the
+  division, held or acting; reporting officer; PI of a project the person works on,
+  by `project_staff.staff_id` or a current engagement; PhD supervisor), and
+  `priority_pin`, `priority_seen`, `priority_push_back`, `priority_answer`,
+  `priority_done`, `priority_withdraw`. The fourth open priority is refused by name under
+  an advisory lock. Same-day clash tells both askers. Each step writes one notification
+  through `priority_notify` (EXECUTE revoked; listed in the audit's EXEMPT map).
+- `src/lib/home/priorities.ts` (+ tests), `HomeContext` loads them,
+  `src/components/home/Priorities.tsx`: `DoFirst` (amber border, once), `PinButton` with
+  the pin form, `PrioritiesAsked` (accept or keep a new date, withdraw).
+- All six role screens show Do first. Head, Director and scientist have Pin a priority
+  and Priorities I asked. While a priority is open it holds the screen's one strong
+  button; the other Open buttons become plain.
+- The pin form lists every staff member with a login that the asker can see; the
+  database decides who may be pinned and says so in plain words.
+
+Not built from the plan: pin from a task row or a profile page (only from the home
+page); a link field on the pin form (the column exists).
 
 ## Dev login
 

@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { HoDView } from './HoDView';
 import type { MyAction } from '../../lib/dashboard/myActions';
 
+vi.mock('../../components/home/Priorities', () => ({ DoFirst: () => null, PinButton: () => null, PrioritiesAsked: () => null }));
 vi.mock('../../lib/home/api', () => ({ milestonesFor: vi.fn(async () => []) }));
 vi.mock('../../lib/people/api', () => ({ loadWorkload: vi.fn(async () => []) }));
 vi.mock('../../lib/people/useDivisionStrength', () => ({
@@ -41,7 +42,7 @@ describe('HoDView', () => {
       projects: [project('LATE', 'AMD', '2020-06-01'), project('FINE', 'AMD', '2099-01-01'), project('ELSE', 'CMD', '2020-06-01')],
       projectStaff: [], equipment: [],
     };
-    home = {
+    home = { prioritiesForMe: [],
       ownStaff: { ID: 'S1', Name: 'Dr. Mehta' }, doneCount: 0, claim,
       actions: [act('a1', '2020-01-01'), act('a2', null)],
     };

@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { DirectorView } from './DirectorView';
 import type { MyAction } from '../../lib/dashboard/myActions';
 
+vi.mock('../../components/home/Priorities', () => ({ DoFirst: () => null, PinButton: () => null, PrioritiesAsked: () => null }));
 vi.mock('../../lib/home/api', () => ({ milestonesFor: vi.fn(async () => []) }));
 vi.mock('../../lib/people/useDivisionStrength', () => ({
   useDivisionStrength: () => ({
@@ -41,7 +42,7 @@ describe('DirectorView', () => {
       equipment: [{ UInsID: 'E1', Name: 'SEM', WorkingStatus: 'Not Working' }, { UInsID: 'E2', Name: 'XRD', WorkingStatus: 'Working' }],
       meetings: [], committeeMembers: [],
     };
-    home = { staffId: 'S1', ownStaff: { ID: 'S1', Name: 'Dr. Srivastava' }, doneCount: 0, actions: [act('a1'), act('a2')] };
+    home = { prioritiesForMe: [], staffId: 'S1', ownStaff: { ID: 'S1', Name: 'Dr. Srivastava' }, doneCount: 0, actions: [act('a1'), act('a2')] };
   });
 
   it('greets with the institute in one line and has one strong button', () => {

@@ -6,6 +6,7 @@ import { useData } from '../../contexts/DataContext';
 import { useClaim, useHome } from '../../contexts/HomeContext';
 import { Card, Badge } from '../../components/ui/Cards';
 import { Button } from '../../components/ui/Button';
+import { DoFirst, PinButton, PrioritiesAsked } from '../../components/home/Priorities';
 import { ActionRow, AskBox, BLOCK_TITLE, HomeGreeting, NotConnected, ROW, dueText } from '../../components/home/parts';
 import { deriveOwnMeetings, deriveOwnActionItems } from '../../lib/dashboard/scientistData';
 import type { MyAction } from '../../lib/dashboard/myActions';
@@ -60,7 +61,7 @@ function MilestoneTrack({ milestones, today }: { milestones: HomeMilestone[]; to
 
 export function ScientistView() {
   const { projects, projectStaff, phDStudents, meetings, committeeMembers, actionItems, calendarEvents, holidays } = useData();
-  const { staffId, ownStaff, staffResolved, actions, doneCount } = useHome();
+  const { staffId, ownStaff, staffResolved, actions, doneCount, prioritiesForMe } = useHome();
   const [milestones, setMilestones] = useState<HomeMilestone[]>([]);
 
   const now = useMemo(() => new Date(), []);
@@ -153,8 +154,11 @@ export function ScientistView() {
             : ' '}
       />
 
+      <DoFirst now={now} />
+
       {/* --- 2. Ask and start --- */}
       <AskBox placeholder="Ask SURYA: which of my reports are due?">
+        <PinButton />
         <Link to="/proposals/new"><Button variant="secondary" type="button"><Lightbulb size={15} className="mr-1.5" aria-hidden="true" />New idea</Button></Link>
       </AskBox>
 
@@ -168,7 +172,7 @@ export function ScientistView() {
               <p className="text-sm text-text-muted">{next.detail}</p>
             </div>
             {(() => { const due = dueText(next.due, now); return due && <Badge variant={due.variant} className="font-mono normal-case">{due.text}</Badge>; })()}
-            <Link to={next.link}><Button type="button">Open</Button></Link>
+            <Link to={next.link}><Button type="button" variant={prioritiesForMe.length > 0 ? 'secondary' : 'primary'}>Open</Button></Link>
           </div>
         </Card>
       )}
@@ -231,6 +235,8 @@ export function ScientistView() {
           {alsoOpen.map(actionRow)}
         </Card>
       )}
+
+      <PrioritiesAsked />
 
       {/* --- 6. Committees --- */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

@@ -102,7 +102,7 @@ export function NotConnected({ title, children }: { title: string; children: Rea
 }
 
 /** The first item with the screen's one strong button, then the next few as rows. */
-export function WaitingOnYou({ actions, now, rows = 5 }: { actions: MyAction[]; now: Date; rows?: number }) {
+export function WaitingOnYou({ actions, now, rows = 5, strong = true }: { actions: MyAction[]; now: Date; rows?: number; strong?: boolean }) {
   const first = actions[0];
   if (!first) return null;
   const due = dueText(first.due, now);
@@ -118,7 +118,7 @@ export function WaitingOnYou({ actions, now, rows = 5 }: { actions: MyAction[]; 
           <p className="text-sm text-text-muted">{first.detail}</p>
         </div>
         {due && <Badge variant={due.variant} className="font-mono normal-case">{due.text}</Badge>}
-        <Link to={first.link}><Button type="button">Open</Button></Link>
+        <Link to={first.link}><Button type="button" variant={strong ? 'primary' : 'secondary'}>Open</Button></Link>
       </div>
       {actions.slice(1, rows + 1).map(a => <ActionRow key={a.id} action={a} now={now} />)}
     </Card>

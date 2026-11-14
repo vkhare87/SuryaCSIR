@@ -8,6 +8,7 @@ import { Button } from '../../components/ui/Button';
 import {
   ActionRow, AskBox, BLOCK_TITLE, HomeGreeting, NotConnected, ROW, TITLE_LINK, WaitingOnYou,
 } from '../../components/home/parts';
+import { DoFirst } from '../../components/home/Priorities';
 import { countWord } from '../../lib/home/greeting';
 import { deskKey } from '../../lib/home/desk';
 import { daysUntil } from '../../lib/home/today';
@@ -25,7 +26,7 @@ function partOfDay(h: number) { return h < 12 ? 'Good morning' : h < 17 ? 'Good 
 
 export function StudentView() {
   const { phDStudents, phdMilestones, scientificOutputs, projects } = useData();
-  const { ownStaff, actions, doneCount } = useHome();
+  const { ownStaff, actions, doneCount, prioritiesForMe } = useHome();
   const now = useMemo(() => new Date(), []);
 
   // Students are matched by name, as phd_students' read policy does, until the record gets its own login link.
@@ -85,10 +86,12 @@ export function StudentView() {
       )}
 
       {/* --- 2. Ask --- */}
+      <DoFirst now={now} />
+
       <AskBox placeholder="Ask SURYA: what does the synopsis need?" />
 
       {/* --- 3. This week: what waits on me --- */}
-      <WaitingOnYou actions={actions} now={now} rows={4} />
+      <WaitingOnYou actions={actions} now={now} rows={4} strong={prioritiesForMe.length === 0} />
 
       {/* --- 4. Work record and need something --- */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

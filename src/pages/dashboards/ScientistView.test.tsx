@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { ScientistView } from './ScientistView';
 import type { MyAction } from '../../lib/dashboard/myActions';
 
+vi.mock('../../components/home/Priorities', () => ({ DoFirst: () => null, PinButton: () => null, PrioritiesAsked: () => null }));
 vi.mock('../../lib/home/api', () => ({
   milestonesFor: vi.fn(async () => []),
 }));
@@ -29,7 +30,7 @@ describe('ScientistView', () => {
       projects: [{ ProjectID: 'P1', ProjectNo: 'HCP0054', ProjectName: 'Al-foam crash box', ProjectStatus: 'Ongoing', piStaffId: 'S1' }],
       projectStaff: [], phDStudents: [], meetings: [], committeeMembers: [], actionItems: [], calendarEvents: [], holidays: [],
     };
-    home = {
+    home = { prioritiesForMe: [],
       staffId: 'S1', ownStaff: staffRow, staffResolved: true, doneCount: 1,
       actions: [act('report', 'progress-report', '2020-01-01'), act('notice', 'contract-end', null)],
     };
@@ -63,7 +64,7 @@ describe('ScientistView', () => {
   it('shows a timer for each report owed, with days left', () => {
     const due = new Date(Date.now() + 6 * 86400000);
     const iso = `${due.getFullYear()}-${String(due.getMonth() + 1).padStart(2, '0')}-${String(due.getDate()).padStart(2, '0')}`;
-    home = { ...home, actions: [{ id: 'slot-1', kind: 'project-review', due: iso, label: 'Progress report due — HCP0054', detail: '', link: '/reports/new' }] };
+    home = { prioritiesForMe: [], ...home, actions: [{ id: 'slot-1', kind: 'project-review', due: iso, label: 'Progress report due — HCP0054', detail: '', link: '/reports/new' }] };
     renderView();
     expect(screen.getByText('Report timers · days left')).toBeInTheDocument();
     expect(screen.getByText(`due ${iso}`)).toBeInTheDocument();
@@ -75,7 +76,7 @@ describe('ScientistView', () => {
   });
 
   it('gives a plain sentence, not an error, when no staff row is linked', () => {
-    home = { staffId: null, ownStaff: null, staffResolved: true, doneCount: 0, actions: [] };
+    home = { prioritiesForMe: [], staffId: null, ownStaff: null, staffResolved: true, doneCount: 0, actions: [] };
     renderView();
     expect(screen.getByRole('heading', { level: 1 }).textContent).toMatch(/Nothing is waiting on you\./);
     expect(screen.getByText(/not linked to a staff record/)).toBeInTheDocument();

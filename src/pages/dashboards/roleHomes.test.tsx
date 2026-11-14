@@ -7,6 +7,7 @@ import { TechnicianView } from './TechnicianView';
 import type { MyProjectStaffRecord } from '../../lib/home/people';
 
 let record: MyProjectStaffRecord | null = null;
+vi.mock('../../components/home/Priorities', () => ({ DoFirst: () => null, PinButton: () => null, PrioritiesAsked: () => null }));
 vi.mock('../../lib/home/people', async (orig) => ({
   ...(await orig<typeof import('../../lib/home/people')>()),
   myProjectStaffRecord: vi.fn(async () => record),
@@ -28,7 +29,7 @@ const h1 = () => screen.getByRole('heading', { level: 1 }).textContent ?? '';
 
 beforeEach(() => {
   record = null;
-  home = { ownStaff: { ID: 'S9', Name: 'Ananya Sen', Designation: 'Technical Officer' }, actions: [], doneCount: 0 };
+  home = { prioritiesForMe: [], ownStaff: { ID: 'S9', Name: 'Ananya Sen', Designation: 'Technical Officer' }, actions: [], doneCount: 0 };
   data = {
     phDStudents: [], phdMilestones: [], scientificOutputs: [], projects: [{ ProjectID: 'P1', ProjectNo: 'HCP0054', ProjectName: 'Crash box' }],
     equipment: [],

@@ -8,6 +8,7 @@ import { Card, Badge } from '../../components/ui/Cards';
 import {
   AskBox, BLOCK_TITLE, HomeGreeting, NotConnected, ROW, TITLE_LINK, WaitingOnYou,
 } from '../../components/home/parts';
+import { DoFirst } from '../../components/home/Priorities';
 import { countWord } from '../../lib/home/greeting';
 import { deskKey } from '../../lib/home/desk';
 import { daysUntil } from '../../lib/home/today';
@@ -29,7 +30,7 @@ function amcDays(e: Equipment, now: Date): number | null {
 export function TechnicianView() {
   const { user, divisionCode } = useAuth();
   const { equipment } = useData();
-  const { ownStaff, actions, doneCount } = useHome();
+  const { ownStaff, actions, doneCount, prioritiesForMe } = useHome();
   const now = useMemo(() => new Date(), []);
 
   // ponytail: "mine" = in my charge (owner) or named as operator, until the in-charge register (TS1/TS2) lands.
@@ -77,10 +78,12 @@ export function TechnicianView() {
       />
 
       {/* --- 2. Ask --- */}
+      <DoFirst now={now} />
+
       <AskBox placeholder="Ask SURYA: when is the XRD calibration due?" />
 
       {/* --- 3. What waits on me --- */}
-      <WaitingOnYou actions={actions} now={now} rows={4} />
+      <WaitingOnYou actions={actions} now={now} rows={4} strong={prioritiesForMe.length === 0} />
 
       {/* --- 4. My instruments --- */}
       <Card className="p-5">

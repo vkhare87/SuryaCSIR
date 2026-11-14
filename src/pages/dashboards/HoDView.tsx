@@ -8,6 +8,7 @@ import { Card, Badge } from '../../components/ui/Cards';
 import {
   AskBox, BLOCK_TITLE, HomeGreeting, NotConnected, ROW, TITLE_LINK, WaitingOnYou, dueText,
 } from '../../components/home/parts';
+import { DoFirst, PinButton, PrioritiesAsked } from '../../components/home/Priorities';
 import { ProjectFinanceSection } from '../../components/dashboard/ProjectFinanceSection';
 import { ResearchSection } from '../../components/dashboard/ResearchSection';
 import { EquipmentOpsSection } from '../../components/dashboard/EquipmentOpsSection';
@@ -60,7 +61,7 @@ function ViewSwitch({ view, onChange }: { view: HeadView; onChange: (v: HeadView
 export function HoDView() {
   const { divisionCode } = useAuth();
   const { staff, projects, projectStaff, equipment } = useData();
-  const { ownStaff, actions, doneCount } = useHome();
+  const { ownStaff, actions, doneCount, prioritiesForMe } = useHome();
   const { byDivision } = useDivisionStrength();
 
   // A view preference only; it grants nothing.
@@ -153,10 +154,14 @@ export function HoDView() {
       />
 
       {/* --- 2. Ask --- */}
-      <AskBox placeholder="Ask SURYA: who in my division has worked on fly ash?" />
+      <DoFirst now={now} />
+
+      <AskBox placeholder="Ask SURYA: who in my division has worked on fly ash?"><PinButton /></AskBox>
 
       {/* --- 3. Waiting on you --- */}
-      <WaitingOnYou actions={actions} now={now} rows={MAX_ROWS} />
+      <WaitingOnYou actions={actions} now={now} rows={MAX_ROWS} strong={prioritiesForMe.length === 0} />
+
+      <PrioritiesAsked />
 
       {/* --- 4. Division projects, by exception --- */}
       <Card className="p-5">

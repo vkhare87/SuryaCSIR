@@ -8,6 +8,7 @@ import { Button } from '../../components/ui/Button';
 import {
   AskBox, BLOCK_TITLE, HomeGreeting, NotConnected, ROW, WaitingOnYou,
 } from '../../components/home/parts';
+import { DoFirst } from '../../components/home/Priorities';
 import { countWord } from '../../lib/home/greeting';
 import { deskKey } from '../../lib/home/desk';
 import { localIso } from '../../lib/home/today';
@@ -35,7 +36,7 @@ function Clock({ label, share, children }: { label: string; share: number | null
 
 export function ProjectStaffView() {
   const { projects } = useData();
-  const { ownStaff, actions, doneCount } = useHome();
+  const { ownStaff, actions, doneCount, prioritiesForMe } = useHome();
   const { rules } = useRules();
   const now = useMemo(() => new Date(), []);
   const today = localIso(now);
@@ -94,10 +95,12 @@ export function ProjectStaffView() {
       )}
 
       {/* --- 2. Ask --- */}
+      <DoFirst now={now} />
+
       <AskBox placeholder="Ask SURYA: how many days of leave do I get?" />
 
       {/* --- 3. What waits on me --- */}
-      <WaitingOnYou actions={actions} now={now} rows={4} />
+      <WaitingOnYou actions={actions} now={now} rows={4} strong={prioritiesForMe.length === 0} />
 
       {/* --- 4. Leave and letters --- */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

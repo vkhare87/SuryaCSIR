@@ -7,6 +7,7 @@ import { Card, Badge } from '../../components/ui/Cards';
 import {
   AskBox, BLOCK_TITLE, HomeGreeting, ROW, TITLE_LINK, WaitingOnYou, dueText,
 } from '../../components/home/parts';
+import { DoFirst, PinButton, PrioritiesAsked } from '../../components/home/Priorities';
 import { AttentionStrip } from '../../components/dashboard/AttentionStrip';
 import { ProjectFinanceSection } from '../../components/dashboard/ProjectFinanceSection';
 import { ResearchSection } from '../../components/dashboard/ResearchSection';
@@ -47,7 +48,7 @@ function Figure({ label, value, note, to }: { label: string; value: string; note
 
 export function DirectorView() {
   const { projects, divisions, equipment, meetings, committeeMembers } = useData();
-  const { staffId, ownStaff, actions, doneCount } = useHome();
+  const { staffId, ownStaff, actions, doneCount, prioritiesForMe } = useHome();
   const { thresholds } = useDirectorThresholds();
   const { rows: strengthRows, totals } = useDivisionStrength();
 
@@ -102,10 +103,14 @@ export function DirectorView() {
       />
 
       {/* --- 2. Ask --- */}
-      <AskBox placeholder="Ask SURYA: who can speak for us on hydrogen storage?" />
+      <DoFirst now={now} />
+
+      <AskBox placeholder="Ask SURYA: who can speak for us on hydrogen storage?"><PinButton /></AskBox>
 
       {/* --- 3. Waiting on you --- */}
-      <WaitingOnYou actions={actions} now={now} rows={MAX_ROWS} />
+      <WaitingOnYou actions={actions} now={now} rows={MAX_ROWS} strong={prioritiesForMe.length === 0} />
+
+      <PrioritiesAsked />
 
       {/* --- 4. Divisions and my week --- */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

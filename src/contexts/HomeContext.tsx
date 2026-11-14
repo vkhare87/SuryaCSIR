@@ -9,6 +9,8 @@ import { useProjectReports } from './ProjectReportsContext';
 import { deriveMyActions, type MyAction } from '../lib/dashboard/myActions';
 import { myChangeSteps, myClosureItems, myDueSlots } from '../lib/projects/projectFileApi';
 import { callerStaffId } from '../lib/home/api';
+import { loadPriorities, splitPriorities } from '../lib/home/priorities';
+import type { WorkPriority } from '../lib/home/priorities';
 import { rankActions } from '../lib/home/doNext';
 import { doneToday, localIso, mergeSeen } from '../lib/home/today';
 import type { ClosureItem, DueSlot, MyChangeStep } from '../types/projectFile';
@@ -27,6 +29,11 @@ interface HomeContextType {
   /** Keys the role half shows; the common half leaves them out (one item, one place). */
   claimed: ReadonlySet<string>;
   claim: (keys: string[]) => void;
+  /** Open priorities a senior pinned on me, soonest first. */
+  prioritiesForMe: WorkPriority[];
+  /** Priorities I pinned on others: open ones, and those closed in the last 14 days. */
+  prioritiesAsked: WorkPriority[];
+  refreshPriorities: () => void;
 }
 
 const HomeContext = createContext<HomeContextType | undefined>(undefined);
@@ -70,6 +77,17 @@ export function HomeProvider({ children }: { children: ReactNode }) {
   const [closureItems, setClosureItems] = useState<ClosureItem[]>([]);
 
   const userId = user?.id;
+  const [priorities, setPriorities] = useState<WorkPriority[]>([]);
+  const [prioritiesTick, setPrioritiesTick] = useState(0);
+  const refreshPriorities = useCallback(() => setPrioritiesTick(t => t + 1), []);
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    loadPriorities().then((p) => { if (!cancelled) setPriorities(p); });
+    return () => { cancelled = true; };
+  }, [userId, prioritiesTick]);
+  const split = useMemo(() => splitPriorities(priorities, userId ?? ''), [priorities, userId]);
+
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
@@ -118,7 +136,8 @@ export function HomeProvider({ children }: { children: ReactNode }) {
     staffId, ownStaff, staffResolved, actions,
     doneCount: doneToday(seen, actions.map(a => a.id)),
     claimed, claim,
-  }), [staffId, ownStaff, staffResolved, actions, seen, claimed, claim]);
+    prioritiesForMe: split.forMe, prioritiesAsked: split.askedByMe, refreshPriorities,
+  }), [staffId, ownStaff, staffResolved, actions, seen, claimed, claim, split, refreshPriorities]);
 
   return <HomeContext.Provider value={value}>{children}</HomeContext.Provider>;
 }
