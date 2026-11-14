@@ -9,6 +9,7 @@ import {
   AskBox, BLOCK_TITLE, DecisionQueue, HomeGreeting, NotConnected, ROW, TITLE_LINK, WaitingOnYou, dueText,
 } from '../../components/home/parts';
 import { DoFirst, PinButton, PrioritiesAsked } from '../../components/home/Priorities';
+import { HeadPowers } from '../../components/home/Delegation';
 import { ProjectFinanceSection } from '../../components/dashboard/ProjectFinanceSection';
 import { ResearchSection } from '../../components/dashboard/ResearchSection';
 import { EquipmentOpsSection } from '../../components/dashboard/EquipmentOpsSection';
@@ -167,6 +168,8 @@ export function HoDView() {
         title={decisions.length > 0 ? 'Also on you' : 'Waiting on you'} />
 
       <PrioritiesAsked />
+
+      <HeadPowers division={divisionCode} />
 
       {/* --- 4. Division projects, by exception --- */}
       <Card className="p-5">

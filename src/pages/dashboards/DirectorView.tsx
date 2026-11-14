@@ -8,6 +8,7 @@ import {
   AskBox, BLOCK_TITLE, DecisionQueue, HomeGreeting, ROW, TITLE_LINK, WaitingOnYou, dueText,
 } from '../../components/home/parts';
 import { DoFirst, PinButton, PrioritiesAsked } from '../../components/home/Priorities';
+import { DelegationDial } from '../../components/home/Delegation';
 import { AttentionStrip } from '../../components/dashboard/AttentionStrip';
 import { ProjectFinanceSection } from '../../components/dashboard/ProjectFinanceSection';
 import { ResearchSection } from '../../components/dashboard/ResearchSection';
@@ -29,7 +30,6 @@ const MAX_ROWS = 5;
 // Blocks of the Director's page whose source is a later phase. Each says so until it ships.
 const NOT_CONNECTED: { title: string; waitsOn: string }[] = [
   { title: 'Briefing and watch list', waitsOn: 'a summary of critical matters from the last days' },
-  { title: 'How much reaches me', waitsOn: 'the delegation order: what you decide, and what your heads decide' },
   { title: 'From CSIR Headquarters', waitsOn: 'letters and questions with a deadline, logged by your office' },
   { title: 'Fund status by head', waitsOn: 'figures from Accounts' },
   { title: 'The next 12 months', waitsOn: 'retirements, contracts, projects and payments by month' },
@@ -108,6 +108,8 @@ export function DirectorView() {
 
       {/* --- 2. Ask --- */}
       <DoFirst now={now} />
+
+      <DelegationDial />
 
       <AskBox placeholder="Ask SURYA: who can speak for us on hydrogen storage?"><PinButton /></AskBox>
 

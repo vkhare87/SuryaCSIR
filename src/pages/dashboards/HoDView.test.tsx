@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { HoDView } from './HoDView';
 import type { MyAction } from '../../lib/dashboard/myActions';
 
+vi.mock('../../components/home/Delegation', () => ({ HeadPowers: () => null }));
 vi.mock('../../components/home/Priorities', () => ({ DoFirst: () => null, PinButton: () => null, PrioritiesAsked: () => null }));
 vi.mock('../../lib/home/api', () => ({ milestonesFor: vi.fn(async () => []) }));
 vi.mock('../../lib/people/api', () => ({ loadWorkload: vi.fn(async () => []) }));

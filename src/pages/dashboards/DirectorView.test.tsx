@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { DirectorView } from './DirectorView';
 import type { MyAction } from '../../lib/dashboard/myActions';
 
+vi.mock('../../components/home/Delegation', () => ({ DelegationDial: () => null }));
 vi.mock('../../components/home/Priorities', () => ({ DoFirst: () => null, PinButton: () => null, PrioritiesAsked: () => null }));
 vi.mock('../../lib/home/api', () => ({ milestonesFor: vi.fn(async () => []) }));
 vi.mock('../../lib/people/useDivisionStrength', () => ({
@@ -72,7 +73,6 @@ describe('DirectorView', () => {
   it('names every block that is not connected, with no made-up value', () => {
     renderView();
     expect(screen.getByText('Fund status by head')).toBeInTheDocument();
-    expect(screen.getByText('How much reaches me')).toBeInTheDocument();
     expect(screen.queryByText(/crore/)).not.toBeInTheDocument();
   });
 
