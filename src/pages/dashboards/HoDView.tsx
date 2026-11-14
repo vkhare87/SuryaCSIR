@@ -6,14 +6,15 @@ import { useData } from '../../contexts/DataContext';
 import { useHome } from '../../contexts/HomeContext';
 import { Card, Badge } from '../../components/ui/Cards';
 import {
-  AskBox, BLOCK_TITLE, HomeGreeting, NotConnected, ROW, TITLE_LINK, WaitingOnYou, dueText,
+  AskBox, BLOCK_TITLE, DecisionQueue, HomeGreeting, NotConnected, ROW, TITLE_LINK, WaitingOnYou, dueText,
 } from '../../components/home/parts';
 import { DoFirst, PinButton, PrioritiesAsked } from '../../components/home/Priorities';
 import { ProjectFinanceSection } from '../../components/dashboard/ProjectFinanceSection';
 import { ResearchSection } from '../../components/dashboard/ResearchSection';
 import { EquipmentOpsSection } from '../../components/dashboard/EquipmentOpsSection';
 import { ScientistView } from './ScientistView';
-import { greeting } from '../../lib/home/greeting';
+import { greeting, waitingLine } from '../../lib/home/greeting';
+import { decisionQueue, isDecision } from '../../lib/home/decisions';
 import { deskKey } from '../../lib/home/desk';
 import { milestonesFor } from '../../lib/home/api';
 import type { HomeMilestone } from '../../lib/home/api';
@@ -73,15 +74,17 @@ export function HoDView() {
 
   // --- 1. What waits on the head ---
   const overdue = useMemo(() => actions.filter(a => dueText(a.due, now)?.variant === 'danger').length, [actions, now]);
-  const first = actions[0] ?? null;
-  const waiting = useMemo(() => actions.slice(1, MAX_ROWS + 1), [actions]);
+  const decisions = useMemo(() => decisionQueue(actions, now), [actions, now]);
+  const others = useMemo(() => actions.filter(a => !isDecision(a)), [actions]);
   const sentence = useMemo(
-    () => greeting({ name: ownStaff?.Name ?? '', hour: now.getHours(), left: actions.length, overdue }),
-    [ownStaff, now, actions.length, overdue],
+    () => greeting({ name: ownStaff?.Name ?? '', hour: now.getHours(), left: actions.length, overdue }) + waitingLine(decisions.length),
+    [ownStaff, now, actions.length, overdue, decisions.length],
   );
   const shownKeys = useMemo(
-    () => (view === 'division' ? [first, ...waiting].filter(a => a !== null).map(a => deskKey.action(a.id)) : null),
-    [view, first, waiting],
+    () => (view === 'division'
+      ? [...decisions.slice(0, 6).map(d => d.action), ...others.slice(0, MAX_ROWS + 1)].map(a => deskKey.action(a.id))
+      : null),
+    [view, decisions, others],
   );
   // In "My own work" the scientist view makes its own claim.
   useClaimWhen(shownKeys);
@@ -159,7 +162,9 @@ export function HoDView() {
       <AskBox placeholder="Ask SURYA: who in my division has worked on fly ash?"><PinButton /></AskBox>
 
       {/* --- 3. Waiting on you --- */}
-      <WaitingOnYou actions={actions} now={now} rows={MAX_ROWS} strong={prioritiesForMe.length === 0} />
+      <DecisionQueue rows={decisions} strong={prioritiesForMe.length === 0} />
+      <WaitingOnYou actions={others} now={now} rows={MAX_ROWS} strong={prioritiesForMe.length === 0 && decisions.length === 0}
+        title={decisions.length > 0 ? 'Also on you' : 'Waiting on you'} />
 
       <PrioritiesAsked />
 

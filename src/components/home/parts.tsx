@@ -8,6 +8,7 @@ import { Card, Badge } from '../ui/Cards';
 import { Button } from '../ui/Button';
 import { dueUrgency } from '../../lib/dashboard/myActions';
 import type { MyAction } from '../../lib/dashboard/myActions';
+import type { DecisionRow } from '../../lib/home/decisions';
 import { daysUntil } from '../../lib/home/today';
 
 // Shared by every role's home view, so a block looks the same on every screen.
@@ -102,14 +103,16 @@ export function NotConnected({ title, children }: { title: string; children: Rea
 }
 
 /** The first item with the screen's one strong button, then the next few as rows. */
-export function WaitingOnYou({ actions, now, rows = 5, strong = true }: { actions: MyAction[]; now: Date; rows?: number; strong?: boolean }) {
+export function WaitingOnYou({ actions, now, rows = 5, strong = true, title = 'Waiting on you' }: {
+  actions: MyAction[]; now: Date; rows?: number; strong?: boolean; title?: string;
+}) {
   const first = actions[0];
   if (!first) return null;
   const due = dueText(first.due, now);
   return (
     <Card className="p-5">
       <p className={BLOCK_TITLE}>
-        <span>Waiting on you</span>
+        <span>{title}</span>
         <Link to="/work" className={TITLE_LINK}>See all <span className="font-mono">{actions.length}</span></Link>
       </p>
       <div className="flex flex-wrap items-center gap-3 pb-3">
@@ -121,6 +124,34 @@ export function WaitingOnYou({ actions, now, rows = 5, strong = true }: { action
         <Link to={first.link}><Button type="button" variant={strong ? 'primary' : 'secondary'}>Open</Button></Link>
       </div>
       {actions.slice(1, rows + 1).map(a => <ActionRow key={a.id} action={a} now={now} />)}
+    </Card>
+  );
+}
+
+/** Decisions that wait on this person, oldest first. Each opens the page where it is decided. */
+export function DecisionQueue({ rows, strong = true, max = 6 }: { rows: DecisionRow[]; strong?: boolean; max?: number }) {
+  if (rows.length === 0) return null;
+  return (
+    <Card className="p-5">
+      <p className={BLOCK_TITLE}>
+        <span>Waiting on your decision · oldest first</span>
+        <span>people waiting: <span className="font-mono">{rows.length}</span></span>
+      </p>
+      {rows.slice(0, max).map(({ action: a, days }, i) => (
+        <div key={a.id} className={ROW}>
+          <div className="flex-1 min-w-0">
+            <p className={clsx('text-text truncate', i === 0 ? 'text-base font-medium' : 'text-sm')} title={a.label}>{a.label}</p>
+            <p className="text-xs text-text-muted truncate" title={a.detail}>{a.detail}</p>
+          </div>
+          {days !== null && (
+            <Badge variant={days >= 7 ? 'danger' : days >= 3 ? 'warning' : 'neutral'} className="font-mono normal-case shrink-0">{days} d</Badge>
+          )}
+          <Link to={a.link}><Button type="button" size="sm" variant={i === 0 && strong ? 'primary' : 'secondary'}>Open</Button></Link>
+        </div>
+      ))}
+      {rows.length > max && (
+        <p className="text-xs text-text-muted mt-2">+<span className="font-mono">{rows.length - max}</span> more · <Link to="/work" className="underline">See all</Link></p>
+      )}
     </Card>
   );
 }

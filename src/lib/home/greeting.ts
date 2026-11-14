@@ -20,6 +20,11 @@ export interface GreetingInput {
   overdue: number;
 }
 
+/** "Two people wait on your answer." — empty when nobody waits. */
+export function waitingLine(n: number): string {
+  return n === 0 ? '' : ` ${countWord(n)} ${n === 1 ? 'person waits' : 'people wait'} on your answer.`;
+}
+
 /** The one sentence at the top of a home screen (DESIGN.md R5). */
 export function greeting({ name, hour, left, overdue }: GreetingInput): string {
   const hello = name ? `${partOfDay(hour)}, ${name}.` : `${partOfDay(hour)}.`;

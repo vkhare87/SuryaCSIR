@@ -5,7 +5,7 @@ import { useData } from '../../contexts/DataContext';
 import { useClaim, useHome } from '../../contexts/HomeContext';
 import { Card, Badge } from '../../components/ui/Cards';
 import {
-  AskBox, BLOCK_TITLE, HomeGreeting, ROW, TITLE_LINK, WaitingOnYou, dueText,
+  AskBox, BLOCK_TITLE, DecisionQueue, HomeGreeting, ROW, TITLE_LINK, WaitingOnYou, dueText,
 } from '../../components/home/parts';
 import { DoFirst, PinButton, PrioritiesAsked } from '../../components/home/Priorities';
 import { AttentionStrip } from '../../components/dashboard/AttentionStrip';
@@ -13,7 +13,8 @@ import { ProjectFinanceSection } from '../../components/dashboard/ProjectFinance
 import { ResearchSection } from '../../components/dashboard/ResearchSection';
 import { EquipmentOpsSection } from '../../components/dashboard/EquipmentOpsSection';
 import { useDirectorThresholds } from '../../hooks/useDirectorThresholds';
-import { greeting } from '../../lib/home/greeting';
+import { greeting, waitingLine } from '../../lib/home/greeting';
+import { decisionQueue, isDecision } from '../../lib/home/decisions';
 import { deskKey } from '../../lib/home/desk';
 import { milestonesFor } from '../../lib/home/api';
 import type { HomeMilestone } from '../../lib/home/api';
@@ -56,18 +57,21 @@ export function DirectorView() {
 
   // --- 1. What waits on the Director ---
   const overdue = useMemo(() => actions.filter(a => dueText(a.due, now)?.variant === 'danger').length, [actions, now]);
+  const decisions = useMemo(() => decisionQueue(actions, now), [actions, now]);
+  const others = useMemo(() => actions.filter(a => !isDecision(a)), [actions]);
   const sentence = useMemo(
-    () => greeting({ name: ownStaff?.Name ?? '', hour: now.getHours(), left: actions.length, overdue }),
-    [ownStaff, now, actions.length, overdue],
+    () => greeting({ name: ownStaff?.Name ?? '', hour: now.getHours(), left: actions.length, overdue }) + waitingLine(decisions.length),
+    [ownStaff, now, actions.length, overdue, decisions.length],
   );
   const ownMeetings = useMemo(
     () => (staffId ? deriveOwnMeetings(meetings, committeeMembers, staffId, now).slice(0, MAX_ROWS) : []),
     [meetings, committeeMembers, staffId, now],
   );
   useClaim(useMemo(() => [
-    ...actions.slice(0, MAX_ROWS + 1).map(a => deskKey.action(a.id)),
+    ...decisions.slice(0, 6).map(d => deskKey.action(d.action.id)),
+    ...others.slice(0, MAX_ROWS + 1).map(a => deskKey.action(a.id)),
     ...ownMeetings.map(m => deskKey.meeting(m.id)),
-  ], [actions, ownMeetings]));
+  ], [decisions, others, ownMeetings]));
 
   // --- 2. Divisions, by exception ---
   const running = useMemo(() => projects.filter(isActiveProject), [projects]);
@@ -108,7 +112,9 @@ export function DirectorView() {
       <AskBox placeholder="Ask SURYA: who can speak for us on hydrogen storage?"><PinButton /></AskBox>
 
       {/* --- 3. Waiting on you --- */}
-      <WaitingOnYou actions={actions} now={now} rows={MAX_ROWS} strong={prioritiesForMe.length === 0} />
+      <DecisionQueue rows={decisions} strong={prioritiesForMe.length === 0} />
+      <WaitingOnYou actions={others} now={now} rows={MAX_ROWS} strong={prioritiesForMe.length === 0 && decisions.length === 0}
+        title={decisions.length > 0 ? 'Also on you' : 'Waiting on you'} />
 
       <PrioritiesAsked />
 

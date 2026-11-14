@@ -73,6 +73,21 @@ describe('HoDView', () => {
     expect(claim).toHaveBeenLastCalledWith(['action:a1', 'action:a2']);
   });
 
+  it('puts decisions first, oldest first, says how many people wait, and keeps one strong button', () => {
+    home = { ...home, actions: [
+      { ...act('pr-review-1', null), since: '2026-11-12T00:00:00Z', label: 'newer' },
+      { ...act('prop-review-2', null), since: '2026-11-01T00:00:00Z', label: 'older' },
+      act('a3', null),
+    ] };
+    renderView();
+    expect(screen.getByText('Waiting on your decision · oldest first')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toMatch(/Two people wait on your answer\./);
+    const labels = screen.getAllByText(/^(newer|older)$/).map(e => e.textContent);
+    expect(labels).toEqual(['older', 'newer']);
+    expect(screen.getByText('Also on you')).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Open' }).filter(b => b.className.includes('gradient-brand'))).toHaveLength(1);
+  });
+
   it('reads posts from the post register and says what is not connected', () => {
     renderView();
     expect(screen.getByText(/of/, { selector: 'span.text-xs' }).textContent).toMatch(/8 of 10 filled · 2 vacant/);

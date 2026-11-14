@@ -13,6 +13,7 @@ import { deriveOwnMeetings } from '../../lib/dashboard/scientistData';
 import { myDay, withoutClaimed } from '../../lib/home/desk';
 import { NoticesBlock } from './Notices';
 import { REQUEST_KINDS, myRequests, requestLink } from '../../lib/home/requests';
+import { decisionQueue } from '../../lib/home/decisions';
 import { localIso } from '../../lib/home/today';
 
 const MAX_ROWS = 5;
@@ -54,6 +55,10 @@ export function CommonDesk() {
   const requests = useMemo(
     () => (user ? myRequests({ userId: user.id, tickets, proposals, progressReports, contributions: contributionRequests, now }) : []),
     [user, tickets, proposals, progressReports, contributionRequests, now],
+  );
+  const waiting = useMemo(
+    () => withoutClaimed(decisionQueue(actions, now).map(d => ({ ...d, key: `action:${d.action.id}` })), claimed),
+    [actions, now, claimed],
   );
   const committees = useMemo(() => withoutClaimed(
     ownMeetings.map(m => ({ key: `meeting:${m.id}`, meeting: m })), claimed,
@@ -119,6 +124,17 @@ export function CommonDesk() {
       <Block title="People" right={<Link to="/staff" className="inline-block py-1.5 -my-1.5 hover:underline">Directory</Link>}>
         <Empty>Who is away today is not connected yet.</Empty>
       </Block>
+
+      {waiting.rows.length > 0 && (
+        <Block title="Waiting on me" right={<span className="font-mono">{waiting.rows.length}</span>}>
+          {waiting.rows.slice(0, 3).map(({ key, action: a, days }) => (
+            <Link key={key} to={a.link} className={`${ROW} hover:underline`}>
+              <p className="text-sm text-text truncate" title={a.label}>{a.label}</p>
+              <p className="text-xs text-text-muted truncate">{days !== null ? <><span className="font-mono">{days} d</span> · </> : null}{a.detail}</p>
+            </Link>
+          ))}
+        </Block>
+      )}
 
       {committees.rows.length > 0 && (
         <Block title="My committees" right={<Link to="/committees" className="inline-block py-1.5 -my-1.5 hover:underline">See all</Link>}>
