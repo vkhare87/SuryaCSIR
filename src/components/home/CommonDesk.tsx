@@ -12,6 +12,7 @@ import { Button } from '../ui/Button';
 import { deriveOwnMeetings } from '../../lib/dashboard/scientistData';
 import { myDay, withoutClaimed } from '../../lib/home/desk';
 import { NoticesBlock } from './Notices';
+import { MyMeetings } from './Meetings';
 import { REQUEST_KINDS, myRequests, requestLink } from '../../lib/home/requests';
 import { decisionQueue } from '../../lib/home/decisions';
 import { localIso } from '../../lib/home/today';
@@ -102,6 +103,10 @@ export function CommonDesk() {
               : <div key={r.key} className={ROW}>{body}</div>;
           })}
         {day.hidden > 0 && <p className="text-xs text-text-muted mt-2">+<span className="font-mono">{day.hidden}</span> on the left</p>}
+      </Block>
+
+      <Block title="Meetings">
+        <MyMeetings />
       </Block>
 
       <Block title="My requests" right={<span className="font-mono">{requests.length}</span>}>

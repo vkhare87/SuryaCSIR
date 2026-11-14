@@ -23,6 +23,11 @@ Baseline before any change (2026-11-14): `npm run build` passed; `npm test` 148 
 | `HH2` + `CD6` decision queue | **Done**, client version | Items carry `since`; oldest first; people waiting in the greeting. No approve-in-place, no answer-time record, no pre-checks (`HH3`) |
 | `SH4` nudges | **Done**; migration `20261114120004` on live (2026-11-14, owner approved; cron job `home-overdue-sweep` 45 1 * * * confirmed) | `home_overdue_sweep` tells the head at 7 days late (window 7–37 days), DB test `homeSweep.db.test.ts` (2). Tomorrow is kept in the browser (not a table). On-time record and consequence line on the scientist screen. Seen in the browser as Scientist |
 | **Wave 3** | **Done**, on live | Both pushed from the scratch copy; dry run listed only these two; cache reloaded; notices read and the sweep refused from a browser login, on live. Wave 4 next |
+| `DH2` delegation dial | **Done**; migration `20261114120005` **not on live** | DB test `delegation.db.test.ts` (10), `Delegation.test.tsx` (3), `delegation.test.ts` (4). Seen as Director: the dial opens with presets, lines and the indent limit; nothing issued. Fixed after a background security review: unknown amount fails closed, acting heads cannot approve their own request, the floor holds with no order, orders take effect the day issued. **No module reads the dial yet** (DH3, Lane 2); the screen says so. Floor = plan defaults, unverified, until the Delegation of Powers text is entered |
+| `HH3` pre-checks | **Done**, progress-report reviews only | Time, money and milestones of the project; no line when the project number is ambiguous. Other kinds show no line until their data is on hand. Ask (`decision_questions`) not built |
+| `DH4` oversight | **Not started** | Needs `decision_log`, which comes only when a module records its decisions (DH3) |
+| `CD10` general meetings | **Done**; migration `20261114120006` **not on live** | DB test `generalMeetings.db.test.ts` (5), `Meetings.test.tsx` (4). Seen as Director: the Meetings block and its Call a meeting link. No room booking (committee plan CM1) and no meeting notes |
+| **Wave 4 (Lane 1)** | **Done except DH4** | Two migrations to push |
 
 ## SH1 — what was built
 
