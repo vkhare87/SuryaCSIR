@@ -1,12 +1,14 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { FileDown, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useData } from '../../contexts/DataContext';
+import { useProfile } from '../../contexts/ProfileContext';
 import { useUserDirectory } from '../../hooks/useUserDirectory';
 import { buildScientistDossier } from '../../lib/scientist/dossier';
 import { buildScientistBrief } from '../../lib/scientist/brief';
 import type { ClaimStatus } from '../../lib/scientist/claimMatch';
 import type { TrajectoryFlag } from '../../lib/scientist/trajectory';
+import type { ProfileFact } from '../../types';
 import type { PMSReport, PMSReportSection } from '../../types/pms';
 
 // Evidence panel embedded in PMS evaluation screens. Cross-checks the
@@ -39,9 +41,12 @@ export function EvidencePanel({ report, sections }: Props) {
   const data = useData();
   const { users, loading } = useUserDirectory();
 
-  // Resolve the appraisee (report.scientistId is an auth uid) to a staff row
-  // via the directory (uid → email/name → staff), name-variant tolerant.
+  // Resolve the appraisee (report.scientistId is an auth uid) to a staff row:
+  // the login link first, then the directory (uid → email/name) for staff
+  // whose login is not linked yet.
   const staffMember = useMemo(() => {
+    const linked = data.staff.find(s => s.user_id && s.user_id === report.scientistId);
+    if (linked) return linked;
     const dir = users.find(u => u.userId === report.scientistId);
     if (!dir) return null;
     const email = (dir.email ?? '').toLowerCase();
@@ -51,6 +56,15 @@ export function EvidencePanel({ report, sections }: Props) {
       null
     );
   }, [users, report.scientistId, data.staff]);
+
+  // The appraisee's records by link (staff_profile_facts), as the profile shows them.
+  const { loadFacts } = useProfile();
+  const [facts, setFacts] = useState<ProfileFact[]>([]);
+  useEffect(() => {
+    let live = true;
+    if (staffMember) loadFacts(staffMember.ID).then(f => { if (live) setFacts(f); }).catch(() => { if (live) setFacts([]); });
+    return () => { live = false; };
+  }, [staffMember, loadFacts]);
 
   const dossier = useMemo(() => {
     if (!staffMember) return null;
@@ -65,10 +79,11 @@ export function EvidencePanel({ report, sections }: Props) {
       equipment: data.equipment,
       techTransfers: data.techTransfers,
       mous: data.mous,
+      facts,
       report,
       sections,
     });
-  }, [staffMember, data, report, sections]);
+  }, [staffMember, data, report, sections, facts]);
 
   function downloadBrief() {
     if (!dossier) return;

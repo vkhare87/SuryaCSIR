@@ -180,7 +180,8 @@ export default function StaffDetail() {
 
   const dossier = useMemo(() => id ? buildScientistDossier({
     staffId: id, staff, projects, projectStaff, phDStudents, scientificOutputs, ipIntelligence, equipment, techTransfers, mous,
-  }) : null, [id, staff, projects, projectStaff, phDStudents, scientificOutputs, ipIntelligence, equipment, techTransfers, mous]);
+    facts: facts ?? [],
+  }) : null, [id, staff, projects, projectStaff, phDStudents, scientificOutputs, ipIntelligence, equipment, techTransfers, mous, facts]);
 
   const numbers = useMemo(() => {
     const f = facts ?? [];

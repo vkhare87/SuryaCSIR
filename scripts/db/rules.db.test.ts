@@ -65,4 +65,12 @@ describe('csir_rule_set', () => {
     expect(await steps(20)).not.toContain('REVISED_COST_COMMITTEE');
     expect(await steps(21)).toContain('REVISED_COST_COMMITTEE');
   });
+
+  it('the Task Force minutes deadline reads the registry', async () => {
+    const minutes = async () => (await db.query<{ m: number }>(
+      `SELECT minutes_days m FROM project_slot_plan('HQ', 'FTT') WHERE kind = 'TASK_FORCE'`)).rows[0].m;
+    expect(await minutes()).toBe(7);
+    await set(U.master, 'committee.minutes_due_days', { LSG: 2, TFM: 3 }, '2026-11-01');
+    expect(await minutes()).toBe(3);
+  });
 });

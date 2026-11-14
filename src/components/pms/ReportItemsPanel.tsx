@@ -39,7 +39,21 @@ export function ReportItemsPanel({ reportId, editable }: { reportId: string; edi
   const reload = useCallback(() => {
     loadItems(reportId).then(setItems).catch(e => push(friendlyError(e), 'error'));
   }, [reportId, push]);
-  useEffect(() => { reload(); }, [reload]);
+
+  // A new draft opens with the year's records already listed (plan P4 ES2).
+  // Only when it has no lines yet: the server never overwrites a touched line,
+  // and "Fill from my records" stays for anything added later.
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      try {
+        let rows = await loadItems(reportId);
+        if (editable && rows.length === 0 && (await prefillItems(reportId)) > 0) rows = await loadItems(reportId);
+        if (live) setItems(rows);
+      } catch (e) { if (live) push(friendlyError(e), 'error'); }
+    })();
+    return () => { live = false; };
+  }, [reportId, editable, push]);
 
   const groups = useMemo(() => (Object.keys(SECTION_LABELS) as ReportItemSection[])
     .map(s => ({ section: s, items: items.filter(i => i.section === s && (editable || i.state !== 'REMOVED')) }))

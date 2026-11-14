@@ -556,6 +556,24 @@ No concurrency test: the PGlite harness has one connection.
 
 ---
 
+## Plan-vs-code review (2026-11-14)
+
+Closed after the review:
+
+- Task Force minutes deadline reads `committee.minutes_due_days` (`20261113000011`). The
+  review months stay fixed: no rule row holds them.
+- `getStaffPortfolio` picks records by the links in `staff_profile_facts`; the name match
+  is gone from the profile brief and the PMS Evidence panel (claim corroboration uses the
+  linked records too).
+- A 2026 draft fills its lines from the records on first open.
+- The change-request route preview reads `project.cost_overrun_dg_limit_pct`.
+
+Still open: `Dossier` on project, division and instrument pages; the other analytics
+pages on `metric_value`; release-order reading for the sanction form; a "file this
+overdue report" suggestion (the sweep already sends the notice). Waiting on outside
+input: EP7, ES5, recruitment rule checks, the position catalogue, the 7-year-cap
+condition, and the real-model Ask SURYA evaluation.
+
 ## Self-review
 
 - **Coverage:** 44 of 44 `Now` and `Next` items are placed (P1 5 · P2 5 · P3 5 · P4 5 · P5 7 ·
