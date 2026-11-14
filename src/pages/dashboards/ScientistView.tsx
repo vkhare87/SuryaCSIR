@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Lightbulb, LifeBuoy, Search } from 'lucide-react';
+import { Lightbulb, Search } from 'lucide-react';
 import clsx from 'clsx';
 import { useData } from '../../contexts/DataContext';
-import { useHome } from '../../contexts/HomeContext';
+import { useClaim, useHome } from '../../contexts/HomeContext';
 import { Card, Badge } from '../../components/ui/Cards';
 import { Button } from '../../components/ui/Button';
 import { deriveOwnMeetings, deriveOwnActionItems } from '../../lib/dashboard/scientistData';
@@ -15,6 +15,7 @@ import { doNext, quickWins } from '../../lib/home/doNext';
 import { greeting } from '../../lib/home/greeting';
 import { daysUntil, localIso, weekStrip } from '../../lib/home/today';
 import type { DayMark } from '../../lib/home/today';
+import { deskKey } from '../../lib/home/desk';
 import { milestonesFor } from '../../lib/home/api';
 import type { HomeMilestone } from '../../lib/home/api';
 import { staffNameMatchesAuthor } from '../../utils/dateUtils';
@@ -142,6 +143,18 @@ export function ScientistView() {
     navigate(q ? `/ask?q=${encodeURIComponent(q)}` : '/ask');
   };
 
+  // --- 5. One item, one place: tell the common desk what this half shows ---
+  const alsoOpen = useMemo(
+    () => actions.filter(a => a.id !== next?.id && !wins.includes(a)).slice(0, 5),
+    [actions, next, wins],
+  );
+  useClaim(useMemo(() => [
+    ...(next ? [deskKey.action(next.id)] : []),
+    ...wins.slice(0, 5).map(a => deskKey.action(a.id)),
+    ...alsoOpen.map(a => deskKey.action(a.id)),
+    ...ownMeetings.map(m => deskKey.meeting(m.id)),
+  ], [next, wins, alsoOpen, ownMeetings]));
+
   const actionRow = (a: MyAction) => {
     const due = dueText(a.due, now);
     return (
@@ -185,7 +198,6 @@ export function ScientistView() {
           />
         </form>
         <Link to="/proposals/new"><Button variant="secondary" type="button"><Lightbulb size={15} className="mr-1.5" aria-hidden="true" />New idea</Button></Link>
-        <Link to="/helpdesk/new"><Button variant="secondary" type="button"><LifeBuoy size={15} className="mr-1.5" aria-hidden="true" />Raise a request</Button></Link>
       </div>
 
       {/* --- 3. Do this next --- */}
@@ -238,7 +250,7 @@ export function ScientistView() {
       {actions.length > 1 && (
         <Card className="p-5">
           <p className={BLOCK_TITLE}><span>Also open</span><Link to="/work" className="hover:underline">See all <span className="font-mono">{actions.length}</span></Link></p>
-          {actions.filter(a => a.id !== next?.id && !wins.includes(a)).slice(0, 5).map(actionRow)}
+          {alsoOpen.map(actionRow)}
         </Card>
       )}
 

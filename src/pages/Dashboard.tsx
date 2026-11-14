@@ -18,31 +18,33 @@ import { MyActions } from '../components/MyActions';
 import { DataHealthDigest } from '../components/DataHealthDigest';
 import { StartIdeaCard } from '../components/proposals/StartIdeaCard';
 import { HomeProvider } from '../contexts/HomeContext';
+import { CommonDesk } from '../components/home/CommonDesk';
 
 export default function Dashboard() {
   const { activeRole } = useAuth();
 
-  // Unified pending-actions inbox above every working-role dashboard.
-  const withActions = (view: React.ReactNode) => (
+  // Two halves: the role's own view on the left, the common desk on the right.
+  // Below xl the desk moves under the role half.
+  const twoHalves = (roleHalf: React.ReactNode) => (
     <HomeProvider>
-    <div className="space-y-6">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-6 items-start">
+        <div className="space-y-6 min-w-0">{roleHalf}</div>
+        <CommonDesk />
+      </div>
+    </HomeProvider>
+  );
+  // Unified pending-actions inbox above every working-role dashboard.
+  const withActions = (view: React.ReactNode) => twoHalves(
+    <>
       <MyActions />
       {/* Renders nothing for roles that cannot author a proposal. */}
       <StartIdeaCard />
       <DataHealthDigest />
       {view}
-    </div>
-    </HomeProvider>
+    </>,
   );
   // A role-first home: the screen itself ranks the open items, so no inbox card above it.
-  const home = (view: React.ReactNode) => (
-    <HomeProvider>
-      <div className="space-y-6">
-        {view}
-        <DataHealthDigest />
-      </div>
-    </HomeProvider>
-  );
+  const home = (view: React.ReactNode) => twoHalves(<>{view}<DataHealthDigest /></>);
 
   switch (activeRole) {
     case 'Director':     return withActions(<DirectorView />);

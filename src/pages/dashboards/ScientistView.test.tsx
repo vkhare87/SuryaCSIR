@@ -10,7 +10,8 @@ vi.mock('../../lib/home/api', () => ({
 
 const staffRow = { ID: 'S1', Name: 'Dr. Rao', Designation: 'Principal Scientist', Division: 'AMD' };
 let home: Record<string, unknown>;
-vi.mock('../../contexts/HomeContext', () => ({ useHome: () => home }));
+const claimed = vi.fn();
+vi.mock('../../contexts/HomeContext', () => ({ useHome: () => home, useClaim: (keys: string[]) => claimed(keys) }));
 
 let data: Record<string, unknown>;
 vi.mock('../../contexts/DataContext', () => ({ useData: () => data }));
@@ -52,6 +53,11 @@ describe('ScientistView', () => {
     renderView();
     expect(screen.getByText('Al-foam crash box')).toBeInTheDocument();
     expect(screen.getByText('HCP0054')).toBeInTheDocument();
+  });
+
+  it('tells the common desk which items it shows', () => {
+    renderView();
+    expect(claimed).toHaveBeenLastCalledWith(['action:report', 'action:notice']);
   });
 
   it('says plainly when an office block is not connected', () => {

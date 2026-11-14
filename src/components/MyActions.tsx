@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { ClipboardList, ChevronRight } from 'lucide-react';
 import clsx from 'clsx';
 import { useAuth } from '../contexts/AuthContext';
-import { useHome } from '../contexts/HomeContext';
+import { useClaim, useHome } from '../contexts/HomeContext';
+import { deskKey } from '../lib/home/desk';
 import { Card, Badge } from './ui/Cards';
 import { dueUrgency, type DueUrgency } from '../lib/dashboard/myActions';
 import { useFeatureControls } from '../contexts/FeatureControlContext';
@@ -50,6 +51,8 @@ export function MyActions() {
   const { user } = useAuth();
   const { canAccess } = useFeatureControls();
   const { actions } = useHome();
+  // One item, one place: the common desk leaves out what this card shows.
+  useClaim(useMemo(() => actions.slice(0, 8).map(a => deskKey.action(a.id)), [actions]));
 
   const overdueCount = useMemo(() => actions.filter(a => dueUrgency(a.due) === 'overdue').length, [actions]);
 

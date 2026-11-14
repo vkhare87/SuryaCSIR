@@ -1,0 +1,63 @@
+import { describe, expect, it } from 'vitest';
+import type { CalendarEvent, Holiday, Meeting, Ticket } from '../../types';
+import type { MyAction } from '../dashboard/myActions';
+import { currentNotices, deskKey, myDay, myRequests, withoutClaimed } from './desk';
+
+const NOW = new Date(2026, 10, 13, 9, 0); // Fri 13 Nov 2026
+const event = (id: string, date: string, kind: CalendarEvent['event_kind'] = 'Custom') =>
+  ({ id, title: `event ${id}`, event_date: date, event_kind: kind, location: 'Hall' } as CalendarEvent);
+const meeting = (id: string, date: string, status: Meeting['status'] = 'Scheduled') =>
+  ({ id, committee_id: 'c1', meeting_date: date, title: `meeting ${id}`, venue: 'Room 1', status } as Meeting);
+const ticket = (id: string, by: string, status: Ticket['status'], created: string, assigned: string | null = null) =>
+  ({ id, subject: `ticket ${id}`, category: 'Finance', submitted_by: by, assigned_to: assigned, status, created_at: created } as Ticket);
+const action = (id: string, due: string | null): MyAction =>
+  ({ id, kind: 'proposal', due, label: `action ${id}`, detail: '', link: `/a/${id}` });
+
+describe('myDay', () => {
+  const rows = myDay({
+    now: NOW,
+    holidays: [{ id: 'h1', holiday_date: '2026-11-14', name: 'Diwali' } as Holiday],
+    meetings: [meeting('m1', '2026-11-13'), meeting('m2', '2026-11-13', 'Cancelled'), meeting('m3', '2026-11-20')],
+    events: [event('e1', '2026-11-13'), event('e2', '2026-11-13', 'Announcement')],
+    actions: [action('a1', '2026-11-14'), action('a2', null), action('a3', '2026-11-01')],
+  });
+  it('covers today and tomorrow only, in date order', () => {
+    expect(rows.map(r => r.key)).toEqual(['meeting:m1', 'event:e1', 'holiday:h1', 'action:a1']);
+  });
+  it('leaves out cancelled meetings and announcements', () => {
+    expect(rows.some(r => r.key === 'meeting:m2' || r.key === 'event:e2')).toBe(false);
+  });
+});
+
+describe('withoutClaimed', () => {
+  it('drops rows the role half shows and counts them', () => {
+    const rows = [{ key: deskKey.action('a1') }, { key: deskKey.meeting('m1') }];
+    expect(withoutClaimed(rows, new Set(['action:a1']))).toEqual({ rows: [{ key: 'meeting:m1' }], hidden: 1 });
+  });
+});
+
+describe('myRequests', () => {
+  const rows = myRequests([
+    ticket('t1', 'u1', 'Open', '2026-11-10T08:00:00Z'),
+    ticket('t2', 'u1', 'Resolved', '2026-11-01T08:00:00Z'),
+    ticket('t3', 'u2', 'Open', '2026-11-01T08:00:00Z'),
+    ticket('t4', 'u1', 'InProgress', '2026-11-03T08:00:00Z', 'S9'),
+  ], 'u1', NOW);
+  it('keeps only my open requests, oldest first', () => {
+    expect(rows.map(r => r.key)).toEqual(['ticket:t4', 'ticket:t1']);
+  });
+  it('names the holder and the days waiting', () => {
+    expect(rows[0]).toMatchObject({ holder: 'Finance desk', days: 10, state: 'in progress' });
+    expect(rows[1]).toMatchObject({ holder: 'Finance desk · not picked up', days: 3 });
+  });
+});
+
+describe('currentNotices', () => {
+  it('keeps recent announcements, newest first', () => {
+    const out = currentNotices([
+      event('old', '2026-10-01', 'Announcement'), event('n1', '2026-11-05', 'Announcement'),
+      event('n2', '2026-11-12', 'Announcement'), event('x', '2026-11-12'),
+    ], NOW);
+    expect(out.map(e => e.id)).toEqual(['n2', 'n1']);
+  });
+});

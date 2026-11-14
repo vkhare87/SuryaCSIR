@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 import { useData } from './DataContext';
@@ -24,6 +24,9 @@ interface HomeContextType {
   actions: MyAction[];
   /** Items that were open earlier today and are closed now. */
   doneCount: number;
+  /** Keys the role half shows; the common half leaves them out (one item, one place). */
+  claimed: ReadonlySet<string>;
+  claim: (keys: string[]) => void;
 }
 
 const HomeContext = createContext<HomeContextType | undefined>(undefined);
@@ -32,6 +35,16 @@ export function useHome() {
   const ctx = useContext(HomeContext);
   if (ctx === undefined) throw new Error('useHome must be used within a HomeProvider');
   return ctx;
+}
+
+/** The role half calls this with the keys it shows. */
+export function useClaim(keys: string[]) {
+  const { claim } = useHome();
+  const joined = keys.join('|');
+  useEffect(() => {
+    claim(joined ? joined.split('|') : []);
+    return () => claim([]);
+  }, [claim, joined]);
 }
 
 // A view convenience only (the "done today" ring). Never a source of truth.
@@ -97,10 +110,14 @@ export function HomeProvider({ children }: { children: ReactNode }) {
     setSeen(merged);
   }, [seenKey, actions]);
 
+  const [claimed, setClaimed] = useState<ReadonlySet<string>>(new Set());
+  const claim = useCallback((keys: string[]) => setClaimed(new Set(keys)), []);
+
   const value = useMemo<HomeContextType>(() => ({
     staffId, ownStaff, staffResolved, actions,
     doneCount: doneToday(seen, actions.map(a => a.id)),
-  }), [staffId, ownStaff, staffResolved, actions, seen]);
+    claimed, claim,
+  }), [staffId, ownStaff, staffResolved, actions, seen, claimed, claim]);
 
   return <HomeContext.Provider value={value}>{children}</HomeContext.Provider>;
 }

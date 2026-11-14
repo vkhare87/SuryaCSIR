@@ -1,0 +1,97 @@
+import type { CalendarEvent, Holiday, Meeting, Ticket } from '../../types';
+import type { MyAction } from '../dashboard/myActions';
+import { daysUntil, localIso } from './today';
+
+export interface DeskRow {
+  /** Stable key, shared with the role half so one item shows in one place. */
+  key: string;
+  date: string;
+  kind: 'holiday' | 'meeting' | 'event' | 'due';
+  title: string;
+  detail: string;
+  link: string | null;
+}
+
+/** Key of an action, a meeting, an event and a holiday, as both halves of the page name them. */
+export const deskKey = {
+  action: (id: string) => `action:${id}`,
+  meeting: (id: string) => `meeting:${id}`,
+  event: (id: string) => `event:${id}`,
+  holiday: (id: string) => `holiday:${id}`,
+};
+
+export interface MyDayInput {
+  events: CalendarEvent[];
+  holidays: Holiday[];
+  /** Meetings of committees the person sits on. */
+  meetings: Meeting[];
+  actions: MyAction[];
+  now?: Date;
+  /** How many days to cover, today included. */
+  days?: number;
+}
+
+const ORDER: Record<DeskRow['kind'], number> = { holiday: 0, meeting: 1, event: 2, due: 3 };
+
+/** What is on the person's day: holidays, own meetings, events and things due, in date order. */
+export function myDay({ events, holidays, meetings, actions, now = new Date(), days = 2 }: MyDayInput): DeskRow[] {
+  const from = localIso(now);
+  const to = localIso(new Date(now.getFullYear(), now.getMonth(), now.getDate() + days - 1));
+  const inRange = (iso: string) => iso >= from && iso <= to;
+  const rows: DeskRow[] = [
+    ...holidays.filter(h => inRange(h.holiday_date)).map((h): DeskRow => ({
+      key: deskKey.holiday(h.id), date: h.holiday_date, kind: 'holiday', title: h.name, detail: 'Holiday', link: null,
+    })),
+    ...meetings.filter(m => m.status !== 'Cancelled' && inRange(m.meeting_date)).map((m): DeskRow => ({
+      key: deskKey.meeting(m.id), date: m.meeting_date, kind: 'meeting', title: m.title, detail: m.venue,
+      link: `/committees/${m.committee_id}/meetings/${m.id}`,
+    })),
+    ...events.filter(e => e.event_kind !== 'Announcement' && inRange(e.event_date)).map((e): DeskRow => ({
+      key: deskKey.event(e.id), date: e.event_date, kind: 'event', title: e.title, detail: e.location, link: '/calendar',
+    })),
+    ...actions.filter(a => a.due !== null && inRange(a.due)).map((a): DeskRow => ({
+      key: deskKey.action(a.id), date: a.due as string, kind: 'due', title: a.label, detail: a.detail, link: a.link,
+    })),
+  ];
+  return rows.sort((a, b) => a.date.localeCompare(b.date) || ORDER[a.kind] - ORDER[b.kind]);
+}
+
+/** Rows the role half does not already show, and how many it does. */
+export function withoutClaimed<T extends { key: string }>(rows: T[], claimed: ReadonlySet<string>): { rows: T[]; hidden: number } {
+  const kept = rows.filter(r => !claimed.has(r.key));
+  return { rows: kept, hidden: rows.length - kept.length };
+}
+
+export interface RequestRow {
+  key: string;
+  title: string;
+  /** Who holds it now, in plain words. */
+  holder: string;
+  /** Whole days since it was asked. */
+  days: number;
+  state: string;
+  link: string;
+}
+
+/** Open requests this person raised, oldest first. Today the only source is the helpdesk. */
+export function myRequests(tickets: Ticket[], userId: string, now: Date = new Date()): RequestRow[] {
+  return tickets
+    .filter(t => t.submitted_by === userId && (t.status === 'Open' || t.status === 'InProgress'))
+    .sort((a, b) => a.created_at.localeCompare(b.created_at))
+    .map(t => ({
+      key: `ticket:${t.id}`,
+      title: t.subject,
+      holder: t.assigned_to ? `${t.category} desk` : `${t.category} desk · not picked up`,
+      days: Math.max(0, -daysUntil(t.created_at.slice(0, 10), now)),
+      state: t.status === 'InProgress' ? 'in progress' : 'open',
+      link: `/helpdesk/${t.id}`,
+    }));
+}
+
+/** Announcements that are still current, newest first. Stands in for notices until CD4. */
+export function currentNotices(events: CalendarEvent[], now: Date = new Date(), keepDays = 14): CalendarEvent[] {
+  const oldest = localIso(new Date(now.getFullYear(), now.getMonth(), now.getDate() - keepDays));
+  return events
+    .filter(e => e.event_kind === 'Announcement' && e.event_date >= oldest)
+    .sort((a, b) => b.event_date.localeCompare(a.event_date));
+}
