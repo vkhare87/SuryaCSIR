@@ -613,6 +613,14 @@ export const MAX_UPSERT_PAYLOAD_BYTES = 5 * 1024 * 1024;
  * a multi-row upsert inside a single database transaction, so all rows succeed
  * or the entire import rolls back cleanly.
  */
+const GATEWAY_UNKNOWN_STATUSES = new Set([0, 408, 502, 503, 504]);
+
+function isServerOutcomeUnknown(status: number | undefined, error: { code?: string | null }): boolean {
+  if (typeof status !== 'number') return false;
+  if (GATEWAY_UNKNOWN_STATUSES.has(status)) return true;
+  return status >= 500 && !error.code;
+}
+
 export async function pushToSupabase(
   client: any,
   tableName: string,
@@ -640,7 +648,7 @@ export async function pushToSupabase(
   try {
     const { error, status } = await client.from(tableName).upsert(payload);
     if (error) {
-      if (status === 0) {
+      if (isServerOutcomeUnknown(status, error)) {
         onLog(
           `Import request failed (server outcome unknown for ${payload.length} rows — verify existing records before retrying) — ${friendlyError(error)}`,
         );

@@ -26,6 +26,7 @@ const STATUS_VARIANT: Record<IngestStatus, 'success' | 'warning' | 'danger' | 'i
 export default function RagMonitor() {
   const [rows, setRows] = useState<MonitorRow[]>([]);
   const [summaryCounts, setSummaryCounts] = useState<StatusCounts | null>(null);
+  const [summaryFailed, setSummaryFailed] = useState(false);
   const [traceability, setTraceability] = useState<{ share: number; cited: number; total: number } | null>(null);
   const [latencies, setLatencies] = useState<LatencyPoint[]>([]);
   const [downvoted, setDownvoted] = useState<DownvotedQuery[]>([]);
@@ -56,9 +57,13 @@ export default function RagMonitor() {
       }
 
       if (summaryRes.status === 'fulfilled') {
+        setSummaryFailed(false);
         setSummaryCounts(summaryRes.value?.counts ?? null);
         setTraceability(summaryRes.value?.traceability ?? null);
       } else {
+        console.error('Failed to load RAG monitor summary', summaryRes.reason);
+        nextErrors.push(`Summary: ${friendlyError(summaryRes.reason)}`);
+        setSummaryFailed(true);
         setSummaryCounts(null);
         setTraceability(null);
       }
@@ -95,9 +100,9 @@ export default function RagMonitor() {
 
   useEffect(() => { void load(); }, []);
 
-  const counts = useMemo(
-    () => summaryCounts ?? countByStatus(rows.map((r) => ({ ingest_status: r.status }))),
-    [summaryCounts, rows],
+  const partialCounts = useMemo(
+    () => (summaryCounts || summaryFailed ? null : countByStatus(rows.map((r) => ({ ingest_status: r.status })))),
+    [summaryCounts, summaryFailed, rows],
   );
 
   const latencyStats = useMemo(() => {
@@ -190,12 +195,20 @@ export default function RagMonitor() {
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-        {STATUS_ORDER.map((s) => (
-          <Card key={s} className="p-4">
-            <div className="text-2xl font-semibold text-text">{counts[s]}</div>
-            <div className="text-sm capitalize text-text-muted">{s}</div>
-          </Card>
-        ))}
+        {STATUS_ORDER.map((s) => {
+          const val = summaryCounts ? summaryCounts[s] : partialCounts ? partialCounts[s] : null;
+          return (
+            <Card key={s} className="p-4">
+              <div className="text-2xl font-semibold text-text">{val ?? '—'}</div>
+              <div className="text-sm capitalize text-text-muted">
+                {s}
+                {partialCounts && !summaryCounts && (
+                  <span className="ml-1 text-xs">(in last {rows.length})</span>
+                )}
+              </div>
+            </Card>
+          );
+        })}
       </div>
 
       {sectionErrors.length > 0 && (

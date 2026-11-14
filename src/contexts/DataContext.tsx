@@ -295,8 +295,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [identityKey, invalidatePending, resetAll]);
 
   const loadData = useCallback(async () => {
-    const capturedEpoch = authEpochRef.current;
     const capturedIdentity = identityKey;
+    if (capturedIdentity !== identityRef.current) return;
+    const capturedEpoch = authEpochRef.current;
     const loadSeq = ++loadSeqRef.current;
     const capturedSlices = {} as Record<SeqKey, number>;
     for (const k of ALL_SEQ_KEYS) {
@@ -311,7 +312,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
       capturedIdentity === identityRef.current &&
       capturedSlices[k] === sliceSeqRef.current[k];
 
-    if (capturedIdentity !== identityRef.current) return;
     setIsLoading(true);
     setError(null);
     try {
