@@ -3,6 +3,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { MyActions } from '../components/MyActions';
 import { DataHealthDigest } from '../components/DataHealthDigest';
 import { StartIdeaCard } from '../components/proposals/StartIdeaCard';
+import { HomeProvider } from '../contexts/HomeContext';
+import { CommonDesk } from '../components/home/CommonDesk';
 import { KpiSkeleton, TableSkeleton } from '../components/ui/Skeleton';
 
 const DirectorView           = lazy(() => import('./dashboards/DirectorView').then(m => ({ default: m.DirectorView })));
@@ -35,31 +37,46 @@ function ViewFallback() {
 export default function Dashboard() {
   const { activeRole } = useAuth();
 
+  // Two halves: the role's own view on the left, the common desk on the right.
+  // Below xl the desk moves under the role half.
+  const twoHalves = (roleHalf: ReactNode) => (
+    <HomeProvider>
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-6 items-start">
+        <div className="space-y-6 min-w-0">{roleHalf}</div>
+        <CommonDesk />
+      </div>
+    </HomeProvider>
+  );
   // Unified pending-actions inbox above every working-role dashboard.
-  const withActions = (view: ReactNode) => (
-    <div className="space-y-6">
+  const withActions = (view: ReactNode) => twoHalves(
+    <>
       <MyActions />
       {/* Renders nothing for roles that cannot author a proposal. */}
       <StartIdeaCard />
       <DataHealthDigest />
-      <Suspense fallback={<ViewFallback />}>
-        {view}
-      </Suspense>
-    </div>
+      <Suspense fallback={<ViewFallback />}>{view}</Suspense>
+    </>,
+  );
+  // A role-first home: the screen itself ranks the open items, so no inbox card above it.
+  const home = (view: ReactNode) => twoHalves(
+    <>
+      <Suspense fallback={<ViewFallback />}>{view}</Suspense>
+      <DataHealthDigest />
+    </>,
   );
 
   switch (activeRole) {
-    case 'Director':     return withActions(<DirectorView />);
-    case 'DivisionHead': return withActions(<DivisionHeadView />);
-    case 'HOD':          return withActions(<HoDView />);
-    case 'Scientist':    return withActions(<ScientistView />);
-    case 'Technician':   return withActions(<TechnicianView />);
+    case 'Director':     return home(<DirectorView />);
+    case 'DivisionHead': return home(<DivisionHeadView />);
+    case 'HOD':          return home(<HoDView />);
+    case 'Scientist':    return home(<ScientistView />);
+    case 'Technician':   return home(<TechnicianView />);
     case 'HRAdmin':      return withActions(<HRAdminView />);
     case 'FinanceAdmin': return withActions(<FinanceAdminView />);
     case 'SystemAdmin':  return withActions(<SystemAdminView />);
     case 'MasterAdmin':  return withActions(<MasterAdminView />);
-    case 'Student':      return withActions(<StudentView />);
-    case 'ProjectStaff': return withActions(<ProjectStaffView />);
+    case 'Student':      return home(<StudentView />);
+    case 'ProjectStaff': return home(<ProjectStaffView />);
     case 'Guest':        return <Suspense fallback={<ViewFallback />}><GuestView /></Suspense>;
     case 'DefaultUser':         return <Suspense fallback={<ViewFallback />}><PendingAccessView /></Suspense>;
     case 'EmpoweredCommittee':  return withActions(<EmpoweredCommitteeView />);

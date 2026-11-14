@@ -1,18 +1,14 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { ClipboardList, ChevronRight } from 'lucide-react';
 import clsx from 'clsx';
 import { useAuth } from '../contexts/AuthContext';
-import { useData } from '../contexts/DataContext';
-import { usePMS } from '../contexts/PMSContext';
-import { useProposals } from '../contexts/ProposalsContext';
-import { useProjectReports } from '../contexts/ProjectReportsContext';
+import { useClaim, useHome } from '../contexts/HomeContext';
+import { deskKey } from '../lib/home/desk';
 import { Card, Badge } from './ui/Cards';
-import { deriveMyActions, dueUrgency, type DueUrgency } from '../lib/dashboard/myActions';
+import { dueUrgency, type DueUrgency } from '../lib/dashboard/myActions';
 import { useFeatureControls } from '../contexts/FeatureControlContext';
 import type { AccessPath } from '../constants/access';
-import { myChangeSteps, myClosureItems, myDueSlots } from '../lib/projects/projectFileApi';
-import type { ClosureItem, DueSlot, MyChangeStep } from '../types/projectFile';
 
 const KIND_BADGE: Record<string, { label: string; variant: 'info' | 'warning' | 'success' | 'neutral' }> = {
   'pms-draft':      { label: 'PMS',       variant: 'warning' },
@@ -53,51 +49,10 @@ const AREA_LABELS: Partial<Record<AccessPath, string>> = {
 
 export function MyActions() {
   const { user } = useAuth();
-  const { staff, actionItems, tickets, contractStaff, contributionRequests, dataStewards } = useData();
-  const { reports, evaluations } = usePMS();
-  const { proposals } = useProposals();
-  const { reports: progressReports } = useProjectReports();
   const { canAccess } = useFeatureControls();
-  const [dueSlots, setDueSlots] = useState<DueSlot[]>([]);
-  const [changeSteps, setChangeSteps] = useState<MyChangeStep[]>([]);
-  const [closureItems, setClosureItems] = useState<ClosureItem[]>([]);
-  useEffect(() => {
-    if (!user) return;
-    let cancelled = false;
-    myDueSlots().then((s) => { if (!cancelled) setDueSlots(s); }, () => {});
-    myChangeSteps().then((s) => { if (!cancelled) setChangeSteps(s); }, () => {});
-    myClosureItems().then((s) => { if (!cancelled) setClosureItems(s); }, () => {});
-    return () => { cancelled = true; };
-  }, [user]);
-
-  const staffName = useMemo(
-    () => staff.find(s => s.Email === user?.email)?.Name ?? '',
-    [staff, user?.email],
-  );
-
-  const actions = useMemo(() => {
-    if (!user) return [];
-    return deriveMyActions({
-      userId: user.id,
-      staffName,
-      role: user.activeRole,
-      reports,
-      evaluations,
-      proposals,
-      progressReports,
-      actionItems,
-      tickets,
-      staff,
-      contractStaff,
-      roles: user.roles,
-      contributions: contributionRequests,
-      stewards: dataStewards,
-      dueSlots,
-      changeSteps,
-      closureItems,
-    });
-  }, [user, staffName, reports, evaluations, proposals, progressReports, actionItems, tickets, staff, contractStaff,
-      contributionRequests, dataStewards, dueSlots, changeSteps, closureItems]);
+  const { actions } = useHome();
+  // One item, one place: the common desk leaves out what this card shows.
+  useClaim(useMemo(() => actions.slice(0, 8).map(a => deskKey.action(a.id)), [actions]));
 
   const overdueCount = useMemo(() => actions.filter(a => dueUrgency(a.due) === 'overdue').length, [actions]);
 

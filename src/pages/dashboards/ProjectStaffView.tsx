@@ -1,119 +1,143 @@
-import { Briefcase, Users } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useData } from '../../contexts/DataContext';
-import { useAuth } from '../../contexts/AuthContext';
+import { useClaim, useHome } from '../../contexts/HomeContext';
+import { useRules } from '../../contexts/RulesContext';
 import { Card } from '../../components/ui/Cards';
-import { KpiCard } from '../../components/ui/KpiCard';
-import { isActiveProject, projectStatusLabel } from '../../lib/projects/stage';
+import { Button } from '../../components/ui/Button';
+import {
+  AskBox, BLOCK_TITLE, HomeGreeting, NotConnected, ROW, WaitingOnYou,
+} from '../../components/home/parts';
+import { DoFirst } from '../../components/home/Priorities';
+import { countWord } from '../../lib/home/greeting';
+import { deskKey } from '../../lib/home/desk';
+import { localIso } from '../../lib/home/today';
+import {
+  contractClock, currentEngagement, leaveYear, myProjectStaffRecord, paidLeaveUsed, yearsMonths,
+} from '../../lib/home/people';
+import type { MyProjectStaffRecord } from '../../lib/home/people';
+import { ruleNumber } from '../../lib/rules/csirRules';
+
+const LETTERS = ['Experience certificate', 'Pay certificate', 'No-objection letter', 'ID card'];
+
+function partOfDay(h: number) { return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'; }
+
+function Clock({ label, share, children }: { label: string; share: number | null; children: React.ReactNode }) {
+  return (
+    <div className="rounded-lg bg-surface-hover p-3">
+      <p className="text-xs text-text-muted">{label}</p>
+      <div className="h-1.5 rounded-full bg-surface-raised overflow-hidden mt-2" aria-hidden="true">
+        {share !== null && <div className="h-full rounded-full bg-text-muted" style={{ width: `${Math.round(share * 100)}%` }} />}
+      </div>
+      <p className="text-xs text-text-muted mt-2">{children}</p>
+    </div>
+  );
+}
 
 export function ProjectStaffView() {
-  const { projectStaff, projects } = useData();
-  const { user } = useAuth();
+  const { projects } = useData();
+  const { ownStaff, actions, doneCount, prioritiesForMe } = useHome();
+  const { rules } = useRules();
+  const now = useMemo(() => new Date(), []);
+  const today = localIso(now);
 
-  // Match project staff records by email domain name heuristic or exact name match
-  // Project staff records don't have email — match by user email prefix / name
-  const emailName = user?.email?.split('@')[0]?.toLowerCase() ?? '';
-  const ownLinks = projectStaff.filter(
-    ps => ps.StaffName.toLowerCase().replace(/\s+/g, '.') === emailName ||
-          ps.StaffName.toLowerCase().replace(/\s+/g, '') === emailName.replace(/\./g, '')
-  );
+  // undefined = still loading; null = this login is not linked to a project staff record.
+  const [record, setRecord] = useState<MyProjectStaffRecord | null | undefined>(undefined);
+  useEffect(() => {
+    let cancelled = false;
+    myProjectStaffRecord(today).then((r) => { if (!cancelled) setRecord(r); });
+    return () => { cancelled = true; };
+  }, [today]);
 
-  const ownProjectNos = new Set(ownLinks.map(ps => ps.ProjectNo));
-  const ownProjects = projects.filter(p => ownProjectNos.has(p.ProjectNo));
+  useClaim(useMemo(() => actions.slice(0, 5).map(a => deskKey.action(a.id)), [actions]));
+
+  const engagement = record ? currentEngagement(record.engagements, today) : null;
+  const project = engagement ? projects.find(p => p.ProjectID === engagement.projectId) ?? null : null;
+  const clock = engagement ? contractClock(engagement, now) : null;
+  const capYears = ruleNumber(rules, 'project_staff.tenure_cap_years', today);
+  const capDays = capYears === null ? null : Math.round(capYears * 365.25);
+  const leaveDays = ruleNumber(rules, 'project_staff.paid_leave_days_per_year', today);
+  const leaveUsed = record ? paidLeaveUsed(record.leave, today) : 0;
+  const yr = leaveYear(today);
+
+  const hello = `${partOfDay(now.getHours())}${ownStaff ? `, ${ownStaff.Name}` : ''}.`;
+  const sentence = record === undefined
+    ? hello
+    : !engagement || !clock
+      ? `${hello} Your project staff record is not linked to this account yet.`
+      : clock.daysLeft < 0
+        ? `${hello} Your engagement ended on ${engagement.toOn}.`
+        : `${hello} Your contract${project ? ` on ${project.ProjectNo}` : ''} runs to ${engagement.toOn}. ${
+          countWord(clock.daysLeft)} ${clock.daysLeft === 1 ? 'day is' : 'days are'} left.`;
 
   return (
-    <div className="space-y-8 pb-12">
-      <div>
-        <h1 className="text-3xl font-[500] text-[#141413] uppercase tracking-tight font-serif">
-          Project Staff Dashboard
-        </h1>
-        <p className="text-[#87867f] mt-1 text-sm font-medium">
-          Your project assignments and involvement
-        </p>
+    <div className="space-y-4 pb-12">
+      {/* --- 1. Greeting and two clocks --- */}
+      <HomeGreeting
+        done={doneCount} total={actions.length + doneCount} sentence={sentence}
+        sub={engagement
+          ? <>Position <span className="font-mono">{engagement.positionCode}</span>{project ? ` · ${project.ProjectName}` : ''}</>
+          : record === null ? 'PME or HR links your login to your record.' : ' '}
+      />
+      {engagement && clock && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Clock label="This contract" share={clock.share}>
+            <span className="font-mono">{Math.max(0, clock.daysLeft)}</span> days left · <span className="font-mono">{engagement.fromOn}</span> to <span className="font-mono">{engagement.toOn}</span>
+          </Clock>
+          <Clock label={capYears === null ? 'Time in CSIR projects' : `Time in CSIR projects · limit ${capYears} years`}
+            share={record?.tenureDays != null && capDays ? Math.min(1, record.tenureDays / capDays) : null}>
+            {record?.tenureDays == null
+              ? 'Not available.'
+              : <><span className="font-mono">{yearsMonths(record.tenureDays)}</span> used
+                {capDays ? <> · <span className="font-mono">{yearsMonths(Math.max(0, capDays - record.tenureDays))}</span> left</> : ' · limit not on record'}</>}
+          </Clock>
+        </div>
+      )}
+
+      {/* --- 2. Ask --- */}
+      <DoFirst now={now} />
+
+      <AskBox placeholder="Ask SURYA: how many days of leave do I get?" />
+
+      {/* --- 3. What waits on me --- */}
+      <WaitingOnYou actions={actions} now={now} rows={4} strong={prioritiesForMe.length === 0} />
+
+      {/* --- 4. Leave and letters --- */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card className="p-5">
+          <p className={BLOCK_TITLE}>
+            <span>My leave · since <span className="font-mono">{yr.from}</span></span>
+            {leaveDays !== null && record && <span className="font-mono">{Math.max(0, leaveDays - leaveUsed)} of {leaveDays} left</span>}
+          </p>
+          {!record
+            ? <p className="text-sm text-text-muted">Your leave shows here once your record is linked.</p>
+            : <>
+              <div className={ROW}>
+                <p className="flex-1 text-sm text-text">Paid leave taken</p>
+                <span className="font-mono text-xs text-text-muted">{leaveUsed} d</span>
+              </div>
+              {record.leave.slice(-3).reverse().map(l => (
+                <div key={`${l.kind}-${l.fromOn}`} className={ROW}>
+                  <p className="flex-1 text-xs text-text-muted">{l.kind.toLowerCase()}</p>
+                  <span className="font-mono text-xs text-text-muted">{l.fromOn} to {l.toOn}</span>
+                </div>
+              ))}
+              <p className="text-xs text-text-muted mt-2">Ask for leave through your project leader. A request form comes later.</p>
+            </>}
+        </Card>
+        <Card className="p-5">
+          <p className={BLOCK_TITLE}><span>Papers I can ask for</span></p>
+          <div className="flex flex-wrap gap-2">
+            {LETTERS.map(l => <Link key={l} to="/helpdesk/new"><Button variant="secondary" size="sm" type="button">{l}</Button></Link>)}
+          </div>
+          <p className="text-xs text-text-muted mt-3">Each opens a request to the office today. One-click letters from your record come later.</p>
+        </Card>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-sm">
-        <KpiCard
-          label="Assignments"
-          value={ownLinks.length}
-          icon={<Users size={18} />}
-          sublabel="Project roles"
-        />
-        <KpiCard
-          label="Projects"
-          value={ownProjects.length}
-          icon={<Briefcase size={18} />}
-          sublabel="Linked projects"
-        />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="p-0 overflow-hidden">
-          <div className="px-6 py-4 border-b border-[#f0eee6]">
-            <h2 className="text-base font-semibold text-[#4d4c48] uppercase tracking-wide">My Assignments</h2>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-background">
-                  <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-[#87867f]">Project No</th>
-                  <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-[#87867f]">Designation</th>
-                  <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-[#87867f]">Joined</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#f0eee6]">
-                {ownLinks.map(ps => (
-                  <tr key={ps.id} className="hover:bg-background transition-colors">
-                    <td className="px-6 py-3 font-mono text-xs text-[#87867f]">{ps.ProjectNo}</td>
-                    <td className="px-6 py-3 text-[#4d4c48] font-medium">{ps.Designation}</td>
-                    <td className="px-6 py-3 text-[#87867f] text-xs">{ps.DateOfJoining}</td>
-                  </tr>
-                ))}
-                {ownLinks.length === 0 && (
-                  <tr>
-                    <td colSpan={3} className="px-6 py-8 text-center text-[#87867f] text-xs italic">
-                      No assignment records found. Contact System Admin to link your records.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-
-        <Card className="p-0 overflow-hidden">
-          <div className="px-6 py-4 border-b border-[#f0eee6]">
-            <h2 className="text-base font-semibold text-[#4d4c48] uppercase tracking-wide">Linked Projects</h2>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-background">
-                  <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-[#87867f]">Project Name</th>
-                  <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-[#87867f]">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#f0eee6]">
-                {ownProjects.map(p => (
-                  <tr key={p.ProjectID} className="hover:bg-background transition-colors">
-                    <td className="px-6 py-3 text-[#4d4c48] font-medium max-w-[200px] truncate">{p.ProjectName}</td>
-                    <td className="px-6 py-3">
-                      <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
-                        isActiveProject(p) ? 'bg-[#f0f8f0] text-[#3a7a3a]' : 'bg-background text-[#87867f]'
-                      }`}>
-                        {projectStatusLabel(p)}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-                {ownProjects.length === 0 && (
-                  <tr>
-                    <td colSpan={2} className="px-6 py-6 text-center text-[#87867f] text-xs italic">No linked projects found.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </Card>
+      {/* --- 5. Blocks that wait on other work --- */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <NotConnected title="My pay">Your last pay and any pay-raise request will show here when Accounts' files are linked.</NotConnected>
+        <NotConnected title="What next for me">Open posts that fit you under the rules will show here.</NotConnected>
       </div>
     </div>
   );

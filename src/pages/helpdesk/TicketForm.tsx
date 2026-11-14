@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Building2, Monitor, FileText, Users, DollarSign,
   FlaskConical, Library, Car,
@@ -13,6 +13,7 @@ import { createTicket } from '../../lib/helpdesk/ticketRPCs';
 import { CATEGORY_CONFIG, URGENCY_COLORS } from '../../lib/helpdesk/constants';
 import { resolveRoutingPreview } from '../../lib/helpdesk/routing';
 import { missingTicketFields, type TicketField } from '../../lib/helpdesk/ticketValidation';
+import { REQUEST_KINDS } from '../../lib/home/requests';
 import type { TicketCategory, TicketUrgency } from '../../types';
 
 const CATEGORY_ICONS: Record<string, React.ElementType> = {
@@ -35,9 +36,18 @@ export default function TicketForm() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const [category, setCategory] = useState<TicketCategory | null>(null);
+  // The request door on the home page fills these in (?category=…&subject=…).
+  const [searchParams] = useSearchParams();
+  const [category, setCategory] = useState<TicketCategory | null>(() => {
+    const c = searchParams.get('category');
+    return c && CATEGORY_CONFIG.some(x => x.value === c) ? c as TicketCategory : null;
+  });
   const [urgency, setUrgency] = useState<TicketUrgency>('Medium');
-  const [subject, setSubject] = useState('');
+  // Only a subject start the request door itself offers; any other text in the link is ignored.
+  const [subject, setSubject] = useState(() => {
+    const s = searchParams.get('subject');
+    return s && REQUEST_KINDS.some(k => k.subject !== '' && k.subject === s) ? s : '';
+  });
   const [description, setDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
