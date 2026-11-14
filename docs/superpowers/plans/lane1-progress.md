@@ -13,7 +13,7 @@ Baseline before any change (2026-11-14): `npm run build` passed; `npm test` 148 
 | `HH1` head home | **Done** on today's data | Seen in the browser as HOD (2026-11-14), desktop and phone: switch to My own work and back works, no sideways scroll, no console error. The dev login's HOD role has division `DEV`, which has no projects, so the exception rows were seen only in tests (`HoDView.test.tsx`, 6 tests; `division.test.ts`). Acting-head scope is not tested here; it rests on the existing RLS (`caller_in_division` has the acting branch) |
 | `DH1` Director home | **Done** on today's data | Seen in the browser as Director (2026-11-14) on live data, desktop and phone: no sideways scroll, no console error. `DirectorView.test.tsx` (5 tests). Not seen as an acting Director |
 | `ST1` student home | **Done** on today's data | Seen as Student, desktop (2026-11-14). The dev login has no PhD record, so only the "not linked" path was seen live; the road was seen in tests (`roleHomes.test.tsx`, `people.test.ts`) |
-| `PJ1` project staff home | **Done**, needs a migration on live | Seen as ProjectStaff, desktop. **`20261114000001_project_staff_self_read.sql` is not on live**: the page falls back to "not linked" and logs one console error per load until it is pushed. Clocks and leave seen in tests only. DB test `projectStaffSelf.db.test.ts` (4 tests) |
+| `PJ1` project staff home | **Done**, needs a migration on live | Seen as ProjectStaff, desktop. **`20261114120001_project_staff_self_read.sql` is not on live**: the page falls back to "not linked" and logs one console error per load until it is pushed. Clocks and leave seen in tests only. DB test `projectStaffSelf.db.test.ts` (4 tests) |
 | `TS1` technical staff home | **Done** on today's data | Seen as Technician, desktop and phone. The dev login has no instrument in its charge, so the list was seen in tests only |
 | Rest of wave 2 (CD phase A, `SH2`) | Next | — |
 
@@ -92,7 +92,7 @@ Differences from the plan, on purpose:
   (queue, quick entry, my year).
 - `src/lib/home/people.ts` (+ tests): PhD road, leave year, paid leave used, contract
   clock, tenure in years and months, and the loader for the caller's own engagement.
-- Migration `20261114000001_project_staff_self_read.sql`: `project_staff_persons.user_id`,
+- Migration `20261114120001_project_staff_self_read.sql`: `project_staff_persons.user_id`,
   `project_staff_caller_person()`, a self branch on the engagements read policy (person
   and leave policies follow it), and `project_staff_link_user()` for PME / HR.
 

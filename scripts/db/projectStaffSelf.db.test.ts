@@ -1,5 +1,5 @@
 // @vitest-environment node
-// Lane 1 PJ1 — a project staff member reads their own engagement (20261114000001).
+// Lane 1 PJ1 — a project staff member reads their own engagement (20261114120001).
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { PGlite } from '@electric-sql/pglite';
 import { as, migratedDb, type Tx } from './pgliteHarness';
