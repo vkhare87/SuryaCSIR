@@ -13,6 +13,7 @@ import { createTicket } from '../../lib/helpdesk/ticketRPCs';
 import { CATEGORY_CONFIG, URGENCY_COLORS } from '../../lib/helpdesk/constants';
 import { resolveRoutingPreview } from '../../lib/helpdesk/routing';
 import { missingTicketFields, type TicketField } from '../../lib/helpdesk/ticketValidation';
+import { REQUEST_KINDS } from '../../lib/home/requests';
 import type { TicketCategory, TicketUrgency } from '../../types';
 
 const CATEGORY_ICONS: Record<string, React.ElementType> = {
@@ -42,7 +43,11 @@ export default function TicketForm() {
     return c && CATEGORY_CONFIG.some(x => x.value === c) ? c as TicketCategory : null;
   });
   const [urgency, setUrgency] = useState<TicketUrgency>('Medium');
-  const [subject, setSubject] = useState(() => searchParams.get('subject') ?? '');
+  // Only a subject start the request door itself offers; any other text in the link is ignored.
+  const [subject, setSubject] = useState(() => {
+    const s = searchParams.get('subject');
+    return s && REQUEST_KINDS.some(k => k.subject !== '' && k.subject === s) ? s : '';
+  });
   const [description, setDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
