@@ -9,6 +9,7 @@ import { Heatmap } from '../components/viz/Heatmap';
 import { Bar, BarChart, CartesianGrid, Cell, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { SEMANTIC } from '../components/viz/palette';
 import { isActiveProject } from '../lib/projects/stage';
+import { DivisionScorecard } from '../components/DivisionScorecard';
 
 const STALENESS_STYLE: Record<Staleness, string> = {
   fresh: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
@@ -96,6 +97,7 @@ export default function DivisionsAnalytics() {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <DivisionScorecard />
       <ChartCard
         title="Data freshness"
         subtitle="record completeness per division — worst first"

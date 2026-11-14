@@ -25,6 +25,17 @@ export async function updateNotificationStatus(id: string, status: NotificationS
   if (error) throw error;
 }
 
+/** notification_accept: runs the suggestion's whitelisted action as the caller and logs it. */
+export async function acceptNotification(id: string): Promise<string | null> {
+  if (!supabase) throw new Error('Supabase not provisioned');
+  const { data, error } = await supabase.rpc('notification_accept', { p_id: id });
+  if (error) throw error;
+  return (data as string | null) ?? null;
+}
+
+/** Action kinds notification_accept runs; anything else only opens the link. */
+const RUNNABLE = new Set(['identity_link', 'expertise_confirm']);
+
 export interface BellItem {
   id: string;
   source: 'pms' | 'app';
@@ -37,6 +48,8 @@ export interface BellItem {
   agent: boolean;
   /** Decided (accepted / dismissed) agent items leave the bell. */
   decided: boolean;
+  /** Button text when accepting changes a record (whitelisted kind); null = just open. */
+  actionLabel: string | null;
 }
 
 /** Both feeds as one list, newest first. */
@@ -45,12 +58,13 @@ export function mergeNotificationFeeds(pms: PMSNotification[], app: AppNotificat
     ...pms.map(n => ({
       id: n.id, source: 'pms' as const, title: n.title, body: n.body, createdAt: n.createdAt,
       read: n.read, link: n.reportId ? `/pms/reports/${n.reportId}` : null,
-      agent: false, decided: false,
+      agent: false, decided: false, actionLabel: null,
     })),
     ...app.map(n => ({
       id: n.id, source: 'app' as const, title: n.title, body: n.body, createdAt: n.createdAt,
       read: n.status !== 'open', link: n.link,
       agent: n.source === 'agent', decided: n.status === 'accepted' || n.status === 'dismissed',
+      actionLabel: RUNNABLE.has(String(n.proposedAction?.kind)) ? String(n.proposedAction?.label ?? 'Accept') : null,
     })),
   ].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
 }

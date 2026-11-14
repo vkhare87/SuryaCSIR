@@ -10,6 +10,8 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Tabs, TabsList, TabsTrigger } from '../components/ui/Tabs';
+import { LensCard } from '../components/projects/LensCard';
+import { AskAboutLink } from '../components/AskAboutLink';
 import { FundsPanel } from '../components/projects/FundsPanel';
 import { MilestonesPanel } from '../components/projects/MilestonesPanel';
 import { OutputsPanel } from '../components/projects/OutputsPanel';
@@ -20,6 +22,8 @@ import { ClosurePanel } from '../components/projects/ClosurePanel';
 import { LegacyPanel } from '../components/projects/LegacyPanel';
 import { needsLegacyCompletion } from '../lib/projects/legacy';
 import { loadProjectFile } from '../lib/projects/projectFileApi';
+import { PacksPanel } from '../components/projects/PacksPanel';
+import { StageGatePanel } from '../components/projects/StageGatePanel';
 import { useUrlTab } from '../utils/useUrlTab';
 import { friendlyError } from '../lib/errors';
 import type { ProjectFile } from '../types/projectFile';
@@ -193,6 +197,7 @@ export default function ProjectDetail() {
           </div>
           <p className="text-text-muted text-sm mt-1">Research & Sponsored Project Profile</p>
         </div>
+        <AskAboutLink entity={{ type: 'project', id: project.ProjectID }} />
         <RequestUpdateButton
           domain="projects"
           recordRef={project.ProjectID}
@@ -228,6 +233,10 @@ export default function ProjectDetail() {
           canCall={!isParty && partyStatusKnown && !!user && (user.roles.includes('Director') || user.roles.includes('PME') || user.roles.includes('MasterAdmin'))}
           onChanged={onFileChanged} />
       )}
+      {tab === 'monitoring' && project.track === 'HQ' && (
+        <StageGatePanel project={project} canRecord={isOffice || isParty} onChanged={onFileChanged} />
+      )}
+      {tab === 'changes' && file && project.track === 'HQ' && (isOffice || isParty) && <PacksPanel project={project} file={file} changesOnly />}
       {tab === 'changes' && file && (
         <ChangesPanel project={project} file={file} isPi={isPi} isOffice={isOffice}
           userId={user?.id ?? null} roles={user?.roles ?? []} onChanged={onFileChanged} />
@@ -237,6 +246,7 @@ export default function ProjectDetail() {
       )}
       {tab === 'funds' && isOffice && needsLegacyCompletion(project) && <LegacyPanel project={project} onChanged={onFileChanged} />}
       {tab === 'funds' && file && <FundsPanel project={project} file={file} isOffice={isOffice} onChanged={onFileChanged} />}
+      {tab === 'funds' && file && project.track === 'HQ' && (isOffice || isParty) && <PacksPanel project={project} file={file} />}
       {tab === 'milestones' && file && (
         <MilestonesPanel project={project} startDate={/^\d{4}-\d{2}-\d{2}$/.test(project.StartDate) ? project.StartDate : null}
           milestones={file.milestones} isOffice={isOffice} isParty={isParty} onChanged={onFileChanged} />
@@ -249,6 +259,7 @@ export default function ProjectDetail() {
 
         {/* ── LEFT COLUMN ── */}
         <div className="lg:col-span-1 space-y-6">
+          <LensCard project={project} canEdit={isParty || isOffice} onSaved={() => refreshSlice('projects')} />
           {/* Financials */}
           <Card className="border-t-4 border-emerald-500 flex flex-col pt-6 relative overflow-hidden">
             <div className="z-10">

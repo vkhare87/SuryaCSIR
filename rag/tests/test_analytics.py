@@ -120,20 +120,20 @@ def test_all_functions_answer_on_empty_tables():
         assert ans.citations == []
 
 
-def test_expertise_search_ranks_by_field_matches():
-    rows = [
-        {"Name": "Dr A", "Designation": "Sci C", "Division": "CMD",
-         "CoreArea": "Corrosion coatings", "Expertise": "corrosion, coatings"},
-        {"Name": "Dr B", "Designation": "Sci B", "Division": "NST",
-         "CoreArea": "Battery materials", "Expertise": "corrosion testing"},
-        {"Name": "Dr C", "Designation": "Sci D", "Division": "EEC",
-         "CoreArea": "Photonics", "Expertise": "optics"},
+def test_expertise_search_reads_expertise_find():
+    """Ask SURYA gives the finder's people, in the finder's order."""
+    found = [
+        {"staff_id": "A", "name": "Dr A", "designation": "Sci C", "division": "CMD", "confirmed_terms": 1,
+         "evidence_count": 0, "active_projects": 5, "overload": True, "retires_on": "2031-01-31"},
+        {"staff_id": "B", "name": "Dr B", "designation": "Sci B", "division": "NST", "confirmed_terms": 0,
+         "evidence_count": 2, "active_projects": 1, "overload": False, "retires_on": None},
     ]
-    ans = run_analytics("expertise_search", {"topic": "corrosion"}, _FakeClient(rows))
+    ans = run_analytics("expertise_search", {"topic": "corrosion"},
+                        _FakeMultiClient({"rpc:expertise_find": {"corrosion": found}}))
     assert "2 staff match" in ans.text
-    # Dr A (both fields) ranks before Dr B (one field)
     assert ans.text.index("Dr A") < ans.text.index("Dr B")
-    assert "Dr C" not in ans.text
+    assert "confirmed" in ans.text and "overloaded" in ans.text and "retires 2031-01-31" in ans.text
+    assert "expertise_find" in ans.text
 
 
 def test_expertise_search_no_topic():
@@ -189,6 +189,38 @@ def test_succession_risk_flags_unique_expertise():
     assert "Dr Shared" not in ans.text     # 'Common area' also held by Dr Young
 
 
+def test_succession_risk_uses_confirmed_tags():
+    """A confirmed tag replaces the free-text field: Dr Sole's 'rare craft' is
+    covered once Dr Young confirms the same term."""
+    today = date.today()
+    tables = {
+        "staff": [
+            {"ID": "S1", "Name": "Dr Sole", "Division": "CMD",
+             "DOB": today.replace(year=today.year - 58).isoformat(), "CoreArea": "Rare craft"},
+            {"ID": "S2", "Name": "Dr Young", "Division": "CMD",
+             "DOB": today.replace(year=today.year - 30).isoformat(), "CoreArea": "Other"},
+        ],
+        "expertise_terms": [{"id": "t1", "label": "Rare craft", "status": "ACTIVE"}],
+        "staff_expertise": [{"staff_id": "S2", "term_id": "t1", "confirmed_at": "2026-11-13"}],
+    }
+    ans = run_analytics("expertise_succession_risk", {"years": 3}, _FakeMultiClient(tables))
+    assert "No unique-expertise succession risk" in ans.text
+    tables["staff_expertise"][0]["confirmed_at"] = None
+    assert "Dr Sole" in run_analytics("expertise_succession_risk", {"years": 3}, _FakeMultiClient(tables)).text
+
+
+def test_metric_quotes_metric_value():
+    """Ask SURYA quotes metric_value: the number the scorecard shows."""
+    class _C(_FakeMultiClient):
+        def rpc(self, name, params):
+            assert name == "metric_value" and params == {"p_key": "projects_active", "p_scope": {"division": "D1"}}
+            return _FakeTable(7)
+    reg = [{"key": "projects_active", "label": "Active projects", "definition": "Projects at stage ACTIVE", "unit": "count", "sort": 30}]
+    ans = run_analytics("metric", {"key": "projects_active", "division": "D1"}, _C({"metrics": reg}))
+    assert "Active projects for division D1: 7." in ans.text
+    assert "Metrics available — projects_active" in run_analytics("metric", {}, _C({"metrics": reg})).text
+
+
 def test_succession_risk_none():
     ans = run_analytics("expertise_succession_risk", {}, _FakeClient([]))
     assert "No unique-expertise succession risk" in ans.text
@@ -201,6 +233,24 @@ class _FakeMultiClient:
 
     def table(self, name):
         return _FakeTable(self._tables.get(name, []))
+
+    def rpc(self, name, params):
+        # "rpc:<name>" maps the RPC's first argument to the rows it returns.
+        return _FakeTable(self._tables.get("rpc:" + name, {}).get(next(iter(params.values())), []))
+
+
+def _fact(section, record_id, title, role):
+    return {"section": section, "record_id": record_id, "title": title, "role": role}
+
+
+# What staff_profile_facts returns per staff ID — people linked by key, not name.
+_FACTS = {"rpc:staff_profile_facts": {
+    "S001": [_fact("PROJECT", "P-1", "Composite Panels", "PI"),
+             _fact("PROJECT", "P-2", "Alloy Study", "Project Associate"),
+             _fact("OUTPUT", "O-1", "Panels paper", "Author 1 · J")],
+    "S002": [_fact("PROJECT", "P-2", "Alloy Study", "PI"),
+             _fact("PROJECT", "P-3", "Waste Valorisation", "PI")],
+}}
 
 
 _STAFF = [
@@ -248,21 +298,27 @@ def test_staff_profile_no_match_and_missing_param():
     assert "No staff name supplied" in run_analytics("staff_profile", {}, client).text
 
 
-def test_projects_for_staff_pi_by_name_and_id_plus_team_membership():
-    client = _FakeMultiClient({"staff": _STAFF, "projects": _PROJECTS,
-                               "project_staff": _PROJECT_STAFF})
-    # Anil: PI of GAP-001, team member of GAP-002.
+def test_projects_for_staff_from_profile_facts():
+    client = _FakeMultiClient({"staff": _STAFF, **_FACTS})
     ans = run_analytics("projects_for_staff", {"name": "anil sharma"}, client)
-    assert "GAP-001" in ans.text and "GAP-002" in ans.text
-    assert "GAP-003" not in ans.text
-    # Rekha: PI of GAP-002 by name and GAP-003 by staff ID.
+    assert "P-1" in ans.text and "P-2" in ans.text and "P-3" not in ans.text
     ans2 = run_analytics("projects_for_staff", {"name": "rekha"}, client)
-    assert "GAP-002" in ans2.text and "GAP-003" in ans2.text
+    assert "P-2" in ans2.text and "P-3" in ans2.text
+
+
+def test_projects_for_staff_never_guesses_between_two_people():
+    ans = run_analytics("projects_for_staff", {"name": "sharma"},
+                        _FakeMultiClient({"staff": _STAFF, **_FACTS}))
+    assert "2 staff match" in ans.text and "P-1" not in ans.text
+
+
+def test_staff_profile_counts_the_linked_record():
+    ans = run_analytics("staff_profile", {"name": "anil"}, _FakeMultiClient({"staff": _STAFF, **_FACTS}))
+    assert "2 projects, 1 publications" in ans.text
 
 
 def test_projects_for_staff_unknown_person():
-    client = _FakeMultiClient({"staff": _STAFF, "projects": _PROJECTS,
-                               "project_staff": _PROJECT_STAFF})
+    client = _FakeMultiClient({"staff": _STAFF, **_FACTS})
     assert "No staff member matching" in run_analytics(
         "projects_for_staff", {"name": "zzz"}, client).text
 
@@ -331,12 +387,11 @@ def test_staff_profile_ambiguous_typed_candidates():
 
 
 def test_projects_for_staff_typed_data():
-    client = _FakeMultiClient({"staff": _STAFF, "projects": _PROJECTS,
-                               "project_staff": _PROJECT_STAFF})
+    client = _FakeMultiClient({"staff": _STAFF, **_FACTS})
     ans = run_analytics("projects_for_staff", {"name": "anil sharma"}, client)
     assert ans.data["staff_name"] == "Anil Sharma"
-    assert [p["ProjectNo"] for p in ans.data["leads"]] == ["GAP-001"]
-    assert [p["ProjectNo"] for p in ans.data["member_of"]] == ["GAP-002"]
+    assert [p["ProjectID"] for p in ans.data["leads"]] == ["P-1"]
+    assert [p["ProjectID"] for p in ans.data["member_of"]] == ["P-2"]
 
 
 def test_division_summary_typed_data():
@@ -596,18 +651,27 @@ class _PostgrestSimTable:
 
 
 class _PostgrestSimClient:
-    def __init__(self, tables):
+    """Tables through the PostgREST filter simulator; rpc("staff_profile_facts")
+    answers from `facts`, keyed by staff ID (the person's linked records)."""
+    def __init__(self, tables, facts=None):
         self._tables = tables
+        self._facts = facts or {}
 
     def table(self, name):
         return _PostgrestSimTable(self._tables.get(name, []))
 
+    def rpc(self, name, params):
+        assert name == "staff_profile_facts"
+        return _PostgrestSimTable(self._facts.get(params["p_staff_id"], []))
+
+
+def _project_fact(project_id, title, role):
+    return {"section": "PROJECT", "record_id": project_id, "title": title, "role": role}
+
 
 def test_staff_and_projects_lookup_by_lowercase_id_through_filters():
-    client = _PostgrestSimClient({
-        "staff": _STAFF,
-        "projects": _PROJECTS,
-        "project_staff": _PROJECT_STAFF,
+    client = _PostgrestSimClient({"staff": _STAFF}, facts={
+        "S001": [_project_fact("P-1", "GAP-001 Alpha", "PI"), _project_fact("P-2", "GAP-002 Beta", "Team member")],
     })
     prof = run_analytics("staff_profile", {"name": "s001"}, client)
     assert "Anil Sharma" in prof.text
@@ -615,43 +679,13 @@ def test_staff_and_projects_lookup_by_lowercase_id_through_filters():
     assert "GAP-001" in projs.text and "GAP-002" in projs.text
 
 
-def test_projects_for_staff_preserves_trimmed_names_and_id_membership_fallbacks():
+def test_projects_for_staff_counts_linked_records_only_not_name_matches():
+    """20261113000005 / P2: projects come from the person's links. A project
+    whose PI text merely resembles the name is not counted."""
     client = _PostgrestSimClient({
-        "staff": [
-            {"ID": "S001", "Name": "Sharma, Anil"},
-            {"ID": "S002", "Name": "Rekha Nair"},
-        ],
-        "projects": [
-            {"ProjectNo": "GAP-001", "ProjectName": "Alpha", "ProjectStatus": "Ongoing",
-             "PrincipalInvestigator": " Sharma, Anil ", "pi_staff_id": None},
-            {"ProjectNo": "GAP(001)", "ProjectName": "Beta", "ProjectStatus": "Ongoing",
-             "PrincipalInvestigator": "Rekha Nair", "pi_staff_id": "S002"},
-            {"ProjectNo": "GAP-002", "ProjectName": "Gamma", "ProjectStatus": "Ongoing",
-             "PrincipalInvestigator": "Rekha Nair", "pi_staff_id": "S002"},
-        ],
-        "project_staff": [
-            {"ProjectNo": "GAP(001)", "StaffName": "Anil Sharma", "staff_id": "S001"},
-            {"ProjectNo": "GAP-002", "StaffName": "Anil Sharma ", "staff_id": None},
-        ],
-    })
+        "staff": [{"ID": "S001", "Name": "Sharma, Anil"}, {"ID": "S002", "Name": "Rekha Nair"}],
+        "projects": [{"ProjectNo": "GAP-009", "ProjectName": "Name only", "PrincipalInvestigator": " Sharma, Anil "}],
+    }, facts={"S001": [_project_fact("P-1", "GAP(001) Beta", "Team member")]})
     ans = run_analytics("projects_for_staff", {"name": "S001"}, client)
-    assert "GAP-001" in ans.text
     assert "GAP(001)" in ans.text
-
-    # Also verify unsafe membership number does not drop safe membership rows
-    client2 = _PostgrestSimClient({
-        "staff": [{"ID": "S002", "Name": "Rekha Nair"}],
-        "projects": [
-            {"ProjectNo": "GAP(001)", "ProjectName": "Beta", "ProjectStatus": "Ongoing",
-             "PrincipalInvestigator": "Someone Else", "pi_staff_id": None},
-            {"ProjectNo": "GAP-002", "ProjectName": "Gamma", "ProjectStatus": "Ongoing",
-             "PrincipalInvestigator": "Someone Else", "pi_staff_id": None},
-        ],
-        "project_staff": [
-            {"ProjectNo": "GAP(001)", "StaffName": "Rekha Nair ", "staff_id": "S002"},
-            {"ProjectNo": "GAP-002", "StaffName": "Rekha Nair", "staff_id": "S002"},
-        ],
-    })
-    ans2 = run_analytics("projects_for_staff", {"name": "rekha"}, client2)
-    assert "GAP(001)" in ans2.text
-    assert "GAP-002" in ans2.text
+    assert "GAP-009" not in ans.text

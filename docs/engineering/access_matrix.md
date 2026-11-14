@@ -49,12 +49,18 @@ Source of truth: `ACCESS_MAP` in `src/constants/access.ts`. This table is genera
 | Dashboard | `/` | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● |
 | Ask SURYA | `/ask` | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | · | · | ● | ● |
 | My Work | `/work` | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | · | · | ● | ● |
+| My Profile | `/me` | ● | ● | ● | ● | ● | ● | ● | ● | ● | · | · | · | · | ● | ● |
 | Calendar | `/calendar` | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | · | · | ● | ● |
 | Intelligence | `/intelligence` | ● | ● | ● | · | · | · | · | · | ● | · | · | · | · | · | · |
 | Explore Graph | `/explore` | ● | ● | ● | · | · | · | · | · | ● | · | · | · | · | · | · |
 | Human Capital | `/staff` | ● | ● | ● | · | · | ● | · | · | ● | · | · | · | · | · | · |
 | Staff Analytics | `/staff/analytics` | ● | ● | ● | · | · | ● | · | · | ● | · | · | · | · | · | · |
 | Project Staff | `/staff/project` | ● | ● | ● | · | · | ● | · | · | ● | · | · | · | · | · | ● |
+| Sanctioned Posts | `/staff/posts` | ● | ● | ● | · | · | ● | · | · | ● | · | · | · | · | · | · |
+| Workforce Planning | `/staff/planning` | ● | ● | ● | · | · | ● | · | · | ● | · | · | · | · | · | · |
+| Expertise Finder | `/expertise` | ● | ● | ● | · | · | ● | · | · | ● | · | · | · | · | · | ● |
+| Publication Files | `/publication-files` | ● | ● | ● | ● | ● | · | · | · | ● | · | · | · | · | · | · |
+| Acting Charges | `/admin/acting` | ● | · | · | · | · | ● | · | · | ● | · | · | · | · | · | · |
 | PhD Tracker | `/phd` | ● | ● | ● | ● | · | · | · | · | ● | · | · | · | · | · | · |
 | Divisions | `/divisions` | ● | ● | ● | · | · | · | · | · | ● | · | · | · | · | · | · |
 | Recruitment | `/recruitment` | · | · | · | · | · | ● | · | · | ● | · | · | · | · | · | · |
@@ -66,6 +72,7 @@ Source of truth: `ACCESS_MAP` in `src/constants/access.ts`. This table is genera
 | Partnerships | `/partnerships` | ● | ● | ● | · | · | · | ● | · | ● | · | · | · | · | · | ● |
 | R&D Monitor | `/rnd-monitor` | ● | ● | ● | · | · | · | ● | · | ● | · | · | · | · | · | ● |
 | Project Portfolio | `/portfolio` | ● | ● | ● | · | · | · | ● | · | ● | · | · | · | · | · | ● |
+| Lessons Learned | `/lessons` | ● | ● | ● | ● | ● | · | ● | · | ● | · | · | · | · | · | ● |
 | Committees | `/committees` | ● | ● | ● | ● | ● | ● | ● | ● | ● | · | · | · | · | ● | ● |
 | Helpdesk | `/helpdesk` | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● |
 | Performance Mgmt | `/pms` | ● | ● | ● | ● | · | ● | · | · | ● | · | · | · | · | ● | · |
@@ -82,6 +89,8 @@ Source of truth: `ACCESS_MAP` in `src/constants/access.ts`. This table is genera
 | Access Requests | `/admin/access-requests` | · | · | · | · | · | · | · | ● | ● | · | · | · | · | · | · |
 | Feature Controls | `/admin/features` | · | · | · | · | · | · | · | · | ● | · | · | · | · | · | · |
 | Data Management | `/data` | · | · | · | · | · | ● | · | ● | ● | · | · | · | · | · | · |
+| People Links | `/data/links` | ● | · | · | · | · | ● | · | ● | ● | · | · | · | · | · | · |
+| CSIR Rules | `/admin/rules` | · | · | · | · | · | · | · | · | ● | · | · | · | · | · | · |
 | IRINS Sync | `/irins-sync` | · | · | · | · | · | · | · | ● | ● | · | · | · | · | · | · |
 | RAG Ingestion | `/admin/rag` | · | · | · | · | · | · | · | ● | ● | · | · | · | · | · | · |
 | Holidays | `/admin/holidays` | · | · | · | · | · | · | · | ● | ● | · | · | · | · | · | · |

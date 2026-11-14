@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
-import { drivesByStage, setDriveStage, DRIVE_STAGES, type DriveStage } from '../lib/recruitment/drives';
+import { allowedStages, drivesByStage, setDriveStage, type DriveStage } from '../lib/recruitment/drives';
 import { ChartCard } from '../components/viz/ChartCard';
 import { CategoryDonut } from '../components/viz/CategoryDonut';
 import { CategoryBar } from '../components/viz/CategoryBar';
@@ -173,7 +173,7 @@ export default function RecruitmentAnalytics() {
                     onChange={e => void onStageChange(a.id, e.target.value as DriveStage)}
                     className="rounded-md border border-border bg-surface px-2 py-1 text-xs text-text"
                   >
-                    {DRIVE_STAGES.map(s => <option key={s}>{s}</option>)}
+                    {allowedStages(a.driveStage).map(s => <option key={s}>{s}</option>)}
                   </select>
                 </li>
               ))}

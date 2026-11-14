@@ -57,6 +57,15 @@ export function SpecSection({ spec, data, onChange }: Props) {
         </div>
       )}
 
+      {spec.kind === 'prompts' && spec.totalMaxWords && (() => {
+        const total = spec.prompts.reduce((n, p) => n + str(p.key).trim().split(/\s+/).filter(Boolean).length, 0);
+        return (
+          <p className={total > spec.totalMaxWords ? 'text-xs text-badge-danger-fg' : 'text-xs text-text-muted'}>
+            {total} of {spec.totalMaxWords} words for the whole section
+          </p>
+        );
+      })()}
+
       {spec.kind === 'prompts' && (
         <div className="space-y-5">
           {spec.prompts.map(p => (

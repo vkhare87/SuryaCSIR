@@ -207,7 +207,8 @@ export function DivisionFormModal({ isOpen, onClose, division }: Props) {
               type="number"
               min={0}
               value={divSanctionedstrength}
-              onChange={(e) => setDivSanctionedstrength(parseInt(e.target.value || '0', 10))}
+              readOnly
+              title="Comes from the Sanctioned Posts register"
               className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-[#3898ec] outline-none"
             />
             {errors.divSanctionedstrength && <p className="text-xs text-red-600 mt-1">{errors.divSanctionedstrength}</p>}
@@ -218,11 +219,13 @@ export function DivisionFormModal({ isOpen, onClose, division }: Props) {
               type="number"
               min={0}
               value={divCurrentStrength}
-              onChange={(e) => setDivCurrentStrength(parseInt(e.target.value || '0', 10))}
+              readOnly
+              title="Comes from the Sanctioned Posts register"
               className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-[#3898ec] outline-none"
             />
             {errors.divCurrentStrength && <p className="text-xs text-red-600 mt-1">{errors.divCurrentStrength}</p>}
           </div>
+          <p className="col-span-2 text-xs text-text-muted">Strength comes from the Sanctioned Posts register; change it there.</p>
         </div>
 
         {submitError && (

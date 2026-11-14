@@ -20,7 +20,7 @@ export interface WizardStep {
 
 // Sections that carry period_from / period_to for their track. ReportWizard
 // lifts those two dates onto pms_reports so pms_submit_report can accept.
-export const PERIOD_SECTION_KEYS: SectionKey[] = ['summary', 'sr_identification', 'dir_identification'];
+export const PERIOD_SECTION_KEYS: SectionKey[] = ['summary', 'sr_identification', 'dir_identification', 'p26_part1'];
 
 // 2026 5-part proforma. Parts III (Evaluation Committee) and IV (Empowered
 // Committee) are appraisal stages, not wizard steps — the scientist wizard

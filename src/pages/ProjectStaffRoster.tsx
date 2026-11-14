@@ -7,8 +7,10 @@ import { Search, Filter, UsersRound, X } from 'lucide-react';
 import type { ProjectStaff } from '../types';
 import { ProjectStaffAnalytics, type Facet } from './ProjectStaffAnalytics';
 import { useUrlTab } from '../utils/useUrlTab';
+import { useAuth } from '../contexts/AuthContext';
+import { ProjectEngagementsPanel } from '../components/ProjectEngagementsPanel';
 
-const ROSTER_TABS = ['list', 'analytics'] as const;
+const ROSTER_TABS = ['list', 'analytics', 'engagements'] as const;
 
 const FACET_FIELD: Record<Facet['dim'], keyof ProjectStaff> = {
   project: 'ProjectNo',
@@ -25,6 +27,8 @@ const FACET_LABEL: Record<Facet['dim'], string> = {
 
 export default function ProjectStaffRoster() {
   const { projectStaff, divisions } = useData();
+  const { user } = useAuth();
+  const keeps = !!user && ['PME', 'HRAdmin', 'MasterAdmin'].some(r => user.roles.includes(r as never));
   const [activeTab, setActiveTab] = useUrlTab(ROSTER_TABS);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDivision, setSelectedDivision] = useState<string>('ALL');
@@ -79,7 +83,7 @@ export default function ProjectStaffRoster() {
     },
   ];
 
-  const tabBtn = (tab: 'list' | 'analytics', label: string) => (
+  const tabBtn = (tab: typeof ROSTER_TABS[number], label: string) => (
     <button
       onClick={() => setActiveTab(tab)}
       className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
@@ -100,10 +104,13 @@ export default function ProjectStaffRoster() {
         <div className="flex gap-1 bg-surface border border-border rounded-lg p-1">
           {tabBtn('list', 'List')}
           {tabBtn('analytics', 'Analytics')}
+          {keeps && tabBtn('engagements', 'Engagements')}
         </div>
       </div>
 
-      {activeTab === 'analytics' ? (
+      {activeTab === 'engagements' && keeps ? (
+        <ProjectEngagementsPanel />
+      ) : activeTab === 'analytics' ? (
         <ProjectStaffAnalytics
           onFacet={(f) => {
             setFacet(f);

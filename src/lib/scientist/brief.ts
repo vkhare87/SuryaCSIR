@@ -117,7 +117,7 @@ export function buildScientistBrief(dossier: ScientistDossier): string {
   out.push('## How to read this brief', '');
   out.push(
     '- **"No matching institutional record" ≠ false.** The likeliest cause is a record that was never loaded into the system, not a fabricated claim. Verify against physical/source records before drawing any conclusion.',
-    '- **Joins are name-based.** Publications, patents, projects, and supervision are matched to this person by name (variant-tolerant). A name mismatch can hide real work or attach someone else\'s — treat counts as "on record", not definitive.',
+    '- **Records are joined by link.** Publications, patents, projects and supervision count only once they are linked to this person (People Links). An unlinked record is left out, so a low count may mean a link still to make — treat counts as "on record", not definitive.',
     '- **No score here by design.** This brief presents evidence and patterns only. Scoring is the committee\'s decision under the 2026 guidelines.',
     '',
   );

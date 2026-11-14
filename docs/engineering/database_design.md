@@ -801,6 +801,187 @@ Phase `PL7` (plan §10). No new tables.
   baseline) is replaced by `projects_write_master` (MasterAdmin); PME keeps
   `projects_write_pme`. Asserted in the migration.
 
+### 3.10 Enterprise base (P1) — `20261112000004`…`20261112000008`
+
+Plan: `docs/superpowers/plans/2026-11-12-enterprise-phases.md` P1.
+
+- **`csir_rules`** (`…04`) — one row per rule value from a date: `rule_key`, `value jsonb`,
+  `unit`, `effective_from`, `effective_to`, `source_ref` (OM paragraph, required),
+  `verified`. `UNIQUE (rule_key, effective_from)`. Read: verified users. No client write.
+  `csir_rule(key, on)` answers for a date and raises when there is no row;
+  `csir_rule_set(...)` (MasterAdmin) closes the open row and appends — rows are never
+  edited. Starting rows from OM 33/2025 are loaded `verified = false` in the migration
+  (readiness and the RCE route need two of them). `proposal_readiness` and
+  `project_change_step_kinds` read `project.major_equipment_threshold_inr` and
+  `project.cost_overrun_dg_limit_pct` instead of literals.
+- **`output_authors`, `ip_inventors`** (`…05`) — one row per name and position (`pos`) of
+  `scientific_outputs.authors` / `ip_intelligence.inventors`, with `staff_id`,
+  `link_source 'auto'|'manual'`, `confirmed_by/at`. Kept in step by a trigger on the
+  arrays: an unchanged name keeps its link. Auto-link only when exactly one staff member
+  has the same `person_name_key()` (same normalisation as `normalizePersonName`). Read
+  wherever the parent is readable; no client write. `staff.orcid` added.
+- **Typed HR dates** (`…06`) — `staff.doj_date/dob_date/doapp_date`,
+  `project_staff.joined_on/project_ends_on`, `contract_staff.joined_on/ends_on/born_on`,
+  recomputed from the text column by `try_parse_date()` on every write. Unparseable = NULL.
+- **`entity_timeline`** view (`…07`, `security_invoker`) — `project_events`,
+  `pms_audit_logs`, `contribution_request_events` and `audit_log` as
+  `(entity_type, entity_id, at, actor_user_id, kind, summary, source)`. There is no HR
+  audit table yet.
+- **`notifications_sweep()`** (`…08`) gains the rules that lived only in
+  `myActions.ts`: progress report due, change and completion steps by desk, completion
+  report due, proposal desk, progress-report review, committee action items, superannuation.
+
+### 3.11 Research profile (P2) — `20261112000010`…`20261112000012`
+
+- **`staff_profile_facts(staff_id, from, to)`** (`…10`, invoker) — one row per record:
+  `(section, record_type, record_id, title, role, date_from, date_to, amount, link)`.
+  Sections `SERVICE`, `PROJECT` (PI by `pi_staff_id`, co-PI by `proposal_copis`, team by
+  `project_staff.staff_id`), `OUTPUT` / `IP` (via `output_authors` / `ip_inventors`),
+  `TECH_TRANSFER` (linked to the person's IP or led projects), `STUDENT`, `COMMITTEE`,
+  `AWP`, `LESSON`, `EQUIPMENT` (`owner_user_id`). Keys only, never names. Returns nothing
+  when the caller may not read the staff row. The date window keeps rows that overlap it;
+  undated rows stay in.
+- **`staff_profile_changes`** (`…11`) — append-only log of `update_own_profile`;
+  `changes jsonb {field: {from, to}}`. Readable with the staff row; no client write.
+  Joins `entity_timeline` as `entity_type = 'staff'`.
+- **`person_name_may_be(a, b)`** (`…12`) — equal `person_name_key`, or one inside the other
+  (both ≥ 3 characters).
+- **`profile_consistency_issues(staff_id)`** (`…12`, invoker) — `IRINS_OUTPUT_NOT_IN_SURYA`,
+  `OUTPUT_AUTHOR_UNLINKED`, `PI_NAME_UNLINKED`, `STUDENT_SUPERVISOR_UNLINKED`,
+  `AWP_PROJECT_NOT_ON_TEAM`. **`profile_consistency_sweep()`** (cron Monday 02:00 UTC) raises
+  one live `contribution_requests` row per person (`domain 'staff'`, `link '/me'`, dedupe
+  `profile:<ID>:<date>`). `contribution_target_can_see` gains: a person may be assigned a
+  request about their own staff row.
+
+### 3.12 Project compliance (P3) — `20261112000013`…`20261112000017`
+
+- **`coi_declarations`** (`…13`) — `(meeting_id, member_user_id)` unique; `format 'F1'|'F2'`,
+  `conflict_note` (required for F2), `chair_decision 'CONTINUE'|'RECUSE'` (F2 only),
+  `decided_by/at`. Read by the member, and the chair and convener (`committees.secretary_id`)
+  of the meeting's committee — `coi_caller_chairs()`. No client write: `coi_declare`,
+  `coi_chair_decide`. A missing declaration is flagged, never blocking.
+- **`project_pack(project, kind, change)`** and **`project_checklist_b(change)`** (`…14`,
+  invoker) — see `api_spec.md`. Next-year demand = next year's sanction − (received − spent),
+  floor 0.
+- **`project_cpd_halfyearly(period_end)`** (`…15`, invoker) — HQ projects running in the
+  six months ending `period_end`: review slots due / held / missed, money to the period end,
+  milestones, progress reports submitted.
+- **`project_stage_items`** (fixed list, stages I–VI) and **`project_stage_deliverables`**
+  `(project_id, item_key)` → `project_documents` (`doc_type 'stage_deliverable'`) (`…16`).
+  `project_category()`; `project_stage_deliverable_record()` (PI or PME; FTT/FTC/MMP only);
+  `project_transfer_gaps()` lists transfers whose project lacks any stage VI paper.
+- **`equipment_usage_log`** (`…17`) — insert-only; `equipment_logbook_required()` = on a project
+  and `purchase_cost` above `csir_rule('project.major_equipment_threshold_inr')`;
+  `equipment_log_usage()` (scientist-in-charge, PI or PME). `pme_compliance_counts()` gives
+  the desk three counts (definer; no declaration content).
+
+### 3.13 PMS 2026 assessment (P4) — `20261112000018`…`20261112000022`
+
+- **`pms_reports`** gains `proforma_version 'LEGACY'|'2026'` (existing rows LEGACY; a report a
+  scientist creates in the app is 2026), `committee_id` (set by `pms_assign_evaluators`),
+  `deemed_accepted_at` (set by the sweep), `questionnaire_b` (set at creation: pay level ≥ 13).
+  None is client-writable.
+- **Annexure-B** (`…18`): `pms_annexure_b_due(cycle, step)`, `pms_timeline_status(cycle)`
+  (nine steps: done / pending / overdue), `pms_delay_report(cycle)`; `pms_timeline_sweep()`
+  daily (cron `pms-timeline-sweep`): deemed acceptance after 15 days, reminders for a
+  representation older than a month and for Empowered Committee work past 31 July.
+- **`pms_part1`** (`…19`): `data jsonb` from the staff record, `discrepancy`, `verified_*`.
+- **2026 rules** (`…20`): `csir_rules` rows `pms.designation_pay_level`,
+  `pms.designation_committee_tier`, `pms.questionnaire_b_min_pay_level` (unverified).
+  `pms_assign_evaluators` refuses a committee of the wrong tier (2026 only).
+  **`pms_panel_scores`** — one row per report (PK `report_id`): score, reasons, pen picture,
+  integrity, adverse remarks, critical assessment, quorum. Members cannot file their own
+  score on a 2026 report (`trg_pms_evaluations_guard_2026`). `pms_committee_decisions` gains
+  `ec_action 'CONCUR'|'UPGRADE'|'DOWNGRADE'`, `panel_score`, `general_comments`,
+  `critical_assessment`, `quorum_present`, `members_total`; a 2026 decision without `ec_action`
+  is refused.
+- **`pms_report_items`** (`…21`): `(report_id, section, source_record_type, source_record_id)`
+  unique; `state 'PREFILLED'|'CONFIRMED'|'EDITED'|'ADDED'|'REMOVED'`; readers other than the
+  scientist see confirmed, edited and added lines only.
+- **`pms_score_history(staff)`** and **`pms_grade(score)`** (`…22`).
+- **Checked against the guideline** (`…24`, CSIR PMS Guidelines 2026): 2026 = standard track
+  only (up to Scientist-F); `pms_panel_scores.integrity` is free text per Appendix-B and
+  `remarks` holds "Remarks by Evaluation Committee"; **`pms_pen_picture_items`** holds the 15
+  behavioural items (A/B/C, five each) and the panel score requires every item rated
+  Excellent / Very Good / Good / Needs to be improved; Part I pre-fill adds e-mail, core subject
+  area, specialisation and Reporting Officer.
+- **`project_category()`** (`…23`) reads the HQ code from the project number when
+  `"ProjectCategory"` holds words ("Mission Mode", "R&D") as on the live data.
+
+### 3.14 Posts and people (P5) — `20261113000001`…`20261113000004`
+
+- **`sanctioned_posts`** (`…01`): `post_code` unique; `staff_group`, `level`, `designation`,
+  `discipline`, `division_code`, `category`, `state 'FILLED'|'VACANT'|'ADVERTISED'|'ABEYANCE'|
+  'ABOLISHED'`, `holder_staff_id` (one post per holder), `vacant_since`, `sanction_ref`.
+  `sanctioned_post_events` append-only. View **`division_strength`** (sanctioned · filled ·
+  vacant · advertised · oldest vacancy). The two integers on `divisions` are no longer read:
+  `DataContext` fills those fields from the view.
+- **Bridge views** (`20261113000011`, both `security_invoker`): **`staff_project_links`**
+  (`staff_id`, `project_id`, `role` — PI from `projects.pi_staff_id`, Co-PI from
+  `proposal_copis`, team from `project_staff`) and **`staff_research_summary`** (one row per
+  readable staff member: `active_projects`, `as_pi`, `sanctioned_value`, `outputs`, `ip`,
+  `students`, `confirmed_terms`, `retires_on`). `staff_workload()` and `expertise_find()` read
+  them; a query that needs a person's counts joins the summary and does not call
+  `staff_profile_facts()` per row. Indexes added: `proposal_copis(staff_id)`,
+  `phd_students(cosupervisor_staff_id)`. `metrics` and `metric_snapshots` are read by verified
+  users only.
+- **`staff_workload(staff)`**, **`workforce_outlook(years)`**, **`staff_career_events`**
+  (`…02`, unique `(staff_id, kind, effective_on)`; joins `entity_timeline`).
+- **Project staff** (`…03`): `project_staff_persons`, `project_selections`
+  (`mode 'SELECTION'|'WAITLIST'|'DIRECT'`, `committee jsonb`), `project_engagements`,
+  `project_staff_leave`; `project_staff.person_id`. Rules read for the day of the decision.
+  `project_staff_tenure_days()` counts each day once and excludes the PhD window.
+  `project_staff_backfill()` links legacy rows whose name is on one row (run once in the
+  migration); `project_staff_legacy_pending()` lists the rest. `…05` makes it also fill
+  `project_id` by `project_no_key()` ("GAP-120" = "GAP0120"; unique match only) and add the
+  missing engagement for already-linked rows.
+- **`recruitment_events`** append-only, `vacancy_posts.sanctioned_post_id`; trigger
+  `trg_vacancy_advertisements_stage` refuses a client write to `drive_stage` (`…04`).
+- **`acting_assignments`** (`…04`): role `HOD|DivisionHead|Director`, division (none for
+  Director), principal, acting user, dates, office order. `caller_has_role()` and
+  `caller_in_division()` honour a running assignment; `entity_timeline.acted_as`.
+
+### 3.15 Expertise (P6) — `20261113000006`
+
+- **`expertise_terms`**: `label` (unique among ACTIVE, case-blind), `kind 'MATERIAL'|'TECHNIQUE'|
+  'APPLICATION'`, `theme_code '01'–'09'` (position in `DOMAIN_THEMES`), `parent_id`,
+  `status 'ACTIVE'|'MERGED'`, `merged_into`. Read: any signed-in user. Write: HR, MasterAdmin,
+  staff-domain data stewards (`caller_is_expertise_curator()`); MERGED only through `expertise_merge`.
+- **`staff_expertise`** PK `(staff_id, term_id)`, `source 'SELF'|'SUGGESTED'`, `confirmed_at`,
+  `added_by`. The person adds and confirms their own; a curator may only insert an unconfirmed
+  SUGGESTED row. Only confirmed rows count in `expertise_find`. Evidence is counted live, not stored.
+
+### 3.16 Metrics (P7) — `20261113000007`
+
+- **`metrics`** (key, label, definition, unit `count|inr|pct`, scope_kinds, `fn regproc`,
+  owner_role, sort): 12 rows, each `fn` is `metric_<key>(scope jsonb) → numeric` (invoker).
+  Scope keys: `division`, `year`, `stage`. Client: SELECT only; rows change only by migration.
+- **`metric_snapshots`** PK `(metric_key, scope, as_on)`: written by `metric_snapshot_run`
+  with `ON CONFLICT DO NOTHING`; no client write. A snapshot never changes.
+- **`projects.theme_code`** (`'01'–'09'`), **`trl_target`**, **`trl_reached`** (1–9), set by
+  `project_set_lens`.
+
+### 3.17 AI actions (P8) — `20261113000008`
+
+- **`ai_action_log`** (notification_id, user_id, action_kind, args, outcome `DONE|OPENED`, at):
+  append-only, written only by `notification_accept`. Read: own rows, or admin.
+- Suggestions are `notifications` rows with `source = 'agent'` and `proposed_action =
+  {kind, label, args}`; kinds `suggest-identity-link`, `suggest-expertise`.
+
+### 3.18 Project breadth (P9) — `20261113000009`
+
+- **`project_schemes`** gains `EFP` (externally funded) and `OLP` (lab seed / own).
+- **`project_labs`** PK `(project_id, lab_code)`, `role 'NODAL'|'PARTICIPATING'` (one nodal),
+  `rc_approval_document_id`. **`lab_code`** (default `AMPRI`) on `project_budget_lines`,
+  `project_fund_receipts`, `project_expenditure`; a reversal copies its original's lab
+  (trigger). **`project_ip_agreements`** (project, document, signed_on).
+- **`publication_files`**: status `DRAFT → ETHICS_CHECK → CLEARED → SUBMITTED → ACCEPTED →
+  PUBLISHED`, `communication_no` unique (`AMPRI/<year>/<serial>`, issued at clearance),
+  `similarity_pct`, `output_id` once published. **`publication_author_consents`** PK
+  `(file_id, pos)`: name, staff_id (NULL = external), contribution, consented_at.
+  Read: the corresponding author, the in-house authors, the division's HoD / Division Head,
+  the Director, MasterAdmin. No client writes.
+
 ## 4. Indexing strategy
 
 **Principles.**

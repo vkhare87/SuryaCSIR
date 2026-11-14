@@ -47,6 +47,7 @@ export const mapStaffRow = (row: any): StaffMember => {
     ReportingID: String(row.ReportingID || row.reporting_id || ''),
     HighestQualification: row.HighestQualification || row.highest_qualification || '',
     Gender: row.Gender || row.gender || '',
+    orcid: row.orcid ?? null,
   };
 };
 
@@ -73,6 +74,9 @@ export const mapProjectRow = (row: any): ProjectInfo => {
     piStaffId: row.pi_staff_id ?? null,
     proposalId: row.proposal_id ?? null,
     legacyCompletedAt: row.legacy_completed_at ?? null,
+    themeCode: row.theme_code ?? null,
+    trlTarget: row.trl_target ?? null,
+    trlReached: row.trl_reached ?? null,
   };
 };
 

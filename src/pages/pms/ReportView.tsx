@@ -11,6 +11,8 @@ import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { ReportAWPSection } from '../../components/pms/ReportAWPSection';
+import { Part1Panel } from '../../components/pms/Part1Panel';
+import { ReportItemsPanel } from '../../components/pms/ReportItemsPanel';
 import type { PMSReport, PMSReportSection, PMSAnnexure, PMSAWPActivity, PMSCommitteeDecision } from '../../types/pms';
 import { friendlyError } from '../../lib/errors';
 
@@ -179,6 +181,13 @@ export default function ReportView() {
           )}
         </div>
       </div>
+
+      {report.proformaVersion === '2026' && (
+        <>
+          <Part1Panel report={report} />
+          <ReportItemsPanel reportId={report.id} editable={false} />
+        </>
+      )}
 
       {/* Final decision */}
       {committeeDecision?.finalScore != null && (

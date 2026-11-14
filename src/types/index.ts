@@ -38,6 +38,8 @@ export interface StaffMember {
   ReportingID: string; // References StaffMember.ID
   HighestQualification: string;
   Gender: string; // 'Male' | 'Female'
+  /** ORCID iD; the person keeps it current (update_own_profile). */
+  orcid?: string | null;
 }
 
 export interface ProjectInfo {
@@ -67,6 +69,10 @@ export interface ProjectInfo {
   proposalId?: string | null;
   /** When PME brought a pre-SURYA project in (sanction by head, money to date). */
   legacyCompletedAt?: string | null;
+  /** Theme '01'–'09' (DOMAIN_THEMES order) and TRL 1–9, set by PME or the PI (20261113000007). */
+  themeCode?: string | null;
+  trlTarget?: number | null;
+  trlReached?: number | null;
 }
 
 export type ProjectStage =
@@ -550,4 +556,81 @@ export interface DataSteward {
   userId: string;
   kind: 'accountable' | 'steward';
   cadenceDays: number;
+}
+
+/** A CSIR rule value from a date on (csir_rules, 20261112000004). */
+export interface CsirRule {
+  id: string;
+  ruleKey: string;
+  value: unknown;
+  unit: string | null;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+  sourceRef: string;
+  verified: boolean;
+  note: string | null;
+}
+
+/** A name a person must link to a staff record (identity_link_gaps, 20261112000005). */
+export interface IdentityLinkGap {
+  kind: string;
+  recordId: string;
+  name: string;
+  candidates: number;
+  pos: number | null;
+}
+
+/** Sections of staff_profile_facts (20261112000010). */
+export type ProfileSection = 'SERVICE' | 'PROJECT' | 'OUTPUT' | 'IP' | 'TECH_TRANSFER' | 'STUDENT'
+  | 'COMMITTEE' | 'AWP' | 'LESSON' | 'EQUIPMENT';
+
+/** One line of a person's research profile, with the record behind it. */
+export interface ProfileFact {
+  section: ProfileSection;
+  recordType: string;
+  recordId: string;
+  title: string;
+  role: string | null;
+  dateFrom: string | null;
+  dateTo: string | null;
+  amount: number | null;
+  link: string;
+}
+
+/** Where a profile and the records disagree (profile_consistency_issues). */
+export interface ProfileIssue {
+  staffId: string;
+  kind: 'IRINS_OUTPUT_NOT_IN_SURYA' | 'OUTPUT_AUTHOR_UNLINKED' | 'PI_NAME_UNLINKED'
+    | 'STUDENT_SUPERVISOR_UNLINKED' | 'AWP_PROJECT_NOT_ON_TEAM';
+  recordRef: string;
+  detail: string;
+}
+
+/** One row of entity_timeline (20261112000007). */
+export interface TimelineEntry {
+  at: string;
+  kind: string;
+  summary: string;
+  source: string;
+}
+
+/** A member's conflict-of-interest declaration for a meeting (20261112000013). */
+export interface CoiDeclaration {
+  id: string;
+  meetingId: string;
+  memberUserId: string;
+  format: 'F1' | 'F2';
+  conflictNote: string | null;
+  chairDecision: 'CONTINUE' | 'RECUSE' | null;
+  declaredAt: string;
+}
+
+/** One entry of an instrument's usage logbook (20261112000017). */
+export interface EquipmentUsage {
+  id: string;
+  usedOn: string;
+  hours: number;
+  userStaffId: string | null;
+  purpose: string;
+  loggedAt: string;
 }

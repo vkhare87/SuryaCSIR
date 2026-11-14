@@ -6,17 +6,18 @@ interface Props {
   value: PenPicture;
   onChange: (v: PenPicture) => void;
   disabled?: boolean;
+  /** Replaces the senior-track Appendix-C line above the groups. */
+  intro?: string;
 }
 
-export function PenPictureForm({ groups, value, onChange, disabled }: Props) {
+export function PenPictureForm({ groups, value, onChange, disabled, intro }: Props) {
   const setRating = (key: string, rating: string) =>
     onChange({ ...value, ratings: { ...value.ratings, [key]: rating } });
 
   return (
     <div className="space-y-6">
       <p className="text-sm text-text-muted">
-        Appendix-C — Pen Picture (behavioural aspects). Rate every row, then record the
-        evaluation report below.
+        {intro ?? 'Appendix-C — Pen Picture (behavioural aspects). Rate every row, then record the evaluation report below.'}
       </p>
 
       {groups.map(group => (

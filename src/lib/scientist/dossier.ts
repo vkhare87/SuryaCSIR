@@ -5,7 +5,7 @@ import { matchClaims, type ClaimMatchSummary } from './claimMatch';
 import { buildTrajectory, type ScientistTrajectory } from './trajectory';
 import type {
   StaffMember, ProjectInfo, ProjectStaff, PhDStudent, ScientificOutput,
-  IPIntelligence, Equipment, TechTransfer, MoU,
+  IPIntelligence, Equipment, TechTransfer, MoU, ProfileFact,
 } from '../../types';
 import type { PMSReport, PMSReportSection } from '../../types/pms';
 import { isActiveProject, isCompletedProject } from '../projects/stage';
@@ -16,16 +16,15 @@ import { isActiveProject, isCompletedProject } from '../projects/stage';
 // evolutionary path as divisions/dossier.ts. No scores of the person (see
 // trajectory.ts / trackRecord.ts for why).
 
-/** How the person's records were joined. Everything except the staff row
- * itself is matched by NAME (name-variant tolerant), which is the known weak
- * link — surfaces must disclose this so a missing item reads as a possible
- * match/ingestion gap, not an absence of work. */
+/** How the person's records were joined: by id and by the identity links in
+ * staff_profile_facts. An unlinked record is not shown here; it waits on
+ * People Links, so a missing item may be a link still to make. */
 export interface DossierJoinBasis {
   staff: 'id';
-  publications: 'name';
-  ip: 'name';
-  projects: 'name';
-  supervision: 'name';
+  publications: 'link';
+  ip: 'link';
+  projects: 'link';
+  supervision: 'link';
 }
 
 export interface ScientistDossier {
@@ -74,6 +73,8 @@ export function buildScientistDossier(params: {
   equipment: Equipment[];
   techTransfers: TechTransfer[];
   mous: MoU[];
+  /** staff_profile_facts for this person: the links that pick the records. */
+  facts: ProfileFact[];
   /** Current-cycle report + sections to run claim corroboration. Optional. */
   report?: PMSReport | null;
   sections?: PMSReportSection[];
@@ -84,11 +85,11 @@ export function buildScientistDossier(params: {
     staffId: params.staffId,
     staff: params.staff,
     projects: params.projects,
-    projectStaff: params.projectStaff,
     phDStudents: params.phDStudents,
     scientificOutputs: params.scientificOutputs,
     ipIntelligence: params.ipIntelligence,
     equipment: params.equipment,
+    facts: params.facts,
   });
   if (!portfolio) return null;
 
@@ -97,6 +98,7 @@ export function buildScientistDossier(params: {
   const ownMous = params.mous.filter(m => m.divisionCode === member.Division);
 
   const collabPairs = coAuthorPairs(portfolio.publications, params.staff);
+  const piIds = new Set(params.facts.filter(f => f.section === 'PROJECT' && f.role === 'PI').map(f => f.recordId));
 
   const trajectory = buildTrajectory({
     scientistName: member.Name,
@@ -117,12 +119,17 @@ export function buildScientistDossier(params: {
         scientificOutputs: params.scientificOutputs,
         ipIntelligence: params.ipIntelligence,
         projects: params.projects,
+        own: {
+          publications: portfolio.publications,
+          ipAssets: portfolio.ipAssets,
+          projects: portfolio.linkedProjects.filter(p => piIds.has(p.ProjectID)),
+        },
       })
     : null;
 
   return {
     member,
-    joinBasis: { staff: 'id', publications: 'name', ip: 'name', projects: 'name', supervision: 'name' },
+    joinBasis: { staff: 'id', publications: 'link', ip: 'link', projects: 'link', supervision: 'link' },
     present: {
       activeProjects: portfolio.linkedProjects.filter(isActiveProject),
       supervisedPhDs: portfolio.supervisedPhDs,
@@ -131,7 +138,7 @@ export function buildScientistDossier(params: {
     },
     history: {
       completedProjects: portfolio.linkedProjects.filter(isCompletedProject),
-      trackRecord: piTrackRecord(params.projects, member.Name),
+      trackRecord: piTrackRecord(portfolio.linkedProjects.filter(p => piIds.has(p.ProjectID)), member.Name, true),
       pmsHistory: params.pmsHistory ?? [],
     },
     impact: {

@@ -22,6 +22,11 @@ import { VERIFIED } from './constants/access';
 // these boundaries.
 const HumanCapital      = lazy(() => import('./pages/HumanCapital'));
 const ProjectStaffRoster = lazy(() => import('./pages/ProjectStaffRoster'));
+const PostRegister      = lazy(() => import('./pages/PostRegister'));
+const WorkforcePlanning = lazy(() => import('./pages/WorkforcePlanning'));
+const Expertise = lazy(() => import('./pages/Expertise'));
+const PublicationFiles = lazy(() => import('./pages/PublicationFiles'));
+const ActingCharges     = lazy(() => import('./pages/admin/ActingCharges'));
 const StaffAnalytics    = lazy(() => import('./pages/StaffAnalytics'));
 const StaffDetail       = lazy(() => import('./pages/StaffDetail'));
 const Projects          = lazy(() => import('./pages/Projects'));
@@ -44,6 +49,7 @@ const DataManagement    = lazy(() => import('./pages/DataManagement'));
 const AccessRequests    = lazy(() => import('./pages/AccessRequests'));
 const Calendar          = lazy(() => import('./pages/Calendar'));
 const MyWork            = lazy(() => import('./pages/MyWork'));
+const MyProfile         = lazy(() => import('./pages/MyProfile'));
 const PMSIndex          = lazy(() => import('./pages/pms/Index'));
 const PMSCycles         = lazy(() => import('./pages/pms/Cycles'));
 const EvaluationCommittees = lazy(() => import('./pages/pms/EvaluationCommittees'));
@@ -69,6 +75,8 @@ const RagMonitor        = lazy(() => import('./pages/RagMonitor'));
 const AskSurya          = lazy(() => import('./pages/AskSurya'));
 const HolidaysAdmin     = lazy(() => import('./pages/admin/HolidaysAdmin'));
 const FeatureControlsAdmin = lazy(() => import('./pages/admin/FeatureControls'));
+const CsirRules         = lazy(() => import('./pages/admin/CsirRules'));
+const IdentityLinks     = lazy(() => import('./pages/admin/IdentityLinks'));
 const Proposals         = lazy(() => import('./pages/proposals/Proposals'));
 const ProposalWorkspace = lazy(() => import('./pages/proposals/ProposalWorkspace'));
 const ProposalDetail    = lazy(() => import('./pages/proposals/ProposalDetail'));
@@ -176,6 +184,11 @@ function App() {
             <Route path="/staff" element={<ProtectedRoute accessPath="/staff"><HumanCapital /></ProtectedRoute>} />
             <Route path="/staff/analytics" element={<ProtectedRoute accessPath="/staff/analytics"><StaffAnalytics /></ProtectedRoute>} />
             <Route path="/staff/project" element={<ProtectedRoute accessPath="/staff/project"><ProjectStaffRoster /></ProtectedRoute>} />
+            <Route path="/staff/posts" element={<ProtectedRoute desktopOnly accessPath="/staff/posts"><PostRegister /></ProtectedRoute>} />
+            <Route path="/staff/planning" element={<ProtectedRoute accessPath="/staff/planning"><WorkforcePlanning /></ProtectedRoute>} />
+            <Route path="/expertise" element={<ProtectedRoute accessPath="/expertise"><Expertise /></ProtectedRoute>} />
+            <Route path="/publication-files" element={<ProtectedRoute accessPath="/publication-files"><PublicationFiles /></ProtectedRoute>} />
+            <Route path="/admin/acting" element={<ProtectedRoute accessPath="/admin/acting"><ActingCharges /></ProtectedRoute>} />
             {/* Detail routes — linked from many pages; any verified role, RLS scopes the row */}
             <Route path="/staff/:id" element={<ProtectedRoute allowedRoles={VERIFIED}><StaffDetail /></ProtectedRoute>} />
             <Route path="/projects" element={<ProtectedRoute accessPath="/projects"><Projects /></ProtectedRoute>} />
@@ -203,6 +216,7 @@ function App() {
             <Route path="/recruitment" element={<ProtectedRoute accessPath="/recruitment"><Recruitment /></ProtectedRoute>} />
             <Route path="/calendar" element={<ProtectedRoute accessPath="/calendar"><Calendar /></ProtectedRoute>} />
             <Route path="/work" element={<ProtectedRoute accessPath="/work"><MyWork /></ProtectedRoute>} />
+            <Route path="/me" element={<ProtectedRoute accessPath="/me"><MyProfile /></ProtectedRoute>} />
             <Route path="/ask" element={<ProtectedRoute accessPath="/ask"><AskSurya /></ProtectedRoute>} />
             <Route path="/data" element={<ProtectedRoute desktopOnly accessPath="/data"><DataManagement /></ProtectedRoute>} />
             <Route path="/pms" element={<ProtectedRoute accessPath="/pms"><PMSIndex /></ProtectedRoute>} />
@@ -229,6 +243,8 @@ function App() {
             <Route path="/admin/holidays" element={<ProtectedRoute desktopOnly accessPath="/admin/holidays"><HolidaysAdmin /></ProtectedRoute>} />
             <Route path="/admin/access-requests" element={<ProtectedRoute accessPath="/admin/access-requests"><AccessRequests /></ProtectedRoute>} />
             <Route path="/admin/features" element={<ProtectedRoute desktopOnly accessPath="/admin/features"><FeatureControlsAdmin /></ProtectedRoute>} />
+            <Route path="/admin/rules" element={<ProtectedRoute desktopOnly accessPath="/admin/rules"><CsirRules /></ProtectedRoute>} />
+            <Route path="/data/links" element={<ProtectedRoute desktopOnly accessPath="/data/links"><IdentityLinks /></ProtectedRoute>} />
             {/* Project Proposals — specific routes first */}
             {/* Not desktopOnly: the workspace shows notes-only on a phone. */}
             <Route path="/proposals/new" element={<ProtectedRoute allowedRoles={['Scientist', 'HOD', 'DivisionHead', 'Director']}><ProposalWorkspace /></ProtectedRoute>} />

@@ -12,7 +12,9 @@ import { parseCost } from '../utils/parseCost';
 import { budgetWatch, type BudgetFlag } from '../lib/projects/budgetWatch';
 import { Badge } from '../components/ui/Cards';
 import { matchesProjectFilter } from '../lib/projects/projectFilter';
-import { projectStatusLabel } from '../lib/projects/stage';
+import { isActiveProject, projectStatusLabel } from '../lib/projects/stage';
+import { themeLabel } from '../lib/expertise/api';
+import type { ProjectInfo } from '../types';
 
 const FLAG_LABEL: Record<BudgetFlag, string> = {
   overrun: 'Overrun', exhaustion: 'Near exhaustion', ahead: 'Ahead of burn', behind: 'Behind burn',
@@ -103,6 +105,17 @@ export default function ProjectsAnalytics() {
     }
     return { cells, divs, funds };
   }, [projects, filteredProjects, filter]);
+
+  const themeTrl = useMemo(() => {
+    const src = filteredProjects.filter(p => p.themeCode && isActiveProject(p));
+    const themes = Array.from(new Set(src.map(p => themeLabel(p.themeCode ?? null)))).sort();
+    const trls = ['Not set', ...Array.from({ length: 9 }, (_, i) => `TRL ${i + 1}`)];
+    const trlOf = (p: ProjectInfo) => (p.trlReached ? `TRL ${p.trlReached}` : 'Not set');
+    const cells = themes.flatMap(t => trls.map(c => ({
+      row: t, col: c, value: src.filter(p => themeLabel(p.themeCode ?? null) === t && trlOf(p) === c).length,
+    })));
+    return { cells: themes.length ? cells : [], themes, trls };
+  }, [filteredProjects]);
 
   const costs = useMemo(() => filteredProjects.map((p) => parseCost(p.SanctionedCost)).filter((v) => v > 0), [filteredProjects]);
 
@@ -203,6 +216,12 @@ export default function ProjectsAnalytics() {
 
       <ChartCard title="Sanctioned cost distribution">
         <Histogram values={costs} xLabel="₹L" yLabel="projects" />
+      </ChartCard>
+
+      <ChartCard title="Theme × TRL reached" subtitle="active projects; set on each project by PME or the PI" className="lg:col-span-2" bodyClassName="min-h-0">
+        {themeTrl.cells.length
+          ? <Heatmap data={themeTrl.cells} rows={themeTrl.themes} cols={themeTrl.trls} />
+          : <p className="text-sm text-text-muted py-6 text-center">No project has a theme yet.</p>}
       </ChartCard>
 
       <ChartCard title="Division × Fund Type" className="lg:col-span-2" bodyClassName="min-h-0">

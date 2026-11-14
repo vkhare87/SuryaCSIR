@@ -1,30 +1,29 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import {
+  Mail, Phone, MapPin, Award, BookOpen, ChevronRight, GitBranch, FileText, TrendingUp, Edit, FileDown, AlertCircle,
+} from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
-import { Card, Badge, StatCard } from '../components/ui/Cards';
+import { useProfile } from '../contexts/ProfileContext';
+import { useToast } from '../contexts/ToastContext';
+import { Card, Badge } from '../components/ui/Cards';
 import { Button } from '../components/ui/Button';
 import { DocumentPanel } from '../components/ui/DocumentPanel';
-import {
-  ArrowLeft, Mail, Phone, MapPin, Award, BookOpen, Briefcase,
-  ChevronRight, GitBranch, GraduationCap,
-  FileText, Lightbulb, CalendarDays, TrendingUp, Wrench, Edit, FileDown,
-} from 'lucide-react';
-import { useCanEdit } from '../lib/permissions/canEdit';
+import { Dossier } from '../components/layout/Dossier';
+import { RelatedRail } from '../components/RelatedRail';
 import { StaffFormModal } from '../components/StaffFormModal';
-import {
-  getRetirementDate, formatDate,
-  getAgeFromDOB, getServiceYears, getYearsInGrade,
-  diffInDays, staffNameMatchesAuthor, amcStatus, AMC_COLORS,
-} from '../utils/dateUtils';
-import { getStaffPortfolio } from '../utils/analytics';
-import { equipmentStatusClass } from '../utils/equipmentStatus';
 import ScientistProfile from '../components/ScientistProfile';
+import { useCanEdit } from '../lib/permissions/canEdit';
+import { getRetirementDate, formatDate, getAgeFromDOB, getServiceYears, getYearsInGrade, diffInDays } from '../utils/dateUtils';
 import { buildScientistDossier } from '../lib/scientist/dossier';
 import { buildScientistBrief } from '../lib/scientist/brief';
-import { ENTITY_META } from '../lib/entities';
+import { factYears, groupFacts, isExternalLink, OWN_PROFILE_FIELDS, type OwnProfileField } from '../lib/staff/profile';
+import { friendlyError } from '../lib/errors';
+import { ScoreHistoryCard } from '../components/pms/ScoreHistoryCard';
+import { ExpertisePanel } from '../components/ExpertisePanel';
 import { useBack } from '../utils/useBack';
-import { isActiveProject, projectStatusLabel } from '../lib/projects/stage';
+import type { ProfileFact, ProfileIssue, StaffMember } from '../types';
 
 const TRAJECTORY_FLAG_LABEL: Record<string, string> = {
   'output-rising': 'Output rising',
@@ -36,62 +35,171 @@ const TRAJECTORY_FLAG_LABEL: Record<string, string> = {
   'duty-days-below-90-candidate': 'Duty days below 90 — check rule',
 };
 
+const FIELD_LABEL: Record<OwnProfileField, string> = {
+  Expertise: 'Specific expertise', CoreArea: 'Core area', Ext: 'Phone extension', orcid: 'ORCID iD', VidwanID: 'Vidwan ID',
+};
+
+const today = () => new Date().toISOString().slice(0, 10);
+const input = 'w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text focus:outline-none focus:ring-2 focus:ring-terracotta/40';
+
+// --- 1. The record, one line per fact, each opening what it came from ---
+function FactLink({ f }: { f: ProfileFact }) {
+  const body = (
+    <>
+      <div className="min-w-0">
+        <p className="text-sm text-text truncate group-hover:text-terracotta" title={f.title}>{f.title}</p>
+        {f.role && <p className="text-xs text-text-muted truncate">{f.role}</p>}
+      </div>
+      <span className="font-mono tabular-nums text-xs text-text-muted shrink-0">{factYears(f)}</span>
+    </>
+  );
+  const cls = 'flex items-center justify-between gap-4 px-5 py-3 hover:bg-surface-hover transition-colors group';
+  return isExternalLink(f.link)
+    ? <a href={f.link} target="_blank" rel="noreferrer" className={cls}>{body}</a>
+    : <Link to={f.link} className={cls}>{body}</Link>;
+}
+
+function RecordTab({ facts, error }: { facts: ProfileFact[] | null; error: string }) {
+  if (error) return <p className="text-sm text-badge-danger-fg">{error}</p>;
+  if (!facts) return <p className="text-sm text-text-muted">Loading the record…</p>;
+  const groups = groupFacts(facts);
+  if (groups.length === 0) return <p className="text-sm text-text-muted">No linked records yet. Names not yet tied to this person are listed under People Links.</p>;
+  return (
+    <>
+      {groups.map(g => (
+        <Card key={g.key} className="p-0 overflow-hidden">
+          <h3 className="px-5 py-3 border-b border-border text-base font-[500] text-text font-serif">{g.label} ({g.facts.length})</h3>
+          <div className="divide-y divide-border">
+            {g.facts.map((f, i) => <FactLink key={`${f.recordType}:${f.recordId}:${i}`} f={f} />)}
+          </div>
+        </Card>
+      ))}
+    </>
+  );
+}
+
+// --- 2. The person's own fields and the items to confirm (own profile only) ---
+function OwnProfileForm({ member, onSaved }: { member: StaffMember; onSaved: () => void }) {
+  const { updateOwnProfile } = useProfile();
+  const { refreshData } = useData();
+  const { push } = useToast();
+  const initial = useMemo(() => Object.fromEntries(OWN_PROFILE_FIELDS.map(k => [k, String(member[k] ?? '')])) as Record<OwnProfileField, string>, [member]);
+  const [form, setForm] = useState(initial);
+  const [saving, setSaving] = useState(false);
+  const dirty = OWN_PROFILE_FIELDS.some(k => form[k] !== initial[k]);
+
+  const save = async (e: FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await updateOwnProfile(Object.fromEntries(OWN_PROFILE_FIELDS.filter(k => form[k] !== initial[k]).map(k => [k, form[k]])));
+      await refreshData();
+      push('Profile saved', 'success');
+      onSaved();
+    } catch (err) { push(friendlyError(err), 'error'); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <Card>
+      <h3 className="text-lg font-[500] mb-1 text-text font-serif">Your research fields</h3>
+      <p className="text-xs text-text-muted mb-4">You keep these current. Everything else on this page comes from the institute's records.</p>
+      <form onSubmit={e => void save(e)} className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {OWN_PROFILE_FIELDS.map(k => (
+          <label key={k} className={k === 'Expertise' ? 'text-xs text-text-muted md:col-span-2' : 'text-xs text-text-muted'}>
+            {FIELD_LABEL[k]}
+            {k === 'Expertise'
+              ? <textarea className={input} rows={3} value={form[k]} onChange={e => setForm({ ...form, [k]: e.target.value })} />
+              : <input className={input} value={form[k]} placeholder={k === 'orcid' ? '0000-0002-1825-0097' : ''} onChange={e => setForm({ ...form, [k]: e.target.value })} />}
+          </label>
+        ))}
+        <div className="md:col-span-2 text-right"><Button type="submit" disabled={!dirty || saving}>{saving ? 'Saving…' : 'Save'}</Button></div>
+      </form>
+    </Card>
+  );
+}
+
+function IssuesCard({ member, issues, onChanged }: { member: StaffMember; issues: ProfileIssue[]; onChanged: () => void }) {
+  const { setIdentityLink } = useData();
+  const { push } = useToast();
+  if (issues.length === 0) return null;
+  const claim = async (i: ProfileIssue) => {
+    const [outputId, pos] = i.recordRef.split(':');
+    try { await setIdentityLink('OUTPUT', outputId, Number(pos), member.ID); push('Added to your record', 'success'); onChanged(); }
+    catch (err) { push(friendlyError(err), 'error'); }
+  };
+  return (
+    <Card className="border-l-4 border-l-turmeric">
+      <h3 className="text-lg font-[500] mb-1 text-text font-serif flex items-center gap-2"><AlertCircle size={18} className="text-turmeric" /> To confirm ({issues.length})</h3>
+      <p className="text-xs text-text-muted mb-3">Where your profile and the records disagree. Claim what is yours; ask HR for the rest.</p>
+      <ul className="divide-y divide-border">
+        {issues.map(i => (
+          <li key={`${i.kind}:${i.recordRef}`} className="py-2 flex items-center justify-between gap-3 text-sm">
+            <span className="text-text">{i.detail}</span>
+            {i.kind === 'OUTPUT_AUTHOR_UNLINKED' && <Button variant="secondary" onClick={() => void claim(i)}>This is me</Button>}
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
 export default function StaffDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const goBack = useBack('/staff');
   const canEdit = useCanEdit('hr');
   const { user } = useAuth();
+  const { loadFacts, loadIssues } = useProfile();
+  const { push } = useToast();
   const [editOpen, setEditOpen] = useState(false);
-  const {
-    staff,
-    divisions,
-    projects,
-    projectStaff,
-    phDStudents,
-    scientificOutputs,
-    ipIntelligence,
-    equipment,
-    techTransfers,
-    mous,
-  } = useData();
+  const [facts, setFacts] = useState<ProfileFact[] | null>(null);
+  const [factsError, setFactsError] = useState('');
+  const [issues, setIssues] = useState<ProfileIssue[]>([]);
+  const { staff, divisions, projects, projectStaff, phDStudents, scientificOutputs, ipIntelligence, equipment, techTransfers, mous } = useData();
 
-  const portfolio = getStaffPortfolio({
-    staffId: id,
-    staff,
-    projects,
-    projectStaff,
-    phDStudents,
-    scientificOutputs,
-    ipIntelligence,
-    equipment,
-  });
+  const member = useMemo(() => staff.find(s => s.ID === id), [staff, id]);
+  const isOwn = Boolean(member?.user_id && user?.id && member.user_id === user.id);
 
-  const dossier = id ? buildScientistDossier({
-    staffId: id,
-    staff,
-    projects,
-    projectStaff,
-    phDStudents,
-    scientificOutputs,
-    ipIntelligence,
-    equipment,
-    techTransfers,
-    mous,
-  }) : null;
+  // --- 3. Load the person's record and, for them or HR, what to confirm ---
+  // Keyed on the id, not the member object: a data refresh must not refetch,
+  // and going from one person to the next must never show the first one's
+  // record under the second one's name.
+  const memberId = member?.ID;
+  const shown = useRef<string | undefined>(undefined);
+  const reload = useCallback(() => {
+    if (!memberId) return;
+    if (shown.current !== memberId) { setFacts(null); setIssues([]); }
+    shown.current = memberId;
+    const current = () => shown.current === memberId;
+    loadFacts(memberId).then(f => { if (current()) { setFacts(f); setFactsError(''); } })
+      .catch(e => { if (current()) setFactsError(friendlyError(e)); });
+    if (isOwn || canEdit) loadIssues(memberId).then(i => { if (current()) setIssues(i); }).catch(() => { if (current()) setIssues([]); });
+  }, [memberId, isOwn, canEdit, loadFacts, loadIssues]);
+  useEffect(() => { reload(); }, [reload]);
 
-  function downloadBrief() {
-    if (!dossier) return;
-    const md = buildScientistBrief(dossier);
-    const url = URL.createObjectURL(new Blob([md], { type: 'text/markdown;charset=utf-8' }));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `brief_${dossier.member.ID}_${dossier.dataFreshness}.md`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
+  const dossier = useMemo(() => id ? buildScientistDossier({
+    staffId: id, staff, projects, projectStaff, phDStudents, scientificOutputs, ipIntelligence, equipment, techTransfers, mous,
+    facts: facts ?? [],
+  }) : null, [id, staff, projects, projectStaff, phDStudents, scientificOutputs, ipIntelligence, equipment, techTransfers, mous, facts]);
 
-  if (!portfolio) {
+  const numbers = useMemo(() => {
+    const f = facts ?? [];
+    const n = (s: ProfileFact['section']) => f.filter(x => x.section === s).length;
+    return [
+      { label: 'Active projects', value: f.filter(x => x.section === 'PROJECT' && (!x.dateTo || x.dateTo >= today())).length },
+      { label: 'Publications', value: n('OUTPUT') },
+      { label: 'PhD students', value: n('STUDENT') },
+      { label: 'Patents & IP', value: n('IP') },
+      { label: 'Instruments', value: n('EQUIPMENT') },
+    ];
+  }, [facts]);
+
+  const rail = useMemo(() => [
+    { title: 'Projects', kind: 'project' as const, ids: [...new Set((facts ?? []).filter(f => f.section === 'PROJECT').map(f => f.recordId))] },
+  ], [facts]);
+
+  if (!member) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] text-center">
         <p className="text-text-muted mb-4">Staff member not found.</p>
@@ -100,538 +208,208 @@ export default function StaffDetail() {
     );
   }
 
-  const { member } = portfolio;
   const division = divisions.find(d => d.divCode === member.Division);
-
-  // --- Relationships ---
-  const linkedProjects = portfolio.linkedProjects;
-
-  // Reporting chain
   const reportsTo = member.ReportingID ? staff.find(s => s.ID === member.ReportingID) : null;
   const directReports = staff.filter(s => s.ReportingID === member.ID && s.ID !== member.ID);
-
-  // PhD mentorship
-  const supervisingAsMain = portfolio.supervisedPhDs;
-  const supervisingAsCo = portfolio.coSupervisedPhDs;
-
-  // Publications
-  const publications = portfolio.publications;
-
-  // IP / Patents
-  const ipAssets = portfolio.ipAssets;
-  const assignedEquipment = portfolio.assignedEquipment;
-
-  // Career metrics
   const age = getAgeFromDOB(member.DOB);
   const serviceYears = getServiceYears(member.DOJ);
   const yearsInGrade = getYearsInGrade(member.DoAPP);
   const retirementDate = getRetirementDate(member.DOB);
   const daysToRetirement = retirementDate ? diffInDays(retirementDate, new Date()) : null;
   const isRetiringSoon = daysToRetirement !== null && daysToRetirement > 0 && daysToRetirement <= 365;
+  const uploadTier = canEdit ? 'institute' : 'owner';
 
-  const phdStatusVariant = (status: string): 'success' | 'info' | 'warning' | 'neutral' => {
-    if (status === 'Thesis Submitted') return 'success';
-    if (status === 'Ongoing') return 'info';
-    if (status === 'Coursework') return 'warning';
-    return 'neutral';
+  const downloadBrief = () => {
+    if (!dossier) return;
+    const url = URL.createObjectURL(new Blob([buildScientistBrief(dossier)], { type: 'text/markdown;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `brief_${dossier.member.ID}_${dossier.dataFreshness}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <button
-          onClick={goBack}
-          aria-label="Back"
-          className="p-2 hover:bg-surface-hover rounded-full transition-colors text-text-muted hover:text-text"
-        >
-          <ArrowLeft size={20} />
-        </button>
-        <div className="flex-1">
-          <h1 className="text-2xl font-[500] text-text font-serif">Staff Profile</h1>
-          <p className="text-text-muted text-sm">Detailed Human Capital Record</p>
-        </div>
-        {dossier && (
-          <button
-            onClick={downloadBrief}
-            className="inline-flex items-center gap-1.5 px-3 py-2 bg-surface border border-border rounded-lg text-sm font-medium text-text hover:bg-surface-hover transition-colors"
-          >
-            <FileDown size={14} /> Download Brief
-          </button>
-        )}
-        {canEdit && (
-          <button
-            onClick={() => setEditOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-2 bg-surface border border-border rounded-lg text-sm font-medium text-text hover:bg-surface-hover transition-colors"
-          >
-            <Edit size={14} /> Edit Profile
-          </button>
-        )}
-      </div>
+  const downloadPdf = async (kind: 'cv' | 'nomination') => {
+    if (!facts) return;
+    try {
+      const [{ pdf }, { ProfileCv, NominationBrief }] = await Promise.all([import('@react-pdf/renderer'), import('../lib/staff/profilePdf')]);
+      const doc = kind === 'cv' ? <ProfileCv member={member} facts={facts} /> : <NominationBrief member={member} facts={facts} />;
+      const url = URL.createObjectURL(await pdf(doc).toBlob());
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${kind}_${member.ID}_${today()}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) { push(friendlyError(err), 'error'); }
+  };
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+  const btn = 'inline-flex items-center gap-1.5 px-3 py-2 bg-surface border border-border rounded-lg text-sm font-medium text-text hover:bg-surface-hover transition-colors disabled:opacity-50';
 
-        {/* ── LEFT COLUMN ── */}
-        <div className="lg:col-span-1 space-y-4">
-
-          {/* ID Card */}
-          <Card className="border-t-4 border-[#c96442] flex flex-col pt-8 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-[#d97757]/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
-            <div className="flex flex-col items-center text-center space-y-4 z-10">
-              <div className="w-24 h-24 rounded-full bg-surface-hover border-4 border-background flex items-center justify-center text-3xl font-bold text-[#c96442] ring-2 ring-border">
-                {member.Name.charAt(0)}
-              </div>
-              <div>
-                <h2 className="text-xl font-[500] text-text font-serif">{member.Name}</h2>
-                <p className="text-[#c96442] font-medium mt-1">{member.Designation}</p>
-                <div className="mt-3 flex justify-center gap-2 flex-wrap">
-                  <Badge variant={member.Group === 'Scientific' ? 'success' : 'neutral'}>Group: {member.Group}</Badge>
-                  <Badge variant="info">Level: {member.Level}</Badge>
-                  {member.Cat && <Badge variant="neutral">{member.Cat}</Badge>}
-                </div>
-              </div>
-              <div className="w-full h-px bg-border my-2" />
-              <div className="w-full text-left space-y-3 text-sm">
-                <div className="flex items-start gap-3 text-text-muted">
-                  <Mail size={16} className="mt-0.5 shrink-0" />
-                  <span className="truncate" title={member.Email}>{member.Email || 'No email provided'}</span>
-                </div>
-                <div className="flex items-start gap-3 text-text-muted">
-                  <Phone size={16} className="mt-0.5 shrink-0" />
-                  <span>Ext: {member.Ext || 'N/A'}</span>
-                </div>
-                <div className="flex items-start gap-3 text-text-muted">
-                  <MapPin size={16} className="mt-0.5 shrink-0" />
-                  <Link to="/divisions" className="hover:text-[#c96442] transition-colors hover:underline">
-                    {division ? division.divName : member.Division}
-                  </Link>
-                </div>
-                <div className="flex items-start gap-3 text-text-muted">
-                  <Award size={16} className="mt-0.5 shrink-0" />
-                  <span>{member.HighestQualification}</span>
-                </div>
-                {member.VidwanID && (
-                  <div className="flex items-start gap-3 text-text-muted">
-                    <FileText size={16} className="mt-0.5 shrink-0" />
-                    <a
-                      href={`https://vidwan.inflibnet.ac.in/profile/${member.VidwanID}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-[#c96442] hover:underline"
-                    >
-                      Vidwan: {member.VidwanID}
-                    </a>
-                  </div>
-                )}
-              </div>
-            </div>
-          </Card>
-
-          {/* Career Intelligence Card */}
-          <Card className="space-y-4">
-            <div className="flex items-center gap-2 text-[10px] font-semibold text-[#c96442] uppercase tracking-[0.2em]">
-              <TrendingUp size={14} />
-              Career Intelligence
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-background rounded-xl p-3 border border-border">
-                <div className="text-[10px] font-black text-text-muted uppercase tracking-wider mb-1">Age</div>
-                <div className="text-xl font-black text-text">{age ?? '--'}</div>
-                <div className="text-[10px] text-text-muted">years</div>
-              </div>
-              <div className="bg-background rounded-xl p-3 border border-border">
-                <div className="text-[10px] font-black text-text-muted uppercase tracking-wider mb-1">Service</div>
-                <div className="text-xl font-black text-text">{serviceYears ?? '--'}</div>
-                <div className="text-[10px] text-text-muted">years</div>
-              </div>
-              <div className="bg-background rounded-xl p-3 border border-border">
-                <div className="text-[10px] font-black text-text-muted uppercase tracking-wider mb-1">In Grade</div>
-                <div className="text-xl font-black text-text">{yearsInGrade ?? '--'}</div>
-                <div className="text-[10px] text-text-muted">years</div>
-              </div>
-              <div className={`rounded-xl p-3 border ${isRetiringSoon ? 'bg-rose-50 border-rose-200 dark:bg-rose-900/20 dark:border-rose-800' : 'bg-background border-border'}`}>
-                <div className={`text-[10px] font-black uppercase tracking-wider mb-1 ${isRetiringSoon ? 'text-rose-500' : 'text-text-muted'}`}>Retires</div>
-                <div className={`text-sm font-black ${isRetiringSoon ? 'text-rose-600' : 'text-text'}`}>
-                  {retirementDate ? formatDate(retirementDate) : '--'}
-                </div>
-                {isRetiringSoon && (
-                  <div className="text-[10px] text-rose-500 font-bold mt-0.5">{daysToRetirement}d left</div>
-                )}
-              </div>
-            </div>
-            <div className="pt-2 border-t border-border text-xs space-y-1.5 text-text-muted">
-              <div className="flex justify-between">
-                <span>Joined</span>
-                <span className="font-mono font-medium text-text">{member.DOJ || 'N/A'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Current Post From</span>
-                <span className="font-mono font-medium text-text">{member.DoAPP || 'N/A'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Appointment</span>
-                <span className="font-medium text-text">{member.AppointmentType || 'N/A'}</span>
-              </div>
-            </div>
-          </Card>
-
-        </div>
-
-        {/* ── RIGHT COLUMN ── */}
-        <div className="lg:col-span-2 space-y-6">
-
-          {/* Stat Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <StatCard title="Active Projects" value={linkedProjects.filter(isActiveProject).length} className="bg-surface-hover border-transparent" />
-            <StatCard title="Publications" value={publications.length} className="bg-surface-hover border-transparent shadow-none" />
-            <StatCard title="PhD Students" value={supervisingAsMain.length + supervisingAsCo.length} className="bg-surface-hover border-transparent shadow-none" />
-            <StatCard title="IP Assets" value={ipAssets.length} className="bg-surface-hover border-transparent shadow-none" />
-            <StatCard title="Equipment" value={assignedEquipment.length} className="bg-surface-hover border-transparent shadow-none" />
+  const aside = (
+    <>
+      <Card className="border-t-4 border-t-terracotta flex flex-col pt-8">
+        <div className="flex flex-col items-center text-center space-y-4">
+          <div className="w-24 h-24 rounded-full bg-surface-hover flex items-center justify-center text-3xl font-bold text-terracotta ring-2 ring-border">
+            {member.Name.charAt(0)}
           </div>
-
-          {/* Trajectory — descriptive pattern flags, no scores */}
-          {dossier && dossier.trajectory.flags.length > 0 && (
-            <Card>
-              <h3 className="text-lg font-[500] mb-3 text-text flex items-center gap-2 font-serif">
-                <TrendingUp size={18} className="text-[#c96442]" />
-                Trajectory
-              </h3>
-              <div className="flex flex-wrap gap-1.5">
-                {dossier.trajectory.flags.map(f => (
-                  <span key={f} className="text-xs font-medium px-2 py-1 rounded-full bg-surface-hover text-text-muted border border-border">
-                    {TRAJECTORY_FLAG_LABEL[f] ?? f}
-                  </span>
-                ))}
-              </div>
-              <p className="text-[10px] text-text-muted mt-2">
-                Descriptive patterns from institutional records — not a score. Assembled {dossier.dataFreshness}.
-              </p>
-            </Card>
-          )}
-
-          {/* Research & Expertise */}
-          <Card>
-            <h3 className="text-lg font-[500] mb-4 text-text flex items-center gap-2 font-serif">
-              <BookOpen size={18} className="text-[#c96442]" />
-              Research & Expertise
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-y-5 gap-x-8 text-sm">
-              <div>
-                <p className="text-text-muted mb-1 font-medium">Core Area</p>
-                <p className="text-text">{member.CoreArea || 'Not specified'}</p>
-              </div>
-              <div>
-                <p className="text-text-muted mb-1 font-medium">Specific Expertise</p>
-                <p className="text-text">{member.Expertise || 'Not specified'}</p>
-              </div>
-            </div>
-          </Card>
-
-          {/* Org Hierarchy */}
-          <Card className="p-0 overflow-hidden">
-            <div className="p-5 border-b border-border bg-surface flex items-center gap-2">
-              <GitBranch size={18} className="text-[#5e5d59]" />
-              <h3 className="text-base font-[500] text-text font-serif">Organisational Hierarchy</h3>
-            </div>
-            <div className="p-5 space-y-5">
-              {/* Reports to */}
-              <div>
-                <div className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-3">Reports To</div>
-                {reportsTo ? (
-                  <Link
-                    to={`/staff/${reportsTo.ID}`}
-                    className="flex items-center gap-3 p-3 rounded-xl border border-border hover:border-[#c96442]/40 hover:bg-surface-hover transition-all group"
-                  >
-                    <div className="w-10 h-10 rounded-full bg-[#c96442]/10 flex items-center justify-center font-bold text-[#c96442] shrink-0">
-                      {reportsTo.Name.charAt(0)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-bold text-text group-hover:text-[#c96442] transition-colors truncate" title={reportsTo.Name}>{reportsTo.Name}</div>
-                      <div className="text-xs text-text-muted truncate" title={reportsTo.Designation}>{reportsTo.Designation}</div>
-                    </div>
-                    <ChevronRight size={16} className="text-text-muted group-hover:text-[#c96442] transition-all group-hover:translate-x-1 shrink-0" />
-                  </Link>
-                ) : (
-                  <p className="text-sm text-text-muted italic">Top of reporting chain (no superior linked)</p>
-                )}
-              </div>
-
-              {/* Direct Reports */}
-              {directReports.length > 0 && (
-                <div>
-                  <div className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-3">
-                    Direct Reports ({directReports.length})
-                  </div>
-                  <div className="space-y-2">
-                    {directReports.map(s => (
-                      <Link
-                        key={s.ID}
-                        to={`/staff/${s.ID}`}
-                        className="flex items-center gap-3 p-3 rounded-xl border border-border hover:border-[#c96442]/40 hover:bg-surface-hover transition-all group"
-                      >
-                        <div className="w-8 h-8 rounded-full bg-surface-hover flex items-center justify-center font-bold text-sm text-[#c96442] shrink-0 border border-border">
-                          {s.Name.charAt(0)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-bold text-text group-hover:text-[#c96442] transition-colors truncate" title={s.Name}>{s.Name}</div>
-                          <div className="text-xs text-text-muted truncate" title={s.Designation}>{s.Designation}</div>
-                        </div>
-                        <Badge variant={s.Group === 'Scientific' ? 'success' : 'neutral'} className="shrink-0">{s.Group}</Badge>
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </Card>
-
-          {/* Linked Projects */}
-          <Card className="p-0 overflow-hidden">
-            <div className="p-5 border-b border-border bg-surface flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Briefcase size={18} className="text-[#c96442]" />
-                <h3 className="text-base font-[500] text-text font-serif">Linked Projects ({linkedProjects.length})</h3>
-              </div>
-            </div>
-            {linkedProjects.length > 0 ? (
-              <div className="divide-y divide-border">
-                {linkedProjects.map(proj => (
-                  <Link
-                    key={proj.ProjectID}
-                    to={ENTITY_META.project.route(proj.ProjectID)}
-                    className="flex justify-between items-center p-4 hover:bg-surface-hover transition-colors group"
-                  >
-                    <div>
-                      <p className="font-semibold text-sm text-text group-hover:text-[#c96442] transition-colors">{proj.ProjectNo}</p>
-                      <p className="text-text-muted text-xs mt-1 truncate max-w-md" title={proj.ProjectName}>{proj.ProjectName}</p>
-                    </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      <Badge variant={isActiveProject(proj) ? 'success' : 'neutral'}>{projectStatusLabel(proj)}</Badge>
-                      <ChevronRight size={14} className="text-text-muted group-hover:text-[#c96442] transition-all group-hover:translate-x-1" />
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            ) : (
-              <div className="p-8 text-center text-text-muted text-sm">No active projects linked to this profile.</div>
+          <div className="flex justify-center gap-2 flex-wrap">
+            <Badge variant={member.Group === 'Scientific' ? 'success' : 'neutral'}>Group: {member.Group}</Badge>
+            <Badge variant="info">Level: {member.Level}</Badge>
+            {member.Cat && <Badge variant="neutral">{member.Cat}</Badge>}
+          </div>
+          <div className="w-full h-px bg-border" />
+          <div className="w-full text-left space-y-3 text-sm text-text-muted">
+            <div className="flex items-start gap-3"><Mail size={16} className="mt-0.5 shrink-0" /><span className="truncate" title={member.Email}>{member.Email || 'No email provided'}</span></div>
+            <div className="flex items-start gap-3"><Phone size={16} className="mt-0.5 shrink-0" /><span>Ext: {member.Ext || 'N/A'}</span></div>
+            <div className="flex items-start gap-3"><MapPin size={16} className="mt-0.5 shrink-0" /><Link to="/divisions" className="hover:text-terracotta hover:underline">{division ? division.divName : member.Division}</Link></div>
+            <div className="flex items-start gap-3"><Award size={16} className="mt-0.5 shrink-0" /><span>{member.HighestQualification}</span></div>
+            {member.orcid && (
+              <div className="flex items-start gap-3"><FileText size={16} className="mt-0.5 shrink-0" />
+                <a href={`https://orcid.org/${member.orcid}`} target="_blank" rel="noreferrer" className="text-terracotta hover:underline font-mono">ORCID {member.orcid}</a></div>
             )}
-          </Card>
-
-          {/* PhD Mentorship */}
-          {(supervisingAsMain.length > 0 || supervisingAsCo.length > 0) && (
-            <Card className="p-0 overflow-hidden">
-              <div className="p-5 border-b border-border bg-surface flex items-center gap-2">
-                <GraduationCap size={18} className="text-emerald-500" />
-                <h3 className="text-base font-[500] text-text font-serif">
-                  PhD Mentorship ({supervisingAsMain.length + supervisingAsCo.length} scholars)
-                </h3>
-              </div>
-              <div className="divide-y divide-border">
-                {[
-                  ...supervisingAsMain.map(s => ({ ...s, role: 'Supervisor' as const })),
-                  ...supervisingAsCo.map(s => ({ ...s, role: 'Co-Supervisor' as const })),
-                ].map(student => (
-                  <div key={student.EnrollmentNo} className="p-4 hover:bg-surface-hover transition-colors">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-bold text-sm text-text">{student.StudentName}</span>
-                          <Badge variant={phdStatusVariant(student.CurrentStatus)}>{student.CurrentStatus}</Badge>
-                          <Badge variant="neutral" className="text-[9px]">{student.role}</Badge>
-                        </div>
-                        <p className="text-xs text-text-muted italic mt-1 truncate max-w-lg">"{student.ThesisTitle}"</p>
-                        <div className="flex gap-3 mt-1.5 text-[10px] text-text-muted">
-                          <span>{student.Specialization}</span>
-                          {student.FellowshipDetails && <span>• {student.FellowshipDetails}</span>}
-                          <span className="font-mono">• {student.EnrollmentNo}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          )}
-
-          {/* Publications */}
-          {publications.length > 0 && (
-            <Card className="p-0 overflow-hidden">
-              <div className="p-5 border-b border-border bg-surface flex items-center gap-2">
-                <BookOpen size={18} className="text-[#5e5d59]" />
-                <h3 className="text-base font-[500] text-text font-serif">Publications ({publications.length})</h3>
-              </div>
-              <div className="divide-y divide-border">
-                {publications.map(pub => (
-                  <div key={pub.id} className="p-4 hover:bg-surface-hover transition-colors">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-text leading-snug">{pub.title}</p>
-                        <p className="text-xs text-text-muted italic mt-1">{pub.journal} ({pub.year})</p>
-                        <p className="text-xs text-text-muted mt-0.5">{pub.authors.join(', ')}</p>
-                      </div>
-                      <div className="flex flex-col gap-1.5 items-end shrink-0">
-                        <Badge variant="info">IF: {pub.impactFactor}</Badge>
-                        <Badge variant="neutral">Cit: {pub.citationCount}</Badge>
-                      </div>
-                    </div>
-                    {pub.doi && (
-                      <a
-                        href={`https://doi.org/${pub.doi}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-[10px] text-[#c96442] hover:underline mt-2 block"
-                      >
-                        DOI: {pub.doi}
-                      </a>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </Card>
-          )}
-
-          {/* IP Portfolio */}
-          {ipAssets.length > 0 && (
-            <Card className="p-0 overflow-hidden">
-              <div className="p-5 border-b border-border bg-surface flex items-center gap-2">
-                <Lightbulb size={18} className="text-amber-500" />
-                <h3 className="text-base font-[500] text-text font-serif">IP Portfolio ({ipAssets.length})</h3>
-              </div>
-              <div className="divide-y divide-border">
-                {ipAssets.map(ip => {
-                  const sv: 'success' | 'info' | 'warning' | 'neutral' =
-                    ip.status === 'Granted' ? 'success' : ip.status === 'Published' ? 'info' : 'warning';
-                  return (
-                    <div key={ip.id} className="p-4 hover:bg-surface-hover transition-colors">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-text leading-snug">{ip.title}</p>
-                          <p className="text-xs text-text-muted mt-1">{ip.inventors.join(', ')}</p>
-                        </div>
-                        <div className="flex flex-col gap-1.5 items-end shrink-0">
-                          <Badge variant="neutral">{ip.type}</Badge>
-                          <Badge variant={sv}>{ip.status}</Badge>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1.5 mt-2 text-[10px] text-text-muted">
-                        <CalendarDays size={10} />
-                        Filed: {ip.filingDate}
-                        {ip.grantDate && <span>• Granted: {ip.grantDate}</span>}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </Card>
-          )}
-
-          {/* Instruments */}
-          {assignedEquipment.length > 0 && (() => {
-            const managed  = assignedEquipment.filter(e => staffNameMatchesAuthor(member.Name, e.IndenterName));
-            const operatedOnly = assignedEquipment.filter(e =>
-              staffNameMatchesAuthor(member.Name, e.OperatorName) && !staffNameMatchesAuthor(member.Name, e.IndenterName)
-            );
-            const amcBadge = (d?: string) => {
-              const status = amcStatus(d);
-              if (status === 'none') return null;
-              return <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${AMC_COLORS[status]}`}>AMC {d}</span>;
-            };
-            const row = (item: typeof assignedEquipment[0]) => (
-              <Link
-                key={item.UInsID}
-                to={`/facilities/${item.UInsID}`}
-                className="flex items-start justify-between gap-4 p-4 hover:bg-surface-hover transition-colors group"
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-text group-hover:text-[#c96442] transition-colors leading-snug">{item.Name}</p>
-                  <div className="flex items-center gap-2 mt-1 flex-wrap">
-                    {item.instrument_code && <span className="text-[10px] font-mono text-text-muted">{item.instrument_code}</span>}
-                    {amcBadge(item.amc_end_date)}
-                  </div>
-                  <p className="text-xs text-text-muted mt-0.5">{item.Location || '—'}</p>
-                </div>
-                <Badge variant={({ Working: 'success', 'Under Maintenance': 'warning', 'Not Working': 'danger', Unknown: 'neutral' } as const)[equipmentStatusClass(item.WorkingStatus)]} className="shrink-0">
-                  {item.WorkingStatus || '—'}
-                </Badge>
-              </Link>
-            );
-            return (
-              <Card className="p-0 overflow-hidden">
-                <div className="p-5 border-b border-border bg-surface flex items-center gap-2">
-                  <Wrench size={18} className="text-[#5e5d59]" />
-                  <h3 className="text-base font-[500] text-text font-serif">Instruments ({assignedEquipment.length})</h3>
-                </div>
-                {managed.length > 0 && (
-                  <>
-                    <div className="px-4 pt-3 pb-1 text-[10px] font-black text-text-muted uppercase tracking-widest">Managed / Owned ({managed.length})</div>
-                    <div className="divide-y divide-border">{managed.map(row)}</div>
-                  </>
-                )}
-                {operatedOnly.length > 0 && (
-                  <>
-                    <div className="px-4 pt-3 pb-1 text-[10px] font-black text-text-muted uppercase tracking-widest border-t border-border">Operated ({operatedOnly.length})</div>
-                    <div className="divide-y divide-border">{operatedOnly.map(row)}</div>
-                  </>
-                )}
-              </Card>
-            );
-          })()}
-
-          {/* Expertise / CV documents + publication full-texts (T3) */}
-          {(() => {
-            const isOwnProfile = Boolean(user?.email && member.Email && user.email.toLowerCase() === member.Email.toLowerCase());
-            const canUpload = isOwnProfile || canEdit;
-            // documents_insert (20260725000001) only lets admins/Director
-            // register at a shared tier — self-publishing institute-wide was
-            // HIGH-4. A user uploading their own CV lands it at 'owner' (still
-            // visible to them, and to admins) and an admin promotes it from
-            // the /admin/rag review queue. Without this the insert is simply
-            // rejected and the upload appears to do nothing.
-            const uploadTier = canEdit ? 'institute' : 'owner';
-            return (
-              <>
-                <DocumentPanel
-                  entityType="staff_profile"
-                  entityId={member.ID}
-                  docType="expertise"
-                  accessTier={uploadTier}
-                  title="Expertise & CV Documents"
-                  canUpload={canUpload}
-                  divisionCode={member.Division}
-                />
-                <DocumentPanel
-                  entityType="publication"
-                  entityId={member.ID}
-                  docType="full_text"
-                  accessTier={uploadTier}
-                  title="Publication Full-Texts"
-                  canUpload={canUpload}
-                  divisionCode={member.Division}
-                />
-              </>
-            );
-          })()}
-
-          {/* IRINS Profile */}
-          {member.VidwanID && (
-            <Card className="p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <FileText size={18} className="text-[#5e5d59]" />
-                <h3 className="text-base font-[500] text-text font-serif">Research Output (via IRINS)</h3>
-              </div>
-              <ScientistProfile vidwanId={member.VidwanID} />
-            </Card>
-          )}
-
+            {member.VidwanID && (
+              <div className="flex items-start gap-3"><FileText size={16} className="mt-0.5 shrink-0" />
+                <a href={`https://vidwan.inflibnet.ac.in/profile/${member.VidwanID}`} target="_blank" rel="noreferrer" className="text-terracotta hover:underline">Vidwan: {member.VidwanID}</a></div>
+            )}
+          </div>
         </div>
-      </div>
+      </Card>
 
-      {canEdit && (
-        <StaffFormModal
-          isOpen={editOpen}
-          onClose={() => setEditOpen(false)}
-          staffMember={member}
-        />
+      <Card className="space-y-4">
+        <div className="flex items-center gap-2 text-[10px] font-semibold text-terracotta uppercase tracking-[0.2em]"><TrendingUp size={14} /> Career</div>
+        <div className="grid grid-cols-2 gap-3">
+          {[['Age', age], ['Service', serviceYears], ['In grade', yearsInGrade]].map(([label, v]) => (
+            <div key={label as string} className="bg-background rounded-xl p-3 border border-border">
+              <div className="text-[10px] font-semibold text-text-muted uppercase tracking-wider mb-1">{label}</div>
+              <div className="text-xl font-mono tabular-nums text-text">{v ?? '--'}</div>
+              <div className="text-[10px] text-text-muted">years</div>
+            </div>
+          ))}
+          <div className={isRetiringSoon ? 'rounded-xl p-3 border bg-badge-danger-bg border-badge-danger-fg/25' : 'rounded-xl p-3 border bg-background border-border'}>
+            <div className={isRetiringSoon ? 'text-[10px] font-semibold uppercase tracking-wider mb-1 text-badge-danger-fg' : 'text-[10px] font-semibold uppercase tracking-wider mb-1 text-text-muted'}>Retires</div>
+            <div className="text-sm font-mono text-text">{retirementDate ? formatDate(retirementDate) : '--'}</div>
+            {isRetiringSoon && <div className="text-[10px] text-badge-danger-fg font-bold mt-0.5">{daysToRetirement}d left</div>}
+          </div>
+        </div>
+        <div className="pt-2 border-t border-border text-xs space-y-1.5 text-text-muted">
+          <div className="flex justify-between"><span>Joined</span><span className="font-mono text-text">{member.DOJ || 'N/A'}</span></div>
+          <div className="flex justify-between"><span>Current post from</span><span className="font-mono text-text">{member.DoAPP || 'N/A'}</span></div>
+          <div className="flex justify-between"><span>Appointment</span><span className="text-text">{member.AppointmentType || 'N/A'}</span></div>
+        </div>
+      </Card>
+    </>
+  );
+
+  const overview = (
+    <>
+      {isOwn && <IssuesCard member={member} issues={issues} onChanged={reload} />}
+      {!isOwn && canEdit && issues.length > 0 && (
+        <p className="text-xs text-text-muted">{issues.length} item(s) on this profile wait on the person to confirm.</p>
       )}
-    </div>
+      {isOwn && <OwnProfileForm member={member} onSaved={reload} />}
+      <ScoreHistoryCard staffId={member.ID} />
+
+      {dossier && dossier.trajectory.flags.length > 0 && (
+        <Card>
+          <h3 className="text-lg font-[500] mb-3 text-text flex items-center gap-2 font-serif"><TrendingUp size={18} className="text-terracotta" /> Trajectory</h3>
+          <div className="flex flex-wrap gap-1.5">
+            {dossier.trajectory.flags.map(f => (
+              <span key={f} className="text-xs font-medium px-2 py-1 rounded-full bg-surface-hover text-text-muted border border-border">{TRAJECTORY_FLAG_LABEL[f] ?? f}</span>
+            ))}
+          </div>
+          <p className="text-[10px] text-text-muted mt-2">Descriptive patterns from institutional records — not a score. Assembled {dossier.dataFreshness}.</p>
+        </Card>
+      )}
+
+      {!isOwn && (
+        <Card>
+          <h3 className="text-lg font-[500] mb-4 text-text flex items-center gap-2 font-serif"><BookOpen size={18} className="text-terracotta" /> Research & expertise</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-y-5 gap-x-8 text-sm">
+            <div><p className="text-text-muted mb-1 font-medium">Core area</p><p className="text-text">{member.CoreArea || 'Not specified'}</p></div>
+            <div><p className="text-text-muted mb-1 font-medium">Specific expertise</p><p className="text-text">{member.Expertise || 'Not specified'}</p></div>
+          </div>
+        </Card>
+      )}
+
+      <Card className="p-0 overflow-hidden">
+        <div className="p-5 border-b border-border flex items-center gap-2"><GitBranch size={18} className="text-text-muted" /><h3 className="text-base font-[500] text-text font-serif">Reporting</h3></div>
+        <div className="p-5 space-y-5">
+          <div>
+            <div className="text-[10px] font-semibold text-text-muted uppercase tracking-widest mb-3">Reports to</div>
+            {reportsTo ? (
+              <Link to={`/staff/${reportsTo.ID}`} className="flex items-center gap-3 p-3 rounded-xl border border-border hover:bg-surface-hover transition-all group">
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-text group-hover:text-terracotta truncate">{reportsTo.Name}</div>
+                  <div className="text-xs text-text-muted truncate">{reportsTo.Designation}</div>
+                </div>
+                <ChevronRight size={16} className="text-text-muted shrink-0" />
+              </Link>
+            ) : <p className="text-sm text-text-muted italic">No superior linked</p>}
+          </div>
+          {directReports.length > 0 && (
+            <div>
+              <div className="text-[10px] font-semibold text-text-muted uppercase tracking-widest mb-3">Direct reports ({directReports.length})</div>
+              <div className="space-y-2">
+                {directReports.map(s => (
+                  <Link key={s.ID} to={`/staff/${s.ID}`} className="flex items-center gap-3 p-3 rounded-xl border border-border hover:bg-surface-hover transition-all group">
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-text group-hover:text-terracotta truncate">{s.Name}</div>
+                      <div className="text-xs text-text-muted truncate">{s.Designation}</div>
+                    </div>
+                    <Badge variant={s.Group === 'Scientific' ? 'success' : 'neutral'} className="shrink-0">{s.Group}</Badge>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </Card>
+    </>
+  );
+
+  const documents = (
+    <>
+      <DocumentPanel entityType="staff_profile" entityId={member.ID} docType="expertise" accessTier={uploadTier}
+        title="Expertise & CV Documents" canUpload={isOwn || canEdit} divisionCode={member.Division} />
+      <DocumentPanel entityType="publication" entityId={member.ID} docType="full_text" accessTier={uploadTier}
+        title="Publication Full-Texts" canUpload={isOwn || canEdit} divisionCode={member.Division} />
+      {member.VidwanID && (
+        <Card className="p-5">
+          <h3 className="text-base font-[500] text-text font-serif mb-3">Research output (via IRINS)</h3>
+          <ScientistProfile vidwanId={member.VidwanID} />
+        </Card>
+      )}
+    </>
+  );
+
+  return (
+    <>
+      <Dossier
+        kicker={isOwn ? 'My profile' : 'Staff profile'}
+        title={member.Name}
+        subtitle={`${member.Designation}${division ? ` · ${division.divName}` : ''}`}
+        onBack={goBack}
+        numbers={numbers}
+        aside={aside}
+        actions={
+          <>
+            <RelatedRail sections={rail} />
+            <button className={btn} disabled={!facts} onClick={() => void downloadPdf('cv')}><FileDown size={14} /> CV</button>
+            <button className={btn} disabled={!facts} onClick={() => void downloadPdf('nomination')}><FileDown size={14} /> Nomination brief</button>
+            {dossier && <button className={btn} onClick={downloadBrief}><FileDown size={14} /> Brief</button>}
+            {canEdit && <button className={btn} onClick={() => setEditOpen(true)}><Edit size={14} /> Edit</button>}
+          </>
+        }
+        tabs={[
+          { key: 'overview', label: 'Overview', content: overview },
+          { key: 'record', label: 'Record', content: <RecordTab facts={facts} error={factsError} /> },
+          { key: 'expertise', label: 'Expertise', content: <ExpertisePanel staffId={member.ID} isOwn={isOwn} note={member.Expertise || undefined} /> },
+          { key: 'documents', label: 'Documents', content: documents },
+        ]}
+        askAbout={{ type: 'staff', id: member.ID }}
+        timeline={{ entityType: 'staff', entityId: member.ID }}
+      />
+      {canEdit && <StaffFormModal isOpen={editOpen} onClose={() => setEditOpen(false)} staffMember={member} />}
+    </>
   );
 }

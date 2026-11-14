@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { SCHEMES } from '../../lib/projects/schemes';
 import clsx from 'clsx';
 import { Plus, Trash2 } from 'lucide-react';
 import { Card } from '../ui/Cards';
@@ -23,7 +24,7 @@ interface Row { fiscal_year: string; head: string; amount: number }
  */
 export function LegacyPanel({ project, onChanged }: { project: ProjectInfo; onChanged: () => Promise<void> }) {
   const [open, setOpen] = useState(false);
-  const [track, setTrack] = useState<'ULIP' | 'HQ' | ''>((project.track as 'ULIP' | 'HQ') ?? '');
+  const [track, setTrack] = useState<string>(project.track ?? '');
   const [category, setCategory] = useState(HQ_CATEGORIES.some(c => c.code === project.ProjectCategory) ? project.ProjectCategory : '');
   const [start, setStart] = useState(isoDate(project.StartDate));
   const [end, setEnd] = useState(isoDate(project.CompletioDate));
@@ -92,8 +93,8 @@ export function LegacyPanel({ project, onChanged }: { project: ProjectInfo; onCh
 
       <section className="grid sm:grid-cols-3 gap-3">
         <label className="text-xs text-text-muted">Scheme
-          <select aria-label="Scheme" className={clsx(inputCls, 'mt-1')} value={track} onChange={(e) => setTrack(e.target.value as 'ULIP' | 'HQ')}>
-            <option value="">Choose…</option><option value="ULIP">In-house (ULIP)</option><option value="HQ">CSIR HQ scheme</option>
+          <select aria-label="Scheme" className={clsx(inputCls, 'mt-1')} value={track} onChange={(e) => setTrack(e.target.value)}>
+            <option value="">Choose…</option>{SCHEMES.map(s => <option key={s.code} value={s.code}>{s.label}</option>)}
           </select>
         </label>
         {track === 'HQ' && (
@@ -152,7 +153,7 @@ export function LegacyPanel({ project, onChanged }: { project: ProjectInfo; onCh
           setBusy(true); setError('');
           try {
             const d = await uploadProjectDocument(project.ProjectID, 'sanction_order', scan as File);
-            const x: LegacyInput = { track: track as 'ULIP' | 'HQ', category: track === 'HQ' ? category : null, start, end,
+            const x: LegacyInput = { track, category: track === 'HQ' ? category : null, start, end,
               sanctionRef: ref, sanctionDate: refDate, lines, received, spent, asOf };
             await completeLegacy(project.ProjectID, x, d.id);
             await onChanged();

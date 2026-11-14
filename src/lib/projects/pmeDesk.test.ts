@@ -62,4 +62,9 @@ describe('pmeDeskItems', () => {
     const items = pmeDeskItems([], [project({ ProjectStatus: 'whatever', stage: 'ACTIVE' })]);
     expect(items).toEqual([]);
   });
+
+  it('shows the compliance counts that are not zero', () => {
+    const items = pmeDeskItems([], [], 0, [], [], [], { declarationsMissing: 2, transfersMissingDocs: 0, logbooksIdle: 1 });
+    expect(items.map(i => [i.key, i.count])).toEqual([['declarations', 2], ['logbooks', 1]]);
+  });
 });

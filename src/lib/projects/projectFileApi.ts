@@ -4,7 +4,7 @@ import { friendlyError } from '../errors';
 import type {
   ChangeKind, ChangePayload, ChangeRequest, ChangeStep, ClosureItem, CompletionFields, Lesson,
   MyChangeStep, DueSlot, ExpenditurePeriod, PortfolioRow, ProjectDocType, ProjectDocument, ProjectFile, ProjectMilestone,
-  ReviewDecision, ReviewSlot,
+  ReviewDecision, ReviewSlot, PackKind, ProjectPack, StageItem, StageDeliverable, CpdRow, ComplianceCounts,
 } from '../../types/projectFile';
 
 const BUCKET = 'project-documents';
@@ -321,7 +321,7 @@ export async function myClosureItems(): Promise<ClosureItem[]> {
 }
 
 export interface LegacyInput {
-  track: 'ULIP' | 'HQ';
+  track: string;
   category: string | null;
   start: string;
   end: string;
@@ -345,4 +345,47 @@ export function completeLegacy(projectId: string, x: LegacyInput, sanctionDocume
 /** A lessons note for a project closed before SURYA; no approval chain. */
 export function recordLegacyLessons(projectId: string, fields: Partial<CompletionFields>) {
   return rpc<string>('project_legacy_lessons', { p_project_id: projectId, p_fields: fields });
+}
+
+// --- Enterprise P3: packs, stage gates, CPD report, desk counts ---
+
+export function projectPack(projectId: string, kind: PackKind, changeRequestId: string | null = null) {
+  return rpc<ProjectPack>('project_pack', { p_project_id: projectId, p_kind: kind, p_change_request_id: changeRequestId });
+}
+
+export async function loadStageGate(projectId: string): Promise<{ items: StageItem[]; done: StageDeliverable[] }> {
+  const [items, done] = await Promise.all([
+    client().from('project_stage_items').select('item_key, stage, label, sort').order('stage').order('sort'),
+    client().from('project_stage_deliverables').select('item_key, document_id, done_at').eq('project_id', projectId),
+  ]);
+  if (items.error) throw items.error;
+  if (done.error) throw done.error;
+  return {
+    items: (items.data ?? []).map((x: any) => ({ itemKey: x.item_key, stage: x.stage, label: x.label })),
+    done: (done.data ?? []).map((x: any) => ({ itemKey: x.item_key, documentId: x.document_id, doneAt: x.done_at })),
+  };
+}
+
+export function recordStageDeliverable(projectId: string, itemKey: string, documentId: string) {
+  return rpc('project_stage_deliverable_record', { p_project_id: projectId, p_item_key: itemKey, p_document_id: documentId });
+}
+
+export async function cpdHalfYearly(periodEnd: string): Promise<CpdRow[]> {
+  const rows = await rpc<any[]>('project_cpd_halfyearly', { p_period_end: periodEnd });
+  return (rows ?? []).map(x => ({
+    projectId: x.project_id, projectNo: x.project_no, title: x.title, pi: x.pi, category: x.category, stage: x.stage,
+    startDate: x.start_date, endDate: x.end_date, reviewsDue: x.reviews_due, reviewsHeld: x.reviews_held,
+    reviewsMissed: x.reviews_missed, lastReviewOn: x.last_review_on, received: num(x.received), spent: num(x.spent),
+    milestonesAchieved: x.milestones_achieved, milestonesTotal: x.milestones_total, reportsSubmitted: x.reports_submitted,
+  }));
+}
+
+export async function complianceCounts(): Promise<ComplianceCounts> {
+  const rows = await rpc<any[]>('pme_compliance_counts', {});
+  const x = rows?.[0] ?? {};
+  return { declarationsMissing: num(x.declarations_missing), transfersMissingDocs: num(x.transfers_missing_docs), logbooksIdle: num(x.logbooks_idle) };
+}
+
+export function projectCategory(projectId: string) {
+  return rpc<string | null>('project_category', { p_project_id: projectId });
 }

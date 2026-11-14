@@ -3,8 +3,8 @@ import type {
   Equipment,
   IPIntelligence,
   PhDStudent,
+  ProfileFact,
   ProjectInfo,
-  ProjectStaff,
   ScientificOutput,
   StaffMember,
 } from '../types';
@@ -24,7 +24,6 @@ export interface DivisionMetric {
 export interface StaffPortfolio {
   member: StaffMember;
   linkedProjects: ProjectInfo[];
-  projectAssignments: ProjectStaff[];
   supervisedPhDs: PhDStudent[];
   coSupervisedPhDs: PhDStudent[];
   publications: ScientificOutput[];
@@ -82,58 +81,41 @@ export function getDivisionMetrics(params: {
   });
 }
 
+/**
+ * A person's records, picked by the links in staff_profile_facts (P1 identity
+ * links, pi_staff_id, supervisor_staff_id, equipment owner). Nothing is
+ * matched by name: an unlinked record is left out and shows on People Links.
+ */
 export function getStaffPortfolio(params: {
   staffId: string | undefined;
   staff: StaffMember[];
   projects: ProjectInfo[];
-  projectStaff: ProjectStaff[];
   phDStudents: PhDStudent[];
   scientificOutputs: ScientificOutput[];
   ipIntelligence: IPIntelligence[];
   equipment: Equipment[];
+  facts: ProfileFact[];
 }): StaffPortfolio | null {
-  const {
-    staffId,
-    staff,
-    projects,
-    projectStaff,
-    phDStudents,
-    scientificOutputs,
-    ipIntelligence,
-    equipment,
-  } = params;
+  const { staffId, staff, projects, phDStudents, scientificOutputs, ipIntelligence, equipment, facts } = params;
   const member = staff.find(item => item.ID === staffId);
   if (!member) return null;
 
-  const projectAssignments = projectStaff.filter(item => personNamesMatch(member.Name, item.StaffName));
-  const supervisedPhDs = phDStudents.filter(item => personNamesMatch(member.Name, item.SupervisorName));
-  const coSupervisedPhDs = phDStudents.filter(item => personNamesMatch(member.Name, item.CoSupervisorName));
-  const linkedProjectNos = new Set([
-    ...projectAssignments.map(item => item.ProjectNo),
-    ...supervisedPhDs.map(item => item.ProjectNo),
-    ...coSupervisedPhDs.map(item => item.ProjectNo),
-  ].filter(Boolean));
-
-  const linkedProjects = projects.filter(item =>
-    personNamesMatch(member.Name, item.PrincipalInvestigator) ||
-    linkedProjectNos.has(item.ProjectNo)
-  );
+  const ids = (section: ProfileFact['section'], role?: (r: string) => boolean) => new Set(
+    facts.filter(f => f.section === section && (!role || role(f.role ?? ''))).map(f => f.recordId));
+  const projectIds = ids('PROJECT');
+  const supervised = ids('STUDENT', r => r.startsWith('Supervisor'));
+  const coSupervised = ids('STUDENT', r => r.startsWith('Co-supervisor'));
+  const outputIds = ids('OUTPUT');
+  const ipIds = ids('IP');
+  const equipmentIds = ids('EQUIPMENT');
 
   return {
     member,
-    linkedProjects,
-    projectAssignments,
-    supervisedPhDs,
-    coSupervisedPhDs,
-    publications: scientificOutputs.filter(item =>
-      item.authors.some(author => personNamesMatch(member.Name, author))
-    ),
-    ipAssets: ipIntelligence.filter(item =>
-      item.inventors.some(inventor => personNamesMatch(member.Name, inventor))
-    ),
-    assignedEquipment: equipment.filter(item =>
-      personNamesMatch(member.Name, item.IndenterName) ||
-      personNamesMatch(member.Name, item.OperatorName)
-    ),
+    linkedProjects: projects.filter(p => projectIds.has(p.ProjectID)),
+    supervisedPhDs: phDStudents.filter(s => supervised.has(s.EnrollmentNo)),
+    coSupervisedPhDs: phDStudents.filter(s => coSupervised.has(s.EnrollmentNo)),
+    publications: scientificOutputs.filter(o => outputIds.has(o.id)),
+    ipAssets: ipIntelligence.filter(i => ipIds.has(i.id)),
+    assignedEquipment: equipment.filter(e => equipmentIds.has(e.UInsID)),
   };
 }
