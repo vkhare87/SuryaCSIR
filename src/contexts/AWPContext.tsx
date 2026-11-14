@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef, type ReactNode } from 'react';
 import { supabase, isProvisioned } from '../utils/supabaseClient';
 import { useAuth } from './AuthContext';
 import { mapAWPRow, mapAWPRevisionRow } from '../utils/pmsMappers';
@@ -25,6 +25,7 @@ interface AWPContextType {
   myStaffId: string | null;
   isLoading: boolean;
   error: string | null;
+  ensureLoaded: () => void;
   refresh: () => Promise<void>;
   awpFor: (staffId: string, year: string) => PMSAWP | undefined;
   saveDraft: (staffId: string, year: string, content: AWPContent) => Promise<string>;
@@ -49,6 +50,9 @@ const AWPContext = createContext<AWPContextType | undefined>(undefined);
 export function useAWP() {
   const ctx = useContext(AWPContext);
   if (ctx === undefined) throw new Error('useAWP must be used within an AWPProvider');
+  useEffect(() => {
+    ctx.ensureLoaded();
+  }, [ctx]);
   return ctx;
 }
 
@@ -60,18 +64,28 @@ function client() {
 export function AWPProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const provisioned = isProvisioned();
+  const userId = user?.id ?? null;
 
   const [awps, setAwps] = useState<PMSAWP[]>([]);
   const [revisions, setRevisions] = useState<PMSAWPRevision[]>([]);
   const [myStaffId, setMyStaffId] = useState<string | null>(null);
+  const [activated, setActivated] = useState(false);
+  const activatedRef = useRef(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const ensureLoaded = useCallback(() => {
+    if (!activatedRef.current) {
+      activatedRef.current = true;
+      setActivated(true);
+    }
+  }, []);
 
   const refresh = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      if (!provisioned || !supabase || !user) {
+      if (!provisioned || !supabase || !userId) {
         setAwps([]);
         setRevisions([]);
         setMyStaffId(null);
@@ -94,9 +108,21 @@ export function AWPProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, [provisioned, user]);
+  }, [provisioned, userId]);
 
-  useEffect(() => { void refresh(); }, [refresh]);
+  useEffect(() => {
+    if (!userId) {
+      activatedRef.current = false;
+      setActivated(false);
+      setAwps([]);
+      setRevisions([]);
+      setMyStaffId(null);
+      setIsLoading(false);
+      return;
+    }
+    if (!activated) return;
+    void refresh();
+  }, [activated, userId, refresh]);
 
   // Every write is an RPC; reload afterwards so status/timestamps come from the DB.
   const call = useCallback(async <T = void,>(fn: string, args: Record<string, unknown>): Promise<T> => {
@@ -179,11 +205,11 @@ export function AWPProvider({ children }: { children: ReactNode }) {
     call('pms_awp_set_reviewing_officer', { p_awp_id: id, p_staff_id: staffId }), [call]);
 
   const value = useMemo(() => ({
-    awps, revisions, myStaffId, isLoading, error, refresh, awpFor,
+    awps, revisions, myStaffId, isLoading, error, ensureLoaded, refresh, awpFor,
     saveDraft, submit, roReview, rvoReview, directorDecide, returnAWP, forwardBlank,
     importAWP, requestRevision, decideRevision, getSignedPdfUrl, awpForReport, setReviewingOfficer,
   }), [
-    awps, revisions, myStaffId, isLoading, error, refresh, awpFor,
+    awps, revisions, myStaffId, isLoading, error, ensureLoaded, refresh, awpFor,
     saveDraft, submit, roReview, rvoReview, directorDecide, returnAWP, forwardBlank,
     importAWP, requestRevision, decideRevision, getSignedPdfUrl, awpForReport, setReviewingOfficer,
   ]);

@@ -80,7 +80,7 @@ export default function TicketDetail() {
   const data = useData();
   const { user } = useAuth();
 
-  const { staff, isLoading, refreshData, tickets, ticketResponses, ticketEvents } = data;
+  const { staff, isLoading, refreshSlice, tickets, ticketResponses, ticketEvents } = data;
 
   // --- State ---
   const [replyText, setReplyText] = useState('');
@@ -158,7 +158,7 @@ export default function TicketDetail() {
     if (result.success) {
       setReplyText('');
       setReplyExpanded(false);
-      await refreshData?.();
+      await refreshSlice?.('tickets');
     } else {
       setError('Failed to submit response. ' + (result.error ?? '') + ' Your draft has been preserved — please try again.');
     }
@@ -179,7 +179,7 @@ export default function TicketDetail() {
     if (statusResult.success) {
       setReplyText('');
       setReplyExpanded(false);
-      await refreshData?.();
+      await refreshSlice?.('tickets');
     } else {
       setError('Response saved but status update failed: ' + (statusResult.error ?? '') + '. The ticket state may have changed — refresh to see current status.');
     }
@@ -192,7 +192,7 @@ export default function TicketDetail() {
     const result = await updateTicketStatus({ ticketId: ticket.id, newStatus, actorId: user.id });
     setSubmitting(false);
     if (result.success) {
-      await refreshData?.();
+      await refreshSlice?.('tickets');
     } else {
       setError('Failed to update ticket status. ' + (result.error ?? '') + '. The ticket state may have changed — refresh the page to see the current status.');
     }
@@ -205,7 +205,7 @@ export default function TicketDetail() {
     setSubmitting(false);
     if (result.success) {
       setShowReassignModal(false);
-      await refreshData?.();
+      await refreshSlice?.('tickets');
     } else {
       setError('Failed to reassign ticket: ' + (result.error ?? ''));
     }
@@ -218,7 +218,7 @@ export default function TicketDetail() {
     setSubmitting(false);
     if (result.success) {
       setShowForceCloseModal(false);
-      await refreshData?.();
+      await refreshSlice?.('tickets');
     } else {
       setError('Failed to force close ticket: ' + (result.error ?? ''));
     }

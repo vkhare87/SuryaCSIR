@@ -8,7 +8,7 @@ import type { PGlite } from '@electric-sql/pglite';
 import { as, migratedDb, type Tx } from './pgliteHarness';
 
 const u = (n: string) => `69000000-0000-0000-0000-0000000000${n}`;
-const U = { pi: u('01'), copi: u('02'), pme: u('03'), finance: u('04'), director: u('05'), other: u('06') } as const;
+const U = { pi: u('01'), copi: u('02'), pme: u('03'), finance: u('04'), director: u('05'), other: u('06'), pending: u('07') } as const;
 const ULIP = 'PRJ-Z-ULIP';
 const HQ = 'PRJ-Z-HQ';
 const OLD = 'PRJ-Z-OLD';
@@ -52,7 +52,8 @@ beforeAll(async () => {
     DELETE FROM public.user_roles;
     INSERT INTO public.user_roles (user_id, role, division_code) VALUES
       ('${U.pi}', 'Scientist', 'D1'), ('${U.copi}', 'Scientist', 'D1'), ('${U.pme}', 'PME', NULL),
-      ('${U.finance}', 'FinanceAdmin', NULL), ('${U.director}', 'Director', NULL), ('${U.other}', 'Scientist', 'D7');
+      ('${U.finance}', 'FinanceAdmin', NULL), ('${U.director}', 'Director', NULL), ('${U.other}', 'Scientist', 'D7'),
+      ('${U.pending}', 'DefaultUser', NULL);
     UPDATE public.user_profiles p SET active_role = (SELECT role FROM public.user_roles r WHERE r.user_id = p.user_id LIMIT 1);
     INSERT INTO public.staff ("ID", "Name", "Division", user_id) VALUES
       ('Z-PI', 'Dr PI', 'D1', '${U.pi}'), ('Z-CO', 'Dr CoPI', 'D1', '${U.copi}'), ('Z-OT', 'Dr Other', 'D7', '${U.other}');
@@ -157,13 +158,17 @@ describe('the closure route', () => {
 });
 
 describe('institutional memory', () => {
-  it('an approved report\'s lessons are readable by anyone, even without access to the project', async () => {
+  it('an approved report\'s lessons are readable by verified users, even without access to the project, but hidden from unverified accounts', async () => {
     const seen = await as(db, U.other, async tx => ({
       project: (await tx.query(`SELECT 1 FROM projects WHERE "ProjectID" = $1`, [ULIP])).rows.length,
       lessons: (await tx.query<{ what_did_not: string }>(`SELECT what_did_not FROM project_lessons`)).rows,
     }));
     expect(seen.project).toBe(0);
     expect(seen.lessons).toEqual([{ what_did_not: LESSONS.what_did_not }]);
+
+    const unverified = await as(db, U.pending, async tx =>
+      (await tx.query<{ what_did_not: string }>(`SELECT what_did_not FROM project_lessons`)).rows);
+    expect(unverified).toEqual([]);
   });
 
   it('archiving needs the published report; then the project is read-only', async () => {

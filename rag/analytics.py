@@ -10,8 +10,60 @@ from answer import Answer
 # no query-builder surface to validate.
 
 
-def _rows(client, table, columns):
-    return client.table(table).select(columns).execute().data or []
+_PAGE_SIZE = 1000
+
+
+_TABLE_ORDER_KEY = {
+    "documents": "id",
+    "projects": "ProjectID",
+    "ip_intelligence": "id",
+    "scientific_outputs": "id",
+    "staff": "ID",
+    "phd_milestones": "id",
+    "mous": "id",
+    "tech_transfers": "id",
+    "project_staff": "id",
+    "divisions": "divCode",
+}
+
+
+def _escape_like(value: str) -> str:
+    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
+def _safe_or_token(value: str) -> bool:
+    return not any(ch in value for ch in (",", "(", ")"))
+
+
+def _rows(client, table, columns, build_query=None):
+    if table not in _TABLE_ORDER_KEY:
+        raise ValueError(f"Missing deterministic order key for table {table!r}")
+    order_col = _TABLE_ORDER_KEY[table]
+    q = client.table(table).select(columns)
+    can_filter = build_query is not None and hasattr(q, "eq")
+    if can_filter:
+        q = build_query(q)
+    if not hasattr(q, "range"):
+        return q.execute().data or []
+    out, page = [], 0
+    while True:
+        if page == 0:
+            page_q = q
+        else:
+            page_q = client.table(table).select(columns)
+            if can_filter:
+                page_q = build_query(page_q)
+        batch = (
+            page_q.order(order_col)
+            .range(page * _PAGE_SIZE, (page + 1) * _PAGE_SIZE - 1)
+            .execute()
+            .data
+            or []
+        )
+        out.extend(batch)
+        if len(batch) < _PAGE_SIZE:
+            return out
+        page += 1
 
 
 def _counts(rows, key):
@@ -69,8 +121,10 @@ def _count_documents_by_status(params, client) -> Answer:
 
 
 def _count_projects_by_division(params, client) -> Answer:
-    rows = _rows(client, "projects", "DivisionCode, ProjectStatus")
     status = params.get("status")
+    status_str = str(status).strip() if status else ""
+    filt = (lambda q: q.ilike("ProjectStatus", _escape_like(status_str))) if status_str else None
+    rows = _rows(client, "projects", "DivisionCode, ProjectStatus", build_query=filt)
     if status:
         rows = [r for r in rows if str(r.get("ProjectStatus", "")).lower() == str(status).lower()]
     counts = _counts(rows, "DivisionCode")
@@ -94,8 +148,10 @@ def _recorded(value) -> bool:
 
 
 def _project_expenditure_summary(params, client) -> Answer:
-    rows = _rows(client, "projects", "DivisionCode, SanctionedCost, UtilizedAmount")
     division = params.get("division_code")
+    div_str = str(division).strip() if division else ""
+    filt = (lambda q: q.ilike("DivisionCode", _escape_like(div_str))) if div_str else None
+    rows = _rows(client, "projects", "DivisionCode, SanctionedCost, UtilizedAmount", build_query=filt)
     if division:
         rows = [r for r in rows if str(r.get("DivisionCode", "")).lower() == str(division).lower()]
     sanctioned = sum(_num(r.get("SanctionedCost")) for r in rows)
@@ -330,8 +386,13 @@ def _staff_profile(params, client) -> Answer:
     name = str(params.get("name") or "").strip()
     if not name:
         return Answer("No staff name supplied. (source: staff table)", "structured", [])
+    filt = None
+    if _safe_or_token(name):
+        safe = _escape_like(name)
+        filt = lambda q: q.or_(f"Name.ilike.%{safe}%,ID.eq.{name}") if hasattr(q, "or_") else q
     rows = _rows(client, "staff",
-                 "ID, Name, Designation, Division, CoreArea, Expertise, Email")
+                 "ID, Name, Designation, Division, CoreArea, Expertise, Email",
+                 build_query=filt)
     matches = _match_staff(rows, name)
     if not matches:
         return Answer(f"No staff member matching '{name}'. (source: staff table)",
@@ -357,22 +418,58 @@ def _projects_for_staff(params, client) -> Answer:
     if not name:
         return Answer("No staff name supplied. (source: staff, projects tables)",
                       "structured", [])
-    people = _match_staff(_rows(client, "staff", "ID, Name"), name)
+    staff_filt = None
+    if _safe_or_token(name):
+        safe = _escape_like(name)
+        staff_filt = lambda q: q.or_(f"Name.ilike.%{safe}%,ID.eq.{name}") if hasattr(q, "or_") else q
+    people = _match_staff(_rows(client, "staff", "ID, Name", build_query=staff_filt), name)
     if not people:
         return Answer(f"No staff member matching '{name}'. (source: staff table)",
                       "structured", [])
     person = people[0]
-    full = str(person.get("Name") or "").strip().lower()
-    sid = str(person.get("ID") or "").strip().lower()
-    projects = _rows(client, "projects",
-                     "ProjectNo, ProjectName, ProjectStatus, PrincipalInvestigator")
-    team_nos = {str(r.get("ProjectNo"))
-                for r in _rows(client, "project_staff", "ProjectNo, StaffName")
-                if str(r.get("StaffName") or "").strip().lower() == full}
+    raw_name = str(person.get("Name") or "").strip()
+    raw_id = str(person.get("ID") or "").strip()
+    full = raw_name.lower()
+    sid = raw_id.lower()
+    ps_filt = None
+    if raw_id and raw_name and _safe_or_token(raw_id) and _safe_or_token(raw_name):
+        ps_filt = lambda q: (
+            q.or_(f"staff_id.eq.{raw_id},StaffName.ilike.{_escape_like(raw_name)}")
+            if hasattr(q, "or_") else q
+        )
+    elif raw_name:
+        ps_filt = lambda q: q.ilike("StaffName", _escape_like(raw_name))
+    team_nos = {
+        str(r.get("ProjectNo"))
+        for r in _rows(client, "project_staff", "ProjectNo, StaffName, staff_id", build_query=ps_filt)
+        if (sid and str(r.get("staff_id") or "").strip().lower() == sid)
+        or (full and str(r.get("StaffName") or "").strip().lower() == full)
+    }
+    proj_filt = None
+    if _safe_or_token(raw_id) and _safe_or_token(raw_name):
+        clauses = []
+        if raw_id:
+            clauses.append(f"pi_staff_id.eq.{raw_id}")
+            clauses.append(f"PrincipalInvestigator.ilike.{_escape_like(raw_id)}")
+        if raw_name:
+            clauses.append(f"PrincipalInvestigator.ilike.{_escape_like(raw_name)}")
+        if team_nos and all(_safe_or_token(no) for no in team_nos):
+            quoted = ",".join(f'"{no}"' for no in sorted(team_nos))
+            clauses.append(f"ProjectNo.in.({quoted})")
+        if clauses:
+            expr = ",".join(clauses)
+            proj_filt = lambda q: q.or_(expr) if hasattr(q, "or_") else q
+    projects = _rows(
+        client,
+        "projects",
+        "ProjectNo, ProjectName, ProjectStatus, PrincipalInvestigator, pi_staff_id",
+        build_query=proj_filt,
+    )
     led, member = [], []
     for p in projects:
+        pi_sid = str(p.get("pi_staff_id") or "").strip().lower()
         pi = str(p.get("PrincipalInvestigator") or "").strip().lower()
-        if pi and pi in (full, sid):
+        if (pi_sid and pi_sid == sid) or (pi and pi in (full, sid)):
             led.append(p)
         elif str(p.get("ProjectNo")) in team_nos:
             member.append(p)
@@ -398,17 +495,21 @@ def _division_summary(params, client) -> Answer:
     if not code:
         return Answer("No division code supplied. (source: divisions table)",
                       "structured", [])
-    divisions = _rows(client, "divisions",
-                      "divCode, divName, divHoD, divCurrentStrength, divSanctionedstrength")
+    divisions = _rows(
+        client,
+        "divisions",
+        "divCode, divName, divHoD, divCurrentStrength, divSanctionedstrength",
+        build_query=lambda q: q.ilike("divCode", _escape_like(code)),
+    )
     div = next((d for d in divisions
                 if str(d.get("divCode") or "").lower() == code.lower()), None)
     if div is None:
         return Answer(f"No division with code '{code}'. (source: divisions table)",
                       "structured", [])
     dc = str(div.get("divCode"))
-    staff_count = sum(1 for r in _rows(client, "staff", "Division")
+    staff_count = sum(1 for r in _rows(client, "staff", "Division", build_query=lambda q: q.eq("Division", dc))
                       if str(r.get("Division") or "") == dc)
-    proj_rows = [r for r in _rows(client, "projects", "DivisionCode, ProjectStatus")
+    proj_rows = [r for r in _rows(client, "projects", "DivisionCode, ProjectStatus", build_query=lambda q: q.eq("DivisionCode", dc))
                  if str(r.get("DivisionCode") or "") == dc]
     status_counts = _counts(proj_rows, "ProjectStatus")
     return Answer(f"{div.get('divName')} ({dc}) — HoD {div.get('divHoD') or '—'}, "
@@ -426,8 +527,17 @@ def _project_team(params, client) -> Answer:
     if not no and not name:
         return Answer("No project number or name supplied. (source: projects table)",
                       "structured", [])
-    projects = _rows(client, "projects",
-                     "ProjectNo, ProjectName, ProjectStatus, PrincipalInvestigator")
+    proj_filt = (
+        (lambda q: q.ilike("ProjectNo", _escape_like(no)))
+        if no
+        else (lambda q: q.ilike("ProjectName", f"%{_escape_like(name)}%"))
+    )
+    projects = _rows(
+        client,
+        "projects",
+        "ProjectNo, ProjectName, ProjectStatus, PrincipalInvestigator, pi_staff_id",
+        build_query=proj_filt,
+    )
     if no:
         proj = next((p for p in projects
                      if str(p.get("ProjectNo") or "").lower() == no.lower()), None)
@@ -437,12 +547,19 @@ def _project_team(params, client) -> Answer:
     if proj is None:
         return Answer(f"No project matching '{no or params.get('project_name')}'. "
                       "(source: projects table)", "structured", [])
+    pi_sid = str(proj.get("pi_staff_id") or "").strip()
     pi_raw = str(proj.get("PrincipalInvestigator") or "").strip()
-    pi_matches = _match_staff(_rows(client, "staff", "ID, Name"), pi_raw) if pi_raw else []
+    pi_lookup = pi_sid or pi_raw
+    pi_filt = None
+    if pi_lookup and _safe_or_token(pi_lookup):
+        safe = _escape_like(pi_lookup)
+        pi_filt = lambda q: q.or_(f"Name.ilike.%{safe}%,ID.eq.{pi_lookup}") if hasattr(q, "or_") else q
+    pi_matches = _match_staff(_rows(client, "staff", "ID, Name", build_query=pi_filt), pi_lookup) if pi_lookup else []
     pi_name = pi_matches[0].get("Name") if pi_matches else (pi_raw or "—")
+    pno = str(proj.get("ProjectNo"))
     team = [str(r.get("StaffName"))
-            for r in _rows(client, "project_staff", "ProjectNo, StaffName")
-            if str(r.get("ProjectNo")) == str(proj.get("ProjectNo"))]
+            for r in _rows(client, "project_staff", "ProjectNo, StaffName", build_query=lambda q: q.eq("ProjectNo", pno))
+            if str(r.get("ProjectNo")) == pno]
     team_str = "; ".join(team) if team else "none recorded"
     return Answer(f"{proj.get('ProjectNo')} {proj.get('ProjectName') or ''} "
                   f"[{proj.get('ProjectStatus') or '—'}] — PI: {pi_name}; "

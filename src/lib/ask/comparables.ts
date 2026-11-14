@@ -33,24 +33,30 @@ export async function resolveComparables(
     if (d.entity_type === 'proposal') proposalIds.push({ docId: d.id, entityId: d.entity_id });
   }
 
-  if (reportIds.length > 0) {
-    const { data: reports } = await supabase
-      .from('project_reports')
-      .select('id, project_no')
-      .in('id', reportIds.map((r) => r.entityId));
+  const [reportsRes, proposalsRes] = await Promise.all([
+    reportIds.length > 0
+      ? supabase.from('project_reports').select('id, project_no').in('id', reportIds.map((r) => r.entityId))
+      : Promise.resolve({ data: null }),
+    proposalIds.length > 0
+      ? supabase
+          .from('proposals')
+          .select('id, requested_budget, proposed_start_date, proposed_duration_months, status')
+          .in('id', proposalIds.map((p) => p.entityId))
+      : Promise.resolve({ data: null }),
+  ]);
+
+  if (reportsRes.data) {
+    const reportById = new Map(reportsRes.data.map((r) => [r.id, r]));
     for (const { docId, entityId } of reportIds) {
-      const rep = reports?.find((r) => r.id === entityId);
+      const rep = reportById.get(entityId);
       if (rep) out[docId] = { kind: 'project_report', projectNo: rep.project_no };
     }
   }
 
-  if (proposalIds.length > 0) {
-    const { data: proposals } = await supabase
-      .from('proposals')
-      .select('id, requested_budget, proposed_start_date, proposed_duration_months, status')
-      .in('id', proposalIds.map((p) => p.entityId));
+  if (proposalsRes.data) {
+    const proposalById = new Map(proposalsRes.data.map((p) => [p.id, p]));
     for (const { docId, entityId } of proposalIds) {
-      const prop = proposals?.find((p) => p.id === entityId);
+      const prop = proposalById.get(entityId);
       if (prop) {
         out[docId] = {
           kind: 'proposal',

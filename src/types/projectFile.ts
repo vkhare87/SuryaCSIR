@@ -80,6 +80,8 @@ export interface ProjectFile {
   slots: ReviewSlot[];
   changes: ChangeRequest[];
   completion: CompletionReport | null;
+  callerIsPi?: boolean;
+  callerIsParty?: boolean;
 }
 
 export type SlotKind =

@@ -35,5 +35,12 @@ describe('DataProvider boot load (BUG-12)', () => {
     await new Promise(r => setTimeout(r, 0));
     expect(from).toHaveBeenCalledTimes(perRound);
     expect(from.mock.calls.filter(([t]) => t === 'staff')).toHaveLength(1);
+
+    // Switching activeRole or divisionCode derives scoped views in-memory via useMemo
+    // without firing a second network round of 31 table requests.
+    auth.current = { isAuthenticated: true, role: 'DivisionHead', divisionCode: 'MSE' };
+    rerender(<DataProvider><div /></DataProvider>);
+    await new Promise(r => setTimeout(r, 0));
+    expect(from).toHaveBeenCalledTimes(perRound);
   });
 });

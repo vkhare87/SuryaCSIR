@@ -33,7 +33,7 @@ const pickFields = (x: any): CompletionFields => ({
 /** The ledger, plan and history of one project. Tables from 20261111000001/2; empty until applied. */
 export async function loadProjectFile(projectId: string): Promise<ProjectFile> {
   const c = client();
-  const [b, r, e, m, d, ev, sl, cr, pc] = await Promise.all([
+  const [b, r, e, m, d, ev, sl, cr, pc, isPiRes, isPartyRes] = await Promise.all([
     c.from('project_budget_lines').select('*').eq('project_id', projectId).order('fiscal_year'),
     c.from('project_fund_receipts').select('*').eq('project_id', projectId).order('received_on').order('recorded_at'),
     c.from('project_expenditure').select('*').eq('project_id', projectId).order('fiscal_year').order('recorded_at'),
@@ -41,21 +41,31 @@ export async function loadProjectFile(projectId: string): Promise<ProjectFile> {
     c.from('project_documents').select('*').eq('project_id', projectId).order('uploaded_at', { ascending: false }),
     c.from('project_events').select('*').eq('project_id', projectId).order('at', { ascending: false }).limit(200),
     c.from('project_review_slots').select('*').eq('project_id', projectId).order('due_date'),
-    c.from('project_change_requests').select('*').eq('project_id', projectId).order('created_at', { ascending: false }),
-    c.from('project_completion_reports').select('*').eq('project_id', projectId),
+    c.from('project_change_requests').select('*, project_change_steps(*)').eq('project_id', projectId).order('created_at', { ascending: false }),
+    c.from('project_completion_reports').select('*, project_completion_steps(*)').eq('project_id', projectId),
+    typeof c.rpc === 'function' ? c.rpc('project_caller_is_pi', { p_project_id: projectId }) : Promise.resolve({ data: null, error: null }),
+    typeof c.rpc === 'function' ? c.rpc('project_caller_is_party', { p_project_id: projectId }) : Promise.resolve({ data: null, error: null }),
   ]);
   const report = (pc.data ?? [])[0] as any;
-  const pcs = report
-    ? await c.from('project_completion_steps').select('*').eq('report_id', report.id).eq('round', report.round).order('seq')
-    : { data: [] };
-  const changeIds = (cr.data ?? []).map((x: any) => x.id as string);
-  const cs = changeIds.length
-    ? await c.from('project_change_steps').select('*').in('change_id', changeIds).order('seq')
-    : { data: [] };
-  const steps = (cs.data ?? []).map((x: any): ChangeStep & { changeId: string } => ({
-    id: x.id, changeId: x.change_id, round: x.round, seq: x.seq, kind: x.kind, status: x.status,
-    decidedAt: x.decided_at, notes: x.notes, documentId: x.document_id,
-  }));
+  const pcsRows = report
+    ? ((report.project_completion_steps as any[] | undefined) ?? [])
+        .filter((x: any) => x.round === report.round)
+        .sort((a: any, b: any) => a.seq - b.seq)
+    : [];
+  const stepsByChange = new Map<string, ChangeStep[]>();
+  for (const ch of cr.data ?? []) {
+    const rawSteps = ((ch as any).project_change_steps as any[] | undefined) ?? [];
+    stepsByChange.set(
+      ch.id,
+      rawSteps
+        .filter((x: any) => x.round === ch.round)
+        .sort((a: any, b: any) => a.seq - b.seq)
+        .map((x: any): ChangeStep => ({
+          id: x.id, round: x.round, seq: x.seq, kind: x.kind, status: x.status,
+          decidedAt: x.decided_at, notes: x.notes, documentId: x.document_id,
+        })),
+    );
+  }
   return {
     budgetLines: (b.data ?? []).map((x: any) => ({ fiscalYear: x.fiscal_year, head: x.head, item: x.item ?? '', amount: num(x.amount) })),
     receipts: (r.data ?? []).map((x: any) => ({
@@ -81,7 +91,7 @@ export async function loadProjectFile(projectId: string): Promise<ProjectFile> {
       payload: x.payload ?? {}, increasePct: x.increase_pct === null ? null : num(x.increase_pct),
       orderNo: x.order_no, orderDate: x.order_date, ifdFileNo: x.ifd_file_no, decisionNote: x.decision_note,
       createdBy: x.created_by, createdAt: x.created_at, submittedAt: x.submitted_at, decidedAt: x.decided_at,
-      steps: steps.filter(st => st.changeId === x.id && st.round === x.round),
+      steps: stepsByChange.get(x.id) ?? [],
     })),
     completion: report ? {
       ...pickFields(report),
@@ -89,8 +99,10 @@ export async function loadProjectFile(projectId: string): Promise<ProjectFile> {
       financialStatement: report.financial_statement ?? null, annexures: report.annexures ?? [],
       decisionNote: report.decision_note, publishedDocumentId: report.published_document_id,
       createdBy: report.created_by, submittedAt: report.submitted_at, decidedAt: report.decided_at,
-      steps: (pcs.data ?? []).map((x: any) => ({ id: x.id, round: x.round, seq: x.seq, kind: x.kind, status: x.status, notes: x.notes })),
+      steps: pcsRows.map((x: any) => ({ id: x.id, round: x.round, seq: x.seq, kind: x.kind, status: x.status, notes: x.notes })),
     } : null,
+    callerIsPi: !isPiRes.error && typeof isPiRes.data === 'boolean' ? isPiRes.data : undefined,
+    callerIsParty: !isPartyRes.error && typeof isPartyRes.data === 'boolean' ? isPartyRes.data : undefined,
   };
 }
 

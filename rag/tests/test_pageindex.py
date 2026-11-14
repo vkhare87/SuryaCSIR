@@ -122,3 +122,21 @@ def test_fanout_capped_into_group_nodes():
     assert g0["title"] == "S0 … S9"
     assert g0["page_start"] == 1 and g0["page_end"] == 10
     assert g0["nodes"][0]["title"] == "S0"
+
+
+def test_flat_tree_does_not_rescan_pages_per_leaf(monkeypatch):
+    import pageindex
+
+    def _boom(*_a, **_kw):
+        raise AssertionError("_page_text should not be called for flat single-page leaves")
+
+    monkeypatch.setattr(pageindex, "_page_text", _boom)
+    seen = []
+    tree = build_tree(
+        ParsedDoc(pages=_pages(4), toc=[]),
+        EchoLLM(),
+        "Flat",
+        on_leaf_summarized=lambda k, v: seen.append((k, v)),
+    )
+    assert [n["summary"] for n in tree["root"]["nodes"]] == [f"page {i} body" for i in range(1, 5)]
+    assert len(seen) == 4

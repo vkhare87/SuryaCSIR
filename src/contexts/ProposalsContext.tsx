@@ -34,12 +34,13 @@ export function useProposals() {
 export function ProposalsProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const provisioned = isProvisioned();
+  const userId = user?.id ?? null;
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
-    if (!provisioned || !supabase || !user) {
+    if (!provisioned || !supabase || !userId) {
       setProposals([]);
       setIsLoading(false);
       return;
@@ -61,7 +62,7 @@ export function ProposalsProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, [provisioned, user]);
+  }, [provisioned, userId]);
 
   useEffect(() => { refresh(); }, [refresh]);
 
@@ -130,12 +131,21 @@ export function ProposalsProvider({ children }: { children: ReactNode }) {
 
   const saveCoPIs = useCallback(async (id: string, coPIs: ProposalCoPI[]): Promise<void> => {
     if (!supabase) throw new Error('Database not provisioned');
+    const payload = coPIs.map((c) => ({ staff_id: c.staffId, staff_name: c.staffName }));
+    if (typeof supabase.rpc === 'function') {
+      const { error: rpcErr } = await supabase.rpc('proposal_save_copis', {
+        p_proposal_id: id,
+        p_copis: payload,
+      });
+      if (rpcErr) throw rpcErr;
+      return;
+    }
     const { error: delErr } = await supabase.from('proposal_copis').delete().eq('proposal_id', id);
     if (delErr) throw delErr;
     if (coPIs.length === 0) return;
     const { error: insErr } = await supabase
       .from('proposal_copis')
-      .insert(coPIs.map((c) => ({ proposal_id: id, staff_id: c.staffId, staff_name: c.staffName })));
+      .insert(payload.map((c) => ({ proposal_id: id, ...c })));
     if (insErr) throw insErr;
   }, []);
 

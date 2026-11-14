@@ -4,11 +4,11 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'rec
 import { Card, Badge } from '../components/ui/Cards';
 import { EmptyState } from '../components/ui/EmptyState';
 import {
-  fetchMonitorRows, fetchLatencies, fetchDownvoted, fetchQueryLogRows, labelRoute,
-  requeueDocument, requeueAll, countByStatus, percentile, computeTraceability, toCsv,
+  fetchMonitorRows, fetchMonitorSummary, fetchLatencies, fetchDownvoted, fetchQueryLogRows, labelRoute,
+  requeueDocument, requeueAll, countByStatus, percentile, toCsv,
   fetchReviewQueue, setAccessTier,
 } from '../lib/rag/monitor';
-import type { MonitorRow, IngestStatus, LatencyPoint, DownvotedQuery, RouteMode, QueryLogRow, ReviewRow, AccessTier } from '../lib/rag/monitor';
+import type { MonitorRow, IngestStatus, LatencyPoint, DownvotedQuery, RouteMode, ReviewRow, AccessTier, StatusCounts } from '../lib/rag/monitor';
 
 const ROUTES: RouteMode[] = ['structured', 'document', 'hybrid'];
 
@@ -24,20 +24,29 @@ const STATUS_VARIANT: Record<IngestStatus, 'success' | 'warning' | 'danger' | 'i
 
 export default function RagMonitor() {
   const [rows, setRows] = useState<MonitorRow[]>([]);
+  const [summaryCounts, setSummaryCounts] = useState<StatusCounts | null>(null);
+  const [traceability, setTraceability] = useState<{ share: number; cited: number; total: number } | null>(null);
   const [latencies, setLatencies] = useState<LatencyPoint[]>([]);
   const [downvoted, setDownvoted] = useState<DownvotedQuery[]>([]);
-  const [queryRows, setQueryRows] = useState<QueryLogRow[]>([]);
   const [reviewQueue, setReviewQueue] = useState<ReviewRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   async function load() {
     setLoading(true);
     try {
-      setRows(await fetchMonitorRows());
-      setLatencies(await fetchLatencies());
-      setDownvoted(await fetchDownvoted());
-      setQueryRows(await fetchQueryLogRows());
-      setReviewQueue(await fetchReviewQueue());
+      const [nextRows, nextSummary, nextLatencies, nextDownvoted, nextReview] = await Promise.all([
+        fetchMonitorRows(),
+        fetchMonitorSummary().catch(() => null),
+        fetchLatencies(),
+        fetchDownvoted(),
+        fetchReviewQueue(),
+      ]);
+      setRows(nextRows);
+      setSummaryCounts(nextSummary?.counts ?? null);
+      setTraceability(nextSummary?.traceability ?? null);
+      setLatencies(nextLatencies);
+      setDownvoted(nextDownvoted);
+      setReviewQueue(nextReview);
     } catch (e) {
       console.error('Failed to load RAG monitor', e);
       setRows([]);
@@ -49,8 +58,8 @@ export default function RagMonitor() {
   useEffect(() => { void load(); }, []);
 
   const counts = useMemo(
-    () => countByStatus(rows.map((r) => ({ ingest_status: r.status }))),
-    [rows],
+    () => summaryCounts ?? countByStatus(rows.map((r) => ({ ingest_status: r.status }))),
+    [summaryCounts, rows],
   );
 
   const latencyStats = useMemo(() => {
@@ -58,22 +67,25 @@ export default function RagMonitor() {
     return { p50: percentile(values, 50), p90: percentile(values, 90), p99: percentile(values, 99) };
   }, [latencies]);
 
-  const traceability = useMemo(() => computeTraceability(queryRows), [queryRows]);
-
-  function exportCsv() {
-    const csv = toCsv(
-      ['created_at', 'question', 'mode', 'answer', 'citations', 'feedback', 'latency_ms'],
-      queryRows.map((r) => [
-        r.createdAt, r.question, r.mode, r.answer,
-        r.citations?.length ?? 0, r.feedback, r.latencyMs,
-      ]),
-    );
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `query_log_${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+  async function exportCsv() {
+    try {
+      const queryRows = await fetchQueryLogRows();
+      const csv = toCsv(
+        ['created_at', 'question', 'mode', 'answer', 'citations', 'feedback', 'latency_ms'],
+        queryRows.map((r) => [
+          r.createdAt, r.question, r.mode, r.answer,
+          r.citations?.length ?? 0, r.feedback, r.latencyMs,
+        ]),
+      );
+      const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `query_log_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('CSV export failed', e);
+    }
   }
 
   async function label(q: DownvotedQuery, route: RouteMode) {

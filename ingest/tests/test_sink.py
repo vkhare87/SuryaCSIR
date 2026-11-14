@@ -1,3 +1,5 @@
+import pytest
+
 from db import FakeDB
 from sink import land_file
 
@@ -44,3 +46,12 @@ def test_unmapped_division_still_lands_for_review():
     rid = land_file(db, "mail", "unknown@example.com", None, "report.csv", b"data")
     assert rid is not None
     assert db.harvested[rid]["division_code"] is None
+
+
+def test_storage_upload_returning_false_raises():
+    db = FakeDB()
+    db.upload = lambda *a, **kw: False
+    with pytest.raises(RuntimeError, match="storage upload failed"):
+        land_file(db, "mail", "hod@ampri.res.in", "CMPD", "scan.pdf", b"%PDF-1.4 fail")
+    assert db.documents == {}
+    assert db.harvested == {}

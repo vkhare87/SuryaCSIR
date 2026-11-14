@@ -75,6 +75,7 @@ export type ProjectStage =
 export type Project = ProjectInfo;
 
 export interface ProjectStaff {
+  projectId?: string | null;
   id: string; // Generated UUID
   ProjectNo: string; // References ProjectInfo.ProjectNo
   StaffName: string;
@@ -87,6 +88,7 @@ export interface ProjectStaff {
 }
 
 export interface PhDStudent {
+  projectId?: string | null;
   EnrollmentNo: string;
   StudentName: string;
   Specialization: string;

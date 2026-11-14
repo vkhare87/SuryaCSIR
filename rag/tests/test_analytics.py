@@ -421,3 +421,98 @@ def test_budget_variance_says_unassessable_rather_than_all_clear():
              "SanctionedCost": "1000", "UtilizedAmount": ""}]
     text = _project_budget_variance({}, _FakeClient(rows)).text
     assert "cannot be assessed" in text
+
+
+def test_rows_paginates_beyond_postgrest_1000_row_cap():
+    from analytics import _rows
+
+    all_rows = [{"id": i} for i in range(2350)]
+
+    class _PagedTable:
+        def __init__(self, data, orders):
+            self._data = data
+            self._start = 0
+            self._end = len(data) - 1
+            self._order_col = None
+            self._orders = orders
+
+        def select(self, _cols):
+            return self
+
+        def order(self, col):
+            self._order_col = col
+            self._orders.append(col)
+            return self
+
+        def range(self, start, end):
+            assert self._order_col is not None, "order() must be called before range()"
+            self._start = start
+            self._end = end
+            return self
+
+        def execute(self):
+            # Simulate PostgREST capping any page to 1000 rows max
+            hi = min(self._end + 1, self._start + 1000, len(self._data))
+            return type("R", (), {"data": self._data[self._start:hi]})()
+
+    class _PagedClient:
+        def __init__(self, data):
+            self._data = data
+            self.calls = 0
+            self.orders = []
+
+        def table(self, _name):
+            self.calls += 1
+            return _PagedTable(self._data, self.orders)
+
+    client = _PagedClient(all_rows)
+    fetched = _rows(client, "staff", "id")
+    assert len(fetched) == 2350
+    assert fetched[0]["id"] == 0
+    assert fetched[-1]["id"] == 2349
+    assert client.calls == 3
+    assert client.orders == ["ID", "ID", "ID"]
+
+
+def test_division_summary_pushes_filters_to_query_builder():
+    calls = []
+
+    class _FilteringTable:
+        def __init__(self, table_name):
+            self._table = table_name
+            self._eq = {}
+            self._ilike = {}
+
+        def select(self, _cols):
+            return self
+
+        def eq(self, col, val):
+            self._eq[col] = val
+            return self
+
+        def ilike(self, col, val):
+            self._ilike[col] = val
+            return self
+
+        def execute(self):
+            calls.append((self._table, dict(self._eq), dict(self._ilike)))
+            if self._table == "divisions":
+                return type("R", (), {"data": [{
+                    "divCode": "CMD", "divName": "Materials",
+                    "divHoD": "Dr A", "divCurrentStrength": 5, "divSanctionedstrength": 8,
+                }]})()
+            if self._table == "staff":
+                return type("R", (), {"data": [{"Division": "CMD"}]})()
+            return type("R", (), {"data": [{"DivisionCode": "CMD", "ProjectStatus": "Ongoing"}]})()
+
+    class _FilteringClient:
+        def table(self, name):
+            return _FilteringTable(name)
+
+    ans = run_analytics("division_summary", {"division_code": "CMD"}, _FilteringClient())
+    assert "CMD" in ans.text
+    assert calls == [
+        ("divisions", {}, {"divCode": "CMD"}),
+        ("staff", {"Division": "CMD"}, {}),
+        ("projects", {"DivisionCode": "CMD"}, {}),
+    ]

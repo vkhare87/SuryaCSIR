@@ -4,8 +4,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { canAdmin } from '../../lib/pms/permissions';
 import { supabase } from '../../utils/supabaseClient';
 import { Skeleton } from '../../components/ui/Skeleton';
-import { mapPmsRow, mapModuleRow, summarizeDetails } from '../../lib/audit/mappers';
-import type { UnifiedLog } from '../../lib/audit/mappers';
+import { summarizeDetails } from '../../lib/audit/mappers';
+import type { AuditSource, UnifiedLog } from '../../lib/audit/mappers';
 import { friendlyError } from '../../lib/errors';
 
 type Source = 'all' | 'pms' | 'modules';
@@ -34,6 +34,7 @@ export default function AuditLog() {
   const { user } = useAuth();
   const [source, setSource] = useState<Source>('pms');
   const [logs, setLogs] = useState<UnifiedLog[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(0);
@@ -42,40 +43,47 @@ export default function AuditLog() {
 
   useEffect(() => {
     if (!isAdmin || !supabase) return;
+    let active = true;
     const db = supabase;
     setIsLoading(true);
     setError(null);
 
-    // 'all' needs the top (page+1)*PER_PAGE of *each* source: the newest N of a
-    // union always lie within the newest N of each part. Paging each source
-    // separately and merging made union rows unreachable.
-    const from = source === 'all' ? 0 : page * PER_PAGE;
-    const fetchOne = (table: string, mapper: (r: Record<string, unknown>) => UnifiedLog) =>
-      db.from(table)
-        .select('*')
-        .order('created_at', { ascending: false })
-        .order('id')
-        .range(from, (page + 1) * PER_PAGE - 1)
-        .then(({ data, error: err }) => {
-          if (err) throw err;
-          return (data ?? []).map((r) => mapper(r as Record<string, unknown>));
-        });
-
-    const wanted =
-      source === 'pms' ? [fetchOne('pms_audit_logs', mapPmsRow)]
-      : source === 'modules' ? [fetchOne('audit_log', mapModuleRow)]
-      : [fetchOne('pms_audit_logs', mapPmsRow), fetchOne('audit_log', mapModuleRow)];
-
-    void Promise.all(wanted)
-      .then((lists) => {
-        const merged = lists.flat().sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-        setLogs(source === 'all' ? merged.slice(page * PER_PAGE, (page + 1) * PER_PAGE) : merged);
+    void db
+      .rpc('list_combined_audit_logs', {
+        p_source: source,
+        p_limit: PER_PAGE,
+        p_offset: page * PER_PAGE,
       })
-      .catch((e: Error) => {
+      .then(({ data, error: err }) => {
+        if (!active) return;
+        if (err) throw err;
+        const rows = (data as {
+          source: AuditSource; id: string; action: string; entity_type: string;
+          entity_id: string | null; actor_label: string | null;
+          details: Record<string, unknown> | null; created_at: string; total_count: number;
+        }[]) ?? [];
+        setTotalCount(rows[0] ? Number(rows[0].total_count) : 0);
+        setLogs(rows.map((r) => ({
+          id: r.id,
+          source: r.source,
+          actorId: r.actor_label ?? '',
+          action: r.action,
+          entityType: r.entity_type,
+          entityId: r.entity_id ?? '',
+          details: r.details ?? {},
+          createdAt: r.created_at,
+        })));
+      }, (e: Error) => {
+        if (!active) return;
         setError(friendlyError(e));
         setLogs([]);
+        setTotalCount(0);
       })
-      .finally(() => setIsLoading(false));
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+
+    return () => { active = false; };
   }, [isAdmin, page, source]);
 
   // Reset page when switching sources
@@ -168,7 +176,7 @@ export default function AuditLog() {
             <span className="text-xs text-text-muted">Page {page + 1}</span>
             <button
               onClick={() => setPage((p) => p + 1)}
-              disabled={logs.length < PER_PAGE}
+              disabled={(page + 1) * PER_PAGE >= totalCount || logs.length < PER_PAGE}
               className="text-sm text-text-muted disabled:opacity-30 hover:text-text transition-colors"
             >
               Next →

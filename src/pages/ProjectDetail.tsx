@@ -7,7 +7,7 @@ import {
   CopyCheck, UserPlus, Users, GraduationCap, ChevronRight,
   Clock, AlertTriangle, Edit,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Tabs, TabsList, TabsTrigger } from '../components/ui/Tabs';
 import { FundsPanel } from '../components/projects/FundsPanel';
@@ -32,53 +32,102 @@ import { isActiveProject, isCompletedProject, projectStatusLabel } from '../lib/
 
 const TABS = ['overview', 'monitoring', 'funds', 'milestones', 'changes', 'closure', 'outputs', 'timeline'] as const;
 
+const normalizePersonName = (name?: string | null) =>
+  (name ?? '').toLowerCase().replace(/^(dr\.|sh\.|smt\.)\s+/i, '').trim();
+
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const goBack = useBack('/projects');
-  const { projects, projectStaff, phDStudents, staff, divisions, refreshData } = useData();
+  const { projects, projectStaff, phDStudents, staff, divisions, refreshSlice } = useData();
   const { user } = useAuth();
   const canEdit = useCanEdit('projects');
   const [editOpen, setEditOpen] = useState(false);
   const [tab, setTab] = useUrlTab(TABS);
   const [file, setFile] = useState<ProjectFile | null>(null);
   const [fileError, setFileError] = useState('');
+  const fileReqRef = useRef(0);
 
   const project = projects.find(p => p.ProjectID === id);
+  const userId = user?.id ?? null;
 
   const reloadFile = useCallback(async () => {
-    if (!id) return;
-    try { setFile(await loadProjectFile(id)); setFileError(''); }
-    catch (e) { setFileError(friendlyError(e)); }
-  }, [id]);
-  useEffect(() => { void reloadFile(); }, [reloadFile]);
-
-  // A display hint for which controls to show. The database decides
-  // (project_caller_is_party / project_caller_is_office).
-  const myStaffId = useMemo(() => staff.find(s => s.user_id === user?.id)?.ID ?? null, [staff, user]);
-  const isParty = !!project && !!myStaffId && project.piStaffId === myStaffId;
-  const isOffice = !!user && !isParty && (user.roles.includes('PME') || user.roles.includes('MasterAdmin'));
-  const onFileChanged = useCallback(async () => { await Promise.all([reloadFile(), refreshData()]); }, [reloadFile, refreshData]);
+    const reqId = ++fileReqRef.current;
+    if (!id) {
+      setFile(null);
+      setFileError('');
+      return;
+    }
+    try {
+      const next = await loadProjectFile(id);
+      if (reqId !== fileReqRef.current) return;
+      setFile(next);
+      setFileError('');
+    } catch (e) {
+      if (reqId !== fileReqRef.current) return;
+      setFileError(friendlyError(e));
+    }
+  }, [id, userId]);
+  useEffect(() => {
+    setFile(null);
+    setFileError('');
+    void reloadFile();
+    return () => { fileReqRef.current += 1; };
+  }, [reloadFile]);
 
   // --- All hooks must be called unconditionally before any early return ---
 
-  const teamStaff = useMemo(
-    () => project ? projectStaff.filter(s => s.ProjectNo === project.ProjectNo) : [],
-    [projectStaff, project]
-  );
-
-  const scholars = useMemo(
-    () => project ? phDStudents.filter(s => s.ProjectNo === project.ProjectNo) : [],
-    [phDStudents, project]
-  );
-
   const piRecord = useMemo(() => {
     if (!project) return undefined;
-    const piName = project.PrincipalInvestigator?.toLowerCase().replace(/^(dr\.|sh\.|smt\.)\s+/i, '').trim();
-    return staff.find(s =>
-      s.Name.toLowerCase().replace(/^(dr\.|sh\.|smt\.)\s+/i, '').trim() === piName
-    );
+    const piName = normalizePersonName(project.PrincipalInvestigator);
+    return staff.find(s => normalizePersonName(s.Name) === piName);
   }, [staff, project]);
+
+  // A display hint for which controls to show. The database decides
+  // (project_caller_is_pi / project_caller_is_party / project_caller_is_office).
+  const myStaffId = useMemo(
+    () => staff.find(s =>
+      s.user_id === user?.id || (!!user?.email && s.Email?.toLowerCase() === user.email.toLowerCase())
+    )?.ID ?? null,
+    [staff, user]
+  );
+  const localIsPi = !!project && !!myStaffId && (project.piStaffId === myStaffId || piRecord?.ID === myStaffId);
+  const isPi = file?.callerIsPi ?? localIsPi;
+  const isParty = file?.callerIsParty ?? isPi;
+  const partyStatusKnown = typeof file?.callerIsParty === 'boolean';
+  const isOffice = partyStatusKnown && !!user && !isParty && (user.roles.includes('PME') || user.roles.includes('MasterAdmin'));
+  const onFileChanged = useCallback(async () => { await Promise.all([reloadFile(), refreshSlice('projects')]); }, [reloadFile, refreshSlice]);
+
+  const hasSiblingWorkPackages = useMemo(
+    () => !!project?.ProjectNo && projects.filter(p => p.ProjectNo === project.ProjectNo).length > 1,
+    [projects, project?.ProjectNo]
+  );
+
+  const teamStaff = useMemo(() => {
+    if (!project) return [];
+    const projPi = normalizePersonName(project.PrincipalInvestigator);
+    return projectStaff.filter(s => {
+      if (s.projectId) return s.projectId === project.ProjectID;
+      if (s.ProjectNo !== project.ProjectNo) return false;
+      if (hasSiblingWorkPackages && projPi && s.PIName) {
+        return normalizePersonName(s.PIName) === projPi;
+      }
+      return true;
+    });
+  }, [projectStaff, project, hasSiblingWorkPackages]);
+
+  const scholars = useMemo(() => {
+    if (!project) return [];
+    const projPi = normalizePersonName(project.PrincipalInvestigator);
+    return phDStudents.filter(s => {
+      if (s.projectId) return s.projectId === project.ProjectID;
+      if (s.ProjectNo !== project.ProjectNo) return false;
+      if (hasSiblingWorkPackages && projPi && s.SupervisorName) {
+        return normalizePersonName(s.SupervisorName) === projPi;
+      }
+      return true;
+    });
+  }, [phDStudents, project, hasSiblingWorkPackages]);
 
   const teureAlerts = useMemo(() =>
     teamStaff.filter(s => {
@@ -172,15 +221,15 @@ export default function ProjectDetail() {
       {fileError && tab !== 'overview' && <p role="alert" className="text-sm text-danger">{fileError}</p>}
       {tab === 'monitoring' && file && (
         <MonitoringPanel project={project} file={file} isOffice={isOffice} isParty={isParty}
-          canCall={!isParty && !!user && (user.roles.includes('Director') || user.roles.includes('PME') || user.roles.includes('MasterAdmin'))}
+          canCall={!isParty && partyStatusKnown && !!user && (user.roles.includes('Director') || user.roles.includes('PME') || user.roles.includes('MasterAdmin'))}
           onChanged={onFileChanged} />
       )}
       {tab === 'changes' && file && (
-        <ChangesPanel project={project} file={file} isPi={isParty} isOffice={isOffice}
+        <ChangesPanel project={project} file={file} isPi={isPi} isOffice={isOffice}
           userId={user?.id ?? null} roles={user?.roles ?? []} onChanged={onFileChanged} />
       )}
       {tab === 'closure' && file && (
-        <ClosurePanel project={project} file={file} isPi={isParty} isOffice={isOffice} roles={user?.roles ?? []} onChanged={onFileChanged} />
+        <ClosurePanel project={project} file={file} isPi={isPi} isOffice={isOffice} roles={user?.roles ?? []} onChanged={onFileChanged} />
       )}
       {tab === 'funds' && isOffice && needsLegacyCompletion(project) && <LegacyPanel project={project} onChanged={onFileChanged} />}
       {tab === 'funds' && file && <FundsPanel project={project} file={file} isOffice={isOffice} onChanged={onFileChanged} />}

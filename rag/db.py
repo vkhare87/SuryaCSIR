@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 
 
 @dataclass
@@ -11,6 +12,36 @@ class DocRow:
 
 
 MAX_INGEST_ATTEMPTS = 3
+_PAGE_SIZE = 1000
+
+
+def _fetch_all(make_query, order_col: str, page_size: int = _PAGE_SIZE):
+    q = make_query()
+    if not hasattr(q, "range"):
+        return q.execute().data or []
+    out, page = [], 0
+    while True:
+        page_q = q if page == 0 else make_query()
+        batch = (
+            page_q.order(order_col)
+            .range(page * page_size, (page + 1) * page_size - 1)
+            .execute()
+            .data
+            or []
+        )
+        out.extend(batch)
+        if len(batch) < page_size:
+            return out
+        page += 1
+
+
+def _is_before(ts: str | None, cutoff_dt: datetime) -> bool:
+    if not ts:
+        return False
+    dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt < cutoff_dt
 
 # A document is flipped to 'processing' while a worker parses it. If that worker
 # dies mid-document the row is neither 'pending' nor 'failed', so the queue never
@@ -29,13 +60,37 @@ class FakeDB:
         self.storage = storage
         self.indexes = {}
         self.pages = {}
+        self.checkpoints = {}
+        self.created_at = {d.id: datetime.now(timezone.utc).isoformat() for d in docs}
+        self.processing_started_at = {}
         self.stale_ids = set()   # ids the test declares abandoned mid-processing
 
+    def load_checkpoint(self, document_id, model):
+        cp = self.checkpoints.get(document_id)
+        if not cp or cp.get("model") != model:
+            return {}
+        return dict(cp.get("summaries") or {})
+
+    def save_checkpoint(self, document_id, model, summaries, page_count):
+        self.checkpoints[document_id] = {
+            "model": model,
+            "summaries": dict(summaries),
+            "page_count": page_count,
+        }
+
     def requeue_stale_processing(self, minutes=STALE_PROCESSING_MINUTES):
+        cutoff_dt = datetime.now(timezone.utc) - timedelta(minutes=minutes)
+        stale = set(self.stale_ids)
+        for did, st in self.status.items():
+            if st == "processing":
+                started = self.processing_started_at.get(did) or self.created_at.get(did)
+                if _is_before(started, cutoff_dt):
+                    stale.add(did)
         n = 0
-        for did in list(self.stale_ids):
+        for did in list(stale):
             if self.status.get(did) == "processing":
                 self.status[did] = "pending"
+                self.processing_started_at.pop(did, None)
                 n += 1
         self.stale_ids.clear()
         return n
@@ -44,10 +99,12 @@ class FakeDB:
         for did, st in self.status.items():
             if st == "pending":
                 self.status[did] = "processing"
+                self.processing_started_at[did] = datetime.now(timezone.utc).isoformat()
                 return self._docs[did]
         for did, st in self.status.items():  # retry failures under the attempt cap
             if st == "failed" and self.attempts[did] < MAX_INGEST_ATTEMPTS:
                 self.status[did] = "processing"
+                self.processing_started_at[did] = datetime.now(timezone.utc).isoformat()
                 return self._docs[did]
         return None
 
@@ -62,6 +119,7 @@ class FakeDB:
 
     def mark(self, document_id, status, error=None):
         self.status[document_id] = status
+        self.processing_started_at.pop(document_id, None)
         if status == "failed":
             self.attempts[document_id] += 1
 
@@ -89,14 +147,21 @@ class SupabaseDB:
                       title=row["title"])
 
     def _claim(self, status, max_attempts=None):
-        q = self.c.table("documents").select("*").eq("ingest_status", status)
+        q = (self.c.table("documents")
+             .select("id, storage_bucket, storage_path, mime_type, title")
+             .eq("ingest_status", status)
+             .order("created_at"))
         if max_attempts is not None:
             q = q.lt("ingest_attempts", max_attempts)
         rows = q.limit(1).execute().data
         if not rows:
             return None
         row = rows[0]
-        upd = (self.c.table("documents").update({"ingest_status": "processing"})
+        upd = (self.c.table("documents")
+               .update({
+                   "ingest_status": "processing",
+                   "processing_started_at": datetime.now(timezone.utc).isoformat(),
+               })
                .eq("id", row["id"]).eq("ingest_status", status).execute().data)
         return row if upd else None  # None: lost the race
 
@@ -109,16 +174,46 @@ class SupabaseDB:
             "model": model, "page_count": page_count,
         }).execute()
 
+    def load_checkpoint(self, document_id, model):
+        rows = (self.c.table("doc_indexes").select("tree, model")
+                .eq("document_id", document_id).limit(1).execute().data) or []
+        if not rows or rows[0].get("model") != model:
+            return {}
+        tree = rows[0].get("tree") or {}
+        return dict(tree.get("_checkpoint") or {})
+
+    def save_checkpoint(self, document_id, model, summaries, page_count):
+        # Persist incremental leaf summaries while ingest_status='processing'.
+        # tree_is_empty() returns True because root.nodes is empty, so partial
+        # checkpoints are never treated as a completed index.
+        self.c.table("doc_indexes").upsert({
+            "document_id": document_id,
+            "tree": {"_checkpoint": summaries, "root": {"title": "", "summary": "", "nodes": []}},
+            "model": model,
+            "page_count": page_count,
+        }).execute()
+
     def save_pages(self, document_id, pages):
-        # Delete-then-insert so a shrunken reparse leaves no stale tail pages.
+        # Atomic RPC replacement when available so a shrunken reparse or transient
+        # failure never leaves partial/missing pages.
+        payload = [{"page": p.index + 1, "text": p.text} for p in pages]
+        if hasattr(self.c, "rpc"):
+            self.c.rpc(
+                "rag_replace_doc_pages",
+                {"p_document_id": document_id, "p_pages": payload},
+            ).execute()
+            return
         self.c.table("doc_pages").delete().eq("document_id", document_id).execute()
-        rows = [{"document_id": document_id, "page": p.index + 1, "text": p.text}
-                for p in pages]
+        rows = [{"document_id": document_id, **item} for item in payload]
         if rows:
             self.c.table("doc_pages").insert(rows).execute()
 
     def mark(self, document_id, status, error=None):
-        patch = {"ingest_status": status, "ingest_error": error}
+        patch = {
+            "ingest_status": status,
+            "ingest_error": error,
+            "processing_started_at": None,
+        }
         if status == "failed":
             rows = (self.c.table("documents").select("ingest_attempts")
                     .eq("id", document_id).execute().data)
@@ -128,50 +223,99 @@ class SupabaseDB:
     def requeue_stale_processing(self, minutes=STALE_PROCESSING_MINUTES):
         """Return abandoned 'processing' rows to the queue. Returns the count.
 
-        Uses created_at as the age reference: the schema carries no claim
-        timestamp, and a row cannot have been claimed before it existed, so this
-        errs towards reclaiming later than strictly necessary — safe, since the
-        only cost of a late reclaim is a delayed retry."""
-        from datetime import datetime, timedelta, timezone
-        cutoff = (datetime.now(timezone.utc) - timedelta(minutes=minutes)).isoformat()
-        rows = (self.c.table("documents").select("id")
+        Measures claim duration from processing_started_at (falling back to
+        created_at if unset) so re-queued older documents are never reclaimed
+        while actively being indexed."""
+        cutoff_dt = datetime.now(timezone.utc) - timedelta(minutes=minutes)
+        rows = _fetch_all(
+            lambda: (
+                self.c.table("documents")
+                .select("id, created_at, processing_started_at")
                 .eq("ingest_status", "processing")
-                .lt("created_at", cutoff).execute().data) or []
+            ),
+            order_col="id",
+        )
+        stale_ids = [
+            row["id"] for row in rows
+            if _is_before(row.get("processing_started_at") or row.get("created_at"), cutoff_dt)
+        ]
+        if not stale_ids:
+            return 0
+        patch = {
+            "ingest_status": "pending",
+            "ingest_error": "requeued after stalled ingest",
+            "processing_started_at": None,
+        }
+        base_q = self.c.table("documents").update(patch)
+        if not hasattr(base_q, "in_"):
+            n = 0
+            for doc_id in stale_ids:
+                upd = (self.c.table("documents")
+                       .update(patch)
+                       .eq("id", doc_id).eq("ingest_status", "processing")
+                       .execute().data)
+                n += len(upd) if upd else 0
+            return n
         n = 0
-        for row in rows:
+        for i in range(0, len(stale_ids), 200):
             upd = (self.c.table("documents")
-                   .update({"ingest_status": "pending",
-                            "ingest_error": "requeued after stalled ingest"})
-                   .eq("id", row["id"]).eq("ingest_status", "processing")
+                   .update(patch)
+                   .in_("id", stale_ids[i : i + 200]).eq("ingest_status", "processing")
                    .execute().data)
-            n += 1 if upd else 0
+            n += len(upd) if upd else 0
         return n
 
     def requeue_stale_model(self, model):
         """Reset indexed docs whose index was built by a different model; the
         normal loop rebuilds them. Returns the number requeued."""
-        rows = (self.c.table("doc_indexes").select("document_id, model")
-                .neq("model", model).execute().data) or []
+        rows = _fetch_all(
+            lambda: self.c.table("doc_indexes").select("document_id, model").neq("model", model),
+            order_col="document_id",
+        )
         ids = [r["document_id"] for r in rows]
+        if not ids:
+            return 0
+        patch = {
+            "ingest_status": "pending",
+            "ingest_error": None,
+            "ingest_attempts": 0,
+            "processing_started_at": None,
+        }
+        base_q = self.c.table("documents").update(patch)
+        if not hasattr(base_q, "in_"):
+            n = 0
+            for doc_id in ids:
+                upd = (self.c.table("documents")
+                       .update(patch)
+                       .eq("id", doc_id).eq("ingest_status", "indexed").execute().data)
+                n += len(upd) if upd else 0
+            return n
         n = 0
-        for doc_id in ids:
+        for i in range(0, len(ids), 200):
             upd = (self.c.table("documents")
-                   .update({"ingest_status": "pending", "ingest_error": None,
-                            "ingest_attempts": 0})
-                   .eq("id", doc_id).eq("ingest_status", "indexed").execute().data)
-            n += 1 if upd else 0
+                   .update(patch)
+                   .in_("id", ids[i : i + 200]).eq("ingest_status", "indexed")
+                   .execute().data)
+            n += len(upd) if upd else 0
         return n
 
     def fetch_index_summaries(self):
         # Root summary per indexed doc, joined to its entity_type. Service role.
-        rows = (self.c.table("doc_indexes")
-                .select("tree, documents(entity_type)").execute().data) or []
+        rows = _fetch_all(
+            lambda: self.c.table("doc_indexes").select(
+                "document_id, root_summary:tree->root->>summary, documents(entity_type)"
+            ),
+            order_col="document_id",
+        )
         out = []
         for r in rows:
             doc = r.get("documents") or {}
-            root = (r.get("tree") or {}).get("root") or {}
+            root_summary = r.get("root_summary")
+            if root_summary is None:
+                root = (r.get("tree") or {}).get("root") or {}
+                root_summary = root.get("summary", "")
             out.append({"entity_type": doc.get("entity_type", "unknown"),
-                        "root_summary": root.get("summary", "")})
+                        "root_summary": root_summary or ""})
         return out
 
     # ── Scheduled briefs (briefs.py) — service role ──────────────────────

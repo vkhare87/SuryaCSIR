@@ -104,6 +104,17 @@ function scopeProjects(
 // Context types
 // ---------------------------------------------------------------------------
 
+export type DataSlice =
+  | 'hr'
+  | 'projects'
+  | 'phd'
+  | 'outputs'
+  | 'partnerships'
+  | 'facilities'
+  | 'committees'
+  | 'tickets'
+  | 'recruitment';
+
 interface DataContextType {
   divisions: DivisionInfo[];
   staff: StaffMember[];
@@ -138,6 +149,7 @@ interface DataContextType {
   refreshContributions: () => Promise<void>;
   refreshCalendar: () => Promise<void>;
   refreshHolidays: () => Promise<void>;
+  refreshSlice: (slice: DataSlice) => Promise<void>;
   isLoading: boolean;
   isBackendProvisioned: boolean;
   refreshData: () => Promise<void>;
@@ -159,14 +171,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   // Tables only HR / data-ops pages read: no request at all for a user who
   // cannot open those pages. ProjectStaff keeps contract_staff (RLS: own row)
-  // for the "your engagement ends" action.
-  const loadRecruitment = canAccess('/recruitment');
-  const loadDataOps = canAccess('/data');
-  const loadContracts = loadDataOps || role === 'ProjectStaff';
+  // for the "your engagement ends" action. Checked across all assigned roles so
+  // switching activeRole in the header does not re-fetch 31 tables over the network.
+  const { roles } = useAuth();
+  const loadRecruitment = canAccess('/recruitment') || (roles ?? []).some(r => ['Director', 'HRAdmin', 'SystemAdmin', 'MasterAdmin'].includes(r));
+  const loadDataOps = canAccess('/data') || (roles ?? []).some(r => ['HRAdmin', 'SystemAdmin', 'MasterAdmin', 'PME'].includes(r));
+  const loadContracts = loadDataOps || role === 'ProjectStaff' || (roles ?? []).includes('ProjectStaff');
 
   const [divisions, setDivisions] = useState<DivisionInfo[]>([]);
-  const [staff, setStaff] = useState<StaffMember[]>([]);
-  const [projects, setProjects] = useState<ProjectInfo[]>([]);
+  const [rawStaff, setRawStaff] = useState<StaffMember[]>([]);
+  const [rawProjects, setRawProjects] = useState<ProjectInfo[]>([]);
   const [projectStaff, setProjectStaff] = useState<ProjectStaff[]>([]);
   const [phDStudents, setPhDStudents] = useState<PhDStudent[]>([]);
   const [phdMilestones, setPhdMilestones] = useState<PhDMilestone[]>([]);
@@ -175,7 +189,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [ipIntelligence, setIPIntelligence] = useState<IPIntelligence[]>([]);
   const [mous, setMous] = useState<MoU[]>([]);
   const [techTransfers, setTechTransfers] = useState<TechTransfer[]>([]);
-  const [equipment, setEquipment] = useState<Equipment[]>([]);
+  const [rawEquipment, setRawEquipment] = useState<Equipment[]>([]);
   const [labs, setLabs] = useState<Lab[]>([]);
   const [vacancyAdvertisements, setVacancyAdvertisements] = useState<VacancyAdvertisement[]>([]);
   const [vacancyApplications, setVacancyApplications] = useState<VacancyApplication[]>([]);
@@ -199,13 +213,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const resetAll = useCallback(() => {
     setDivisions([]);
-    setStaff([]);
-    setProjects([]);
+    setRawStaff([]);
+    setRawProjects([]);
     setProjectStaff([]);
     setPhDStudents([]);
     setPhdMilestones([]);
     setContractStaff([]);
-    setEquipment([]);
+    setRawEquipment([]);
     setLabs([]);
     setScientificOutputs([]);
     setIPIntelligence([]);
@@ -338,17 +352,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
         pushToast(`${summary} Some figures may be incomplete.`, 'warning');
       }
 
-      const rawStaff = staffRes.data ? staffRes.data.map(mapStaffRow) : [];
-      const rawProjects = projRes.data ? projRes.data.map(mapProjectRow) : [];
-      const rawEquipment = equipRes.data ? equipRes.data.map(mapEquipmentRow) : [];
-
       setDivisions(divRes.data ? divRes.data.map(mapDivisionRow) : []);
-      setStaff(scopeData(rawStaff, role, divisionCode));
-      setProjects(scopeProjects(rawProjects, role, divisionCode));
+      setRawStaff(staffRes.data ? staffRes.data.map(mapStaffRow) : []);
+      setRawProjects(projRes.data ? projRes.data.map(mapProjectRow) : []);
       setProjectStaff(psRes.data ? psRes.data.map(mapProjectStaffRow) : []);
       setPhDStudents(phdRes.data ? phdRes.data.map(mapPhDStudentRow) : []);
       setContractStaff(csRes.data ? csRes.data.map(mapContractStaffRow) : []);
-      setEquipment(scopeData(rawEquipment, role, divisionCode));
+      setRawEquipment(equipRes.data ? equipRes.data.map(mapEquipmentRow) : []);
       setLabs(labsRes.data ? labsRes.data.map(mapLabRow) : []);
       setScientificOutputs(soRes.data ? soRes.data.map(mapScientificOutputRow) : []);
       setIPIntelligence(ipRes.data ? ipRes.data.map(mapIPIntelligenceRow) : []);
@@ -375,13 +385,17 @@ export function DataProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       const message = friendlyError(err, 'Failed to load data');
       setError(message);
-      logger.error('data_load_failed', err, { role, divisionCode });
+      logger.error('data_load_failed', err);
       pushToast(`Data load failed: ${message}`, 'error');
       resetAll();
     } finally {
       setIsLoading(false);
     }
-  }, [provisioned, isAuthenticated, role, divisionCode, loadRecruitment, loadDataOps, loadContracts, pushToast, resetAll]);
+  }, [provisioned, isAuthenticated, loadRecruitment, loadDataOps, loadContracts, pushToast, resetAll]);
+
+  const staff = useMemo(() => scopeData(rawStaff, role, divisionCode), [rawStaff, role, divisionCode]);
+  const projects = useMemo(() => scopeProjects(rawProjects, role, divisionCode), [rawProjects, role, divisionCode]);
+  const equipment = useMemo(() => scopeData(rawEquipment, role, divisionCode), [rawEquipment, role, divisionCode]);
 
   useEffect(() => {
     void loadData();
@@ -433,12 +447,138 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setHolidays(data ? data.map(mapHolidayRow) : []);
   }, [pushToast]);
 
+  const refreshSlice = useCallback(async (slice: DataSlice) => {
+    if (!supabase || !provisioned || !isAuthenticated) return;
+    try {
+      if (slice === 'hr') {
+        const [divRes, staffRes, csRes] = await Promise.all([
+          fetchAll(supabase.from('divisions').select('*').order('divCode')),
+          fetchAll(supabase.from('staff').select('*').order('ID')),
+          loadContracts ? fetchAll(supabase.from('contract_staff').select('*').order('Name')) : Promise.resolve({ data: null, error: null }),
+        ]);
+        if (divRes.error) throw divRes.error;
+        if (staffRes.error) throw staffRes.error;
+        if (csRes.error) throw csRes.error;
+        if (divRes.data) setDivisions(divRes.data.map(mapDivisionRow));
+        if (staffRes.data) setRawStaff(staffRes.data.map(mapStaffRow));
+        if (csRes.data) setContractStaff(csRes.data.map(mapContractStaffRow));
+        return;
+      }
+      if (slice === 'projects') {
+        const [projRes, psRes] = await Promise.all([
+          fetchAll(supabase.from('projects').select('*').order('ProjectNo')),
+          fetchAll(supabase.from('project_staff').select('*').order('ProjectNo').order('StaffName')),
+        ]);
+        if (projRes.error) throw projRes.error;
+        if (psRes.error) throw psRes.error;
+        if (projRes.data) setRawProjects(projRes.data.map(mapProjectRow));
+        if (psRes.data) setProjectStaff(psRes.data.map(mapProjectStaffRow));
+        return;
+      }
+      if (slice === 'phd') {
+        const [phdRes, phmRes] = await Promise.all([
+          fetchAll(supabase.from('phd_students').select('*').order('EnrollmentNo')),
+          fetchAll(supabase.from('phd_milestones').select('*').order('id')),
+        ]);
+        if (phdRes.error) throw phdRes.error;
+        if (phmRes.error) throw phmRes.error;
+        if (phdRes.data) setPhDStudents(phdRes.data.map(mapPhDStudentRow));
+        if (phmRes.data) setPhdMilestones(phmRes.data.map(mapPhDMilestoneRow));
+        return;
+      }
+      if (slice === 'outputs') {
+        const [soRes, ipRes] = await Promise.all([
+          fetchAll(supabase.from('scientific_outputs').select('*').order('id')),
+          fetchAll(supabase.from('ip_intelligence').select('*').order('id')),
+        ]);
+        if (soRes.error) throw soRes.error;
+        if (ipRes.error) throw ipRes.error;
+        if (soRes.data) setScientificOutputs(soRes.data.map(mapScientificOutputRow));
+        if (ipRes.data) setIPIntelligence(ipRes.data.map(mapIPIntelligenceRow));
+        return;
+      }
+      if (slice === 'partnerships') {
+        const [mouRes, ttRes] = await Promise.all([
+          fetchAll(supabase.from('mous').select('*').order('id')),
+          fetchAll(supabase.from('tech_transfers').select('*').order('id')),
+        ]);
+        if (mouRes.error) throw mouRes.error;
+        if (ttRes.error) throw ttRes.error;
+        if (mouRes.data) setMous(mouRes.data.map(mapMoURow));
+        if (ttRes.data) setTechTransfers(ttRes.data.map(mapTechTransferRow));
+        return;
+      }
+      if (slice === 'facilities') {
+        const [equipRes, labsRes] = await Promise.all([
+          fetchAll(supabase.from('equipment').select('*').order('UInsID')),
+          fetchAll(supabase.from('labs').select('*').order('id')),
+        ]);
+        if (equipRes.error) throw equipRes.error;
+        if (labsRes.error) throw labsRes.error;
+        if (equipRes.data) setRawEquipment(equipRes.data.map(mapEquipmentRow));
+        if (labsRes.data) setLabs(labsRes.data.map(mapLabRow));
+        return;
+      }
+      if (slice === 'committees') {
+        const [cmtRes, cmmRes, mtgRes, agiRes, actRes, mdcRes] = await Promise.all([
+          fetchAll(supabase.from('committees').select('*').order('id')),
+          fetchAll(supabase.from('committee_members').select('*').order('id')),
+          fetchAll(supabase.from('meetings').select('*').order('id')),
+          fetchAll(supabase.from('agenda_items').select('*').order('id')),
+          fetchAll(supabase.from('action_items').select('*').order('id')),
+          fetchAll(supabase.from('meeting_documents').select('*').order('id')),
+        ]);
+        if (cmtRes.error || cmmRes.error || mtgRes.error || agiRes.error || actRes.error || mdcRes.error) {
+          throw cmtRes.error || cmmRes.error || mtgRes.error || agiRes.error || actRes.error || mdcRes.error;
+        }
+        if (cmtRes.data) setCommittees(cmtRes.data.map(mapCommitteeRow));
+        if (cmmRes.data) setCommitteeMembers(cmmRes.data.map(mapCommitteeMemberRow));
+        if (mtgRes.data) setMeetings(mtgRes.data.map(mapMeetingRow));
+        if (agiRes.data) setAgendaItems(agiRes.data.map(mapAgendaItemRow));
+        if (actRes.data) setActionItems(actRes.data.map(mapActionItemRow));
+        if (mdcRes.data) setMeetingDocs(mdcRes.data.map(mapMeetingDocumentRow));
+        return;
+      }
+      if (slice === 'tickets') {
+        const [tktRes, trsRes, tevRes, hrtRes] = await Promise.all([
+          fetchAll(supabase.from('tickets').select('*').order('created_at', { ascending: false }).order('id')),
+          fetchAll(supabase.from('ticket_responses').select('*').order('id')),
+          fetchAll(supabase.from('ticket_events').select('*').order('id')),
+          fetchAll(supabase.from('helpdesk_routing').select('*').order('id')),
+        ]);
+        if (tktRes.error || trsRes.error || tevRes.error || hrtRes.error) {
+          throw tktRes.error || trsRes.error || tevRes.error || hrtRes.error;
+        }
+        if (tktRes.data) setTickets(tktRes.data.map(mapTicketRow));
+        if (trsRes.data) setTicketResponses(trsRes.data.map(mapTicketResponseRow));
+        if (tevRes.data) setTicketEvents(tevRes.data.map(mapTicketEventRow));
+        if (hrtRes.data) setHelpdeskRouting(hrtRes.data.map(mapHelpdeskRoutingRow));
+        return;
+      }
+      if (slice === 'recruitment' && loadRecruitment) {
+        const [vaRes, vpRes, vappRes] = await Promise.all([
+          fetchAll(supabase.from('vacancy_advertisements').select('*').order('created_at', { ascending: false }).order('id')),
+          fetchAll(supabase.from('vacancy_posts').select('*').order('id')),
+          fetchAll(supabase.from('vacancy_applications').select('*').order('applied_on', { ascending: false }).order('id')),
+        ]);
+        if (vaRes.error || vpRes.error || vappRes.error) {
+          throw vaRes.error || vpRes.error || vappRes.error;
+        }
+        setVacancyAdvertisements(withPostTotals(vaRes.data ? vaRes.data.map(mapVacancyAdvertisementRow) : [], vpRes.data ?? []));
+        if (vappRes.data) setVacancyApplications(vappRes.data.map(mapVacancyApplicationRow));
+      }
+    } catch (err) {
+      logger.error('refresh_slice_failed', err, { slice });
+      pushToast(`Refresh failed: ${friendlyError(err)}`, 'error');
+    }
+  }, [provisioned, isAuthenticated, loadContracts, loadRecruitment, pushToast]);
+
   const saveEquipment = useCallback(async (payload: Record<string, unknown>) => {
     if (!supabase) throw new Error('Supabase not configured');
     const { data, error: sbErr } = await supabase.from('equipment').upsert(payload).select().single();
     if (sbErr) throw sbErr;
     const saved = mapEquipmentRow(data);
-    setEquipment(prev => [saved, ...prev.filter(e => e.UInsID !== saved.UInsID)]);
+    setRawEquipment(prev => [saved, ...prev.filter(e => e.UInsID !== saved.UInsID)]);
   }, []);
 
   const value = useMemo(() => ({
@@ -447,7 +587,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     vacancyApplications, committees, committeeMembers, meetings, agendaItems, actionItems,
     meetingDocs, tickets, ticketResponses, ticketEvents, helpdeskRouting, calendarEvents, holidays,
     importEvents, contributionRequests, dataStewards, refreshContributions, refreshCalendar,
-    refreshHolidays, isLoading,
+    refreshHolidays, refreshSlice, isLoading,
     isBackendProvisioned: provisioned,
     refreshData: loadData,
     saveEquipment,
@@ -458,7 +598,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     vacancyApplications, committees, committeeMembers, meetings, agendaItems, actionItems,
     meetingDocs, tickets, ticketResponses, ticketEvents, helpdeskRouting, calendarEvents, holidays,
     importEvents, contributionRequests, dataStewards, refreshContributions, refreshCalendar,
-    refreshHolidays, isLoading, provisioned, loadData, saveEquipment, error,
+    refreshHolidays, refreshSlice, isLoading, provisioned, loadData, saveEquipment, error,
   ]);
 
   return (

@@ -74,7 +74,7 @@ function Column({
 // --- Main Board ---
 
 export function KanbanBoard({ committeeId }: KanbanBoardProps) {
-  const { actionItems, committees, meetings, staff, refreshData } = useData();
+  const { actionItems, committees, meetings, staff, refreshSlice } = useData();
   const { user } = useAuth();
   const canEdit = user ? canEditActionItems(user) : false;
 
@@ -175,7 +175,7 @@ export function KanbanBoard({ committeeId }: KanbanBoardProps) {
   // --- Refresh after status change ---
 
   const handleStatusChange = async () => {
-    await refreshData?.();
+    await refreshSlice?.('committees');
   };
 
   // --- Group by status ---

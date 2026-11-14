@@ -15,7 +15,7 @@ interface Props {
 const STATUSES = ['Active', 'Inactive'] as const;
 
 export function DivisionFormModal({ isOpen, onClose, division }: Props) {
-  const { staff, refreshData } = useData();
+  const { staff, refreshSlice } = useData();
   const isEdit = !!division;
 
   const [divCode, setDivCode] = useState('');
@@ -102,7 +102,7 @@ export function DivisionFormModal({ isOpen, onClose, division }: Props) {
       return;
     }
 
-    await refreshData();
+    await refreshSlice('hr');
     onClose();
   }
 
@@ -119,7 +119,7 @@ export function DivisionFormModal({ isOpen, onClose, division }: Props) {
       setSubmitError(friendlyError(error));
       return;
     }
-    await refreshData();
+    await refreshSlice('hr');
     onClose();
   }
 

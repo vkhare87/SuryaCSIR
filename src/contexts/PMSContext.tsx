@@ -155,6 +155,8 @@ const PMSContext = createContext<PMSContextType | undefined>(undefined);
 export function PMSProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const provisioned = isProvisioned();
+  const userId = user?.id ?? null;
+  const rolesKey = user?.roles ? [...user.roles].sort().join('\0') : '';
 
   const [cycles, setCycles] = useState<AppraisalCycle[]>([]);
   const [reports, setReports] = useState<PMSReport[]>([]);
@@ -172,7 +174,7 @@ export function PMSProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     setError(null);
     try {
-      if (!provisioned || !supabase || !user) {
+      if (!provisioned || !supabase || !userId) {
         setCycles([]);
         setReports([]);
         setCommittees([]);
@@ -186,21 +188,23 @@ export function PMSProvider({ children }: { children: ReactNode }) {
       }
       const [cycleRes, reportRes, committeeRes, empoweredRes, grievanceRes, evalRes, reprRes, notifRes, appNotifRes] = await Promise.all([
         supabase.from('appraisal_cycles').select('*').order('created_at', { ascending: false }),
-        fetchAll(supabase.from('pms_reports').select('*, appraisal_cycles(*)').order('created_at', { ascending: false }).order('id')),
+        fetchAll(supabase.from('pms_reports').select('*').order('created_at', { ascending: false }).order('id')),
         supabase.from('pms_evaluation_committees').select('*, pms_evaluation_committee_members(*)').order('created_at', { ascending: false }),
         supabase.from('pms_empowered_committee_members').select('*'),
         supabase.from('pms_grievance_members').select('*'),
         fetchAll(supabase.from('pms_evaluations').select('*').order('created_at', { ascending: false }).order('id')),
         fetchAll(supabase.from('pms_representations').select('*').order('submitted_at', { ascending: false }).order('id')),
-        fetchAll(supabase.from('pms_notifications').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).order('id')),
-        fetchAll(supabase.from('notifications').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).order('id')),
+        fetchAll(supabase.from('pms_notifications').select('*').eq('user_id', userId).order('created_at', { ascending: false }).order('id')),
+        fetchAll(supabase.from('notifications').select('*').eq('user_id', userId).order('created_at', { ascending: false }).order('id')),
       ]);
 
-      setCycles(cycleRes.data ? cycleRes.data.map(mapCycleRow) : []);
-      setReports(reportRes.data ? reportRes.data.map(row => ({
-        ...mapReportRow(row as Record<string, unknown>),
-        cycle: row.appraisal_cycles ? mapCycleRow(row.appraisal_cycles as Record<string, unknown>) : undefined,
-      })) : []);
+      const nextCycles = cycleRes.data ? cycleRes.data.map(mapCycleRow) : [];
+      const cycleById = new Map(nextCycles.map(c => [c.id, c]));
+      setCycles(nextCycles);
+      setReports(reportRes.data ? reportRes.data.map(row => {
+        const mapped = mapReportRow(row as Record<string, unknown>);
+        return { ...mapped, cycle: cycleById.get(mapped.cycleId) };
+      }) : []);
       setCommittees(committeeRes.data ? committeeRes.data.map(row => ({
         ...mapCommitteeRow(row as Record<string, unknown>),
         members: Array.isArray(row.pms_evaluation_committee_members)
@@ -218,7 +222,7 @@ export function PMSProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, [provisioned, user]);
+  }, [provisioned, userId, rolesKey]);
 
   useEffect(() => { void loadData(); }, [loadData]);
 
@@ -405,18 +409,25 @@ export function PMSProvider({ children }: { children: ReactNode }) {
     activities: Omit<PMSAWPActivity, 'id' | 'reportId' | 'createdAt' | 'updatedAt'>[]
   ): Promise<void> => {
     if (!supabase) throw new Error('Supabase not provisioned');
-    // ponytail: replace-all write — AWP lists are small, diffing not worth it
+    const payload = activities.map(a => ({
+      nature_of_activity: a.natureOfActivity,
+      role: a.role,
+      time_committed_percentage: a.timeCommittedPercentage,
+      milestones: a.milestones,
+    }));
+    if (typeof supabase.rpc === 'function') {
+      const { error: rpcErr } = await supabase.rpc('pms_save_awp_activities', {
+        p_report_id: reportId,
+        p_activities: payload,
+      });
+      if (rpcErr) throw rpcErr;
+      return;
+    }
     const { error: delErr } = await supabase.from('pms_awp_activities').delete().eq('report_id', reportId);
     if (delErr) throw delErr;
     if (activities.length === 0) return;
     const { error: insErr } = await supabase.from('pms_awp_activities').insert(
-      activities.map(a => ({
-        report_id: reportId,
-        nature_of_activity: a.natureOfActivity,
-        role: a.role,
-        time_committed_percentage: a.timeCommittedPercentage,
-        milestones: a.milestones,
-      }))
+      payload.map(a => ({ report_id: reportId, ...a }))
     );
     if (insErr) throw insErr;
   }, []);
@@ -554,13 +565,16 @@ export function PMSProvider({ children }: { children: ReactNode }) {
   const saveEvaluationScores = useCallback(async (evaluationId: string, payload: EvaluationPayload): Promise<void> => {
     if (!supabase) throw new Error('Supabase not provisioned');
     ensureUser(user);
-    const { error: err } = await supabase
+    const { data: row, error: err } = await supabase
       .from('pms_evaluations')
       .update({ ...evaluationUpdatePayload(payload), status: 'IN_PROGRESS' })
-      .eq('id', evaluationId);
+      .eq('id', evaluationId)
+      .select()
+      .single();
     if (err) throw err;
-    await loadData();
-  }, [user, loadData]);
+    const mapped = mapEvaluationRow(row as Record<string, unknown>);
+    setEvaluations(prev => prev.map(e => (e.id === evaluationId ? mapped : e)));
+  }, [user]);
 
   const completeEvaluation = useCallback(async (evaluationId: string, payload: EvaluationPayload): Promise<void> => {
     if (!supabase) throw new Error('Supabase not provisioned');
@@ -582,16 +596,23 @@ export function PMSProvider({ children }: { children: ReactNode }) {
     if (complete && !penPicture.narrative.trim()) {
       throw new Error('An evaluation report is required before submitting the appraisal');
     }
-    const { error: err } = await supabase
+    const { data: row, error: err } = await supabase
       .from('pms_evaluations')
       .update({
         pen_picture: penPicture,
         comments: penPicture.narrative,
         status: complete ? 'COMPLETED' : 'IN_PROGRESS',
       })
-      .eq('id', evaluationId);
+      .eq('id', evaluationId)
+      .select()
+      .single();
     if (err) throw err;
-    await loadData();
+    if (complete) {
+      await loadData();
+      return;
+    }
+    const mapped = mapEvaluationRow(row as Record<string, unknown>);
+    setEvaluations(prev => prev.map(e => (e.id === evaluationId ? mapped : e)));
   }, [user, loadData]);
 
   const getReportEvaluations = useCallback(async (reportId: string): Promise<PMSEvaluation[]> => {

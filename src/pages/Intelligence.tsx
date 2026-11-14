@@ -27,7 +27,7 @@ import {
 import { friendlyError } from '../lib/errors';
 
 export default function Intelligence() {
-  const { scientificOutputs, ipIntelligence, projects, techTransfers, refreshData } = useData();
+  const { scientificOutputs, ipIntelligence, projects, techTransfers, refreshSlice } = useData();
   const toast = useToast();
   const [activeTab, setActiveTab] = useState<'publications' | 'ipr'>('publications');
   const [searchTerm, setSearchTerm] = useState('');
@@ -121,7 +121,7 @@ export default function Intelligence() {
       if (error) { toast.push(`Update failed: ${friendlyError(error)}`, 'error'); setIsSaving(false); return; }
       toast.push('Publication updated', 'success');
     }
-    await refreshData();
+    await refreshSlice('outputs');
     setPubModalMode(null);
     setIsSaving(false);
   };
@@ -130,7 +130,7 @@ export default function Intelligence() {
     if (!supabase || !selectedPub) return;
     setIsSaving(true);
     await supabase.from('scientific_outputs').delete().eq('id', selectedPub.id);
-    await refreshData();
+    await refreshSlice('outputs');
     setPubModalMode(null);
     setDeleteConfirm(false);
     setIsSaving(false);
@@ -166,7 +166,7 @@ export default function Intelligence() {
       if (error) { toast.push(`Update failed: ${friendlyError(error)}`, 'error'); setIsSaving(false); return; }
       toast.push('IP record updated', 'success');
     }
-    await refreshData();
+    await refreshSlice('outputs');
     setIPModalMode(null);
     setIsSaving(false);
   };
@@ -175,7 +175,7 @@ export default function Intelligence() {
     if (!supabase || !selectedIP) return;
     setIsSaving(true);
     await supabase.from('ip_intelligence').delete().eq('id', selectedIP.id);
-    await refreshData();
+    await refreshSlice('outputs');
     setIPModalMode(null);
     setDeleteConfirm(false);
     setIsSaving(false);

@@ -13,7 +13,7 @@ interface DocumentUploaderProps {
 }
 
 export function DocumentUploader({ meetingId, committeeId, canUpload }: DocumentUploaderProps) {
-  const { meetingDocs, refreshData } = useData();
+  const { meetingDocs, refreshSlice } = useData();
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
@@ -53,14 +53,14 @@ export function DocumentUploader({ meetingId, committeeId, canUpload }: Document
         accessTier: 'institute',
       });
 
-      await refreshData?.();
+      await refreshSlice?.('committees');
     } catch (err) {
       setUploadError(friendlyError(err, 'Upload failed'));
     } finally {
       setUploading(false);
       e.target.value = '';
     }
-  }, [committeeId, meetingId, refreshData]);
+  }, [committeeId, meetingId, refreshSlice]);
 
   const handleDownload = useCallback(async (storagePath: string, fileName: string) => {
     const { data, error } = await supabase!
@@ -81,8 +81,8 @@ export function DocumentUploader({ meetingId, committeeId, canUpload }: Document
     await supabase!.storage.from('committee-docs').remove([doc.storage_path]);
     await supabase!.from('meeting_documents').delete().eq('id', doc.id);
     void unregisterDocument('committee-docs', doc.storage_path);
-    await refreshData?.();
-  }, [refreshData]);
+    await refreshSlice?.('committees');
+  }, [refreshSlice]);
 
   return (
     <div>

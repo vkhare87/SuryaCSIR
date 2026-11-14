@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { pdf } from '@react-pdf/renderer';
 import { Download } from 'lucide-react';
 import { usePMS } from '../../contexts/PMSContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -11,7 +10,6 @@ import { StatusBadge } from '../../components/pms/StatusBadge';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Skeleton } from '../../components/ui/Skeleton';
-import { ReportPDF } from '../../components/pms/ReportPDF';
 import { ReportAWPSection } from '../../components/pms/ReportAWPSection';
 import type { PMSReport, PMSReportSection, PMSAnnexure, PMSAWPActivity, PMSCommitteeDecision } from '../../types/pms';
 import { friendlyError } from '../../lib/errors';
@@ -28,6 +26,7 @@ export default function ReportView() {
   const [loading, setLoading] = useState(true);
   const [committeeDecision, setCommitteeDecision] = useState<PMSCommitteeDecision | null>(null);
   const [exportLoading, setExportLoading] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
   const [refiling, setRefiling] = useState(false);
   const [refileResult, setRefileResult] = useState<string | null>(null);
   const [showRepresent, setShowRepresent] = useState(false);
@@ -52,8 +51,13 @@ export default function ReportView() {
 
   const handleExportPDF = async () => {
     if (!report) return;
+    setExportError(null);
     setExportLoading(true);
     try {
+      const [{ pdf }, { ReportPDF }] = await Promise.all([
+        import('@react-pdf/renderer'),
+        import('../../components/pms/ReportPDF'),
+      ]);
       const blob = await pdf(
         <ReportPDF
           report={report}
@@ -69,6 +73,8 @@ export default function ReportView() {
       a.download = `PMS_Report_${report.id.slice(0, 8)}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
+    } catch (e) {
+      setExportError(friendlyError(e, 'Failed to export PDF'));
     } finally {
       setExportLoading(false);
     }
@@ -130,6 +136,10 @@ export default function ReportView() {
           <Download size={14} className="mr-1.5" /> Export PDF
         </Button>
       </div>
+
+      {exportError && (
+        <p role="alert" className="text-sm text-rose-600">{exportError}</p>
+      )}
 
       {report.systemRemark && (
         <div className="px-4 py-3 bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-xl">

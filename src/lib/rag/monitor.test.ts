@@ -17,6 +17,14 @@ const rows = [
 
 vi.mock('../../utils/supabaseClient', () => ({
   supabase: {
+    rpc: async () => ({
+      data: [{
+        status_counts: { pending: 2, processing: 1, indexed: 5, failed: 0, skipped: 1 },
+        traceability_cited: 4,
+        traceability_total: 5,
+      }],
+      error: null,
+    }),
     from: () => ({
       select: () => ({
         order: () => ({
@@ -27,7 +35,7 @@ vi.mock('../../utils/supabaseClient', () => ({
   },
 }));
 
-import { countByStatus, fetchMonitorRows } from './monitor';
+import { countByStatus, fetchMonitorRows, fetchMonitorSummary } from './monitor';
 
 describe('countByStatus', () => {
   it('tallies every status and zero-fills the rest', () => {
@@ -96,5 +104,15 @@ describe('toCsv', () => {
     expect(csv.startsWith('﻿')).toBe(true);
     expect(csv).toContain('"he said ""hi""","line1\nline2"');
     expect(csv).toContain('"plain, comma",ok');
+  });
+});
+
+describe('fetchMonitorSummary', () => {
+  it('maps RPC counts and traceability share', async () => {
+    const summary = await fetchMonitorSummary();
+    expect(summary).toEqual({
+      counts: { pending: 2, processing: 1, indexed: 5, failed: 0, skipped: 1 },
+      traceability: { share: 0.8, cited: 4, total: 5 },
+    });
   });
 });

@@ -502,3 +502,48 @@ def test_log_query_records_refusal_reason():
     client = _CaptureClient({"query_log": [{"id": "q1"}]})
     log_query(client, "q", Answer(REFUSAL_TEXT, "document", []))
     assert client.inserts[0]["refusal_reason"] == "no_grounded_answer"
+
+
+def test_make_fetch_texts_groups_by_doc_and_preserves_span_order():
+    from query_service import make_fetch_texts
+
+    calls = []
+
+    class _DocPagesQuery:
+        def __init__(self, store):
+            self._store = store
+            self._doc = None
+            self._pages = None
+
+        def select(self, *_):
+            return self
+
+        def eq(self, col, val):
+            if col == "document_id":
+                self._doc = val
+            return self
+
+        def in_(self, col, vals):
+            if col == "page":
+                self._pages = sorted(vals)
+            return self
+
+        def order(self, *_):
+            return self
+
+        def execute(self):
+            calls.append((self._doc, self._pages))
+            rows = [r for r in self._store if r["document_id"] == self._doc and r["page"] in (self._pages or [])]
+            return _FakeExec(rows)
+
+    store = [
+        {"document_id": "d1", "page": 1, "text": "d1-p1"},
+        {"document_id": "d1", "page": 2, "text": "d1-p2"},
+        {"document_id": "d1", "page": 4, "text": "d1-p4"},
+        {"document_id": "d2", "page": 2, "text": "d2-p2"},
+    ]
+    client = type("C", (), {"table": lambda _self, _name: _DocPagesQuery(store)})()
+    fetch = make_fetch_texts(client)
+    out = fetch([("d1", 1, 2), ("d2", 2, 2), ("d1", 4, 4)])
+    assert out == ["d1-p1\nd1-p2", "d2-p2", "d1-p4"]
+    assert dict(calls) == {"d1": [1, 2, 4], "d2": [2]}

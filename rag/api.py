@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from auth import verify_token, scoped_client
+from auth import verify_token, scoped_client, close_scoped_client
 from query_service import parse_bearer, handle_query, stream_query, log_query, find_similar
 from llm import make_llm
 from mapping_service import suggest_mapping
@@ -81,6 +81,7 @@ def _scoped(authorization, gate: str):
         raise HTTPException(status_code=401, detail="invalid token")
     client = scoped_client(_ANON_URL, _ANON_KEY, jwt)
     if not _gate_open(client, gate):
+        close_scoped_client(client)
         raise HTTPException(status_code=403, detail="forbidden")
     return client
 
@@ -95,17 +96,19 @@ def _authed_client(body_question: str, authorization):
 @app.post("/query")
 def query(body: QueryIn, authorization: str | None = Header(default=None)):
     question, client = _authed_client(body.question, authorization)
-
-    started = time.perf_counter()
-    history = [t.model_dump() for t in body.history] if body.history else None
     try:
-        answer = handle_query(question, client, _LLM, history=history)
-    except (TimeoutError, urllib.error.URLError):
-        raise HTTPException(status_code=504, detail="model timeout")
-    latency_ms = int((time.perf_counter() - started) * 1000)
-    payload = dataclasses.asdict(answer)
-    payload["query_id"] = log_query(client, question, answer, latency_ms=latency_ms)
-    return payload
+        started = time.perf_counter()
+        history = [t.model_dump() for t in body.history] if body.history else None
+        try:
+            answer = handle_query(question, client, _LLM, history=history)
+        except (TimeoutError, urllib.error.URLError):
+            raise HTTPException(status_code=504, detail="model timeout")
+        latency_ms = int((time.perf_counter() - started) * 1000)
+        payload = dataclasses.asdict(answer)
+        payload["query_id"] = log_query(client, question, answer, latency_ms=latency_ms)
+        return payload
+    finally:
+        close_scoped_client(client)
 
 
 @app.post("/query/stream")
@@ -127,6 +130,8 @@ def query_stream(body: QueryIn, authorization: str | None = Header(default=None)
                     yield f"data: {json.dumps({'done': payload})}\n\n"
         except (TimeoutError, urllib.error.URLError):
             yield f"data: {json.dumps({'error': 'model timeout'})}\n\n"
+        finally:
+            close_scoped_client(client)
 
     return StreamingResponse(events(), media_type="text/event-stream")
 
@@ -141,12 +146,15 @@ def similar(body: SimilarIn, authorization: str | None = Header(default=None)):
     if not text:
         raise HTTPException(status_code=400, detail="empty text")
     client = _scoped(authorization, "can_use_ask_surya")
-    return {"matches": find_similar(text, client, _LLM)}
+    try:
+        return {"matches": find_similar(text, client, _LLM)}
+    finally:
+        close_scoped_client(client)
 
 
 class TargetField(BaseModel):
-    column: str
-    label: str
+    column: str = Field(max_length=256)
+    label: str = Field(max_length=256)
 
 
 class MapColumnsIn(BaseModel):
@@ -161,12 +169,17 @@ def map_columns(body: MapColumnsIn, authorization: str | None = Header(default=N
     still requires a human confirm before anything writes to HR tables.
     Gated like the import page itself (/data is DATA_ADMINS = caller_is_admin),
     not by the Ask SURYA switch."""
-    _scoped(authorization, "caller_is_admin")
-    if not body.raw_headers or not body.target_fields:
-        raise HTTPException(status_code=400, detail="raw_headers and target_fields required")
-    if len(body.raw_headers) > 400 or len(body.target_fields) > 400:
-        raise HTTPException(status_code=400, detail="too many headers/fields (max 400)")
+    client = _scoped(authorization, "caller_is_admin")
+    try:
+        if not body.raw_headers or not body.target_fields:
+            raise HTTPException(status_code=400, detail="raw_headers and target_fields required")
+        if len(body.raw_headers) > 400 or len(body.target_fields) > 400:
+            raise HTTPException(status_code=400, detail="too many headers/fields (max 400)")
+        if any(len(h) > 256 for h in body.raw_headers):
+            raise HTTPException(status_code=400, detail="header too long (max 256 chars)")
 
-    target_fields = [f.model_dump() for f in body.target_fields]
-    mapping = suggest_mapping(_LLM, body.raw_headers, target_fields)
-    return {"mapping": mapping}
+        target_fields = [f.model_dump() for f in body.target_fields]
+        mapping = suggest_mapping(_LLM, body.raw_headers, target_fields)
+        return {"mapping": mapping}
+    finally:
+        close_scoped_client(client)

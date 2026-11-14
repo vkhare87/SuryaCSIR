@@ -31,7 +31,7 @@ interface SuccessState {
 }
 
 export default function TicketForm() {
-  const { staff, divisions, helpdeskRouting, refreshData } = useData();
+  const { staff, divisions, helpdeskRouting, refreshSlice } = useData();
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -95,7 +95,7 @@ export default function TicketForm() {
     if (result.success) {
       const { ticketId, token } = result.data as { ticketId: string; token: string | null };
       setSuccess({ ticketId, token, handlerName: routingPreview?.handlerName ?? null });
-      await refreshData();
+      await refreshSlice('tickets');
     } else {
       setError(result.error ?? ERROR_FALLBACK);
     }

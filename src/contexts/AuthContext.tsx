@@ -34,27 +34,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const resolveUserRoles = useCallback(async (authUser: SupabaseUser): Promise<boolean> => {
     if (!supabase) return false;
 
-    // Fetch all role rows for this user. ORDER BY is load-bearing: roles[0]
-    // is the fallback active role, and without it a multi-role user landed
-    // on a different dashboard depending on planner row order.
-    const { data: roleRows, error: rolesError } = await supabase
-      .from('user_roles')
-      .select('role, division_code')
-      .eq('user_id', authUser.id)
-      .order('role');
+    // Fetch roles and per-user profile concurrently. ORDER BY is load-bearing:
+    // roles[0] is the fallback active role.
+    const [{ data: roleRows, error: rolesError }, { data: profile }] = await Promise.all([
+      supabase
+        .from('user_roles')
+        .select('role, division_code')
+        .eq('user_id', authUser.id)
+        .order('role'),
+      supabase
+        .from('user_profiles')
+        .select('must_change_password, active_role, last_seen_at')
+        .eq('user_id', authUser.id)
+        .single(),
+    ]);
 
     if (rolesError || !roleRows || roleRows.length === 0) {
       await supabase.auth.signOut();
       setUser(null);
       return false;
     }
-
-    // Fetch per-user profile (must_change_password, active_role, last_seen_at)
-    const { data: profile } = await supabase
-      .from('user_profiles')
-      .select('must_change_password, active_role, last_seen_at')
-      .eq('user_id', authUser.id)
-      .single();
 
     const roles = roleRows.map(r => r.role as Role);
 
@@ -77,11 +76,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       mustChangePassword,
     });
 
-    // Update last_seen_at in user_profiles
-    await supabase
-      .from('user_profiles')
-      .update({ last_seen_at: new Date().toISOString() })
-      .eq('user_id', authUser.id);
+    // Debounce & fire-and-forget last_seen_at so login/refresh doesn't block on a write RTT
+    const lastSeenMs = profile?.last_seen_at ? Date.parse(profile.last_seen_at) : 0;
+    if (!lastSeenMs || Date.now() - lastSeenMs > 5 * 60_000) {
+      void supabase
+        .from('user_profiles')
+        .update({ last_seen_at: new Date().toISOString() })
+        .eq('user_id', authUser.id);
+    }
 
     return true;
   }, []);
