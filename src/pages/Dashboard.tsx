@@ -48,8 +48,8 @@ export default function Dashboard() {
 
   switch (activeRole) {
     case 'Director':     return withActions(<DirectorView />);
-    case 'DivisionHead': return withActions(<DivisionHeadView />);
-    case 'HOD':          return withActions(<HoDView />);
+    case 'DivisionHead': return home(<DivisionHeadView />);
+    case 'HOD':          return home(<HoDView />);
     case 'Scientist':    return home(<ScientistView />);
     case 'Technician':   return withActions(<TechnicianView />);
     case 'HRAdmin':      return withActions(<HRAdminView />);

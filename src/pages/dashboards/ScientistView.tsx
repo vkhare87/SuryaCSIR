@@ -1,51 +1,23 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Lightbulb, Search } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Lightbulb } from 'lucide-react';
 import clsx from 'clsx';
 import { useData } from '../../contexts/DataContext';
 import { useClaim, useHome } from '../../contexts/HomeContext';
 import { Card, Badge } from '../../components/ui/Cards';
 import { Button } from '../../components/ui/Button';
+import { ActionRow, AskBox, BLOCK_TITLE, HomeGreeting, NotConnected, ROW, dueText } from '../../components/home/parts';
 import { deriveOwnMeetings, deriveOwnActionItems } from '../../lib/dashboard/scientistData';
-import { dueUrgency } from '../../lib/dashboard/myActions';
 import type { MyAction } from '../../lib/dashboard/myActions';
 import { classify, countByGroup } from '../../lib/home/classify';
 import { doNext, quickWins } from '../../lib/home/doNext';
 import { greeting } from '../../lib/home/greeting';
-import { daysUntil, localIso, weekStrip } from '../../lib/home/today';
+import { localIso, weekStrip } from '../../lib/home/today';
 import type { DayMark } from '../../lib/home/today';
 import { deskKey } from '../../lib/home/desk';
 import { milestonesFor } from '../../lib/home/api';
 import type { HomeMilestone } from '../../lib/home/api';
 import { staffNameMatchesAuthor } from '../../utils/dateUtils';
-
-const BLOCK_TITLE = 'text-xs font-medium text-text-muted mb-3 flex items-center justify-between gap-2';
-const ROW = 'flex items-center gap-3 py-2.5 border-t border-border first:border-t-0';
-
-function dueText(due: string | null, now: Date): { text: string; variant: 'danger' | 'warning' | 'neutral' } | null {
-  if (!due) return null;
-  const days = daysUntil(due, now);
-  if (days < 0) return { text: `${-days} d late`, variant: 'danger' };
-  if (days === 0) return { text: 'today', variant: 'warning' };
-  return { text: `${days} d`, variant: dueUrgency(due, now) === 'soon' ? 'warning' : 'neutral' };
-}
-
-function TodayRing({ done, total }: { done: number; total: number }) {
-  const circumference = 151;
-  const share = total === 0 ? 1 : done / total;
-  return (
-    <svg width="60" height="60" viewBox="0 0 58 58" role="img" aria-label={`${done} of ${total} done today`} className="shrink-0">
-      <circle cx="29" cy="29" r="24" fill="none" strokeWidth="5" className="stroke-border" />
-      <circle
-        cx="29" cy="29" r="24" fill="none" strokeWidth="5" strokeLinecap="round"
-        strokeDasharray={circumference} strokeDashoffset={Math.round(circumference * (1 - share))}
-        transform="rotate(-90 29 29)" className="stroke-archive-green"
-      />
-      <text x="29" y="33" textAnchor="middle" className="fill-text font-mono text-[13px]">{done}/{total}</text>
-    </svg>
-  );
-}
 
 function MilestoneTrack({ milestones, today }: { milestones: HomeMilestone[]; today: string }) {
   const live = milestones.filter(m => m.status !== 'DROPPED');
@@ -73,8 +45,6 @@ function MilestoneTrack({ milestones, today }: { milestones: HomeMilestone[]; to
 export function ScientistView() {
   const { projects, projectStaff, phDStudents, meetings, committeeMembers, actionItems, calendarEvents, holidays } = useData();
   const { staffId, ownStaff, staffResolved, actions, doneCount } = useHome();
-  const navigate = useNavigate();
-  const [question, setQuestion] = useState('');
   const [milestones, setMilestones] = useState<HomeMilestone[]>([]);
 
   const now = useMemo(() => new Date(), []);
@@ -137,12 +107,6 @@ export function ScientistView() {
     return [...staffRows, ...students];
   }, [ownProjects, projectStaff, phDStudents, staffId, ownName]);
 
-  const ask = (e: FormEvent) => {
-    e.preventDefault();
-    const q = question.trim();
-    navigate(q ? `/ask?q=${encodeURIComponent(q)}` : '/ask');
-  };
-
   // --- 5. One item, one place: tell the common desk what this half shows ---
   const alsoOpen = useMemo(
     () => actions.filter(a => a.id !== next?.id && !wins.includes(a)).slice(0, 5),
@@ -155,50 +119,26 @@ export function ScientistView() {
     ...ownMeetings.map(m => deskKey.meeting(m.id)),
   ], [next, wins, alsoOpen, ownMeetings]));
 
-  const actionRow = (a: MyAction) => {
-    const due = dueText(a.due, now);
-    return (
-      <Link key={a.id} to={a.link} className={clsx(ROW, 'group')}>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm text-text truncate group-hover:underline" title={a.label}>{a.label}</p>
-          <p className="text-xs text-text-muted truncate" title={a.detail}>{a.detail}</p>
-        </div>
-        {due && <Badge variant={due.variant} className="font-mono normal-case shrink-0">{due.text}</Badge>}
-      </Link>
-    );
-  };
+  const actionRow = (a: MyAction) => <ActionRow key={a.id} action={a} now={now} />;
 
   const total = actions.length + doneCount;
 
   return (
     <div className="space-y-4 pb-12">
       {/* --- 1. Today ring and greeting --- */}
-      <Card className="p-5 flex items-center gap-4">
-        <TodayRing done={doneCount} total={total} />
-        <div className="min-w-0">
-          <h1 className="font-serif text-xl sm:text-2xl leading-snug text-text">{sentence}</h1>
-          <p className="text-xs text-text-muted mt-1">
-            {ownStaff
-              ? `${ownStaff.Designation} · Division ${ownStaff.Division}`
-              : staffResolved
-                ? 'This account is not linked to a staff record. Ask the System Admin to link it; project, committee and team blocks need it.'
-                : ' '}
-          </p>
-        </div>
-      </Card>
+      <HomeGreeting
+        done={doneCount} total={total} sentence={sentence}
+        sub={ownStaff
+          ? `${ownStaff.Designation} · Division ${ownStaff.Division}`
+          : staffResolved
+            ? 'This account is not linked to a staff record. Ask the System Admin to link it; project, committee and team blocks need it.'
+            : ' '}
+      />
 
       {/* --- 2. Ask and start --- */}
-      <div className="flex flex-wrap gap-2">
-        <form onSubmit={ask} className="flex-1 min-w-[220px] relative">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" aria-hidden="true" />
-          <input
-            value={question} onChange={e => setQuestion(e.target.value)}
-            aria-label="Ask or search" placeholder="Ask SURYA: which of my reports are due?"
-            className="w-full h-10 pl-9 pr-3 rounded-lg border border-border bg-surface-raised text-sm text-text placeholder:text-text-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-terracotta/60"
-          />
-        </form>
+      <AskBox placeholder="Ask SURYA: which of my reports are due?">
         <Link to="/proposals/new"><Button variant="secondary" type="button"><Lightbulb size={15} className="mr-1.5" aria-hidden="true" />New idea</Button></Link>
-      </div>
+      </AskBox>
 
       {/* --- 3. Do this next --- */}
       {next && (
@@ -310,10 +250,7 @@ export function ScientistView() {
 
       {/* --- 8. Blocks that wait on other work --- */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card className="p-5">
-          <p className={BLOCK_TITLE}><span>Waiting in offices</span></p>
-          <p className="text-sm text-text-muted">Not connected yet. Purchase, bills and hiring will show here when the office files are linked.</p>
-        </Card>
+        <NotConnected title="Waiting in offices">Purchase, bills and hiring will show here when the office files are linked.</NotConnected>
         <Card className="p-5">
           <p className={BLOCK_TITLE}><span>My team</span><span className="font-mono">{team.length}</span></p>
           {team.length === 0
