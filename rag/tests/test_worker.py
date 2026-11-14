@@ -121,3 +121,24 @@ def test_checkpoint_batches_every_n_leaves():
     assert db.status["d1"] == "indexed"
     # Batched at CHECKPOINT_INTERVAL=5 instead of saving on every page; page 6 goes directly into save_index
     assert save_calls == [5]
+
+
+def test_checkpoint_write_failure_does_not_prevent_failed_status():
+    doc = fitz.open()
+    for i in range(6):
+        p = doc.new_page()
+        p.insert_text((72, 72), f"page {i + 1} content")
+    data = doc.tobytes()
+    doc.close()
+
+    class _FailingCheckpointDB(FakeDB):
+        def save_checkpoint(self, document_id, model, summaries, page_count):
+            raise OSError("checkpoint table unavailable")
+
+    db = _FailingCheckpointDB(
+        docs=[DocRow(id="d1", storage_bucket="b", storage_path="p.pdf",
+                     mime_type="application/pdf", title="SixPage")],
+        storage={("b", "p.pdf"): data},
+    )
+    process_document(db.claim_pending(), db, NullOCR(), FakeLLM())
+    assert db.status["d1"] == "failed"

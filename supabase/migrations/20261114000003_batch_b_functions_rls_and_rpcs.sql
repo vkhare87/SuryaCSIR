@@ -707,8 +707,8 @@ CREATE POLICY vacancy_advertisements_insert ON public.vacancy_advertisements
     WITH CHECK (user_has_role('HRAdmin'::text) OR user_has_role('MasterAdmin'::text));
 CREATE POLICY vacancy_advertisements_update ON public.vacancy_advertisements
     FOR UPDATE TO authenticated
-    USING (user_has_role('HRAdmin'::text) OR user_has_role('MasterAdmin'::text))
-    WITH CHECK (user_has_role('HRAdmin'::text) OR user_has_role('MasterAdmin'::text));
+    USING (user_has_role('HRAdmin'::text) OR user_has_role('SystemAdmin'::text) OR user_has_role('MasterAdmin'::text))
+    WITH CHECK (user_has_role('HRAdmin'::text) OR user_has_role('SystemAdmin'::text) OR user_has_role('MasterAdmin'::text));
 CREATE POLICY vacancy_advertisements_delete ON public.vacancy_advertisements
     FOR DELETE TO authenticated
     USING (user_has_role('HRAdmin'::text) OR user_has_role('MasterAdmin'::text));

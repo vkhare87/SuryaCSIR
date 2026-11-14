@@ -67,9 +67,10 @@ export function PhDStudentFormModal({ isOpen, onClose, student }: Props) {
     setSubmitting(true);
     setSubmitError(null);
 
+    const { projectId: _projectId, ...payload } = form;
     const { error } = isEdit
-      ? await supabase.from('phd_students').update(form).eq('EnrollmentNo', form.EnrollmentNo)
-      : await supabase.from('phd_students').insert(form);
+      ? await supabase.from('phd_students').update(payload).eq('EnrollmentNo', form.EnrollmentNo)
+      : await supabase.from('phd_students').insert(payload);
 
     setSubmitting(false);
     if (error) {

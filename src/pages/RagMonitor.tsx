@@ -9,6 +9,7 @@ import {
   fetchReviewQueue, setAccessTier,
 } from '../lib/rag/monitor';
 import type { MonitorRow, IngestStatus, LatencyPoint, DownvotedQuery, RouteMode, ReviewRow, AccessTier, StatusCounts } from '../lib/rag/monitor';
+import { friendlyError } from '../lib/errors';
 
 const ROUTES: RouteMode[] = ['structured', 'document', 'hybrid'];
 
@@ -29,27 +30,64 @@ export default function RagMonitor() {
   const [latencies, setLatencies] = useState<LatencyPoint[]>([]);
   const [downvoted, setDownvoted] = useState<DownvotedQuery[]>([]);
   const [reviewQueue, setReviewQueue] = useState<ReviewRow[]>([]);
+  const [sectionErrors, setSectionErrors] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   async function load() {
     setLoading(true);
+    setSectionErrors([]);
     try {
-      const [nextRows, nextSummary, nextLatencies, nextDownvoted, nextReview] = await Promise.all([
+      const [rowsRes, summaryRes, latenciesRes, downvotedRes, reviewRes] = await Promise.allSettled([
         fetchMonitorRows(),
-        fetchMonitorSummary().catch(() => null),
+        fetchMonitorSummary(),
         fetchLatencies(),
         fetchDownvoted(),
         fetchReviewQueue(),
       ]);
-      setRows(nextRows);
-      setSummaryCounts(nextSummary?.counts ?? null);
-      setTraceability(nextSummary?.traceability ?? null);
-      setLatencies(nextLatencies);
-      setDownvoted(nextDownvoted);
-      setReviewQueue(nextReview);
-    } catch (e) {
-      console.error('Failed to load RAG monitor', e);
-      setRows([]);
+
+      const nextErrors: string[] = [];
+
+      if (rowsRes.status === 'fulfilled') {
+        setRows(rowsRes.value);
+      } else {
+        console.error('Failed to load RAG monitor rows', rowsRes.reason);
+        nextErrors.push(`Ingestion queue: ${friendlyError(rowsRes.reason)}`);
+        setRows([]);
+      }
+
+      if (summaryRes.status === 'fulfilled') {
+        setSummaryCounts(summaryRes.value?.counts ?? null);
+        setTraceability(summaryRes.value?.traceability ?? null);
+      } else {
+        setSummaryCounts(null);
+        setTraceability(null);
+      }
+
+      if (latenciesRes.status === 'fulfilled') {
+        setLatencies(latenciesRes.value);
+      } else {
+        console.error('Failed to load RAG query latencies', latenciesRes.reason);
+        nextErrors.push(`Query latency: ${friendlyError(latenciesRes.reason)}`);
+        setLatencies([]);
+      }
+
+      if (downvotedRes.status === 'fulfilled') {
+        setDownvoted(downvotedRes.value);
+      } else {
+        console.error('Failed to load downvoted queries', downvotedRes.reason);
+        nextErrors.push(`Downvoted queries: ${friendlyError(downvotedRes.reason)}`);
+        setDownvoted([]);
+      }
+
+      if (reviewRes.status === 'fulfilled') {
+        setReviewQueue(reviewRes.value);
+      } else {
+        console.error('Failed to load review queue', reviewRes.reason);
+        nextErrors.push(`Review queue: ${friendlyError(reviewRes.reason)}`);
+        setReviewQueue([]);
+      }
+
+      setSectionErrors(nextErrors);
     } finally {
       setLoading(false);
     }
@@ -159,6 +197,17 @@ export default function RagMonitor() {
           </Card>
         ))}
       </div>
+
+      {sectionErrors.length > 0 && (
+        <div
+          role="alert"
+          className="rounded-lg border border-danger/30 bg-badge-danger-bg px-4 py-3 text-sm text-badge-danger-fg space-y-1"
+        >
+          {sectionErrors.map((msg) => (
+            <div key={msg}>{msg}</div>
+          ))}
+        </div>
+      )}
 
       {latencies.length > 0 && (
         <Card className="p-4 space-y-3">

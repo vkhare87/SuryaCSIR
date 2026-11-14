@@ -25,7 +25,6 @@ interface SyncLogEntry {
   total_scientists: number;
   succeeded: number;
   failed: number;
-  error_details: unknown;
 }
 
 // ---------------------------------------------------------------------------

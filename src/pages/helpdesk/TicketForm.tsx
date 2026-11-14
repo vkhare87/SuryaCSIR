@@ -78,26 +78,29 @@ export default function TicketForm() {
       return;
     }
 
+    if (submitting) return;
     setSubmitting(true);
     setError(null);
     setFieldErrors([]);
 
-    const result = await createTicket({
-      subject: subject.trim(),
-      category,
-      urgency,
-      description: description.trim(),
-      submitted_by: user.id,
-    });
+    try {
+      const result = await createTicket({
+        subject: subject.trim(),
+        category,
+        urgency,
+        description: description.trim(),
+        submitted_by: user.id,
+      });
 
-    setSubmitting(false);
-
-    if (result.success) {
-      const { ticketId, token } = result.data as { ticketId: string; token: string | null };
-      setSuccess({ ticketId, token, handlerName: routingPreview?.handlerName ?? null });
-      await refreshSlice('tickets');
-    } else {
-      setError(result.error ?? ERROR_FALLBACK);
+      if (result.success) {
+        const { ticketId, token } = result.data as { ticketId: string; token: string | null };
+        await refreshSlice('tickets');
+        setSuccess({ ticketId, token, handlerName: routingPreview?.handlerName ?? null });
+      } else {
+        setError(result.error ?? ERROR_FALLBACK);
+      }
+    } finally {
+      setSubmitting(false);
     }
   }
 

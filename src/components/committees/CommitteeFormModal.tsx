@@ -166,12 +166,21 @@ export function CommitteeFormModal({ isOpen, onClose, committee }: CommitteeForm
     setSubmitError(null);
     try {
       // Delete committee members first (FK constraint), then the committee
-      await supabase!.from('committee_members').delete().eq('committee_id', committee.id);
-      await supabase!.from('committees').delete().eq('id', committee.id);
+      const { error: memberDeleteErr } = await supabase!
+        .from('committee_members')
+        .delete()
+        .eq('committee_id', committee.id);
+      if (memberDeleteErr) throw memberDeleteErr;
+      const { error: deleteErr } = await supabase!
+        .from('committees')
+        .delete()
+        .eq('id', committee.id);
+      if (deleteErr) throw deleteErr;
       await refreshSlice?.('committees');
       onClose();
     } catch (err) {
       setSubmitError(friendlyError(err, 'Failed to delete committee'));
+    } finally {
       setSubmitting(false);
     }
   };

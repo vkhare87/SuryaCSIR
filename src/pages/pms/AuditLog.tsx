@@ -48,13 +48,13 @@ export default function AuditLog() {
     setIsLoading(true);
     setError(null);
 
-    void db
-      .rpc('list_combined_audit_logs', {
-        p_source: source,
-        p_limit: PER_PAGE,
-        p_offset: page * PER_PAGE,
-      })
-      .then(({ data, error: err }) => {
+    void (async () => {
+      try {
+        const { data, error: err } = await db.rpc('list_combined_audit_logs', {
+          p_source: source,
+          p_limit: PER_PAGE,
+          p_offset: page * PER_PAGE,
+        });
         if (!active) return;
         if (err) throw err;
         const rows = (data as {
@@ -73,15 +73,15 @@ export default function AuditLog() {
           details: r.details ?? {},
           createdAt: r.created_at,
         })));
-      }, (e: Error) => {
+      } catch (e) {
         if (!active) return;
         setError(friendlyError(e));
         setLogs([]);
         setTotalCount(0);
-      })
-      .finally(() => {
+      } finally {
         if (active) setIsLoading(false);
-      });
+      }
+    })();
 
     return () => { active = false; };
   }, [isAdmin, page, source]);

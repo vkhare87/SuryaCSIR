@@ -79,10 +79,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Debounce & fire-and-forget last_seen_at so login/refresh doesn't block on a write RTT
     const lastSeenMs = profile?.last_seen_at ? Date.parse(profile.last_seen_at) : 0;
     if (!lastSeenMs || Date.now() - lastSeenMs > 5 * 60_000) {
-      void supabase
-        .from('user_profiles')
-        .update({ last_seen_at: new Date().toISOString() })
-        .eq('user_id', authUser.id);
+      void (async () => {
+        try {
+          const { error: seenError } = await supabase
+            .from('user_profiles')
+            .update({ last_seen_at: new Date().toISOString() })
+            .eq('user_id', authUser.id);
+          if (seenError) console.warn('[auth] last_seen_at update failed', seenError);
+        } catch (err) {
+          console.warn('[auth] last_seen_at update failed', err);
+        }
+      })();
     }
 
     return true;

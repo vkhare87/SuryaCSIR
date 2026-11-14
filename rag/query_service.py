@@ -111,15 +111,25 @@ def read_route_labels(client, k=ROUTE_FEWSHOT_K):
     return rows
 
 
+_DOC_PAGE_BATCH = 500
+
+
 def make_fetch_texts(client):
     """fetch_texts(spans) over doc_pages, RLS-scoped — same read gate as the tree."""
     def _fetch_doc_pages(doc_id, pages):
         try:
-            rows = (client.table("doc_pages").select("page, text")
-                    .eq("document_id", doc_id)
-                    .in_("page", sorted(pages))
-                    .order("page").execute().data) or []
-            return {r["page"]: r.get("text", "") for r in rows if "page" in r}
+            sorted_pages = sorted(pages)
+            out: dict[int, str] = {}
+            for i in range(0, len(sorted_pages), _DOC_PAGE_BATCH):
+                chunk = sorted_pages[i:i + _DOC_PAGE_BATCH]
+                rows = (client.table("doc_pages").select("page, text")
+                        .eq("document_id", doc_id)
+                        .in_("page", chunk)
+                        .order("page").execute().data) or []
+                for r in rows:
+                    if "page" in r:
+                        out[r["page"]] = r.get("text", "")
+            return out
         except Exception:
             return {}
 

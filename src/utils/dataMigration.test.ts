@@ -286,4 +286,20 @@ describe('pushToSupabase atomic upsert', () => {
     expect(logs[0]).toContain('server outcome unknown');
     expect(logs[0]).not.toContain('rolled back');
   });
+
+  it('does not claim rollback for a resolved Supabase transport error with status 0', async () => {
+    const upsert = vi.fn().mockResolvedValue({
+      data: null,
+      error: { message: 'TypeError: Failed to fetch' },
+      status: 0,
+    });
+    const client = { from: vi.fn(() => ({ upsert })) };
+    const rows = [{ ID: 'E1' }, { ID: 'E2' }];
+    const logs: string[] = [];
+
+    const res = await pushToSupabase(client, 'staff', rows, (m) => logs.push(m));
+    expect(res).toEqual({ upserted: 0, failed: 2 });
+    expect(logs[0]).toContain('server outcome unknown');
+    expect(logs[0]).not.toContain('rolled back');
+  });
 });

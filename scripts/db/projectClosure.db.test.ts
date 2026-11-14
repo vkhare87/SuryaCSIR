@@ -182,7 +182,7 @@ describe('institutional memory', () => {
     expect(await stage(ULIP)).toBe('ARCHIVED');
     const d = await one<{ t: string; s: string }>(db, `SELECT access_tier t, ingest_status s FROM documents WHERE id = $1`, [pub]);
     expect(d).toEqual({ t: 'institute', s: 'pending' });
-    expect((await one<{ d: string }>(db, `SELECT published_document_id d FROM project_lessons WHERE project_id = $1`, [ULIP]))!.d).toBe(pub);
+    expect((await as(db, U.pme, tx => one<{ d: string }>(tx, `SELECT published_document_id d FROM project_lessons WHERE project_id = $1`, [ULIP])))!.d).toBe(pub);
     await expect(as(db, U.pme, tx => tx.query(`UPDATE projects SET "ProjectName" = 'renamed' WHERE "ProjectID" = $1`, [ULIP])))
       .rejects.toThrow(/archived and read-only/);
   });

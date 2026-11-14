@@ -516,3 +516,142 @@ def test_division_summary_pushes_filters_to_query_builder():
         ("staff", {"Division": "CMD"}, {}),
         ("projects", {"DivisionCode": "CMD"}, {}),
     ]
+
+
+class _PostgrestSimTable:
+    """Filter-aware table evaluating eq, ilike, and or_ predicates like PostgREST."""
+
+    def __init__(self, rows):
+        self._rows = rows
+        self._predicates = []
+
+    def select(self, _cols):
+        return self
+
+    def _match_ilike(self, val, pattern):
+        import re as _re
+        text = str(val or "")
+        # Unescape \% and \_ after building regex
+        regex_parts = []
+        i = 0
+        while i < len(pattern):
+            ch = pattern[i]
+            if ch == "\\" and i + 1 < len(pattern):
+                regex_parts.append(_re.escape(pattern[i + 1]))
+                i += 2
+            elif ch == "%":
+                regex_parts.append(".*")
+                i += 1
+            elif ch == "_":
+                regex_parts.append(".")
+                i += 1
+            else:
+                regex_parts.append(_re.escape(ch))
+                i += 1
+        return _re.fullmatch("".join(regex_parts), text, _re.IGNORECASE | _re.DOTALL) is not None
+
+    def _eval_clause(self, row, clause):
+        # Supports col.eq.val, col.ilike.pat, col.in.("a","b")
+        col, op, rest = clause.split(".", 2)
+        if op == "eq":
+            return str(row.get(col) or "") == rest
+        if op == "ilike":
+            return self._match_ilike(row.get(col), rest)
+        if op == "in":
+            assert rest.startswith("(") and rest.endswith(")")
+            inner = rest[1:-1]
+            vals = [v.strip().strip('"') for v in inner.split(",") if v.strip()]
+            return str(row.get(col) or "") in vals
+        raise AssertionError(f"Unsupported op: {op}")
+
+    def eq(self, col, val):
+        self._predicates.append(lambda r: str(r.get(col) or "") == str(val))
+        return self
+
+    def ilike(self, col, pattern):
+        self._predicates.append(lambda r: self._match_ilike(r.get(col), pattern))
+        return self
+
+    def or_(self, expr):
+        # Split on commas outside parentheses
+        clauses, buf, depth = [], [], 0
+        for ch in expr:
+            if ch == "(":
+                depth += 1
+            elif ch == ")":
+                depth -= 1
+            if ch == "," and depth == 0:
+                clauses.append("".join(buf))
+                buf = []
+            else:
+                buf.append(ch)
+        if buf:
+            clauses.append("".join(buf))
+        self._predicates.append(lambda r: any(self._eval_clause(r, c) for c in clauses))
+        return self
+
+    def execute(self):
+        data = [r for r in self._rows if all(p(r) for p in self._predicates)]
+        return type("R", (), {"data": data})()
+
+
+class _PostgrestSimClient:
+    def __init__(self, tables):
+        self._tables = tables
+
+    def table(self, name):
+        return _PostgrestSimTable(self._tables.get(name, []))
+
+
+def test_staff_and_projects_lookup_by_lowercase_id_through_filters():
+    client = _PostgrestSimClient({
+        "staff": _STAFF,
+        "projects": _PROJECTS,
+        "project_staff": _PROJECT_STAFF,
+    })
+    prof = run_analytics("staff_profile", {"name": "s001"}, client)
+    assert "Anil Sharma" in prof.text
+    projs = run_analytics("projects_for_staff", {"name": "s001"}, client)
+    assert "GAP-001" in projs.text and "GAP-002" in projs.text
+
+
+def test_projects_for_staff_preserves_trimmed_names_and_id_membership_fallbacks():
+    client = _PostgrestSimClient({
+        "staff": [
+            {"ID": "S001", "Name": "Sharma, Anil"},
+            {"ID": "S002", "Name": "Rekha Nair"},
+        ],
+        "projects": [
+            {"ProjectNo": "GAP-001", "ProjectName": "Alpha", "ProjectStatus": "Ongoing",
+             "PrincipalInvestigator": " Sharma, Anil ", "pi_staff_id": None},
+            {"ProjectNo": "GAP(001)", "ProjectName": "Beta", "ProjectStatus": "Ongoing",
+             "PrincipalInvestigator": "Rekha Nair", "pi_staff_id": "S002"},
+            {"ProjectNo": "GAP-002", "ProjectName": "Gamma", "ProjectStatus": "Ongoing",
+             "PrincipalInvestigator": "Rekha Nair", "pi_staff_id": "S002"},
+        ],
+        "project_staff": [
+            {"ProjectNo": "GAP(001)", "StaffName": "Anil Sharma", "staff_id": "S001"},
+            {"ProjectNo": "GAP-002", "StaffName": "Anil Sharma ", "staff_id": None},
+        ],
+    })
+    ans = run_analytics("projects_for_staff", {"name": "S001"}, client)
+    assert "GAP-001" in ans.text
+    assert "GAP(001)" in ans.text
+
+    # Also verify unsafe membership number does not drop safe membership rows
+    client2 = _PostgrestSimClient({
+        "staff": [{"ID": "S002", "Name": "Rekha Nair"}],
+        "projects": [
+            {"ProjectNo": "GAP(001)", "ProjectName": "Beta", "ProjectStatus": "Ongoing",
+             "PrincipalInvestigator": "Someone Else", "pi_staff_id": None},
+            {"ProjectNo": "GAP-002", "ProjectName": "Gamma", "ProjectStatus": "Ongoing",
+             "PrincipalInvestigator": "Someone Else", "pi_staff_id": None},
+        ],
+        "project_staff": [
+            {"ProjectNo": "GAP(001)", "StaffName": "Rekha Nair ", "staff_id": "S002"},
+            {"ProjectNo": "GAP-002", "StaffName": "Rekha Nair", "staff_id": "S002"},
+        ],
+    })
+    ans2 = run_analytics("projects_for_staff", {"name": "rekha"}, client2)
+    assert "GAP(001)" in ans2.text
+    assert "GAP-002" in ans2.text

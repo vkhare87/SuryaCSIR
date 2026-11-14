@@ -47,11 +47,13 @@ export default function ProjectDetail() {
   const [file, setFile] = useState<ProjectFile | null>(null);
   const [fileError, setFileError] = useState('');
   const fileReqRef = useRef(0);
+  const activeIdRef = useRef(id);
 
   const project = projects.find(p => p.ProjectID === id);
   const userId = user?.id ?? null;
 
   const reloadFile = useCallback(async () => {
+    if (id !== activeIdRef.current) return;
     const reqId = ++fileReqRef.current;
     if (!id) {
       setFile(null);
@@ -60,20 +62,21 @@ export default function ProjectDetail() {
     }
     try {
       const next = await loadProjectFile(id);
-      if (reqId !== fileReqRef.current) return;
+      if (reqId !== fileReqRef.current || id !== activeIdRef.current) return;
       setFile(next);
       setFileError('');
     } catch (e) {
-      if (reqId !== fileReqRef.current) return;
+      if (reqId !== fileReqRef.current || id !== activeIdRef.current) return;
       setFileError(friendlyError(e));
     }
   }, [id, userId]);
   useEffect(() => {
+    activeIdRef.current = id;
     setFile(null);
     setFileError('');
     void reloadFile();
     return () => { fileReqRef.current += 1; };
-  }, [reloadFile]);
+  }, [reloadFile, id]);
 
   // --- All hooks must be called unconditionally before any early return ---
 
@@ -98,9 +101,10 @@ export default function ProjectDetail() {
   const isOffice = partyStatusKnown && !!user && !isParty && (user.roles.includes('PME') || user.roles.includes('MasterAdmin'));
   const onFileChanged = useCallback(async () => { await Promise.all([reloadFile(), refreshSlice('projects')]); }, [reloadFile, refreshSlice]);
 
+  const projectNo = project?.ProjectNo;
   const hasSiblingWorkPackages = useMemo(
-    () => !!project?.ProjectNo && projects.filter(p => p.ProjectNo === project.ProjectNo).length > 1,
-    [projects, project?.ProjectNo]
+    () => !!projectNo && projects.filter(p => p.ProjectNo === projectNo).length > 1,
+    [projects, projectNo]
   );
 
   const teamStaff = useMemo(() => {

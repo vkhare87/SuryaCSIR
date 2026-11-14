@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef, type ReactNode } from 'react';
 import type {
   DivisionInfo,
   StaffMember,
@@ -115,6 +115,31 @@ export type DataSlice =
   | 'tickets'
   | 'recruitment';
 
+type SeqKey = DataSlice | 'contributions' | 'calendar' | 'holidays' | 'import_events';
+
+const ALL_SEQ_KEYS: SeqKey[] = [
+  'hr', 'projects', 'phd', 'outputs', 'partnerships', 'facilities',
+  'committees', 'tickets', 'recruitment', 'contributions', 'calendar', 'holidays', 'import_events',
+];
+
+function createInitialSliceSeq(): Record<SeqKey, number> {
+  return {
+    hr: 0,
+    projects: 0,
+    phd: 0,
+    outputs: 0,
+    partnerships: 0,
+    facilities: 0,
+    committees: 0,
+    tickets: 0,
+    recruitment: 0,
+    contributions: 0,
+    calendar: 0,
+    holidays: 0,
+    import_events: 0,
+  };
+}
+
 interface DataContextType {
   divisions: DivisionInfo[];
   staff: StaffMember[];
@@ -164,16 +189,16 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 // ---------------------------------------------------------------------------
 
 export function DataProvider({ children }: { children: ReactNode }) {
-  const { isAuthenticated, role, divisionCode } = useAuth();
+  const { user, isAuthenticated, role, divisionCode, roles } = useAuth();
   const { push: pushToast } = useToast();
   const { canAccess } = useFeatureControls();
   const provisioned = isProvisioned();
+  const identityKey = isAuthenticated ? (user?.id ?? '__authenticated__') : null;
 
   // Tables only HR / data-ops pages read: no request at all for a user who
   // cannot open those pages. ProjectStaff keeps contract_staff (RLS: own row)
   // for the "your engagement ends" action. Checked across all assigned roles so
   // switching activeRole in the header does not re-fetch 31 tables over the network.
-  const { roles } = useAuth();
   const loadRecruitment = canAccess('/recruitment') || (roles ?? []).some(r => ['Director', 'HRAdmin', 'SystemAdmin', 'MasterAdmin'].includes(r));
   const loadDataOps = canAccess('/data') || (roles ?? []).some(r => ['HRAdmin', 'SystemAdmin', 'MasterAdmin', 'PME'].includes(r));
   const loadContracts = loadDataOps || role === 'ProjectStaff' || (roles ?? []).includes('ProjectStaff');
@@ -211,6 +236,19 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const identityRef = useRef<string | null>(identityKey);
+  const authEpochRef = useRef(0);
+  const loadSeqRef = useRef(0);
+  const sliceSeqRef = useRef<Record<SeqKey, number>>(createInitialSliceSeq());
+
+  const invalidatePending = useCallback(() => {
+    authEpochRef.current += 1;
+    loadSeqRef.current += 1;
+    for (const k of ALL_SEQ_KEYS) {
+      sliceSeqRef.current[k] += 1;
+    }
+  }, []);
+
   const resetAll = useCallback(() => {
     setDivisions([]);
     setRawStaff([]);
@@ -244,11 +282,41 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setDataStewards([]);
   }, []);
 
+  useEffect(() => {
+    const changed = identityRef.current !== identityKey;
+    identityRef.current = identityKey;
+    invalidatePending();
+    if (changed) {
+      resetAll();
+    }
+    return () => {
+      invalidatePending();
+    };
+  }, [identityKey, invalidatePending, resetAll]);
+
   const loadData = useCallback(async () => {
+    const capturedEpoch = authEpochRef.current;
+    const capturedIdentity = identityKey;
+    const loadSeq = ++loadSeqRef.current;
+    const capturedSlices = {} as Record<SeqKey, number>;
+    for (const k of ALL_SEQ_KEYS) {
+      capturedSlices[k] = ++sliceSeqRef.current[k];
+    }
+    const isCurrentLoad = () =>
+      capturedEpoch === authEpochRef.current &&
+      capturedIdentity === identityRef.current &&
+      loadSeq === loadSeqRef.current;
+    const isSliceCurrent = (k: SeqKey) =>
+      capturedEpoch === authEpochRef.current &&
+      capturedIdentity === identityRef.current &&
+      capturedSlices[k] === sliceSeqRef.current[k];
+
+    if (capturedIdentity !== identityRef.current) return;
     setIsLoading(true);
     setError(null);
     try {
       if (!provisioned || !supabase) {
+        if (!isCurrentLoad()) return;
         setError('Backend not configured. Go to Setup.');
         resetAll();
         return;
@@ -256,6 +324,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       // Before auth resolves every table answers empty under RLS: a wasted
       // round of requests and an empty-data flash.
       if (!isAuthenticated) {
+        if (!isCurrentLoad()) return;
         resetAll();
         return;
       }
@@ -345,6 +414,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       // Missing table = Phase 1 migration not applied yet; stay quiet and leave the arrays empty.
       if (!isMissingTable(crRes.error)) checkTable('contribution_requests', crRes);
       if (!isMissingTable(dsRes.error)) checkTable('data_stewards', dsRes);
+      if (!isCurrentLoad()) return;
+
       if (tableErrors.length > 0) {
         // Table names go to the log only (SEC-06).
         const summary = `${tableErrors.length} table(s) failed to load.`;
@@ -352,46 +423,73 @@ export function DataProvider({ children }: { children: ReactNode }) {
         pushToast(`${summary} Some figures may be incomplete.`, 'warning');
       }
 
-      setDivisions(divRes.data ? divRes.data.map(mapDivisionRow) : []);
-      setRawStaff(staffRes.data ? staffRes.data.map(mapStaffRow) : []);
-      setRawProjects(projRes.data ? projRes.data.map(mapProjectRow) : []);
-      setProjectStaff(psRes.data ? psRes.data.map(mapProjectStaffRow) : []);
-      setPhDStudents(phdRes.data ? phdRes.data.map(mapPhDStudentRow) : []);
-      setContractStaff(csRes.data ? csRes.data.map(mapContractStaffRow) : []);
-      setRawEquipment(equipRes.data ? equipRes.data.map(mapEquipmentRow) : []);
-      setLabs(labsRes.data ? labsRes.data.map(mapLabRow) : []);
-      setScientificOutputs(soRes.data ? soRes.data.map(mapScientificOutputRow) : []);
-      setIPIntelligence(ipRes.data ? ipRes.data.map(mapIPIntelligenceRow) : []);
-      setMous(mouRes.data ? mouRes.data.map(mapMoURow) : []);
-      setTechTransfers(ttRes.data ? ttRes.data.map(mapTechTransferRow) : []);
-      setPhdMilestones(phmRes.data ? phmRes.data.map(mapPhDMilestoneRow) : []);
-      setVacancyAdvertisements(withPostTotals(vaRes.data ? vaRes.data.map(mapVacancyAdvertisementRow) : [], vpRes.data ?? []));
-      setVacancyApplications(vappRes.data ? vappRes.data.map(mapVacancyApplicationRow) : []);
-      setCommittees(cmtRes.data ? cmtRes.data.map(mapCommitteeRow) : []);
-      setCommitteeMembers(cmmRes.data ? cmmRes.data.map(mapCommitteeMemberRow) : []);
-      setMeetings(mtgRes.data ? mtgRes.data.map(mapMeetingRow) : []);
-      setAgendaItems(agiRes.data ? agiRes.data.map(mapAgendaItemRow) : []);
-      setActionItems(actRes.data ? actRes.data.map(mapActionItemRow) : []);
-      setMeetingDocs(mdcRes.data ? mdcRes.data.map(mapMeetingDocumentRow) : []);
-      setTickets(tktRes.data ? tktRes.data.map(mapTicketRow) : []);
-      setTicketResponses(trsRes.data ? trsRes.data.map(mapTicketResponseRow) : []);
-      setTicketEvents(tevRes.data ? tevRes.data.map(mapTicketEventRow) : []);
-      setHelpdeskRouting(hrtRes.data ? hrtRes.data.map(mapHelpdeskRoutingRow) : []);
-      setCalendarEvents(ceRes.data ? ceRes.data.map(mapCalendarEventRow) : []);
-      setHolidays(holRes.data ? holRes.data.map(mapHolidayRow) : []);
-      setImportEvents(ieRes.data ? ieRes.data.map(mapImportEventRow) : []);
-      setContributionRequests(crRes.data ? crRes.data.map(mapContributionRow) : []);
-      setDataStewards(dsRes.data ? dsRes.data.map(mapStewardRow) : []);
+      if (isSliceCurrent('hr')) {
+        setDivisions(divRes.data ? divRes.data.map(mapDivisionRow) : []);
+        setRawStaff(staffRes.data ? staffRes.data.map(mapStaffRow) : []);
+        setContractStaff(csRes.data ? csRes.data.map(mapContractStaffRow) : []);
+      }
+      if (isSliceCurrent('projects')) {
+        setRawProjects(projRes.data ? projRes.data.map(mapProjectRow) : []);
+        setProjectStaff(psRes.data ? psRes.data.map(mapProjectStaffRow) : []);
+      }
+      if (isSliceCurrent('phd')) {
+        setPhDStudents(phdRes.data ? phdRes.data.map(mapPhDStudentRow) : []);
+        setPhdMilestones(phmRes.data ? phmRes.data.map(mapPhDMilestoneRow) : []);
+      }
+      if (isSliceCurrent('facilities')) {
+        setRawEquipment(equipRes.data ? equipRes.data.map(mapEquipmentRow) : []);
+        setLabs(labsRes.data ? labsRes.data.map(mapLabRow) : []);
+      }
+      if (isSliceCurrent('outputs')) {
+        setScientificOutputs(soRes.data ? soRes.data.map(mapScientificOutputRow) : []);
+        setIPIntelligence(ipRes.data ? ipRes.data.map(mapIPIntelligenceRow) : []);
+      }
+      if (isSliceCurrent('partnerships')) {
+        setMous(mouRes.data ? mouRes.data.map(mapMoURow) : []);
+        setTechTransfers(ttRes.data ? ttRes.data.map(mapTechTransferRow) : []);
+      }
+      if (isSliceCurrent('recruitment')) {
+        setVacancyAdvertisements(withPostTotals(vaRes.data ? vaRes.data.map(mapVacancyAdvertisementRow) : [], vpRes.data ?? []));
+        setVacancyApplications(vappRes.data ? vappRes.data.map(mapVacancyApplicationRow) : []);
+      }
+      if (isSliceCurrent('committees')) {
+        setCommittees(cmtRes.data ? cmtRes.data.map(mapCommitteeRow) : []);
+        setCommitteeMembers(cmmRes.data ? cmmRes.data.map(mapCommitteeMemberRow) : []);
+        setMeetings(mtgRes.data ? mtgRes.data.map(mapMeetingRow) : []);
+        setAgendaItems(agiRes.data ? agiRes.data.map(mapAgendaItemRow) : []);
+        setActionItems(actRes.data ? actRes.data.map(mapActionItemRow) : []);
+        setMeetingDocs(mdcRes.data ? mdcRes.data.map(mapMeetingDocumentRow) : []);
+      }
+      if (isSliceCurrent('tickets')) {
+        setTickets(tktRes.data ? tktRes.data.map(mapTicketRow) : []);
+        setTicketResponses(trsRes.data ? trsRes.data.map(mapTicketResponseRow) : []);
+        setTicketEvents(tevRes.data ? tevRes.data.map(mapTicketEventRow) : []);
+        setHelpdeskRouting(hrtRes.data ? hrtRes.data.map(mapHelpdeskRoutingRow) : []);
+      }
+      if (isSliceCurrent('calendar')) {
+        setCalendarEvents(ceRes.data ? ceRes.data.map(mapCalendarEventRow) : []);
+      }
+      if (isSliceCurrent('holidays')) {
+        setHolidays(holRes.data ? holRes.data.map(mapHolidayRow) : []);
+      }
+      if (isSliceCurrent('import_events')) {
+        setImportEvents(ieRes.data ? ieRes.data.map(mapImportEventRow) : []);
+      }
+      if (isSliceCurrent('contributions')) {
+        setContributionRequests(crRes.data ? crRes.data.map(mapContributionRow) : []);
+        setDataStewards(dsRes.data ? dsRes.data.map(mapStewardRow) : []);
+      }
     } catch (err) {
+      if (!isCurrentLoad()) return;
       const message = friendlyError(err, 'Failed to load data');
       setError(message);
       logger.error('data_load_failed', err);
       pushToast(`Data load failed: ${message}`, 'error');
       resetAll();
     } finally {
-      setIsLoading(false);
+      if (isCurrentLoad()) setIsLoading(false);
     }
-  }, [provisioned, isAuthenticated, loadRecruitment, loadDataOps, loadContracts, pushToast, resetAll]);
+  }, [provisioned, isAuthenticated, identityKey, loadRecruitment, loadDataOps, loadContracts, pushToast, resetAll]);
 
   const staff = useMemo(() => scopeData(rawStaff, role, divisionCode), [rawStaff, role, divisionCode]);
   const projects = useMemo(() => scopeProjects(rawProjects, role, divisionCode), [rawProjects, role, divisionCode]);
@@ -402,11 +500,20 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [loadData]);
 
   const refreshContributions = useCallback(async () => {
-    if (!supabase) return;
+    if (!supabase || !provisioned || !isAuthenticated) return;
+    const capturedEpoch = authEpochRef.current;
+    const capturedIdentity = identityKey;
+    const seq = ++sliceSeqRef.current.contributions;
+    const isCurrent = () =>
+      capturedEpoch === authEpochRef.current &&
+      capturedIdentity === identityRef.current &&
+      seq === sliceSeqRef.current.contributions;
+    if (capturedIdentity !== identityRef.current) return;
     const [crRes, dsRes] = await Promise.all([
       fetchAll(supabase.from('contribution_requests').select('*').order('created_at', { ascending: false }).order('id')),
       fetchAll(supabase.from('data_stewards').select('*').order('id')),
     ]);
+    if (!isCurrent()) return;
     const err = [crRes.error, dsRes.error].find(e => e && !isMissingTable(e));
     if (err) {
       logger.error('refresh_contributions_failed', err);
@@ -415,40 +522,66 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
     setContributionRequests(crRes.data ? crRes.data.map(mapContributionRow) : []);
     setDataStewards(dsRes.data ? dsRes.data.map(mapStewardRow) : []);
-  }, [pushToast]);
+  }, [provisioned, isAuthenticated, identityKey, pushToast]);
 
   const refreshCalendar = useCallback(async () => {
-    if (!supabase) return;
+    if (!supabase || !provisioned || !isAuthenticated) return;
+    const capturedEpoch = authEpochRef.current;
+    const capturedIdentity = identityKey;
+    const seq = ++sliceSeqRef.current.calendar;
+    const isCurrent = () =>
+      capturedEpoch === authEpochRef.current &&
+      capturedIdentity === identityRef.current &&
+      seq === sliceSeqRef.current.calendar;
+    if (capturedIdentity !== identityRef.current) return;
     const { data, error: err } = await fetchAll(supabase
       .from('calendar_events')
       .select('*')
       .order('event_date', { ascending: true })
       .order('id'));
+    if (!isCurrent()) return;
     if (err) {
       logger.error('refresh_calendar_failed', err);
       pushToast(`Calendar refresh failed: ${friendlyError(err)}`, 'error');
       return;
     }
     setCalendarEvents(data ? data.map(mapCalendarEventRow) : []);
-  }, [pushToast]);
+  }, [provisioned, isAuthenticated, identityKey, pushToast]);
 
   const refreshHolidays = useCallback(async () => {
-    if (!supabase) return;
+    if (!supabase || !provisioned || !isAuthenticated) return;
+    const capturedEpoch = authEpochRef.current;
+    const capturedIdentity = identityKey;
+    const seq = ++sliceSeqRef.current.holidays;
+    const isCurrent = () =>
+      capturedEpoch === authEpochRef.current &&
+      capturedIdentity === identityRef.current &&
+      seq === sliceSeqRef.current.holidays;
+    if (capturedIdentity !== identityRef.current) return;
     const { data, error: err } = await fetchAll(supabase
       .from('holidays')
       .select('*')
       .order('holiday_date', { ascending: true })
       .order('id'));
+    if (!isCurrent()) return;
     if (err) {
       logger.error('refresh_holidays_failed', err);
       pushToast(`Holidays refresh failed: ${friendlyError(err)}`, 'error');
       return;
     }
     setHolidays(data ? data.map(mapHolidayRow) : []);
-  }, [pushToast]);
+  }, [provisioned, isAuthenticated, identityKey, pushToast]);
 
   const refreshSlice = useCallback(async (slice: DataSlice) => {
     if (!supabase || !provisioned || !isAuthenticated) return;
+    const capturedEpoch = authEpochRef.current;
+    const capturedIdentity = identityKey;
+    if (capturedIdentity !== identityRef.current) return;
+    const seq = ++sliceSeqRef.current[slice];
+    const isCurrent = () =>
+      capturedEpoch === authEpochRef.current &&
+      capturedIdentity === identityRef.current &&
+      seq === sliceSeqRef.current[slice];
     try {
       if (slice === 'hr') {
         const [divRes, staffRes, csRes] = await Promise.all([
@@ -456,6 +589,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           fetchAll(supabase.from('staff').select('*').order('ID')),
           loadContracts ? fetchAll(supabase.from('contract_staff').select('*').order('Name')) : Promise.resolve({ data: null, error: null }),
         ]);
+        if (!isCurrent()) return;
         if (divRes.error) throw divRes.error;
         if (staffRes.error) throw staffRes.error;
         if (csRes.error) throw csRes.error;
@@ -469,6 +603,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           fetchAll(supabase.from('projects').select('*').order('ProjectNo')),
           fetchAll(supabase.from('project_staff').select('*').order('ProjectNo').order('StaffName')),
         ]);
+        if (!isCurrent()) return;
         if (projRes.error) throw projRes.error;
         if (psRes.error) throw psRes.error;
         if (projRes.data) setRawProjects(projRes.data.map(mapProjectRow));
@@ -480,6 +615,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           fetchAll(supabase.from('phd_students').select('*').order('EnrollmentNo')),
           fetchAll(supabase.from('phd_milestones').select('*').order('id')),
         ]);
+        if (!isCurrent()) return;
         if (phdRes.error) throw phdRes.error;
         if (phmRes.error) throw phmRes.error;
         if (phdRes.data) setPhDStudents(phdRes.data.map(mapPhDStudentRow));
@@ -491,6 +627,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           fetchAll(supabase.from('scientific_outputs').select('*').order('id')),
           fetchAll(supabase.from('ip_intelligence').select('*').order('id')),
         ]);
+        if (!isCurrent()) return;
         if (soRes.error) throw soRes.error;
         if (ipRes.error) throw ipRes.error;
         if (soRes.data) setScientificOutputs(soRes.data.map(mapScientificOutputRow));
@@ -502,6 +639,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           fetchAll(supabase.from('mous').select('*').order('id')),
           fetchAll(supabase.from('tech_transfers').select('*').order('id')),
         ]);
+        if (!isCurrent()) return;
         if (mouRes.error) throw mouRes.error;
         if (ttRes.error) throw ttRes.error;
         if (mouRes.data) setMous(mouRes.data.map(mapMoURow));
@@ -513,6 +651,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           fetchAll(supabase.from('equipment').select('*').order('UInsID')),
           fetchAll(supabase.from('labs').select('*').order('id')),
         ]);
+        if (!isCurrent()) return;
         if (equipRes.error) throw equipRes.error;
         if (labsRes.error) throw labsRes.error;
         if (equipRes.data) setRawEquipment(equipRes.data.map(mapEquipmentRow));
@@ -528,6 +667,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           fetchAll(supabase.from('action_items').select('*').order('id')),
           fetchAll(supabase.from('meeting_documents').select('*').order('id')),
         ]);
+        if (!isCurrent()) return;
         if (cmtRes.error || cmmRes.error || mtgRes.error || agiRes.error || actRes.error || mdcRes.error) {
           throw cmtRes.error || cmmRes.error || mtgRes.error || agiRes.error || actRes.error || mdcRes.error;
         }
@@ -546,6 +686,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           fetchAll(supabase.from('ticket_events').select('*').order('id')),
           fetchAll(supabase.from('helpdesk_routing').select('*').order('id')),
         ]);
+        if (!isCurrent()) return;
         if (tktRes.error || trsRes.error || tevRes.error || hrtRes.error) {
           throw tktRes.error || trsRes.error || tevRes.error || hrtRes.error;
         }
@@ -561,6 +702,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           fetchAll(supabase.from('vacancy_posts').select('*').order('id')),
           fetchAll(supabase.from('vacancy_applications').select('*').order('applied_on', { ascending: false }).order('id')),
         ]);
+        if (!isCurrent()) return;
         if (vaRes.error || vpRes.error || vappRes.error) {
           throw vaRes.error || vpRes.error || vappRes.error;
         }
@@ -568,18 +710,22 @@ export function DataProvider({ children }: { children: ReactNode }) {
         if (vappRes.data) setVacancyApplications(vappRes.data.map(mapVacancyApplicationRow));
       }
     } catch (err) {
+      if (!isCurrent()) return;
       logger.error('refresh_slice_failed', err, { slice });
       pushToast(`Refresh failed: ${friendlyError(err)}`, 'error');
     }
-  }, [provisioned, isAuthenticated, loadContracts, loadRecruitment, pushToast]);
+  }, [provisioned, isAuthenticated, identityKey, loadContracts, loadRecruitment, pushToast]);
 
   const saveEquipment = useCallback(async (payload: Record<string, unknown>) => {
     if (!supabase) throw new Error('Supabase not configured');
+    const capturedEpoch = authEpochRef.current;
+    const capturedIdentity = identityKey;
     const { data, error: sbErr } = await supabase.from('equipment').upsert(payload).select().single();
     if (sbErr) throw sbErr;
+    if (capturedEpoch !== authEpochRef.current || capturedIdentity !== identityRef.current) return;
     const saved = mapEquipmentRow(data);
     setRawEquipment(prev => [saved, ...prev.filter(e => e.UInsID !== saved.UInsID)]);
-  }, []);
+  }, [identityKey]);
 
   const value = useMemo(() => ({
     divisions, staff, projects, projectStaff, phDStudents, phdMilestones, contractStaff,

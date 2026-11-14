@@ -32,7 +32,7 @@ def _escape_like(value: str) -> str:
 
 
 def _safe_or_token(value: str) -> bool:
-    return not any(ch in value for ch in (",", "(", ")"))
+    return not any(ch in value for ch in (",", "(", ")", '"'))
 
 
 def _rows(client, table, columns, build_query=None):
@@ -389,7 +389,7 @@ def _staff_profile(params, client) -> Answer:
     filt = None
     if _safe_or_token(name):
         safe = _escape_like(name)
-        filt = lambda q: q.or_(f"Name.ilike.%{safe}%,ID.eq.{name}") if hasattr(q, "or_") else q
+        filt = lambda q: q.or_(f"Name.ilike.%{safe}%,ID.ilike.{safe}") if hasattr(q, "or_") else q
     rows = _rows(client, "staff",
                  "ID, Name, Designation, Division, CoreArea, Expertise, Email",
                  build_query=filt)
@@ -421,7 +421,7 @@ def _projects_for_staff(params, client) -> Answer:
     staff_filt = None
     if _safe_or_token(name):
         safe = _escape_like(name)
-        staff_filt = lambda q: q.or_(f"Name.ilike.%{safe}%,ID.eq.{name}") if hasattr(q, "or_") else q
+        staff_filt = lambda q: q.or_(f"Name.ilike.%{safe}%,ID.ilike.{safe}") if hasattr(q, "or_") else q
     people = _match_staff(_rows(client, "staff", "ID, Name", build_query=staff_filt), name)
     if not people:
         return Answer(f"No staff member matching '{name}'. (source: staff table)",
@@ -434,11 +434,11 @@ def _projects_for_staff(params, client) -> Answer:
     ps_filt = None
     if raw_id and raw_name and _safe_or_token(raw_id) and _safe_or_token(raw_name):
         ps_filt = lambda q: (
-            q.or_(f"staff_id.eq.{raw_id},StaffName.ilike.{_escape_like(raw_name)}")
+            q.or_(f"staff_id.eq.{raw_id},StaffName.ilike.%{_escape_like(raw_name)}%")
             if hasattr(q, "or_") else q
         )
-    elif raw_name:
-        ps_filt = lambda q: q.ilike("StaffName", _escape_like(raw_name))
+    elif not raw_id and raw_name:
+        ps_filt = lambda q: q.ilike("StaffName", f"%{_escape_like(raw_name)}%")
     team_nos = {
         str(r.get("ProjectNo"))
         for r in _rows(client, "project_staff", "ProjectNo, StaffName, staff_id", build_query=ps_filt)
@@ -446,14 +446,14 @@ def _projects_for_staff(params, client) -> Answer:
         or (full and str(r.get("StaffName") or "").strip().lower() == full)
     }
     proj_filt = None
-    if _safe_or_token(raw_id) and _safe_or_token(raw_name):
+    if _safe_or_token(raw_id) and _safe_or_token(raw_name) and all(_safe_or_token(no) for no in team_nos):
         clauses = []
         if raw_id:
             clauses.append(f"pi_staff_id.eq.{raw_id}")
-            clauses.append(f"PrincipalInvestigator.ilike.{_escape_like(raw_id)}")
+            clauses.append(f"PrincipalInvestigator.ilike.%{_escape_like(raw_id)}%")
         if raw_name:
-            clauses.append(f"PrincipalInvestigator.ilike.{_escape_like(raw_name)}")
-        if team_nos and all(_safe_or_token(no) for no in team_nos):
+            clauses.append(f"PrincipalInvestigator.ilike.%{_escape_like(raw_name)}%")
+        if team_nos:
             quoted = ",".join(f'"{no}"' for no in sorted(team_nos))
             clauses.append(f"ProjectNo.in.({quoted})")
         if clauses:

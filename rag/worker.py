@@ -46,7 +46,10 @@ def process_document(doc, db, ocr, llm) -> None:
         db.mark(doc.id, "indexed")
     except Exception as e:  # per-doc isolation: never halt the loop
         if unsaved_leaves > 0 and page_count > 0 and hasattr(db, "save_checkpoint"):
-            db.save_checkpoint(doc.id, model, checkpoint, page_count)
+            try:
+                db.save_checkpoint(doc.id, model, checkpoint, page_count)
+            except Exception:
+                pass
         db.mark(doc.id, "failed", str(e))
 
 

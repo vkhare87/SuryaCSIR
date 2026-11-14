@@ -150,77 +150,91 @@ export default function TicketDetail() {
   // --- Handlers ---
 
   async function handleSubmitReply() {
-    if (!user || !ticket || !replyText.trim()) return;
+    if (submitting || !user || !ticket || !replyText.trim()) return;
     setSubmitting(true);
     setError(null);
-    const result = await addResponse({ ticketId: ticket.id, authorId: user.id, message: replyText.trim() });
-    setSubmitting(false);
-    if (result.success) {
-      setReplyText('');
-      setReplyExpanded(false);
-      await refreshSlice?.('tickets');
-    } else {
-      setError('Failed to submit response. ' + (result.error ?? '') + ' Your draft has been preserved — please try again.');
+    try {
+      const result = await addResponse({ ticketId: ticket.id, authorId: user.id, message: replyText.trim() });
+      if (result.success) {
+        setReplyText('');
+        setReplyExpanded(false);
+        await refreshSlice?.('tickets');
+      } else {
+        setError('Failed to submit response. ' + (result.error ?? '') + ' Your draft has been preserved — please try again.');
+      }
+    } finally {
+      setSubmitting(false);
     }
   }
 
   async function handleReplyAndResolve() {
-    if (!user || !ticket || !replyText.trim()) return;
+    if (submitting || !user || !ticket || !replyText.trim()) return;
     setSubmitting(true);
     setError(null);
-    const responseResult = await addResponse({ ticketId: ticket.id, authorId: user.id, message: replyText.trim() });
-    if (!responseResult.success) {
+    try {
+      const responseResult = await addResponse({ ticketId: ticket.id, authorId: user.id, message: replyText.trim() });
+      if (!responseResult.success) {
+        setError('Failed to submit response. ' + (responseResult.error ?? ''));
+        return;
+      }
+      const statusResult = await updateTicketStatus({ ticketId: ticket.id, newStatus: 'Resolved', actorId: user.id });
+      if (statusResult.success) {
+        setReplyText('');
+        setReplyExpanded(false);
+        await refreshSlice?.('tickets');
+      } else {
+        setError('Response saved but status update failed: ' + (statusResult.error ?? '') + '. The ticket state may have changed — refresh to see current status.');
+      }
+    } finally {
       setSubmitting(false);
-      setError('Failed to submit response. ' + (responseResult.error ?? ''));
-      return;
-    }
-    const statusResult = await updateTicketStatus({ ticketId: ticket.id, newStatus: 'Resolved', actorId: user.id });
-    setSubmitting(false);
-    if (statusResult.success) {
-      setReplyText('');
-      setReplyExpanded(false);
-      await refreshSlice?.('tickets');
-    } else {
-      setError('Response saved but status update failed: ' + (statusResult.error ?? '') + '. The ticket state may have changed — refresh to see current status.');
     }
   }
 
   async function handleTransition(newStatus: string) {
-    if (!user || !ticket) return;
+    if (submitting || !user || !ticket) return;
     setSubmitting(true);
     setError(null);
-    const result = await updateTicketStatus({ ticketId: ticket.id, newStatus, actorId: user.id });
-    setSubmitting(false);
-    if (result.success) {
-      await refreshSlice?.('tickets');
-    } else {
-      setError('Failed to update ticket status. ' + (result.error ?? '') + '. The ticket state may have changed — refresh the page to see the current status.');
+    try {
+      const result = await updateTicketStatus({ ticketId: ticket.id, newStatus, actorId: user.id });
+      if (result.success) {
+        await refreshSlice?.('tickets');
+      } else {
+        setError('Failed to update ticket status. ' + (result.error ?? '') + '. The ticket state may have changed — refresh the page to see the current status.');
+      }
+    } finally {
+      setSubmitting(false);
     }
   }
 
   async function handleReassign(newHandlerId: string) {
-    if (!user || !ticket) return;
+    if (submitting || !user || !ticket) return;
     setSubmitting(true);
-    const result = await assignTicket({ ticketId: ticket.id, newHandlerId, actorId: user.id });
-    setSubmitting(false);
-    if (result.success) {
-      setShowReassignModal(false);
-      await refreshSlice?.('tickets');
-    } else {
-      setError('Failed to reassign ticket: ' + (result.error ?? ''));
+    try {
+      const result = await assignTicket({ ticketId: ticket.id, newHandlerId, actorId: user.id });
+      if (result.success) {
+        setShowReassignModal(false);
+        await refreshSlice?.('tickets');
+      } else {
+        setError('Failed to reassign ticket: ' + (result.error ?? ''));
+      }
+    } finally {
+      setSubmitting(false);
     }
   }
 
   async function handleForceClose() {
-    if (!user || !ticket) return;
+    if (submitting || !user || !ticket) return;
     setSubmitting(true);
-    const result = await updateTicketStatus({ ticketId: ticket.id, newStatus: 'Closed', actorId: user.id });
-    setSubmitting(false);
-    if (result.success) {
-      setShowForceCloseModal(false);
-      await refreshSlice?.('tickets');
-    } else {
-      setError('Failed to force close ticket: ' + (result.error ?? ''));
+    try {
+      const result = await updateTicketStatus({ ticketId: ticket.id, newStatus: 'Closed', actorId: user.id });
+      if (result.success) {
+        setShowForceCloseModal(false);
+        await refreshSlice?.('tickets');
+      } else {
+        setError('Failed to force close ticket: ' + (result.error ?? ''));
+      }
+    } finally {
+      setSubmitting(false);
     }
   }
 

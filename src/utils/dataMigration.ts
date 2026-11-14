@@ -638,9 +638,15 @@ export async function pushToSupabase(
   }
 
   try {
-    const { error } = await client.from(tableName).upsert(payload);
+    const { error, status } = await client.from(tableName).upsert(payload);
     if (error) {
-      onLog(`Import failed (rolled back ${payload.length} rows) — ${friendlyError(error)}`);
+      if (status === 0) {
+        onLog(
+          `Import request failed (server outcome unknown for ${payload.length} rows — verify existing records before retrying) — ${friendlyError(error)}`,
+        );
+      } else {
+        onLog(`Import failed (rolled back ${payload.length} rows) — ${friendlyError(error)}`);
+      }
       return { upserted: 0, failed: payload.length };
     }
     onLog(`Upserted ${payload.length} rows atomically`);
