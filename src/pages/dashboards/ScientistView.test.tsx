@@ -60,6 +60,15 @@ describe('ScientistView', () => {
     expect(claimed).toHaveBeenLastCalledWith(['action:report', 'action:notice']);
   });
 
+  it('shows a timer for each report owed, with days left', () => {
+    const due = new Date(Date.now() + 6 * 86400000);
+    const iso = `${due.getFullYear()}-${String(due.getMonth() + 1).padStart(2, '0')}-${String(due.getDate()).padStart(2, '0')}`;
+    home = { ...home, actions: [{ id: 'slot-1', kind: 'project-review', due: iso, label: 'Progress report due — HCP0054', detail: '', link: '/reports/new' }] };
+    renderView();
+    expect(screen.getByText('Report timers · days left')).toBeInTheDocument();
+    expect(screen.getByText(`due ${iso}`)).toBeInTheDocument();
+  });
+
   it('says plainly when an office block is not connected', () => {
     renderView();
     expect(screen.getByText(/Not connected yet/)).toBeInTheDocument();

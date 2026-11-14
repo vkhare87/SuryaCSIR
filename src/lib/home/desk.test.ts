@@ -1,15 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import type { CalendarEvent, Holiday, Meeting, Ticket } from '../../types';
+import type { CalendarEvent, Holiday, Meeting } from '../../types';
 import type { MyAction } from '../dashboard/myActions';
-import { currentNotices, deskKey, myDay, myRequests, withoutClaimed } from './desk';
+import { currentNotices, deskKey, myDay, withoutClaimed } from './desk';
 
 const NOW = new Date(2026, 10, 13, 9, 0); // Fri 13 Nov 2026
 const event = (id: string, date: string, kind: CalendarEvent['event_kind'] = 'Custom') =>
   ({ id, title: `event ${id}`, event_date: date, event_kind: kind, location: 'Hall' } as CalendarEvent);
 const meeting = (id: string, date: string, status: Meeting['status'] = 'Scheduled') =>
   ({ id, committee_id: 'c1', meeting_date: date, title: `meeting ${id}`, venue: 'Room 1', status } as Meeting);
-const ticket = (id: string, by: string, status: Ticket['status'], created: string, assigned: string | null = null) =>
-  ({ id, subject: `ticket ${id}`, category: 'Finance', submitted_by: by, assigned_to: assigned, status, created_at: created } as Ticket);
 const action = (id: string, due: string | null): MyAction =>
   ({ id, kind: 'proposal', due, label: `action ${id}`, detail: '', link: `/a/${id}` });
 
@@ -33,22 +31,6 @@ describe('withoutClaimed', () => {
   it('drops rows the role half shows and counts them', () => {
     const rows = [{ key: deskKey.action('a1') }, { key: deskKey.meeting('m1') }];
     expect(withoutClaimed(rows, new Set(['action:a1']))).toEqual({ rows: [{ key: 'meeting:m1' }], hidden: 1 });
-  });
-});
-
-describe('myRequests', () => {
-  const rows = myRequests([
-    ticket('t1', 'u1', 'Open', '2026-11-10T08:00:00Z'),
-    ticket('t2', 'u1', 'Resolved', '2026-11-01T08:00:00Z'),
-    ticket('t3', 'u2', 'Open', '2026-11-01T08:00:00Z'),
-    ticket('t4', 'u1', 'InProgress', '2026-11-03T08:00:00Z', 'S9'),
-  ], 'u1', NOW);
-  it('keeps only my open requests, oldest first', () => {
-    expect(rows.map(r => r.key)).toEqual(['ticket:t4', 'ticket:t1']);
-  });
-  it('names the holder and the days waiting', () => {
-    expect(rows[0]).toMatchObject({ holder: 'Finance desk', days: 10, state: 'in progress' });
-    expect(rows[1]).toMatchObject({ holder: 'Finance desk · not picked up', days: 3 });
   });
 });
 

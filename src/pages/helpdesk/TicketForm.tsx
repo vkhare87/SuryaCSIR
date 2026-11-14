@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Building2, Monitor, FileText, Users, DollarSign,
   FlaskConical, Library, Car,
@@ -35,9 +35,14 @@ export default function TicketForm() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const [category, setCategory] = useState<TicketCategory | null>(null);
+  // The request door on the home page fills these in (?category=…&subject=…).
+  const [searchParams] = useSearchParams();
+  const [category, setCategory] = useState<TicketCategory | null>(() => {
+    const c = searchParams.get('category');
+    return c && CATEGORY_CONFIG.some(x => x.value === c) ? c as TicketCategory : null;
+  });
   const [urgency, setUrgency] = useState<TicketUrgency>('Medium');
-  const [subject, setSubject] = useState('');
+  const [subject, setSubject] = useState(() => searchParams.get('subject') ?? '');
   const [description, setDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);

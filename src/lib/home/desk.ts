@@ -1,6 +1,6 @@
-import type { CalendarEvent, Holiday, Meeting, Ticket } from '../../types';
+import type { CalendarEvent, Holiday, Meeting } from '../../types';
 import type { MyAction } from '../dashboard/myActions';
-import { daysUntil, localIso } from './today';
+import { localIso } from './today';
 
 export interface DeskRow {
   /** Stable key, shared with the role half so one item shows in one place. */
@@ -60,32 +60,6 @@ export function myDay({ events, holidays, meetings, actions, now = new Date(), d
 export function withoutClaimed<T extends { key: string }>(rows: T[], claimed: ReadonlySet<string>): { rows: T[]; hidden: number } {
   const kept = rows.filter(r => !claimed.has(r.key));
   return { rows: kept, hidden: rows.length - kept.length };
-}
-
-export interface RequestRow {
-  key: string;
-  title: string;
-  /** Who holds it now, in plain words. */
-  holder: string;
-  /** Whole days since it was asked. */
-  days: number;
-  state: string;
-  link: string;
-}
-
-/** Open requests this person raised, oldest first. Today the only source is the helpdesk. */
-export function myRequests(tickets: Ticket[], userId: string, now: Date = new Date()): RequestRow[] {
-  return tickets
-    .filter(t => t.submitted_by === userId && (t.status === 'Open' || t.status === 'InProgress'))
-    .sort((a, b) => a.created_at.localeCompare(b.created_at))
-    .map(t => ({
-      key: `ticket:${t.id}`,
-      title: t.subject,
-      holder: t.assigned_to ? `${t.category} desk` : `${t.category} desk · not picked up`,
-      days: Math.max(0, -daysUntil(t.created_at.slice(0, 10), now)),
-      state: t.status === 'InProgress' ? 'in progress' : 'open',
-      link: `/helpdesk/${t.id}`,
-    }));
 }
 
 /** Announcements that are still current, newest first. Stands in for notices until CD4. */

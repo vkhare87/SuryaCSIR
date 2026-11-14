@@ -15,7 +15,9 @@ Baseline before any change (2026-11-14): `npm run build` passed; `npm test` 148 
 | `ST1` student home | **Done** on today's data | Seen as Student, desktop (2026-11-14). The dev login has no PhD record, so only the "not linked" path was seen live; the road was seen in tests (`roleHomes.test.tsx`, `people.test.ts`) |
 | `PJ1` project staff home | **Done**; migration on live | `20261114120001_project_staff_self_read.sql` pushed to live on 2026-11-14 (owner approved). Live also held four migrations from branch `codebase_feature_review_improvements` (`20261114000001`–`04`) that this branch does not have, so the push ran from a scratch copy holding this branch's files plus those four, unchanged; the dry run listed only this migration. The first number chosen, `20261114000001`, clashed with that branch and was changed. After the push the API needed `NOTIFY pgrst, 'reload schema'`. Checked on live: `project_staff_caller_person()` answers with no error. Clocks and leave seen in tests only (no linked record on the dev login). DB test `projectStaffSelf.db.test.ts` (4 tests) |
 | `TS1` technical staff home | **Done** on today's data | Seen as Technician, desktop and phone. The dev login has no instrument in its charge, so the list was seen in tests only |
-| Rest of wave 2 (CD phase A, `SH2`) | Next | — |
+| CD phase A (`CD1`, `CD2`, `CD3`) | **Done**, client version | Seen in the browser (2026-11-14): the door lists ten kinds; "Leave" opens the ticket form with category and subject filled and routing shown; My requests lists proposals and tickets with holder and days. Nothing was submitted |
+| `SH2` report timers | **Done**, client version | Seen in tests only (`requests.test.ts`, `ScientistView.test.tsx`); the dev login owes no dated report |
+| **Wave 2** | **Done** | Wave 3 next: `SH3`, `HH7`, `HH2`, `CD6`, `SH4`, `CD4` |
 
 ## SH1 — what was built
 
@@ -107,6 +109,28 @@ Differences from the plan, on purpose:
 - The leave year is 1 April – 31 March until a rule names it.
 - No leave request form and no one-click letters: those are `PJ2` and `PJ3`. The buttons
   open a helpdesk request today.
+
+## CD phase A and SH2 — what was built
+
+- `src/lib/home/requests.ts` (+ tests): the request kinds and their ticket-form address;
+  `myRequests` over tickets, proposals, progress reports and contribution requests, each
+  with who holds it and for how many days; `reportTimers` over the reports a person owes.
+- Common desk: "Raise a request" opens the list of kinds; My requests shows every kind.
+- `TicketForm.tsx` (helpdesk page, small additive change): reads `?category=` and
+  `?subject=` so the door can fill them in. An unknown category is ignored.
+- Scientist screen: Report timers block, one ring per report with days left (negative
+  when late); those reports no longer repeat under "Also open".
+
+Differences from the plan, on purpose (each can move to SQL when Ask SURYA needs it):
+
+- `CD1` my day stays the client `myDay` from CD0; no `my_day()` function, no
+  `starts_at` column, no `.ics` link yet.
+- `CD2` has no `request_norms` table and no Remind button: it shows days, not days past a norm.
+- `CD3` kinds are a constant in code, not a `request_catalog` table; every kind is a
+  helpdesk ticket. "A complaint" goes to the HR grievance desk by the existing routing;
+  **it is not confidential yet** (the plan's confidential rule needs a migration).
+- `SH2` has no `my_report_timers()` function and no "lines left": timers come from the
+  open actions that carry a due date.
 
 ## Dev login
 

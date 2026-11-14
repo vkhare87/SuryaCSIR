@@ -15,9 +15,25 @@ import { greeting } from '../../lib/home/greeting';
 import { localIso, weekStrip } from '../../lib/home/today';
 import type { DayMark } from '../../lib/home/today';
 import { deskKey } from '../../lib/home/desk';
+import { reportTimers } from '../../lib/home/requests';
+import type { ReportTimer } from '../../lib/home/requests';
 import { milestonesFor } from '../../lib/home/api';
 import type { HomeMilestone } from '../../lib/home/api';
 import { staffNameMatchesAuthor } from '../../utils/dateUtils';
+
+function TimerRing({ timer }: { timer: ReportTimer }) {
+  const c = 113;
+  const late = timer.daysLeft < 0;
+  return (
+    <svg width="44" height="44" viewBox="0 0 44 44" aria-hidden="true" className="shrink-0">
+      <circle cx="22" cy="22" r="18" fill="none" strokeWidth="4" className="stroke-border" />
+      <circle cx="22" cy="22" r="18" fill="none" strokeWidth="4" strokeLinecap="round"
+        strokeDasharray={c} strokeDashoffset={Math.round(c * (1 - timer.share))} transform="rotate(-90 22 22)"
+        className={late ? 'stroke-danger' : timer.daysLeft <= 7 ? 'stroke-turmeric' : 'stroke-text-muted'} />
+      <text x="22" y="26" textAnchor="middle" className={clsx('font-mono text-[11px]', late ? 'fill-danger' : 'fill-text')}>{timer.daysLeft}</text>
+    </svg>
+  );
+}
 
 function MilestoneTrack({ milestones, today }: { milestones: HomeMilestone[]; today: string }) {
   const live = milestones.filter(m => m.status !== 'DROPPED');
@@ -108,16 +124,18 @@ export function ScientistView() {
   }, [ownProjects, projectStaff, phDStudents, staffId, ownName]);
 
   // --- 5. One item, one place: tell the common desk what this half shows ---
-  const alsoOpen = useMemo(
-    () => actions.filter(a => a.id !== next?.id && !wins.includes(a)).slice(0, 5),
-    [actions, next, wins],
-  );
+  const timers = useMemo(() => reportTimers(actions, now), [actions, now]);
+  const alsoOpen = useMemo(() => {
+    const timed = new Set(timers.map(t => t.action.id));
+    return actions.filter(a => a.id !== next?.id && !wins.includes(a) && !timed.has(a.id)).slice(0, 5);
+  }, [actions, next, wins, timers]);
   useClaim(useMemo(() => [
     ...(next ? [deskKey.action(next.id)] : []),
     ...wins.slice(0, 5).map(a => deskKey.action(a.id)),
     ...alsoOpen.map(a => deskKey.action(a.id)),
+    ...timers.slice(0, 6).map(t => deskKey.action(t.action.id)),
     ...ownMeetings.map(m => deskKey.meeting(m.id)),
-  ], [next, wins, alsoOpen, ownMeetings]));
+  ], [next, wins, alsoOpen, timers, ownMeetings]));
 
   const actionRow = (a: MyAction) => <ActionRow key={a.id} action={a} now={now} />;
 
@@ -186,7 +204,27 @@ export function ScientistView() {
         </Card>
       </div>
 
-      {/* --- 5. Everything else that is open --- */}
+      {/* --- 5. Report timers --- */}
+      {timers.length > 0 && (
+        <Card className="p-5">
+          <p className={BLOCK_TITLE}><span>Report timers · days left</span><span className="font-mono">{timers.length}</span></p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {timers.slice(0, 6).map(t => (
+              <Link key={t.action.id} to={t.action.link} className="flex items-center gap-3 rounded-lg p-2 hover:bg-surface-hover group">
+                <TimerRing timer={t} />
+                <div className="min-w-0">
+                  <p className="text-sm text-text truncate group-hover:underline" title={t.action.label}>{t.action.label}</p>
+                  <p className="text-xs text-text-muted truncate" title={t.action.detail}>
+                    {t.daysLeft < 0 ? `${-t.daysLeft} days late` : t.daysLeft === 0 ? 'due today' : `due ${t.action.due}`}
+                  </p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* --- 6. Everything else that is open --- */}
       {actions.length > 1 && (
         <Card className="p-5">
           <p className={BLOCK_TITLE}><span>Also open</span><Link to="/work" className="inline-block py-1.5 -my-1.5 hover:underline">See all <span className="font-mono">{actions.length}</span></Link></p>

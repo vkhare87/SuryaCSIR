@@ -1,14 +1,17 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { LifeBuoy } from 'lucide-react';
+import { ChevronDown, LifeBuoy } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
 import { useHome } from '../../contexts/HomeContext';
+import { useProposals } from '../../contexts/ProposalsContext';
+import { useProjectReports } from '../../contexts/ProjectReportsContext';
 import { Card } from '../ui/Cards';
 import { Button } from '../ui/Button';
 import { deriveOwnMeetings } from '../../lib/dashboard/scientistData';
-import { currentNotices, myDay, myRequests, withoutClaimed } from '../../lib/home/desk';
+import { currentNotices, myDay, withoutClaimed } from '../../lib/home/desk';
+import { REQUEST_KINDS, myRequests, requestLink } from '../../lib/home/requests';
 import { localIso } from '../../lib/home/today';
 
 const MAX_ROWS = 5;
@@ -30,7 +33,10 @@ const Empty = ({ children }: { children: ReactNode }) => <p className="text-sm t
 /** The common half of every home page: the same blocks, in the same place, for every role. */
 export function CommonDesk() {
   const { user } = useAuth();
-  const { calendarEvents, holidays, meetings, committeeMembers, tickets } = useData();
+  const { calendarEvents, holidays, meetings, committeeMembers, tickets, contributionRequests } = useData();
+  const { proposals } = useProposals();
+  const { reports: progressReports } = useProjectReports();
+  const [doorOpen, setDoorOpen] = useState(false);
   const { staffId, actions, claimed } = useHome();
 
   const now = useMemo(() => new Date(), []);
@@ -44,7 +50,10 @@ export function CommonDesk() {
     () => withoutClaimed(myDay({ events: calendarEvents, holidays, meetings: ownMeetings, actions, now }), claimed),
     [calendarEvents, holidays, ownMeetings, actions, now, claimed],
   );
-  const requests = useMemo(() => (user ? myRequests(tickets, user.id, now) : []), [tickets, user, now]);
+  const requests = useMemo(
+    () => (user ? myRequests({ userId: user.id, tickets, proposals, progressReports, contributions: contributionRequests, now }) : []),
+    [user, tickets, proposals, progressReports, contributionRequests, now],
+  );
   const notices = useMemo(() => currentNotices(calendarEvents, now), [calendarEvents, now]);
   const committees = useMemo(() => withoutClaimed(
     ownMeetings.map(m => ({ key: `meeting:${m.id}`, meeting: m })), claimed,
@@ -52,11 +61,23 @@ export function CommonDesk() {
 
   return (
     <aside aria-label="Common desk" className="space-y-3">
-      <Link to="/helpdesk/new" className="block">
-        <Button variant="secondary" type="button" className="w-full">
+      <div>
+        <Button variant="secondary" type="button" className="w-full" aria-expanded={doorOpen} onClick={() => setDoorOpen(o => !o)}>
           <LifeBuoy size={15} className="mr-1.5" aria-hidden="true" />Raise a request
+          <ChevronDown size={14} className={doorOpen ? 'ml-1.5 rotate-180 transition-transform' : 'ml-1.5 transition-transform'} aria-hidden="true" />
         </Button>
-      </Link>
+        {doorOpen && (
+          <Card className="p-2 mt-2">
+            <ul aria-label="What do you need">
+              {REQUEST_KINDS.map(k => (
+                <li key={k.key}>
+                  <Link to={requestLink(k)} className="block px-2 py-2 rounded-md text-sm text-text hover:bg-surface-hover">{k.label}</Link>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        )}
+      </div>
 
       <Block title="My day" right={<Link to="/calendar" className="inline-block py-1.5 -my-1.5 hover:underline">Calendar</Link>}>
         {day.rows.length === 0
@@ -78,14 +99,14 @@ export function CommonDesk() {
         {day.hidden > 0 && <p className="text-xs text-text-muted mt-2">+<span className="font-mono">{day.hidden}</span> on the left</p>}
       </Block>
 
-      <Block title="My requests" right={<Link to="/helpdesk" className="inline-block py-1.5 -my-1.5 hover:underline">See all</Link>}>
+      <Block title="My requests" right={<span className="font-mono">{requests.length}</span>}>
         {requests.length === 0
           ? <Empty>You have no open request.</Empty>
           : requests.slice(0, MAX_ROWS).map(r => (
             <Link key={r.key} to={r.link} className={`${ROW} hover:underline`}>
               <p className="text-sm text-text truncate" title={r.title}>{r.title}</p>
               <p className="text-xs text-text-muted truncate">
-                {r.holder} · <span className="font-mono">{r.days} d</span> · {r.state}
+                {r.holder} · <span className="font-mono">{r.days} d</span>
               </p>
             </Link>
           ))}
