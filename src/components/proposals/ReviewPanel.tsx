@@ -12,6 +12,7 @@ import { STEP_INFO } from '../../lib/proposals/reviewSteps';
 import { SECTIONS } from '../../lib/proposals/readiness';
 import { rupees } from '../../lib/projects/heads';
 import { friendlyError } from '../../lib/errors';
+import { SCHEMES, schemeLabel, type SchemeCode } from '../../lib/projects/schemes';
 import type { UserAccount } from '../../types';
 import type { Proposal, ProposalSection, ReviewComment, ReviewStep, ReviewStepKind } from '../../types/proposal';
 
@@ -70,7 +71,7 @@ export function ReviewPanel({ proposal: p, user, onChanged }: ReviewPanelProps) 
       <div>
         <h2 className="text-base font-[500] font-serif text-text">Review</h2>
         <p className="text-xs text-text-muted">
-          {p.track === 'HQ' ? 'CSIR HQ scheme' : p.track === 'ULIP' ? 'In-house (ULIP)' : 'Track not yet set'}
+          {p.track ? schemeLabel(p.track) : 'Track not yet set'}
           {' · '}each step is completed against a signed scan.
         </p>
       </div>
@@ -217,7 +218,7 @@ function TrackPicker({ proposal: p, user, onChanged }: { proposal: Proposal; use
   if (!mayActOn(user, p, 'PME_VETTING', null)) {
     return <p className="text-sm text-text-muted">This proposal predates review tracks. PME will classify it before review continues.</p>;
   }
-  async function choose(track: 'ULIP' | 'HQ') {
+  async function choose(track: SchemeCode) {
     setError('');
     const res = await setTrack(p.id, track);
     if (!res.ok) setError(res.error); else await onChanged();
@@ -226,8 +227,7 @@ function TrackPicker({ proposal: p, user, onChanged }: { proposal: Proposal; use
     <div className="border border-border rounded-lg bg-background p-3 space-y-2">
       <p className="text-sm text-text">This proposal was submitted before review tracks existed. Which one is it?</p>
       <div className="flex gap-2">
-        <Button size="sm" variant="secondary" onClick={() => void choose('ULIP')}>In-house (ULIP)</Button>
-        <Button size="sm" variant="secondary" onClick={() => void choose('HQ')}>CSIR HQ scheme</Button>
+        {SCHEMES.map(s => <Button key={s.code} size="sm" variant="secondary" onClick={() => void choose(s.code)}>{s.label}</Button>)}
       </div>
       <p className="text-xs text-text-muted">Steps it has already passed are marked skipped.</p>
       {error && <p role="alert" className="text-sm text-danger">{error}</p>}

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { buildScientistDossier } from './dossier';
 import { buildScientistBrief } from './brief';
 import type {
-  StaffMember, ProjectInfo, ScientificOutput, IPIntelligence,
+  StaffMember, ProjectInfo, ScientificOutput, IPIntelligence, ProfileFact,
 } from '../../types';
 import type { PMSReport, PMSReportSection } from '../../types/pms';
 
@@ -28,8 +28,15 @@ const ipRec: IPIntelligence = {
   inventors: ['A. Researcher'], divisionCode: 'AMD',
 };
 
+// The person's links, as staff_profile_facts returns them.
+const fact = (section: ProfileFact['section'], recordId: string, role: string | null = null): ProfileFact => ({
+  section, recordType: section.toLowerCase(), recordId, title: recordId, role, dateFrom: null, dateTo: null, amount: null, link: '',
+});
+const facts: ProfileFact[] = [fact('PROJECT', 'PR1', 'PI'), fact('OUTPUT', 'p2023'), fact('OUTPUT', 'p2024'), fact('IP', 'i1')];
+
 const baseData = {
   staffId: 'S1',
+  facts,
   staff: [member],
   projects: [activeProject],
   projectStaff: [],
@@ -56,10 +63,14 @@ describe('buildScientistDossier', () => {
     expect(d.trajectory.series.length).toBeGreaterThan(0);
   });
 
-  it('records name-based join disclosure', () => {
+  it('joins by link, and a name match alone does not count', () => {
     const d = buildScientistDossier(baseData)!;
-    expect(d.joinBasis.publications).toBe('name');
+    expect(d.joinBasis.publications).toBe('link');
     expect(d.joinBasis.staff).toBe('id');
+    const unlinked = buildScientistDossier({ ...baseData, facts: [fact('OUTPUT', 'p2024')] })!;
+    expect(unlinked.impact.publications.map(p => p.id)).toEqual(['p2024']);
+    expect(unlinked.present.activeProjects).toHaveLength(0);
+    expect(unlinked.impact.ipAssets).toHaveLength(0);
   });
 
   it('runs claim corroboration when a report + sections are supplied', () => {

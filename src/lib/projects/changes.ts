@@ -68,12 +68,19 @@ export const CHANGE_STATUS: Record<ChangeStatus, { label: string; variant: 'neut
   WITHDRAWN: { label: 'Withdrawn', variant: 'neutral' },
 };
 
-/** The route a request will take; mirrors project_change_step_kinds(). */
-export function changeRoute(track: string | null | undefined, kind: ChangeKind, increasePct: number | null = null): ChangeStepKind[] {
-  if (track === 'ULIP') return ['PME_VETTING', 'REVIEW_COMMITTEE', 'DIRECTOR_APPROVAL'];
+/**
+ * The route a request will take; mirrors project_change_step_kinds().
+ * `rceLimitPct` is project.cost_overrun_dg_limit_pct from the rule registry
+ * (useRules); null when the rules are not loaded, and then the preview does
+ * not guess: an RCE shows the longer route. The server decides either way.
+ */
+export function changeRoute(track: string | null | undefined, kind: ChangeKind, increasePct: number | null = null,
+  rceLimitPct: number | null = null): ChangeStepKind[] {
+  if (track === 'ULIP' || track === 'OLP') return ['PME_VETTING', 'REVIEW_COMMITTEE', 'DIRECTOR_APPROVAL'];
+  if (track === 'EFP') return ['PME_VETTING', 'DIRECTOR_FORWARD', 'COMPETENT_AUTHORITY'];
   switch (kind) {
     case 'TIME_OVERRUN': return ['PME_VETTING', 'RESEARCH_COUNCIL', 'MONITORING_COMMITTEE', 'COMPETENT_AUTHORITY'];
-    case 'RCE': return (increasePct ?? 0) <= 20
+    case 'RCE': return rceLimitPct !== null && (increasePct ?? 0) <= rceLimitPct
       ? ['PME_VETTING', 'FINANCE', 'DIRECTOR_FORWARD', 'COMPETENT_AUTHORITY']
       : ['PME_VETTING', 'FINANCE', 'DIRECTOR_FORWARD', 'MONITORING_COMMITTEE', 'REVISED_COST_COMMITTEE', 'COMPETENT_AUTHORITY'];
     case 'FORECLOSURE': return ['PME_VETTING', 'MONITORING_COMMITTEE', 'RESEARCH_COUNCIL'];

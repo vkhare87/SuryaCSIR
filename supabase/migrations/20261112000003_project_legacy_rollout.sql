@@ -206,6 +206,11 @@ $$;
 -- row. PME has its own policy (20261110000002); MasterAdmin keeps everything
 -- PME can (plan §2.4). HRAdmin and SystemAdmin lose project writes.
 DROP POLICY IF EXISTS "projects_write" ON public.projects;
+-- Same rule under its pre-2026-07-12 Dashboard name; the live project still
+-- carried it, so the assertion below refused the first push. This file had
+-- never applied there (it rolled back whole); a no-op everywhere else.
+-- The rest of that drift is removed in 20261112000009.
+DROP POLICY IF EXISTS "Admins can write projects" ON public.projects;
 DROP POLICY IF EXISTS "projects_write_master" ON public.projects;
 CREATE POLICY "projects_write_master" ON public.projects
     FOR ALL TO authenticated

@@ -24,7 +24,7 @@ export function recordStep(stepId: string, decision: StepDecision, notes: string
 }
 
 /** PME classifies a proposal submitted before tracks existed, and opens its steps. */
-export function setTrack(id: string, track: 'ULIP' | 'HQ') {
+export function setTrack(id: string, track: string) {
   return callRpc('proposal_set_track', { p_id: id, p_track: track });
 }
 

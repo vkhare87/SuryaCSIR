@@ -18,9 +18,6 @@ export const BUDGET_HEADS: { head: BudgetHead; label: string; capital: boolean }
 
 export const headLabel = (head: string) => BUDGET_HEADS.find(h => h.head === head)?.label ?? head;
 
-/** Single equipment items at or above this need a quotation at proposal stage (guidelines §3.1). */
-export const EQUIPMENT_QUOTATION_THRESHOLD = 500000;
-
 /** Indian financial year containing a date: 2027-04-01 → "2027-28". */
 export function fiscalYearOf(date: Date): string {
   const start = date.getMonth() >= 3 ? date.getFullYear() : date.getFullYear() - 1;

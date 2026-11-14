@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { usePMS } from '../../contexts/PMSContext';
 import { ReportWizard } from '../../components/pms/ReportWizard';
+import { Part1Panel } from '../../components/pms/Part1Panel';
+import { ReportItemsPanel } from '../../components/pms/ReportItemsPanel';
 import { Button } from '../../components/ui/Button';
 import { Skeleton } from '../../components/ui/Skeleton';
 import type { PMSReport, PMSReportSection, PMSAnnexure, PMSAWPActivity } from '../../types/pms';
@@ -49,6 +51,15 @@ export default function ReportEdit() {
           </span>
         )}
       </div>
+      {report.proformaVersion === '2026' && (
+        <>
+          <Part1Panel report={report} />
+          {report.questionnaireB && (
+            <p className="text-xs text-text-muted">Pay Level 13 or above: Questionnaire B applies to your report.</p>
+          )}
+          <ReportItemsPanel reportId={report.id} editable={cycleOpen} />
+        </>
+      )}
       <ReportWizard report={report} cycleOpen={cycleOpen} />
     </div>
   );

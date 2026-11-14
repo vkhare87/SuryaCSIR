@@ -45,7 +45,8 @@ export interface ProjectMilestone {
 
 export type ProjectDocType =
   | 'receipt_order' | 'expenditure_statement' | 'milestone_evidence' | 'minutes'
-  | 'change_request' | 'change_order' | 'completion_report' | 'closure_order' | 'sanction_order' | 'other';
+  | 'change_request' | 'change_order' | 'completion_report' | 'closure_order' | 'sanction_order'
+  | 'stage_deliverable' | 'other';
 
 export interface ProjectDocument {
   id: string;
@@ -276,3 +277,44 @@ export interface ClosureItem {
   stepKind: ChangeStepKind | null;
   endDate: string | null;
 }
+
+/** Fund release and rephasing packs (project_pack, 20261112000014). */
+export type PackKind = 'FIRST_RELEASE' | 'NEXT_YEAR_RELEASE' | 'REPHASING' | 'REAPPROPRIATION';
+
+export interface ChecklistItem { item: string; ok: boolean; detail: string }
+
+/** project_pack()'s jsonb, as printed by packPdf.tsx. */
+export interface ProjectPack {
+  kind: PackKind;
+  as_on: string;
+  project: {
+    project_id: string; project_no: string; title: string; pi: string | null; division: string | null;
+    track: string | null; stage: string | null; start_date: string | null; end_date: string | null;
+    sanctioned_cost: number | null; sanction_ref: string | null; sanction_date: string | null;
+  };
+  heads: { head: string; sanctioned: number; spent: number; balance: number }[];
+  years: { fiscal_year: string; sanctioned: number; received: number; spent: number }[];
+  totals: { sanctioned: number; received: number; spent: number; unspent_cash: number };
+  orders: { received_on: string; fiscal_year: string; amount: number; order_no: string; order_date: string | null; ifd_file_no: string | null; ifd_date: string | null }[];
+  signatories: { role: string; name: string | null }[];
+  release?: { fiscal_year: string; sanctioned_for_year: number; unspent_cash: number; demand: number; by_head: { head: string; amount: number }[] };
+  change?: { id: string; status: string; justification: string; payload: ChangePayload; submitted_at: string | null };
+  checklist_b?: ChecklistItem[];
+  /** Multi-lab projects only (project_lab_money, 20261113000009). */
+  labs?: { lab_code: string; role: string | null; sanctioned: number; received: number; spent: number; balance: number }[];
+}
+
+/** Stage-gate deliverables for FTT / FTC / MMP (20261112000016). */
+export interface StageItem { itemKey: string; stage: number; label: string }
+export interface StageDeliverable { itemKey: string; documentId: string; doneAt: string }
+
+/** One row of the CPD half-yearly report (project_cpd_halfyearly). */
+export interface CpdRow {
+  projectId: string; projectNo: string; title: string; pi: string | null; category: string | null; stage: string | null;
+  startDate: string | null; endDate: string | null; reviewsDue: number; reviewsHeld: number; reviewsMissed: number;
+  lastReviewOn: string | null; received: number; spent: number; milestonesAchieved: number; milestonesTotal: number;
+  reportsSubmitted: number;
+}
+
+/** PME desk counts for compliance (pme_compliance_counts). */
+export interface ComplianceCounts { declarationsMissing: number; transfersMissingDocs: number; logbooksIdle: number }

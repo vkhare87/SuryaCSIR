@@ -6,6 +6,7 @@ import { Card, Badge } from '../components/ui/Cards';
 import { InstrumentForm } from '../components/InstrumentForm';
 import { RequestUpdateButton } from '../components/RequestUpdateButton';
 import { RelatedRail, type RailSection } from '../components/RelatedRail';
+import { UsageLogPanel } from '../components/UsageLogPanel';
 import { amcStatus, AMC_CARD_COLORS, AMC_TEXT_COLORS, findStaffByName } from '../utils/dateUtils';
 import { equipmentStatusClass } from '../utils/equipmentStatus';
 import { useBack } from '../utils/useBack';
@@ -250,6 +251,8 @@ export default function InstrumentDetail() {
               ))}
             </div>
           </Card>
+
+          <UsageLogPanel equipmentId={instrument.UInsID} staff={staff} />
 
           {/* Remark */}
           {instrument.Remark && (

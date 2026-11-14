@@ -25,6 +25,7 @@ import { ENTITY_META } from '../lib/entities';
 import type { DivisionInfo, StaffMember } from '../types';
 import { useUrlTab } from '../utils/useUrlTab';
 import { isActiveProject, projectStatusLabel } from '../lib/projects/stage';
+import { useDivisionStrength } from '../lib/people/useDivisionStrength';
 
 const DIVISION_TABS = ['detail', 'analytics'] as const;
 
@@ -99,26 +100,24 @@ export default function Divisions() {
     return ipIntelligence.filter(ip => ip.divisionCode === selectedDiv.divCode);
   }, [ipIntelligence, selectedDiv]);
 
-  const vacancyGap = selectedDiv
-    ? (selectedDiv.divSanctionedstrength || 0) - (selectedDiv.divCurrentStrength || 0)
-    : 0;
+  // Strength from the post register (20261113000001), not the divisions integers.
+  const { byDivision: strength, totals: strengthTotals } = useDivisionStrength();
+  const vacancyGap = selectedDiv ? strength.get(selectedDiv.divCode)?.vacant ?? 0 : 0;
 
   // Institute-wide aggregates for the InsightsStrip
   const instituteTotals = useMemo(() => {
-    const sanctioned = divisions.reduce((s, d) => s + (d.divSanctionedstrength || 0), 0);
-    const current = divisions.reduce((s, d) => s + (d.divCurrentStrength || 0), 0);
     const totalProjects = projects.length;
     const activeProjects = projects.filter(isActiveProject).length;
-    return { sanctioned, current, gap: sanctioned - current, totalProjects, activeProjects };
-  }, [divisions, projects]);
+    return { sanctioned: strengthTotals.sanctioned, current: strengthTotals.filled, gap: strengthTotals.vacant, totalProjects, activeProjects };
+  }, [strengthTotals, projects]);
 
   const divisionStrengthBars = useMemo(
     () =>
       divisions
-        .map(d => ({ label: d.divCode, value: d.divCurrentStrength || 0 }))
+        .map(d => ({ label: d.divCode, value: strength.get(d.divCode)?.filled ?? 0 }))
         .sort((a, b) => b.value - a.value)
         .slice(0, 8),
-    [divisions],
+    [divisions, strength],
   );
 
   // Derived counts
@@ -251,7 +250,7 @@ export default function Divisions() {
         <div className="flex-1 overflow-y-auto stylish-scrollbar">
           {filteredDivisions.map(div => {
             const isSelected = div.divCode === selectedDiv?.divCode;
-            const gap = (div.divSanctionedstrength || 0) - (div.divCurrentStrength || 0);
+            const gap = strength.get(div.divCode)?.vacant ?? 0;
             return (
               <button
                 key={div.divCode}
@@ -271,7 +270,7 @@ export default function Divisions() {
                       'text-[10px] font-bold px-2 py-0.5 rounded-full',
                       isSelected ? 'bg-[#c96442] text-white' : 'bg-surface-hover text-text-muted group-hover:bg-border transition-colors'
                     )}>
-                      {div.divCurrentStrength || 0}
+                      {strength.get(div.divCode)?.filled ?? 0}
                     </span>
                     {gap > 0 && (
                       <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">

@@ -37,6 +37,14 @@ export interface PMSReport {
   systemRemark: string | null;
   scoreCommunicatedAt: string | null;
   nonSubmissionCertificatePath: string | null;
+  /** 'LEGACY' keeps the old layout and one score per member; '2026' is the 2026 proforma (20261112000018). */
+  proformaVersion: 'LEGACY' | '2026';
+  /** The Evaluation Committee the report was sent to. */
+  committeeId: string | null;
+  /** Pay Level 13 and above answers Questionnaire B. */
+  questionnaireB: boolean;
+  /** Set 15 days after the score is communicated when no representation was made. */
+  deemedAcceptedAt: string | null;
   createdAt: string;
   updatedAt: string;
   cycle?: AppraisalCycle;
@@ -263,7 +271,15 @@ export type AnnexureIISectionKey =
 
 export type SeniorSectionKey = AnnexureISectionKey | AnnexureIISectionKey;
 
-export type SectionKey = StandardSectionKey | SeniorSectionKey;
+/** 2026 proforma sections (src/lib/pms/proforma2026.ts). */
+export type P2026SectionKey =
+  | 'p26_part1' | 'p26_education' | 'p26_employment' | 'p26_leave' | 'p26_qa' | 'p26_qb'
+  | 'p26_i1' | 'p26_i2' | 'p26_i3' | 'p26_i4' | 'p26_i5'
+  | 'p26_ii_journals' | 'p26_ii_conferences' | 'p26_ii_books' | 'p26_ii_institutional'
+  | 'p26_ii_patents' | 'p26_ii_ecf' | 'p26_ii_tech_transfer' | 'p26_ii_services' | 'p26_ii_tech_dev'
+  | 'p26_iii' | 'p26_iv' | 'p26_v';
+
+export type SectionKey = StandardSectionKey | SeniorSectionKey | P2026SectionKey;
 
 // --- Part V — Annual Work Plan (pms_awps) ---
 
@@ -367,3 +383,54 @@ export interface PMSAWPRevision {
   decisionRemarks: string | null;
   createdAt: string;
 }
+
+// --- Enterprise P4: the 2026 assessment ---
+
+/** Part I pre-filled by Establishment (pms_part1). */
+export interface PmsPart1 {
+  reportId: string;
+  data: Record<string, string>;
+  prefilledAt: string | null;
+  discrepancy: string | null;
+  verifiedAt: string | null;
+}
+
+export type ReportItemSection = 'PROJECT' | 'OUTPUT' | 'IP' | 'TECH_TRANSFER' | 'STUDENT' | 'COMMITTEE' | 'OTHER';
+export type ReportItemState = 'PREFILLED' | 'CONFIRMED' | 'EDITED' | 'ADDED' | 'REMOVED';
+
+/** One line of the self-appraisal, from the records or added by the scientist. */
+export interface PmsReportItem {
+  id: string;
+  section: ReportItemSection;
+  sourceRecordType: string | null;
+  sourceRecordId: string | null;
+  link: string | null;
+  text: string;
+  state: ReportItemState;
+}
+
+/** The Evaluation Committee's single panel score (pms_panel_scores). */
+export interface PmsPanelScore {
+  reportId: string;
+  score: number;
+  reasonsForOutstanding: string | null;
+  reasonsBelowThreshold: string | null;
+  suggestionsForImprovement: string | null;
+  integrity: string;
+  adverseRemarks: string | null;
+  criticalAssessment: string | null;
+  quorumPresent: number;
+  membersTotal: number;
+  recordedAt: string;
+}
+
+export type EcAction = 'CONCUR' | 'UPGRADE' | 'DOWNGRADE';
+
+/** One step of the Annexure-B timeline (pms_timeline_status). */
+export interface TimelineStep { step: number; label: string; due: string | null; done: number; pending: number; overdue: number }
+
+/** One late report (pms_delay_report). */
+export interface DelayRow { reportId: string; scientist: string; status: string; step: number; due: string; daysLate: number }
+
+/** One cycle of a scientist's PMS record (pms_score_history). */
+export interface ScoreHistoryRow { cycleId: string; cycle: string; score: number; grade: string; labAverage: number | null; normalised: number | null; remarks: string }

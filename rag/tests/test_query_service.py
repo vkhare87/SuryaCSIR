@@ -502,3 +502,26 @@ def test_log_query_records_refusal_reason():
     client = _CaptureClient({"query_log": [{"id": "q1"}]})
     log_query(client, "q", Answer(REFUSAL_TEXT, "document", []))
     assert client.inserts[0]["refusal_reason"] == "no_grounded_answer"
+
+
+# ---------- EI3: ask from a record ----------
+
+def test_question_from_a_project_names_it_and_cites_its_documents():
+    client = _FakeClient({
+        "projects": [{"ProjectID": "P-1", "ProjectNo": "OLP-0101", "ProjectName": "Red mud bricks"}],
+        "project_reports": [{"id": "r1"}],
+        "doc_indexes": [{"document_id": "d1", "tree": _tree("A"), "documents": {"id": "d1", "title": "Progress report"}}],
+        "doc_pages": [{"page": 1, "text": "A intro page body"}],
+    })
+    seen = {}
+    llm = FakeLLM()
+    route = llm.route
+    llm.route = lambda q, *a, **k: (seen.setdefault("q", q), route(q, *a, **k))[1]
+    ans = handle_query("what is in the intro", client, llm, entity={"type": "project", "id": "P-1"})
+    assert seen["q"].startswith("This question is about project P-1 (OLP-0101 · Red mud bricks).")
+    assert [c["title"] if isinstance(c, dict) else c.title for c in ans.citations] == ["Progress report"]
+
+
+def test_question_from_a_record_the_caller_cannot_see_is_refused():
+    with pytest.raises(LookupError):
+        handle_query("anything", _FakeClient({"projects": []}), FakeLLM(), entity={"type": "project", "id": "P-9"})

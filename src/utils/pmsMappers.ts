@@ -48,6 +48,10 @@ export function mapReportRow(row: Record<string, unknown>): PMSReport {
     systemRemark: (row.system_remark as string) ?? null,
     scoreCommunicatedAt: (row.score_communicated_at as string) ?? null,
     nonSubmissionCertificatePath: (row.non_submission_certificate_path as string) ?? null,
+    proformaVersion: row.proforma_version === '2026' ? '2026' : 'LEGACY',
+    committeeId:  (row.committee_id as string) ?? null,
+    questionnaireB: row.questionnaire_b === true,
+    deemedAcceptedAt: (row.deemed_accepted_at as string) ?? null,
     createdAt:    row.created_at as string,
     updatedAt:    row.updated_at as string,
   };

@@ -7,6 +7,7 @@ import { InsightsStrip } from '../../components/viz/InsightsStrip';
 import { KpiTile } from '../../components/viz/KpiTile';
 import { MiniDonut } from '../../components/viz/MiniDonut';
 import { MiniBar } from '../../components/viz/MiniBar';
+import { useDivisionStrength } from '../../lib/people/useDivisionStrength';
 
 const RENEWAL_HORIZON_DAYS = 90;
 const MS_PER_DAY = 86400000;
@@ -55,11 +56,10 @@ export function HRAdminView() {
       ).length,
     [staff],
   );
-  const totalSanctioned = useMemo(
-    () => divisions.reduce((s, d) => s + (d.divSanctionedstrength || 0), 0),
-    [divisions],
-  );
-  const fillPct = totalSanctioned > 0 ? Math.round((staff.length / totalSanctioned) * 100) : 0;
+  // From the post register (20261113000001), not the divisions integers.
+  const { totals: strength } = useDivisionStrength();
+  const totalSanctioned = strength.sanctioned;
+  const fillPct = totalSanctioned > 0 ? Math.round((strength.filled / totalSanctioned) * 100) : 0;
 
   return (
     <div className="space-y-8 pb-12">

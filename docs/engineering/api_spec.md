@@ -406,6 +406,108 @@ Committee → Research Council.
 | `project_legacy_pending()` | signed-in | Running legacy projects not yet brought in |
 | `project_infer_track(no, category, fund_type)` | — | Pure; used by the migration |
 
+### Rules and people links (`src/contexts/RulesContext.tsx`, `DataContext`, `20261112000004`–`05`)
+
+| RPC | Who | Effect |
+|---|---|---|
+| `csir_rule(p_key, p_on DEFAULT ist_today())` → `jsonb` | verified users (invoker) | The rule value in force on a date; raises `no CSIR rule % on %` when none |
+| `csir_rule_set(p_key, p_value, p_unit, p_effective_from, p_source_ref, p_verified)` → `uuid` | MasterAdmin | Appends a value from a date; closes the earlier row; refuses a date at or before the latest |
+| `identity_link_authors()` → `integer` | HRAdmin / SystemAdmin / MasterAdmin | Re-runs the one-match auto-link over every author and inventor |
+| `identity_link_gaps()` → `(kind, record_id, name, candidates, pos)` | admins, Director | Names a person must decide: unlinked authors/inventors with a likely staff match, plus `staff_link_gaps` |
+| `identity_set_link(p_kind 'OUTPUT'\|'IP', p_record_id, p_position, p_staff_id)` | admins any; a staff member claims an unlinked name as self or releases their own | Records a manual link (never overwritten by the auto pass) |
+
+### Research profile (`src/contexts/ProfileContext.tsx`, `20261112000010`–`12`)
+
+| RPC / view | Who | Effect |
+|---|---|---|
+| `staff_profile_facts(p_staff_id, p_from DEFAULT NULL, p_to DEFAULT NULL)` | anyone who may read the staff row (invoker) | The person's records by key, each with a link |
+| `update_own_profile(p_fields jsonb)` | the staff member whose row has `user_id = auth.uid()` | Changes only `Expertise`, `CoreArea`, `Ext`, `orcid`, `VidwanID`; logs to `staff_profile_changes`; any other key is refused |
+| `profile_consistency_issues(p_staff_id DEFAULT NULL)` | invoker | Where the profile and the records disagree |
+| `profile_consistency_sweep()` | cron (`service_role`) only | One open request per person with issues |
+| `entity_timeline` (view) | invoker | Now also `entity_type = 'staff'` profile changes |
+
+### Project compliance (`projectFileApi.ts`, `src/lib/compliance/api.ts`, `20261112000013`–`17`)
+
+| RPC | Who | Effect |
+|---|---|---|
+| `coi_declare(p_meeting_id, p_format 'F1'\|'F2', p_note)` | a member, chair or convener of the meeting's committee | Records or changes the caller's declaration until the chair decides |
+| `coi_chair_decide(p_id, p_decision 'CONTINUE'\|'RECUSE')` | the committee's chair, not on their own | Decides on a Format 2 |
+| `project_pack(p_project_id, p_kind, p_change_request_id DEFAULT NULL)` → `jsonb` | whoever may read the project | `FIRST_RELEASE` · `NEXT_YEAR_RELEASE` · `REPHASING` · `REAPPROPRIATION`: project, head- and year-wise statement, orders, demand or change + Checklist B, four signatories |
+| `project_checklist_b(p_change_request_id)` → `(item, ok, detail)` | invoker | `kind`, `project_running`, `travel_manpower`, `within_unspent`, `rules`, `signed_request`, `justification` — never raises on a failed item |
+| `project_cpd_halfyearly(p_period_end)` | invoker | One row per HQ project for the half-year |
+| `project_stage_deliverable_record(p_project_id, p_item_key, p_document_id)` | PI or PME | Puts a stage deliverable on file; logs a `stage_gate` timeline event |
+| `project_transfer_gaps()` | invoker | Transfers on FTT/FTC/MMP projects missing stage VI papers |
+| `equipment_log_usage(p_equipment_id, p_used_on, p_hours, p_user_staff_id, p_purpose)` | scientist-in-charge, the project's PI, PME | Adds a logbook entry |
+| `pme_compliance_counts()` | PME, admins, Director | `declarations_missing`, `transfers_missing_docs`, `logbooks_idle` |
+
+### PMS 2026 assessment (`src/lib/pms/assessment2026Api.ts`, `20261112000018`–`22`)
+
+| RPC | Who | Effect |
+|---|---|---|
+| `pms_timeline_status(p_cycle_id)` · `pms_delay_report(p_cycle_id)` | PMS admins, Director | Annexure-B counts; every late report |
+| `pms_timeline_sweep()` | cron only | Deemed acceptance; overdue reminders |
+| `pms_part1_prefill(p_cycle_id)` | PMS admins (Establishment) | Fills Part I of every unverified report from the staff record |
+| `pms_part1_report_discrepancy(p_report_id, p_text)` | the scientist | Says what is wrong; clears verification |
+| `pms_part1_verify(p_report_id, p_data DEFAULT NULL)` | PMS admins | Verifies, optionally with corrections |
+| `pms_prefill_from_profile(p_report_id)` | the scientist, DRAFT | Lines from `staff_profile_facts` for the period; never changes a touched line |
+| `pms_report_item_set(p_item_id, p_state, p_text)` · `pms_report_item_add(p_report_id, p_section, p_text)` | the scientist, DRAFT | Confirm / edit / remove; add |
+| `pms_record_panel_score(p_report_id, p_score, …, p_quorum_present, p_signed_scan_path)` | the report's Reporting Officer, PMS admins | One panel score (2026); quorum ≥ half the panel; moves the report to the Empowered Committee |
+| `pms_finalize_report_2026(p_report_id, p_action, p_final_score, p_reasons, p_suggestions, p_general_comments, p_critical_assessment, p_quorum_present)` | Empowered Committee members, PMS admins | Concur / upgrade / downgrade; quorum = chair + half the members |
+| `pms_score_history(p_staff_id)` | the person, Director, open-cycle Empowered Committee, RO / RvO of the current panel | Score, grade, lab average, % of average per cycle; no rows for anyone else |
+
+### Posts and people (`src/lib/people/api.ts`, `20261113000001`–`04`)
+
+| RPC | Who | Effect |
+|---|---|---|
+| `post_create(code, group, level, designation, discipline, division, category, sanction_ref)` | HRAdmin, MasterAdmin | Adds a VACANT post |
+| `post_fill(post, staff_id, on, order_ref)` · `post_vacate(post, on, reason, order_ref)` · `post_set_state(post, state, order_ref)` | HRAdmin, MasterAdmin | Moves a post; each move is an event |
+| `staff_workload(staff DEFAULT NULL)` · `workforce_outlook(years)` | invoker | Workload with overload (> 4 running projects); retirements + vacancies by year |
+| view `staff_project_links` · view `staff_research_summary` | invoker (RLS of the tables under them) | Who is on which project and as what; one row of counts per staff member (`20261113000011`) |
+| `career_events_import(rows jsonb)` | HRAdmin, MasterAdmin | Loads establishment events; unknown staff IDs refused |
+| `project_staff_person_save(id, p)` · `project_selection_create(…)` · `project_engage(selection, person, from, to, emoluments)` · `project_staff_leave_add(engagement, kind, from, to)` | PME, HRAdmin, MasterAdmin | Engagement under §3.3; `project_engage` refuses any failed rule |
+| `project_engagement_check(person, project, position, from, to, selection)` → `(rule, ok, detail)` | invoker | age, tenure, selection, quorum, ncs_posting / waitlist / direct, antecedents; `ok` NULL = not checkable (catalogue missing) |
+| `project_staff_backfill()` · `project_staff_legacy_pending()` · `project_staff_link_legacy(ids, person)` | PME, HRAdmin, MasterAdmin | Bring legacy rows in |
+| `recruitment_advance(advt_id, stage, document_id, note)` | HRAdmin, MasterAdmin | One stage forward, or Closed |
+| `acting_assign(role, division, principal, acting, from, to, order_ref)` · `acting_end(id, last_day)` | Director (HoD charges), HRAdmin, MasterAdmin | Acting charge; never one's own |
+
+### Expertise (`src/lib/expertise/api.ts`, `20261113000006`)
+
+| RPC | Who | Effect |
+|---|---|---|
+| `expertise_suggest(staff_id)` → `(term_id, label, kind, evidence_count)` | invoker | Terms whose label is a whole word in the titles of the person's projects, papers, IP; not already tagged |
+| `expertise_find(term_ids uuid[], text)` → `(staff_id, name, division, designation, confirmed_terms, evidence jsonb, evidence_count, active_projects, overload, retires_on)` | invoker | Ranked by confirmed terms, then evidence. Text also matches term labels and the `Expertise` note. Ask SURYA `expertise_search` calls this |
+| `expertise_merge(from, into)` | HR, MasterAdmin, staff steward | Marks `from` MERGED and moves its tags |
+
+### Metrics (`src/lib/metrics/api.ts`, `20261113000007`)
+
+| RPC | Who | Effect |
+|---|---|---|
+| `metric_value(key, scope jsonb)` → numeric | invoker | Dispatches to the registered function only; unknown key raises. Ask SURYA `metric` calls it |
+| `metric_table()` → `(metric_key, division, value)` | invoker | Every metric for the institute (division NULL) and each division |
+| `metric_snapshot_run(as_on DEFAULT ist_today()-1)` | cron, MasterAdmin | Freezes metric_table for that day; never overwrites |
+| `metric_digest_run()` | cron (service_role) | Weekly `metric-digest` notification per Director / HoD / Division Head / HR / PME / MasterAdmin |
+| `project_set_lens(project, theme, trl_target, trl_reached)` | PME, MasterAdmin, the PI | Theme and TRL |
+
+### AI actions (`20261113000008`; Ask SURYA `context_entity`)
+
+| RPC / endpoint | Who | Effect |
+|---|---|---|
+| `notification_accept(id)` → link | the notification's owner | Marks accepted, runs the whitelisted action (`identity_link` → `identity_set_link`; `expertise_confirm` → own `staff_expertise`; `open`), logs to `ai_action_log`; any other kind raises; failure rolls back |
+| `ai_suggest_sweep()` | cron, MasterAdmin | Daily: "is this paper / patent yours?" for unlinked names matching a staff login; "confirm expertise" for terms in 2+ of a person's records |
+| `POST /query`, `/query/stream` `context_entity: {type: project\|staff\|division\|instrument, id}` | Ask SURYA users | Names the record in the question and searches its documents first (project: also its progress reports); a record the caller cannot read → 404 |
+
+### Project breadth (`src/lib/projects/labs.ts`, `src/lib/publications/api.ts`, `20261113000009`)
+
+| RPC | Who | Effect |
+|---|---|---|
+| `project_lab_set(project, lab, role, rc_document)` · `project_entry_set_lab(kind receipt\|expenditure\|budget, id, lab)` · `project_ip_agreement_add(project, document, signed_on)` | PME (office, not a party) | Labs on a project; book an entry to a lab (its reversal moves with it) |
+| `project_lab_money(project)` · `project_ip_agreement_missing(project)` | invoker | Sanctioned · received · spent · balance per lab; §6.2 flag |
+| `publication_file_create(title, division, authors jsonb)` | staff who is one of the authors | Opens a DRAFT file |
+| `publication_consent(file, contribution)` | that in-house author | Consent, until submission |
+| `publication_move(file, to, details jsonb)` | corresponding author; ETHICS_CHECK → CLEARED / DRAFT by the division's HoD / Division Head, Director, MasterAdmin (not their own) | One step; SUBMITTED needs the number and every in-house consent; PUBLISHED creates `scientific_outputs` with the authors linked |
+
+`proposal_set_track` and `project_legacy_complete` accept any `project_schemes` code.
+
 **Retired:** `proposal_set_under_review`, `proposal_request_revision`, `proposal_reject`,
 `proposal_recommend`, `proposal_approve`, `proposal_issue_om` — EXECUTE revoked; each let an
 admin move a proposal past the chain.
@@ -706,8 +808,8 @@ question a user would ask, and changing it changes routing behaviour.
 | `expertise_search` | `topic` **(required)** | "Who has worked on X" |
 | `project_budget_variance` | `threshold_pp?` | Active projects deviating from expected burn |
 | `expertise_succession_risk` | `years?` | Staff retiring within N years whose expertise nobody covers |
-| `staff_profile` | `name` **(required)** | "Who is X" |
-| `projects_for_staff` | `name` **(required)** | "What is X working on" |
+| `staff_profile` | `name` **(required)** | "Who is X" — plus counts from `staff_profile_facts`; two matches → lists both, never picks |
+| `projects_for_staff` | `name` **(required)** | "What is X working on" — from `staff_profile_facts` (keys, not names) |
 | `division_summary` | `division_code` **(required)** | One division's head, strength, staff, project counts |
 | `project_team` | `project_no` \| `project_name` | "Who works on project X" |
 

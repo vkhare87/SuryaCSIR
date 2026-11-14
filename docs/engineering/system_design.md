@@ -423,6 +423,72 @@ review" goes to the routed steward. The sweep keeps at most one live refresh req
 
 ---
 
+### 4.9 Rule values over time — `csir_rules`
+
+A rule key holds a chain of rows, each `[effective_from, effective_to]`. `csir_rule_set`
+appends a row and closes the previous one at the day before; nothing is edited or deleted,
+so an old decision is re-checked against the rule of its day. A date with no row raises.
+The nightly `notifications_sweep()` mirrors every deadline rule in `myActions.ts`
+(`scripts/db/sweepParity.db.test.ts` holds the table of rules).
+
+### 4.10 Research profile — one source, three readers
+
+`staff_profile_facts` feeds the profile page (`/staff/:id`, `/me`), the CV and nomination
+PDFs (`src/lib/staff/profilePdf.tsx`) and Ask SURYA (`rag/analytics.py`). A record joins a
+profile only through a key (P1 links). Where a name might be the person but is not linked,
+`profile_consistency_issues` lists it and the weekly sweep asks that person in My Work;
+"This is me" on the profile calls `identity_set_link`.
+
+### 4.11 Conflict-of-interest declaration — `coi_declarations`
+
+```mermaid
+stateDiagram-v2
+  [*] --> F1: coi_declare (member)
+  [*] --> F2: coi_declare (member, with the conflict)
+  F1 --> F2: coi_declare (before a decision)
+  F2 --> F1: coi_declare (before a decision)
+  F2 --> CONTINUE: coi_chair_decide (chair, not on own)
+  F2 --> RECUSE: coi_chair_decide
+```
+
+Annexure 3 = F2 and RECUSE rows of one meeting (`src/lib/committees/annexure3Pdf.tsx`).
+
+### 4.12 PMS 2026 report — what changes from LEGACY
+
+Same `pms_reports.status` machine (§4.1). For `proforma_version = '2026'`:
+`SUBMITTED → UNDER_EVALUATION_COMMITTEE_REVIEW` only to a committee of the scientist's tier;
+`→ EMPOWERED_COMMITTEE_REVIEW` when the Reporting Officer records the one panel score
+(`pms_record_panel_score` closes the members' rows; the existing trigger advances);
+`→ FINALIZED` only by `pms_finalize_report_2026`. After FINALIZED the sweep sets
+`deemed_accepted_at` once 15 days pass with no representation.
+
+### 4.13 Sanctioned post — `sanctioned_posts.state`
+
+```mermaid
+stateDiagram-v2
+  [*] --> VACANT: post_create
+  VACANT --> ADVERTISED: post_set_state
+  VACANT --> ABEYANCE: post_set_state
+  ADVERTISED --> FILLED: post_fill
+  VACANT --> FILLED: post_fill
+  FILLED --> VACANT: post_vacate
+  ABEYANCE --> VACANT: post_set_state
+  VACANT --> ABOLISHED: post_set_state
+```
+
+### 4.14 Acting charge
+
+While `ist_today()` lies within an assignment, `caller_has_role(role)` is true for the acting
+officer and `caller_in_division(div)` is true for an acting HoD / Division Head of that
+division; the day after, both are false. Every RLS policy and RPC that uses these helpers
+follows automatically. `entity_timeline.acted_as` names the capacity on the day of each event.
+
+### 4.15 Metric snapshots and digest
+
+`pg_cron`: `metric-snapshot` on the 1st at 00:30 UTC freezes the numbers as on the last
+day of the month just ended; `metric-digest` on Monday 02:00 UTC posts the weekly numbers.
+A pack "as on D" reads only the snapshot rows for D.
+
 ## 5. Deployment
 
 ```mermaid

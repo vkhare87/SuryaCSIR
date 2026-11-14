@@ -28,3 +28,12 @@ describe('drivesByStage', () => {
     expect(rows.find(r => r.stage === 'Advertised')!.permanent).toBe(0);
   });
 });
+
+describe('allowedStages', () => {
+  it('offers the current stage, the next one, and Closed', async () => {
+    const { allowedStages } = await import('./drives');
+    expect(allowedStages('Screening')).toEqual(['Screening', 'Interviews', 'Closed']);
+    expect(allowedStages('Joined')).toEqual(['Joined', 'Closed']);
+    expect(allowedStages('Closed')).toEqual(['Closed']);
+  });
+});

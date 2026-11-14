@@ -5,6 +5,7 @@ import clsx from 'clsx';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
 import { useProposals } from '../../contexts/ProposalsContext';
+import { useRules } from '../../contexts/RulesContext';
 import { useUI } from '../../contexts/UIContext';
 import { Card } from '../../components/ui/Cards';
 import { Button } from '../../components/ui/Button';
@@ -24,6 +25,7 @@ import {
 import { HQ_CATEGORIES, durationNote } from '../../lib/proposals/categories';
 import { fiscalYearsFor, rupees } from '../../lib/projects/heads';
 import { readPending } from '../../lib/proposals/autosave';
+import { RULE, ruleNumber } from '../../lib/rules/csirRules';
 import { useDraftAutosave, type SaveState } from '../../lib/proposals/useDraftAutosave';
 import {
   REQUIRED_COLUMNS, SECTIONS, missingItems, sectionState, type SectionKey,
@@ -83,6 +85,7 @@ function Workspace({ id }: { id: string }) {
   const { user } = useAuth();
   const { staff, divisions } = useData();
   const { getProposal, saveFields, saveCoPIs } = useProposals();
+  const { rules } = useRules();
   const { isMobile } = useUI();
 
   const [draft, setDraft] = useState<Proposal | null>(null);
@@ -129,7 +132,8 @@ function Workspace({ id }: { id: string }) {
     hasSignedScan: !!draft?.documents?.some((d) => d.docType === 'signed_proposal'),
     hasQuotation: !!draft?.documents?.some((d) => d.docType === 'quotation'),
     lines: draft?.budgetLines ?? [],
-  }), [draft]);
+    equipmentThreshold: ruleNumber(rules, RULE.majorEquipmentInr),
+  }), [draft, rules]);
   const missing = useMemo(() => (draft ? missingItems(draft, ctx) : []), [draft, ctx]);
   const years = useMemo(
     () => (draft ? fiscalYearsFor(draft.proposedStartDate, draft.proposedDurationMonths) : []),

@@ -5,7 +5,8 @@ import { usePMS } from '../../contexts/PMSContext';
 import { mergeNotificationFeeds, type BellItem } from '../../lib/notifications/notifications';
 
 export function NotificationBell() {
-  const { notifications, appNotifications, markNotificationRead, setAppNotificationStatus } = usePMS();
+  const { notifications, appNotifications, markNotificationRead, setAppNotificationStatus, acceptAppNotification } = usePMS();
+  const [error, setError] = useState('');
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -36,9 +37,12 @@ export function NotificationBell() {
   // Agent suggestions are decided, not just read: the choice stays on the row
   // (status + updated_at) so suggestion quality can be measured later.
   const accept = async (notif: BellItem) => {
-    await setAppNotificationStatus(notif.id, 'accepted');
-    setOpen(false);
-    if (notif.link) navigate(notif.link);
+    setError('');
+    try {
+      const link = notif.actionLabel ? await acceptAppNotification(notif.id) : (await setAppNotificationStatus(notif.id, 'accepted'), notif.link);
+      setOpen(false);
+      if (link) navigate(link);
+    } catch (e) { setError(e instanceof Error ? e.message : 'Could not accept'); }
   };
   const dismiss = (notif: BellItem) => setAppNotificationStatus(notif.id, 'dismissed');
 
@@ -66,6 +70,7 @@ export function NotificationBell() {
             )}
           </div>
 
+          {error && <p role="alert" className="px-4 py-2 text-xs text-badge-danger-fg">{error}</p>}
           {recent.length === 0 ? (
             <div className="px-4 py-8 text-center text-sm text-text-muted">No notifications</div>
           ) : (
@@ -82,7 +87,7 @@ export function NotificationBell() {
                           onClick={() => void accept(n)}
                           className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-terracotta text-ivory hover:bg-terracotta-hover"
                         >
-                          Open
+                          {n.actionLabel ?? 'Open'}
                         </button>
                         <button
                           onClick={() => void dismiss(n)}

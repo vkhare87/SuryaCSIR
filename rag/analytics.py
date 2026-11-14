@@ -179,33 +179,27 @@ def _tech_transfer_summary(params, client) -> Answer:
 
 
 def _expertise_search(params, client) -> Answer:
-    """Expertise discovery: rank in-house staff whose Expertise/CoreArea matches a
-    topic. Human-capital routing — 'who here has worked on X'. Ranked: match in both
-    fields ahead of one field."""
-    topic = str(params.get("topic") or "").strip().lower()
+    """Who can do X? expertise_find (20261113000006): confirmed tags first, then
+    people whose projects, papers, IP or Expertise note mention it — the same
+    people, in the same order, as the Expertise Finder page."""
+    topic = str(params.get("topic") or "").strip()
     if not topic:
         return Answer("No topic supplied for expertise search. "
-                      "(source: staff table)", "structured", [])
-    terms = [t for t in topic.replace(",", " ").split() if len(t) > 2] or [topic]
-    rows = _rows(client, "staff", "Name, Designation, Division, CoreArea, Expertise")
-    scored = []
-    for r in rows:
-        core = str(r.get("CoreArea") or "").lower()
-        exp = str(r.get("Expertise") or "").lower()
-        score = sum(1 for t in terms if t in core) + sum(1 for t in terms if t in exp)
-        if score:
-            scored.append((score, r))
-    scored.sort(key=lambda x: x[0], reverse=True)
-    if not scored:
-        return Answer(f"No staff found with expertise matching '{params.get('topic')}'. "
-                      "(source: staff table)", "structured", [])
-    top = scored[:10]
+                      "(source: expertise_find)", "structured", [])
+    rows = client.rpc("expertise_find", {"p_text": topic, "p_term_ids": None}).execute().data or []
+    if not rows:
+        return Answer(f"No staff found with expertise matching '{topic}'. "
+                      "(source: expertise_find)", "structured", [])
+    top = rows[:10]
     listing = "; ".join(
-        f"{r.get('Name') or 'Unknown'} ({r.get('Designation') or '—'}, "
-        f"div {r.get('Division') or '—'})" for _, r in top)
-    more = f" (+{len(scored) - len(top)} more)" if len(scored) > len(top) else ""
-    return Answer(f"{len(scored)} staff match expertise '{params.get('topic')}' — "
-                  f"{listing}{more}. (source: staff table)", "structured", [])
+        f"{r.get('name') or 'Unknown'} ({r.get('designation') or '—'}, div {r.get('division') or '—'}; "
+        f"{'confirmed, ' if r.get('confirmed_terms') else ''}{r.get('evidence_count') or 0} record(s), "
+        f"{r.get('active_projects') or 0} running project(s)"
+        f"{', overloaded' if r.get('overload') else ''}"
+        f"{', retires ' + str(r['retires_on']) if r.get('retires_on') else ''})" for r in top)
+    more = f" (+{len(rows) - len(top)} more)" if len(rows) > len(top) else ""
+    return Answer(f"{len(rows)} staff match expertise '{topic}' — {listing}{more}. "
+                  "(source: expertise_find)", "structured", [], data=top)
 
 
 # Utilization variance beyond this many percentage points from expected linear burn
@@ -287,35 +281,70 @@ def _expertise_key(row) -> str:
     return ""
 
 
+def _expertise_areas(client):
+    """Each person's areas: confirmed expertise tags (20261113000006) when they
+    have any, else the Expertise/CoreArea field."""
+    labels = {t.get("id"): str(t.get("label") or "").strip().lower()
+              for t in _rows(client, "expertise_terms", "id, label, status")
+              if t.get("status") == "ACTIVE"}
+    tags = {}
+    for t in _rows(client, "staff_expertise", "staff_id, term_id, confirmed_at"):
+        if t.get("confirmed_at") and t.get("term_id") in labels:
+            tags.setdefault(t.get("staff_id"), set()).add(labels[t["term_id"]])
+    return lambda r: tags.get(r.get("ID")) or ({_expertise_key(r)} - {""})
+
+
 def _expertise_succession_risk(params, client) -> Answer:
-    """Key-person risk: staff retiring within N years whose CoreArea is held by no
-    colleague remaining after them. Financial analogue: single-point-of-failure /
-    uninsured concentration."""
+    """Key-person risk: staff retiring within N years who hold an area no
+    colleague remaining after them holds. Financial analogue: single point of
+    failure."""
     years = int(_num(params.get("years")) or _SUCCESSION_YEARS)
-    rows = _rows(client, "staff", "Name, Designation, Division, DOB, CoreArea, Expertise")
+    rows = _rows(client, "staff", "ID, Name, Designation, Division, DOB, CoreArea, Expertise")
+    areas_of = _expertise_areas(client)
     today = date.today()
     horizon = _add_years(today, years)
     retiring, staying_areas = [], set()
     for r in rows:
         dob = _parse_date(r.get("DOB"))
-        area = _expertise_key(r)
+        areas = areas_of(r)
         retire_on = _add_years(dob, _RETIREMENT_AGE) if dob else None
         if retire_on and today <= retire_on <= horizon:
-            retiring.append((r, retire_on, area))
-        elif area:
-            staying_areas.add(area)
-    at_risk = [(r, retire_on) for r, retire_on, core in retiring
-               if core and core not in staying_areas]
+            retiring.append((r, retire_on, areas))
+        else:
+            staying_areas |= areas
+    at_risk = [(r, retire_on, sorted(areas - staying_areas)) for r, retire_on, areas in retiring
+               if areas - staying_areas]
     if not at_risk:
         return Answer(f"No unique-expertise succession risk within {years} year(s). "
-                      "(source: staff table)", "structured", [])
+                      "(source: staff table, staff_expertise)", "structured", [])
     listing = "; ".join(
-        f"{r.get('Name') or 'Unknown'} ({_expertise_key(r) or '—'}, "
+        f"{r.get('Name') or 'Unknown'} ({', '.join(uncovered)}, "
         f"div {r.get('Division') or '—'}, retires {retire_on.isoformat()})"
-        for r, retire_on in sorted(at_risk, key=lambda x: x[1]))
+        for r, retire_on, uncovered in sorted(at_risk, key=lambda x: x[1]))
     return Answer(f"{len(at_risk)} staff retiring within {years} year(s) hold expertise "
-                  f"no colleague covers — {listing}. (source: staff table)",
+                  f"no colleague covers — {listing}. (source: staff table, staff_expertise)",
                   "structured", [])
+
+
+def _metric(params, client) -> Answer:
+    """One institute number from the metric registry (20261113000007) — the
+    same metric_value the dashboard scorecard and the pack PDF read."""
+    metrics = sorted(_rows(client, "metrics", "key, label, definition, unit, sort"),
+                     key=lambda m: m.get("sort") or 0)
+    key = str(params.get("key") or "").strip()
+    known = {m.get("key"): m for m in metrics}
+    if key not in known:
+        listing = "; ".join(f"{m.get('key')} ({m.get('label')})" for m in metrics) or "none"
+        return Answer(f"Metrics available — {listing}. (source: metrics registry)", "structured", [])
+    scope = {k: params[k] for k in ("division", "year", "stage") if params.get(k)}
+    value = client.rpc("metric_value", {"p_key": key, "p_scope": scope}).execute().data
+    m = known[key]
+    shown = "not recorded" if value is None else (
+        f"{float(value):g}%" if m.get("unit") == "pct" else
+        f"₹{float(value):,.0f}" if m.get("unit") == "inr" else f"{float(value):g}")
+    where = f" for division {scope['division']}" if scope.get("division") else " for the institute"
+    return Answer(f"{m.get('label')}{where}: {shown}. Definition: {m.get('definition')}. "
+                  "(source: metric_value)", "structured", [], data={"key": key, "scope": scope, "value": value})
 
 
 def _match_staff(rows, needle):
@@ -326,30 +355,52 @@ def _match_staff(rows, needle):
             or n == str(r.get("ID") or "").lower()]
 
 
-def _staff_profile(params, client) -> Answer:
-    name = str(params.get("name") or "").strip()
-    if not name:
-        return Answer("No staff name supplied. (source: staff table)", "structured", [])
-    rows = _rows(client, "staff",
-                 "ID, Name, Designation, Division, CoreArea, Expertise, Email")
-    matches = _match_staff(rows, name)
+def _profile_facts(client, staff_id):
+    """staff_profile_facts (20261112000010): the person's records, matched by key.
+    Runs under the caller's RLS — a person they may not see returns no rows."""
+    return client.rpc("staff_profile_facts", {"p_staff_id": staff_id}).execute().data or []
+
+
+def _one_person(client, name, columns, source):
+    """(person, None) for exactly one match, else (None, refusal) — never guesses."""
+    matches = _match_staff(_rows(client, "staff", columns), name)
     if not matches:
-        return Answer(f"No staff member matching '{name}'. (source: staff table)",
-                      "structured", [])
+        return None, Answer(f"No staff member matching '{name}'. (source: {source})",
+                            "structured", [])
     if len(matches) > 1:
         listing = "; ".join(
             f"{r.get('Name')} ({r.get('Designation') or '—'}, div {r.get('Division') or '—'})"
             for r in matches[:10])
-        return Answer(f"{len(matches)} staff match '{name}' — {listing}. "
-                      "Ask again with a fuller name. (source: staff table)",
-                      "structured", [], data={"candidates": matches[:10]})
-    r = matches[0]
+        return None, Answer(f"{len(matches)} staff match '{name}' — {listing}. "
+                            f"Ask again with a fuller name. (source: {source})",
+                            "structured", [], data={"candidates": matches[:10]})
+    return matches[0], None
+
+
+_FACT_LABELS = {"PROJECT": "projects", "OUTPUT": "publications", "IP": "patents/IP",
+                "TECH_TRANSFER": "technology transfers", "STUDENT": "PhD students",
+                "COMMITTEE": "committees", "EQUIPMENT": "instruments"}
+
+
+def _staff_profile(params, client) -> Answer:
+    name = str(params.get("name") or "").strip()
+    if not name:
+        return Answer("No staff name supplied. (source: staff table)", "structured", [])
+    r, refusal = _one_person(client, name,
+                             "ID, Name, Designation, Division, CoreArea, Expertise, Email",
+                             "staff table")
+    if refusal:
+        return refusal
+    counts = _counts(_profile_facts(client, r.get("ID")), "section")
+    record = ", ".join(f"{counts[k]} {v}" for k, v in _FACT_LABELS.items() if counts.get(k))
     return Answer(f"{r.get('Name')} — {r.get('Designation') or '—'}, "
                   f"division {r.get('Division') or '—'}, "
                   f"core area {r.get('CoreArea') or '—'}, "
                   f"expertise {r.get('Expertise') or '—'}, "
-                  f"email {r.get('Email') or '—'}. (source: staff table)",
-                  "structured", [], data={"staff": r})
+                  f"email {r.get('Email') or '—'}"
+                  + (f". On record: {record}" if record else "")
+                  + ". (source: staff table, staff_profile_facts)",
+                  "structured", [], data={"staff": r, "record": counts})
 
 
 def _projects_for_staff(params, client) -> Answer:
@@ -357,40 +408,26 @@ def _projects_for_staff(params, client) -> Answer:
     if not name:
         return Answer("No staff name supplied. (source: staff, projects tables)",
                       "structured", [])
-    people = _match_staff(_rows(client, "staff", "ID, Name"), name)
-    if not people:
-        return Answer(f"No staff member matching '{name}'. (source: staff table)",
-                      "structured", [])
-    person = people[0]
-    full = str(person.get("Name") or "").strip().lower()
-    sid = str(person.get("ID") or "").strip().lower()
-    projects = _rows(client, "projects",
-                     "ProjectNo, ProjectName, ProjectStatus, PrincipalInvestigator")
-    team_nos = {str(r.get("ProjectNo"))
-                for r in _rows(client, "project_staff", "ProjectNo, StaffName")
-                if str(r.get("StaffName") or "").strip().lower() == full}
-    led, member = [], []
-    for p in projects:
-        pi = str(p.get("PrincipalInvestigator") or "").strip().lower()
-        if pi and pi in (full, sid):
-            led.append(p)
-        elif str(p.get("ProjectNo")) in team_nos:
-            member.append(p)
+    person, refusal = _one_person(client, name, "ID, Name, Designation, Division", "staff table")
+    if refusal:
+        return refusal
+    projects = [f for f in _profile_facts(client, person.get("ID")) if f.get("section") == "PROJECT"]
+    row = lambda f: {"ProjectID": f.get("record_id"), "ProjectName": f.get("title"), "role": f.get("role")}
+    led = [row(f) for f in projects if f.get("role") == "PI"]
+    member = [row(f) for f in projects if f.get("role") != "PI"]
     data = {"staff_name": person.get("Name"), "leads": led[:10], "member_of": member[:10]}
-    if not led and not member:
+    if not projects:
         return Answer(f"{person.get('Name')} has no recorded projects. "
-                      "(source: projects, project_staff tables)", "structured", [],
-                      data=data)
-    fmt = lambda p: (f"{p.get('ProjectNo')} {p.get('ProjectName') or ''} "
-                     f"[{p.get('ProjectStatus') or '—'}]").strip()
+                      "(source: staff_profile_facts)", "structured", [], data=data)
+    fmt = lambda p: f"{p['ProjectID']} {p['ProjectName'] or ''}".strip()
     parts = []
     if led:
         parts.append(f"leads {len(led)}: " + "; ".join(fmt(p) for p in led[:10]))
     if member:
-        parts.append(f"team member on {len(member)}: " + "; ".join(fmt(p) for p in member[:10]))
+        parts.append(f"on {len(member)} more: " + "; ".join(
+            f"{fmt(p)} ({p['role']})" for p in member[:10]))
     return Answer(f"{person.get('Name')} — " + ". ".join(parts) +
-                  ". (source: projects, project_staff tables)", "structured", [],
-                  data=data)
+                  ". (source: staff_profile_facts)", "structured", [], data=data)
 
 
 def _division_summary(params, client) -> Answer:
@@ -463,6 +500,7 @@ ANALYTICS = {
     "mou_status_summary": _mou_status_summary,
     "tech_transfer_summary": _tech_transfer_summary,
     "expertise_search": _expertise_search,
+    "metric": _metric,
     "project_budget_variance": _project_budget_variance,
     "expertise_succession_risk": _expertise_succession_risk,
     "staff_profile": _staff_profile,
@@ -484,6 +522,7 @@ CATALOG = {
     "overdue_phd_milestones": "Count PhD scholar milestones past their due date and not completed, by milestone type.",
     "mou_status_summary": "MOU counts by status plus active MOUs expiring within 90 days.",
     "tech_transfer_summary": "Technology-transfer counts by status and total agreement value in lakhs.",
+    "metric": "One institute number from the metric registry (headcount, posts, active projects, sanctioned value, utilisation, overdue reports and reviews, publications, patents, PhD students); param 'key' (omit to list metrics), optional 'division', 'year', 'stage'. Same number as the dashboard.",
     "expertise_search": "Find in-house staff with expertise in a topic; required param 'topic' (free text). Answers 'who has worked on X'.",
     "project_budget_variance": "Flag active projects whose spend deviates from expected burn or nears exhaustion/overrun; optional param 'threshold_pp'.",
     "expertise_succession_risk": "List staff retiring within N years whose expertise no colleague covers; optional param 'years'.",

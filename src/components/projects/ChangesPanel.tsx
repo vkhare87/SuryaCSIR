@@ -13,6 +13,8 @@ import {
   recordChangeStep, saveChange, submitChange, uploadProjectDocument, withdrawChange, type ChangeDecision,
 } from '../../lib/projects/projectFileApi';
 import { friendlyError } from '../../lib/errors';
+import { useRules } from '../../contexts/RulesContext';
+import { RULE, ruleNumber } from '../../lib/rules/csirRules';
 import type { ProjectInfo } from '../../types';
 import type {
   ChangeKind, ChangeLine, ChangePayload, ChangeRequest, ChangeStepKind, ProjectFile, ReappropriationMove, RephaseMove,
@@ -105,7 +107,9 @@ function ChangeEditor({ project, cells, existing, onClose, onChanged }: {
     [kind, payload, project.track, endDate, cells],
   );
   const pct = kind === 'RCE' ? rceIncreasePct(payload.lines ?? [], cells) : null;
-  const route = kind ? changeRoute(project.track, kind, pct) : [];
+  const { rules } = useRules();
+  const rceLimit = useMemo(() => ruleNumber(rules, RULE.costOverrunDgLimitPct), [rules]);
+  const route = kind ? changeRoute(project.track, kind, pct, rceLimit) : [];
 
   function choose(k: ChangeKind) {
     setKind(k);

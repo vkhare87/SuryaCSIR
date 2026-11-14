@@ -97,9 +97,9 @@ function classify(
 
 /**
  * Cross-check a scientist's self-appraisal sections against their institutional
- * records. `scientistName` scopes records to the appraisee (name-variant
- * tolerant, same basis as getStaffPortfolio) so an evaluator sees only this
- * person's corroboration, not the whole institute's.
+ * records. `own` = the appraisee's records by link (getStaffPortfolio); without
+ * it, `scientistName` scopes them (name-variant tolerant) so an evaluator sees
+ * only this person's corroboration, not the whole institute's.
  */
 export function matchClaims(params: {
   sections: PMSReportSection[];
@@ -107,18 +107,19 @@ export function matchClaims(params: {
   scientificOutputs: ScientificOutput[];
   ipIntelligence: IPIntelligence[];
   projects: ProjectInfo[];
+  own?: { publications: ScientificOutput[]; ipAssets: IPIntelligence[]; projects: ProjectInfo[] };
 }): ClaimMatchSummary {
-  const { sections, scientistName, scientificOutputs, ipIntelligence, projects } = params;
+  const { sections, scientistName, scientificOutputs, ipIntelligence, projects, own } = params;
   const nameKey = normalizePersonName(scientistName);
   const byKey = new Map(sections.map(s => [s.sectionKey, s]));
   const claims: ClaimMatch[] = [];
 
   // Scope records to this scientist.
-  const ownPubs = scientificOutputs.filter(o =>
+  const ownPubs = own?.publications ?? scientificOutputs.filter(o =>
     o.authors.some(a => normalizePersonName(a) && personKeyMatch(nameKey, a)));
-  const ownIp = ipIntelligence.filter(i =>
+  const ownIp = own?.ipAssets ?? ipIntelligence.filter(i =>
     i.inventors.some(v => personKeyMatch(nameKey, v)));
-  const ownProjects = projects.filter(p => personKeyMatch(nameKey, p.PrincipalInvestigator));
+  const ownProjects = own?.projects ?? projects.filter(p => personKeyMatch(nameKey, p.PrincipalInvestigator));
 
   const pubHorizon = latestRecordYear(ownPubs.map(o => o.year));
   const ipHorizon = latestRecordYear(ownIp.map(i => parseYear(i.filingDate)));

@@ -15,13 +15,13 @@ export interface ColumnSpec {
 
 export type SectionSpec =
   | { kind: 'fields';  title: string; hint?: string; fields: FieldSpec[] }
-  | { kind: 'prompts'; title: string; hint?: string; prompts: FieldSpec[] }
+  | { kind: 'prompts'; title: string; hint?: string; prompts: FieldSpec[]; totalMaxWords?: number }
   | { kind: 'table';   title: string; hint?: string; columns: ColumnSpec[] }
   | { kind: 'text';    title: string; hint?: string; maxWords: number };
 
 // --- 1. Shared Appendix-A / Appendix-B table shapes ---
 
-const EDUCATION_COLUMNS: ColumnSpec[] = [
+export const EDUCATION_COLUMNS: ColumnSpec[] = [
   { key: 'qualification',   label: 'Qualification' },
   { key: 'specialization',  label: 'Specialization / Subject(s)' },
   { key: 'year',            label: 'Year' },
@@ -29,7 +29,7 @@ const EDUCATION_COLUMNS: ColumnSpec[] = [
   { key: 'additionalInfo',  label: 'Additional Information' },
 ];
 
-const EMPLOYMENT_COLUMNS: ColumnSpec[] = [
+export const EMPLOYMENT_COLUMNS: ColumnSpec[] = [
   { key: 'gradePost',     label: 'Grade / Post' },
   { key: 'establishment', label: 'Estt. / Lab / Instt.' },
   { key: 'from',          label: 'Duration From' },
@@ -37,12 +37,12 @@ const EMPLOYMENT_COLUMNS: ColumnSpec[] = [
   { key: 'remarks',       label: 'Remarks' },
 ];
 
-const LEAVE_COLUMNS: ColumnSpec[] = [
+export const LEAVE_COLUMNS: ColumnSpec[] = [
   { key: 'leaveType', label: 'Type of leave' },
   { key: 'days',      label: 'No. of days' },
 ];
 
-const JOURNAL_COLUMNS: ColumnSpec[] = [
+export const JOURNAL_COLUMNS: ColumnSpec[] = [
   { key: 'authors',       label: 'Authors' },
   { key: 'title',         label: 'Title of the Article' },
   { key: 'year',          label: 'Year of Publication' },
@@ -52,7 +52,7 @@ const JOURNAL_COLUMNS: ColumnSpec[] = [
   { key: 'doi',           label: 'DOI' },
 ];
 
-const CONFERENCE_COLUMNS: ColumnSpec[] = [
+export const CONFERENCE_COLUMNS: ColumnSpec[] = [
   { key: 'authors',    label: 'Authors' },
   { key: 'title',      label: 'Title of the Article' },
   { key: 'date',       label: 'Date' },
@@ -72,7 +72,7 @@ const BOOK_COLUMNS: ColumnSpec[] = [
   { key: 'publisher',    label: 'Publisher' },
 ];
 
-const PATENT_COLUMNS: ColumnSpec[] = [
+export const PATENT_COLUMNS: ColumnSpec[] = [
   { key: 'title',          label: 'Title' },
   { key: 'country',        label: 'Country' },
   { key: 'filedOn',        label: 'Filed on (Date)' },

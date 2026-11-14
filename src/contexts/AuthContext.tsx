@@ -68,6 +68,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const mustChangePassword = profile?.must_change_password ?? false;
 
+    // The role queries above take time. If the user signed out (or another
+    // account signed in) meanwhile, this answer is for nobody: drop it, or the
+    // app shows a signed-in user with no session behind it.
+    const { data: { session: current } } = await supabase.auth.getSession();
+    if (current?.user.id !== authUser.id) return false;
+
     setUser({
       id: authUser.id,
       email: authUser.email ?? '',

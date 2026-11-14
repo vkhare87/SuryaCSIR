@@ -2,10 +2,11 @@ import type { ProjectInfo } from '../../types';
 import type { Proposal } from '../../types/proposal';
 import { projectStage } from './stage';
 import { needsLegacyCompletion } from './legacy';
-import type { ClosureItem, MyChangeStep, PortfolioRow } from '../../types/projectFile';
+import type { ClosureItem, ComplianceCounts, MyChangeStep, PortfolioRow } from '../../types/projectFile';
 
 export interface PmeDeskItem {
-  key: 'vetting' | 'unclassified' | 'sanction' | 'awaiting-funds' | 'milestones' | 'overdue' | 'minutes' | 'changes' | 'closure' | 'archive' | 'legacy' | 'no-stage' | 'no-track';
+  key: 'vetting' | 'unclassified' | 'sanction' | 'awaiting-funds' | 'milestones' | 'overdue' | 'minutes' | 'changes' | 'closure' | 'archive' | 'legacy' | 'no-stage' | 'no-track'
+    | 'declarations' | 'transfer-docs' | 'logbooks';
   label: string;
   detail: string;
   count: number;
@@ -18,6 +19,7 @@ export function pmeDeskItems(
   portfolio: Pick<PortfolioRow, 'overdue' | 'minutesOverdue'>[] = [],
   changeSteps: Pick<MyChangeStep, 'projectId'>[] = [],
   closureSteps: Pick<ClosureItem, 'projectId' | 'item'>[] = [],
+  compliance: ComplianceCounts | null = null,
 ): PmeDeskItem[] {
   const closing = closureSteps.filter(c => c.item === 'step');
   const items: PmeDeskItem[] = [
@@ -111,6 +113,27 @@ export function pmeDeskItems(
       detail: 'Neither ULIP nor HQ scheme recorded',
       count: projects.filter(p => !p.track).length,
       to: '/projects',
+    },
+    {
+      key: 'declarations',
+      label: 'Meetings with declarations missing',
+      detail: 'A member has not recorded Format 1 or 2 (§6.3). Flagged only — the decision is not blocked',
+      count: compliance?.declarationsMissing ?? 0,
+      to: '/committees',
+    },
+    {
+      key: 'transfer-docs',
+      label: 'Technology transfers without stage VI papers',
+      detail: 'Bill of materials, standard of preparation, supply chain and logistics (§4.2)',
+      count: compliance?.transfersMissingDocs ?? 0,
+      to: '/projects',
+    },
+    {
+      key: 'logbooks',
+      label: 'Major instruments with no logbook entry in 30 days',
+      detail: 'Project instruments above the major-equipment limit keep a usage log (§3.1)',
+      count: compliance?.logbooksIdle ?? 0,
+      to: '/facilities',
     },
   ];
   return items.filter(i => i.count > 0);

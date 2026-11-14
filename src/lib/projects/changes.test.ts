@@ -54,10 +54,12 @@ describe('changeProblems mirrors the database rules', () => {
 
 describe('changeRoute mirrors project_change_step_kinds()', () => {
   it('ULIP is decided in the institute', () => {
-    expect(changeRoute('ULIP', 'RCE', 50)).toEqual(['PME_VETTING', 'REVIEW_COMMITTEE', 'DIRECTOR_APPROVAL']);
+    expect(changeRoute('ULIP', 'RCE', 50, 20)).toEqual(['PME_VETTING', 'REVIEW_COMMITTEE', 'DIRECTOR_APPROVAL']);
   });
   it('an HQ RCE above 20% adds two committees', () => {
-    expect(changeRoute('HQ', 'RCE', 20)).toHaveLength(4);
-    expect(changeRoute('HQ', 'RCE', 20.01)).toContain('REVISED_COST_COMMITTEE');
+    expect(changeRoute('HQ', 'RCE', 20, 20)).toHaveLength(4);
+    expect(changeRoute('HQ', 'RCE', 20, 15)).toContain('REVISED_COST_COMMITTEE');
+    expect(changeRoute('HQ', 'RCE', 5, null)).toContain('REVISED_COST_COMMITTEE');
+    expect(changeRoute('HQ', 'RCE', 20.01, 20)).toContain('REVISED_COST_COMMITTEE');
   });
 });

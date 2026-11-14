@@ -110,6 +110,9 @@ describe('one full appraisal: draft → submit → assign → evaluate → final
       await rpc(tx, 'pms_submit_report', [r.id]);
       return r.id as string;
     });
+    // This suite walks the LEGACY path (one score per member, old finalize);
+    // the 2026 path is scripts/db/pmsAssessment.db.test.ts.
+    await db.query(`UPDATE pms_reports SET proforma_version = 'LEGACY' WHERE id = $1`, [reportId]);
     expect(await status()).toBe('SUBMITTED');
   });
 

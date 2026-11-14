@@ -20,6 +20,7 @@ vi.mock('../lib/ask/client', () => ({
   askSuryaStream: vi.fn(async () => ANSWER),
   sendFeedback: vi.fn(),
   scheduleBrief: vi.fn(async () => undefined),
+  parseAskEntity: () => null,
 }));
 
 vi.mock('../contexts/AuthContext', () => ({

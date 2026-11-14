@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Finalize2026, Report2026Summary } from '../../components/pms/Assessment2026Forms';
 import { Navigate } from 'react-router-dom';
 import { usePMS } from '../../contexts/PMSContext';
 import { ReportAWPSection } from '../../components/pms/ReportAWPSection';
@@ -213,7 +214,12 @@ export default function CommitteeQueue() {
         <div className="space-y-4 p-4">
           <p className="text-sm font-medium text-text-muted">{selectedReport?.cycle?.name}</p>
 
-          {loadingReview ? (
+          {selectedReport?.proformaVersion === '2026' ? (
+            <div className="space-y-4">
+              <Report2026Summary report={selectedReport} />
+              <Finalize2026 report={selectedReport} onDone={() => setSelectedReportId(null)} />
+            </div>
+          ) : loadingReview ? (
             <Skeleton className="h-24 w-full" />
           ) : (
             <>

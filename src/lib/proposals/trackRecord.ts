@@ -24,11 +24,12 @@ function isExtended(extension: string): boolean {
   return !NO_EXTENSION.has(extension.trim().toLowerCase());
 }
 
-/** Past projects of a PI (name-variant tolerant) with budget/timeline facts. */
-export function piTrackRecord(projects: ProjectInfo[], piName: string): PiTrackRecord | null {
-  if (!piName.trim()) return null;
+/** Past projects of a PI with budget/timeline facts. `linked` = the projects
+ * are already the PI's own (by link), so the name is not matched. */
+export function piTrackRecord(projects: ProjectInfo[], piName: string, linked = false): PiTrackRecord | null {
+  if (!linked && !piName.trim()) return null;
   const rows: TrackRecordRow[] = projects
-    .filter(p => personNamesMatch(p.PrincipalInvestigator, piName))
+    .filter(p => linked || personNamesMatch(p.PrincipalInvestigator, piName))
     .map(p => {
       const sanctioned = parseCost(p.SanctionedCost);
       const utilized = parseCost(p.UtilizedAmount);

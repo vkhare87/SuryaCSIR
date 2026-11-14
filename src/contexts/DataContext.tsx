@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef, type ReactNode } from 'react';
 import type {
   DivisionInfo,
   StaffMember,
@@ -32,6 +32,7 @@ import type {
   ImportEvent,
   ContributionRequest,
   DataSteward,
+  IdentityLinkGap,
 } from '../types';
 import { supabase, isProvisioned } from '../utils/supabaseClient';
 import {
@@ -142,6 +143,12 @@ interface DataContextType {
   isBackendProvisioned: boolean;
   refreshData: () => Promise<void>;
   saveEquipment: (payload: Record<string, unknown>) => Promise<void>;
+  /** Names a person must link to a staff record (admins, Director). */
+  identityLinkGaps: () => Promise<IdentityLinkGap[]>;
+  /** Link (or, with null, unlink) the name at a position of an output or IP record. */
+  setIdentityLink: (kind: 'OUTPUT' | 'IP', recordId: string, pos: number, staffId: string | null) => Promise<void>;
+  /** Re-run the automatic one-match linking; returns the number of names linked. */
+  runIdentityAutolink: () => Promise<number>;
   error: string | null;
 }
 
@@ -230,7 +237,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setDataStewards([]);
   }, []);
 
+  // Only the newest load may write state. A role switch, a division change or
+  // a sign-out during a load starts a new one; the older answer (rows scoped
+  // for the previous role or user) must not land after it.
+  const loadSeq = useRef(0);
+
   const loadData = useCallback(async () => {
+    const seq = ++loadSeq.current;
     setIsLoading(true);
     setError(null);
     try {
@@ -251,7 +264,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         divRes, staffRes, projRes, psRes, phdRes, equipRes, labsRes, soRes, ipRes, csRes,
         vaRes, vpRes, vappRes,
         cmtRes, cmmRes, mtgRes, agiRes, actRes, mdcRes, tktRes, trsRes, tevRes, hrtRes,
-        ceRes, holRes, mouRes, ttRes, phmRes, ieRes, crRes, dsRes,
+        ceRes, holRes, mouRes, ttRes, phmRes, ieRes, crRes, dsRes, strengthRes,
       ] = await Promise.all([
         // Every read is paged (fetchAll) — an unbounded select is capped at
         // db-max-rows silently, with no error and no flag, so the aggregates
@@ -292,7 +305,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
         loadDataOps ? fetchAll(supabase.from('import_events').select('*').order('uploaded_at', { ascending: false }).order('id')) : skipped,
         fetchAll(supabase.from('contribution_requests').select('*').order('created_at', { ascending: false }).order('id')),
         fetchAll(supabase.from('data_stewards').select('*').order('id')),
+        // Strength comes from the post register (division_strength, 20261113000001),
+        // never the two integers kept on divisions: every page reads these fields.
+        supabase.from('division_strength').select('division_code, sanctioned, filled'),
       ]);
+      if (seq !== loadSeq.current) return;
 
       // Surface per-table errors — Promise.all hides them as empty data
       const tableErrors: { table: string; message: string }[] = [];
@@ -342,7 +359,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const rawProjects = projRes.data ? projRes.data.map(mapProjectRow) : [];
       const rawEquipment = equipRes.data ? equipRes.data.map(mapEquipmentRow) : [];
 
-      setDivisions(divRes.data ? divRes.data.map(mapDivisionRow) : []);
+      const strength = new Map(((strengthRes.data ?? []) as { division_code: string; sanctioned: number; filled: number }[]).map(r => [r.division_code, r]));
+      setDivisions(divRes.data ? divRes.data.map(mapDivisionRow).map(d => ({
+        ...d,
+        divSanctionedstrength: strength.get(d.divCode)?.sanctioned ?? 0,
+        divCurrentStrength: strength.get(d.divCode)?.filled ?? 0,
+      })) : []);
       setStaff(scopeData(rawStaff, role, divisionCode));
       setProjects(scopeProjects(rawProjects, role, divisionCode));
       setProjectStaff(psRes.data ? psRes.data.map(mapProjectStaffRow) : []);
@@ -373,13 +395,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setContributionRequests(crRes.data ? crRes.data.map(mapContributionRow) : []);
       setDataStewards(dsRes.data ? dsRes.data.map(mapStewardRow) : []);
     } catch (err) {
+      if (seq !== loadSeq.current) return;
       const message = friendlyError(err, 'Failed to load data');
       setError(message);
       logger.error('data_load_failed', err, { role, divisionCode });
       pushToast(`Data load failed: ${message}`, 'error');
       resetAll();
     } finally {
-      setIsLoading(false);
+      if (seq === loadSeq.current) setIsLoading(false);
     }
   }, [provisioned, isAuthenticated, role, divisionCode, loadRecruitment, loadDataOps, loadContracts, pushToast, resetAll]);
 
@@ -441,6 +464,31 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setEquipment(prev => [saved, ...prev.filter(e => e.UInsID !== saved.UInsID)]);
   }, []);
 
+  const identityLinkGaps = useCallback(async (): Promise<IdentityLinkGap[]> => {
+    if (!supabase) return [];
+    const { data, error: err } = await supabase.rpc('identity_link_gaps');
+    if (err) throw err;
+    return ((data ?? []) as Record<string, unknown>[]).map(r => ({
+      kind: String(r.kind), recordId: String(r.record_id), name: String(r.name ?? ''),
+      candidates: Number(r.candidates ?? 0), pos: r.pos == null ? null : Number(r.pos),
+    }));
+  }, []);
+
+  const setIdentityLink = useCallback(async (kind: 'OUTPUT' | 'IP', recordId: string, pos: number, staffId: string | null) => {
+    if (!supabase) throw new Error('Supabase not configured');
+    const { error: err } = await supabase.rpc('identity_set_link', {
+      p_kind: kind, p_record_id: recordId, p_position: pos, p_staff_id: staffId,
+    });
+    if (err) throw err;
+  }, []);
+
+  const runIdentityAutolink = useCallback(async () => {
+    if (!supabase) return 0;
+    const { data, error: err } = await supabase.rpc('identity_link_authors');
+    if (err) throw err;
+    return Number(data ?? 0);
+  }, []);
+
   const value = useMemo(() => ({
     divisions, staff, projects, projectStaff, phDStudents, phdMilestones, contractStaff,
     scientificOutputs, ipIntelligence, mous, techTransfers, equipment, labs, vacancyAdvertisements,
@@ -451,6 +499,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     isBackendProvisioned: provisioned,
     refreshData: loadData,
     saveEquipment,
+    identityLinkGaps, setIdentityLink, runIdentityAutolink,
     error,
   }), [
     divisions, staff, projects, projectStaff, phDStudents, phdMilestones, contractStaff,
@@ -458,7 +507,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
     vacancyApplications, committees, committeeMembers, meetings, agendaItems, actionItems,
     meetingDocs, tickets, ticketResponses, ticketEvents, helpdeskRouting, calendarEvents, holidays,
     importEvents, contributionRequests, dataStewards, refreshContributions, refreshCalendar,
-    refreshHolidays, isLoading, provisioned, loadData, saveEquipment, error,
+    refreshHolidays, isLoading, provisioned, loadData, saveEquipment,
+    identityLinkGaps, setIdentityLink, runIdentityAutolink, error,
   ]);
 
   return (

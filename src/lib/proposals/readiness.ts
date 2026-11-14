@@ -1,5 +1,4 @@
 import type { Proposal, ProposalBudgetLine, ProposalSection } from '../../types/proposal';
-import { EQUIPMENT_QUOTATION_THRESHOLD } from '../projects/heads';
 
 export type SectionKey = ProposalSection;
 
@@ -29,6 +28,8 @@ export interface ReadinessContext {
   hasSignedScan: boolean;
   hasQuotation: boolean;
   lines: Pick<ProposalBudgetLine, 'head' | 'amount'>[];
+  /** csir_rule('project.major_equipment_threshold_inr'); null = not loaded, the server still checks. */
+  equipmentThreshold?: number | null;
 }
 
 const NO_CONTEXT: ReadinessContext = { hasSignedScan: false, hasQuotation: false, lines: [] };
@@ -60,8 +61,9 @@ const FIELD_RULES: (ReadinessItem & { missing: (p: Draft) => boolean })[] = [
 
 const CONTEXT_RULES: (ReadinessItem & { missing: (p: Draft, c: ReadinessContext) => boolean })[] = [
   {
-    column: 'equipment_quotation', section: 'documents', action: 'Attach a quotation for equipment of ₹5 lakh or more',
-    missing: (_p, c) => !c.hasQuotation && c.lines.some(l => l.head === 'EQUIPMENT' && l.amount >= EQUIPMENT_QUOTATION_THRESHOLD),
+    column: 'equipment_quotation', section: 'documents', action: 'Attach a quotation for major equipment',
+    missing: (_p, c) => !c.hasQuotation && c.equipmentThreshold != null
+      && c.lines.some(l => l.head === 'EQUIPMENT' && l.amount >= c.equipmentThreshold!),
   },
   {
     column: 'works_not_allowed', section: 'budget', action: 'Works & Services is allowed only in MMP and FCP projects',
