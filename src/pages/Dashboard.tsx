@@ -1,34 +1,50 @@
+import { lazy, Suspense, type ReactNode } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { DirectorView }       from './dashboards/DirectorView';
-import { DivisionHeadView }   from './dashboards/DivisionHeadView';
-import { HoDView }            from './dashboards/HoDView';
-import { ScientistView }      from './dashboards/ScientistView';
-import { TechnicianView }     from './dashboards/TechnicianView';
-import { HRAdminView }        from './dashboards/HRAdminView';
-import { FinanceAdminView }   from './dashboards/FinanceAdminView';
-import { SystemAdminView }    from './dashboards/SystemAdminView';
-import { MasterAdminView }    from './dashboards/MasterAdminView';
-import { StudentView }        from './dashboards/StudentView';
-import { ProjectStaffView }   from './dashboards/ProjectStaffView';
-import { GuestView }          from './dashboards/GuestView';
-import { PendingAccessView }  from './dashboards/PendingAccessView';
-import { EmpoweredCommitteeView } from './dashboards/EmpoweredCommitteeView';
-import { PMEView }            from './dashboards/PMEView';
 import { MyActions } from '../components/MyActions';
 import { DataHealthDigest } from '../components/DataHealthDigest';
 import { StartIdeaCard } from '../components/proposals/StartIdeaCard';
+import { KpiSkeleton, TableSkeleton } from '../components/ui/Skeleton';
+
+const DirectorView           = lazy(() => import('./dashboards/DirectorView').then(m => ({ default: m.DirectorView })));
+const DivisionHeadView       = lazy(() => import('./dashboards/DivisionHeadView').then(m => ({ default: m.DivisionHeadView })));
+const HoDView                = lazy(() => import('./dashboards/HoDView').then(m => ({ default: m.HoDView })));
+const ScientistView          = lazy(() => import('./dashboards/ScientistView').then(m => ({ default: m.ScientistView })));
+const TechnicianView         = lazy(() => import('./dashboards/TechnicianView').then(m => ({ default: m.TechnicianView })));
+const HRAdminView            = lazy(() => import('./dashboards/HRAdminView').then(m => ({ default: m.HRAdminView })));
+const FinanceAdminView       = lazy(() => import('./dashboards/FinanceAdminView').then(m => ({ default: m.FinanceAdminView })));
+const SystemAdminView        = lazy(() => import('./dashboards/SystemAdminView').then(m => ({ default: m.SystemAdminView })));
+const MasterAdminView        = lazy(() => import('./dashboards/MasterAdminView').then(m => ({ default: m.MasterAdminView })));
+const StudentView            = lazy(() => import('./dashboards/StudentView').then(m => ({ default: m.StudentView })));
+const ProjectStaffView       = lazy(() => import('./dashboards/ProjectStaffView').then(m => ({ default: m.ProjectStaffView })));
+const GuestView              = lazy(() => import('./dashboards/GuestView').then(m => ({ default: m.GuestView })));
+const PendingAccessView      = lazy(() => import('./dashboards/PendingAccessView').then(m => ({ default: m.PendingAccessView })));
+const EmpoweredCommitteeView = lazy(() => import('./dashboards/EmpoweredCommitteeView').then(m => ({ default: m.EmpoweredCommitteeView })));
+const PMEView                = lazy(() => import('./dashboards/PMEView').then(m => ({ default: m.PMEView })));
+
+function ViewFallback() {
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[0, 1, 2, 3].map(i => <KpiSkeleton key={i} />)}
+      </div>
+      <TableSkeleton />
+    </div>
+  );
+}
 
 export default function Dashboard() {
   const { activeRole } = useAuth();
 
   // Unified pending-actions inbox above every working-role dashboard.
-  const withActions = (view: React.ReactNode) => (
+  const withActions = (view: ReactNode) => (
     <div className="space-y-6">
       <MyActions />
       {/* Renders nothing for roles that cannot author a proposal. */}
       <StartIdeaCard />
       <DataHealthDigest />
-      {view}
+      <Suspense fallback={<ViewFallback />}>
+        {view}
+      </Suspense>
     </div>
   );
 
@@ -44,8 +60,8 @@ export default function Dashboard() {
     case 'MasterAdmin':  return withActions(<MasterAdminView />);
     case 'Student':      return withActions(<StudentView />);
     case 'ProjectStaff': return withActions(<ProjectStaffView />);
-    case 'Guest':        return <GuestView />;
-    case 'DefaultUser':         return <PendingAccessView />;
+    case 'Guest':        return <Suspense fallback={<ViewFallback />}><GuestView /></Suspense>;
+    case 'DefaultUser':         return <Suspense fallback={<ViewFallback />}><PendingAccessView /></Suspense>;
     case 'EmpoweredCommittee':  return withActions(<EmpoweredCommitteeView />);
     case 'PME':                 return withActions(<PMEView />);
     default:

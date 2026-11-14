@@ -88,16 +88,17 @@ export function SystemAdminView() {
     setLoadingRoles(true);
     supabase.rpc('admin_list_users').then(({ data, error }) => {
       if (!error && data) {
-        const rows = (data as { user_id: string; roles: string[] | null; division_code: string | null }[])
-          .flatMap(u => (u.roles ?? []).map(role => ({
-            user_id: u.user_id, role, division_code: u.division_code, last_seen_at: null,
-          })));
+        const list = data as {
+          user_id: string; roles: string[] | null; division_code: string | null;
+          must_change_password?: boolean | null; last_seen_at?: string | null;
+        }[];
+        setPasswordResets(list.filter(u => u.must_change_password).length);
+        const rows = list.flatMap(u => (u.roles ?? []).map(role => ({
+          user_id: u.user_id, role, division_code: u.division_code, last_seen_at: u.last_seen_at ?? null,
+        })));
         setUserRoles(rows);
       }
       setLoadingRoles(false);
-    });
-    supabase.from('user_profiles').select('must_change_password').then(({ data }) => {
-      if (data) setPasswordResets(data.filter(p => p.must_change_password).length);
     });
   }, [provisioned]);
 

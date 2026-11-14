@@ -70,7 +70,7 @@ export default function MeetingDetail() {
   const { id, meetId } = useParams<{ id: string; meetId: string }>();
   const navigate = useNavigate();
   const goBack = useBack(`/committees/${id}`);
-  const { committees, committeeMembers, meetings, agendaItems, actionItems, meetingDocs, staff, isLoading, refreshData } = useData();
+  const { committees, committeeMembers, meetings, agendaItems, actionItems, meetingDocs, staff, isLoading, refreshSlice } = useData();
   const { user } = useAuth();
   const [showActionModal, setShowActionModal] = useState(false);
 
@@ -159,7 +159,7 @@ export default function MeetingDetail() {
           completed_at: newStatus === 'Completed' ? new Date().toISOString() : null,
         })
         .eq('id', item.id);
-      await refreshData();
+      await refreshSlice('committees');
     } catch (err) {
       console.error('Failed to cycle action item status', err);
     }
@@ -263,11 +263,18 @@ export default function MeetingDetail() {
         <AgendaEditor
           items={meetingAgendaItems}
           onSave={async (items) => {
-            for (const item of items) {
-              await supabase!.from('agenda_items')
-                .upsert({ id: item.id, meeting_id: meetId, sequence: item.sequence, description: item.description, proposed_by: item.proposed_by, status: item.status });
+            if (items.length > 0) {
+              const payload = items.map((item) => ({
+                id: item.id,
+                meeting_id: meetId,
+                sequence: item.sequence,
+                description: item.description,
+                proposed_by: item.proposed_by,
+                status: item.status,
+              }));
+              await supabase!.from('agenda_items').upsert(payload, { onConflict: 'id' });
             }
-            await refreshData();
+            await refreshSlice('committees');
           }}
           canEdit={canAgendaEdit}
         />
@@ -280,7 +287,7 @@ export default function MeetingDetail() {
             meeting={meeting}
             committee={committee}
             user={user}
-            onUpdate={refreshData}
+            onUpdate={() => refreshSlice('committees')}
           />
         </Card>
       ) : (

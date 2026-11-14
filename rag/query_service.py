@@ -2,6 +2,7 @@
 module so the logic stays testable on hosts where fastapi/pydantic native wheels are
 blocked (dev laptop WDAC)."""
 
+from concurrent.futures import ThreadPoolExecutor
 import dataclasses
 import os
 import subprocess
@@ -56,7 +57,8 @@ def read_docs(client, entity_types=None):
             q = (client.table("doc_indexes")
                  .select("document_id, tree, documents!inner(id, title, storage_path, entity_type)")
                  .in_("documents.entity_type", entity_types))
-        rows = (q.range(page * _PAGE_SIZE, (page + 1) * _PAGE_SIZE - 1)
+        rows = (q.order("document_id")
+                .range(page * _PAGE_SIZE, (page + 1) * _PAGE_SIZE - 1)
                 .execute().data) or []
         for r in rows:
             doc = r.get("documents") or {}
@@ -152,19 +154,53 @@ def read_route_labels(client, k=ROUTE_FEWSHOT_K):
     return rows
 
 
+_DOC_PAGE_BATCH = 500
+
+
 def make_fetch_texts(client):
     """fetch_texts(spans) over doc_pages, RLS-scoped — same read gate as the tree."""
-    def fetch_texts(spans):
-        out = []
-        for doc_id, page_start, page_end in spans:
-            try:
+    def _fetch_doc_pages(doc_id, pages):
+        try:
+            sorted_pages = sorted(pages)
+            out: dict[int, str] = {}
+            for i in range(0, len(sorted_pages), _DOC_PAGE_BATCH):
+                chunk = sorted_pages[i:i + _DOC_PAGE_BATCH]
                 rows = (client.table("doc_pages").select("page, text")
                         .eq("document_id", doc_id)
-                        .gte("page", page_start).lte("page", page_end)
+                        .in_("page", chunk)
                         .order("page").execute().data) or []
-            except Exception:
-                rows = []
-            out.append("\n".join(r.get("text", "") for r in rows))
+                for r in rows:
+                    if "page" in r:
+                        out[r["page"]] = r.get("text", "")
+            return out
+        except Exception:
+            return {}
+
+    def fetch_texts(spans):
+        if not spans:
+            return []
+        by_doc: dict[str, set[int]] = {}
+        for doc_id, page_start, page_end in spans:
+            if page_end >= page_start:
+                by_doc.setdefault(doc_id, set()).update(range(page_start, page_end + 1))
+
+        pages_by_doc: dict[str, dict[int, str]] = {}
+        if len(by_doc) == 1:
+            doc_id, pages = next(iter(by_doc.items()))
+            pages_by_doc[doc_id] = _fetch_doc_pages(doc_id, pages)
+        elif len(by_doc) > 1:
+            with ThreadPoolExecutor(max_workers=min(4, len(by_doc))) as pool:
+                futures = {pool.submit(_fetch_doc_pages, doc_id, pages): doc_id
+                           for doc_id, pages in by_doc.items()}
+                for fut, doc_id in futures.items():
+                    pages_by_doc[doc_id] = fut.result()
+
+        out = []
+        for doc_id, page_start, page_end in spans:
+            doc_pages = pages_by_doc.get(doc_id, {})
+            out.append("\n".join(
+                doc_pages[p] for p in range(page_start, page_end + 1) if p in doc_pages
+            ))
         return out
     return fetch_texts
 

@@ -90,6 +90,7 @@ export const mapProjectStaffRow = (row: any): ProjectStaff => ({
   DateOfProjectDuration: row.DateOfProjectDuration || row.date_of_project_duration || '',
   PIName: row.PIName || row.pi_name || '',
   DivisionCode: row.DivisionCode || row.division_code || '',
+  projectId: row.project_id ?? null,
 });
 
 export const mapPhDStudentRow = (row: any): PhDStudent => ({
@@ -103,6 +104,7 @@ export const mapPhDStudentRow = (row: any): PhDStudent => ({
   ThesisTitle: row.ThesisTitle || row.thesis_title || '',
   ProjectNo: row.ProjectNo || row.project_no || '',
   DivisionCode: row.DivisionCode || row.division_code || '',
+  projectId: row.project_id ?? null,
 });
 
 export const mapEquipmentRow = (row: any): Equipment => ({

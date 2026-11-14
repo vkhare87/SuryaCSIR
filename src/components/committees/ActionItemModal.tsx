@@ -13,7 +13,7 @@ interface ActionItemModalProps {
 }
 
 export function ActionItemModal({ isOpen, onClose, meetingId }: ActionItemModalProps) {
-  const { staff, committees: dataCommittees, refreshData } = useData();
+  const { staff, committees: dataCommittees, refreshSlice } = useData();
 
   const isStandalone = !meetingId;
 
@@ -76,7 +76,7 @@ export function ActionItemModal({ isOpen, onClose, meetingId }: ActionItemModalP
 
       if (error) throw error;
 
-      await refreshData?.();
+      await refreshSlice?.('committees');
       onClose();
     } catch (err) {
       setSubmitError(friendlyError(err, 'Failed to create action item'));

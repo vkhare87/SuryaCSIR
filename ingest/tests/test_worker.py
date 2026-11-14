@@ -129,6 +129,19 @@ def test_message_is_not_acked_when_landing_fails(monkeypatch):
     assert box.seen == []
 
 
+def test_message_is_not_acked_when_upload_returns_false(monkeypatch):
+    """Returning False from db.upload must classify as FAILED, not DUPLICATE."""
+    db = FakeDB()
+    db.sender_map = {"hod@ampri.res.in": "CMPD"}
+    monkeypatch.setattr(db, "upload", lambda *a, **kw: False)
+    box = install_mailbox(monkeypatch, (b"1", "hod@ampri.res.in", [("scan.pdf", b"%PDF-1.4 f2")]))
+
+    assert worker._land(db, "mail", "hod@ampri.res.in", "CMPD", "scan.pdf", b"%PDF-1.4 f2") == worker._Outcome.FAILED
+    assert worker.run_once(FakeConfig(), db) == 0
+    assert db.documents == {}
+    assert box.seen == []
+
+
 def test_partial_failure_leaves_whole_message_unread(monkeypatch):
     """One attachment lands, another fails: the message stays unread so the
     next poll retries. Dedupe stops the landed one being duplicated."""

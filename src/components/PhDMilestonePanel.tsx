@@ -15,7 +15,7 @@ interface PhDMilestonePanelProps {
 
 /** Per-scholar milestone timeline: Joining → Degree Awarded. Admin edits dates inline. */
 export function PhDMilestonePanel({ student, canEdit, onClose }: PhDMilestonePanelProps) {
-  const { phdMilestones, refreshData } = useData();
+  const { phdMilestones, refreshSlice } = useData();
   const [saving, setSaving] = useState<PhDMilestoneName | null>(null);
   const [error, setError] = useState('');
   const [drafts, setDrafts] = useState<Record<string, { dueDate: string; completedDate: string }>>({});
@@ -48,7 +48,7 @@ export function PhDMilestonePanel({ student, canEdit, onClose }: PhDMilestonePan
     });
     setSaving(null);
     if (!res.ok) { setError(res.error); return; }
-    await refreshData();
+    await refreshSlice('phd');
   }
 
   const inputCls = 'rounded-md border border-border bg-surface px-2 py-1 text-xs text-text';

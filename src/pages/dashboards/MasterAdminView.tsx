@@ -98,27 +98,18 @@ export function MasterAdminView() {
     }
     setLoading(true);
     try {
-      const [rosterRes, profileRes] = await Promise.all([
-        supabase.rpc('admin_list_users'),
-        supabase.from('user_profiles').select('user_id, must_change_password, last_seen_at'),
-      ]);
-      if (rosterRes.error) throw rosterRes.error;
-      if (profileRes.error) throw profileRes.error;
-      const rosters = rosterRes.data;
-      const profiles = profileRes.data;
+      const { data: rosters, error: rosterError } = await supabase.rpc('admin_list_users');
+      if (rosterError) throw rosterError;
       if (!rosters) return;
-      const profileByUser = new Map(
-        ((profiles as { user_id: string; must_change_password: boolean; last_seen_at: string | null }[]) ?? [])
-          .map(p => [p.user_id, p]),
-      );
       setUsers((rosters as {
         user_id: string; email: string | null; active_role: string | null;
         roles: string[] | null; division_code: string | null;
+        must_change_password?: boolean | null; last_seen_at?: string | null;
       }[]).map(r => ({
         user_id: r.user_id,
         email: r.email,
-        must_change_password: profileByUser.get(r.user_id)?.must_change_password ?? false,
-        last_seen_at: profileByUser.get(r.user_id)?.last_seen_at ?? null,
+        must_change_password: r.must_change_password ?? false,
+        last_seen_at: r.last_seen_at ?? null,
         roles: r.roles ?? [],
         active_role: r.active_role,
         division_code: r.division_code,

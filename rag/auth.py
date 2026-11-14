@@ -6,15 +6,32 @@ import base64
 import hashlib
 import hmac
 import json
+import threading
 import time
 import uuid
 
 from supabase import create_client
 
+_AUTH_CLIENTS: dict[tuple[str, str], object] = {}
+_AUTH_LOCK = threading.Lock()
+
+
+def _shared_auth_client(anon_url: str, anon_key: str):
+    """Reuse a single anon Supabase client per (url, key) for stateless JWT
+    verification (`auth.get_user(jwt)`), avoiding a new httpx connection pool on
+    every incoming request."""
+    key = (anon_url, anon_key)
+    with _AUTH_LOCK:
+        client = _AUTH_CLIENTS.get(key)
+        if client is None:
+            client = create_client(anon_url, anon_key)
+            _AUTH_CLIENTS[key] = client
+        return client
+
 
 def verify_token(jwt: str, anon_url: str, anon_key: str):
     """Return the authenticated user for a JWT, or raise PermissionError."""
-    client = create_client(anon_url, anon_key)
+    client = _shared_auth_client(anon_url, anon_key)
     try:
         resp = client.auth.get_user(jwt)
     except Exception as e:
@@ -54,3 +71,13 @@ def scoped_client(anon_url: str, anon_key: str, jwt: str):
     client = create_client(anon_url, anon_key)
     client.postgrest.auth(jwt)
     return client
+
+
+def close_scoped_client(client) -> None:
+    """Best-effort close of the underlying httpx session on a per-request scoped client."""
+    try:
+        session = getattr(getattr(client, "postgrest", None), "session", None)
+        if session is not None and hasattr(session, "close"):
+            session.close()
+    except Exception:
+        pass

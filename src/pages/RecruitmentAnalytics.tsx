@@ -12,7 +12,7 @@ import type { VacancyApplication } from '../types';
 const FUNNEL_ORDER: VacancyApplication['status'][] = ['Received', 'Shortlisted', 'Interviewed', 'Selected', 'Rejected'];
 
 export default function RecruitmentAnalytics() {
-  const { vacancyAdvertisements, vacancyApplications, refreshData } = useData();
+  const { vacancyAdvertisements, vacancyApplications, refreshSlice } = useData();
   const { hasPermission } = useAuth();
   const canManageDrives = hasPermission(['HRAdmin', 'SystemAdmin', 'MasterAdmin']);
   const [stageError, setStageError] = useState('');
@@ -37,7 +37,7 @@ export default function RecruitmentAnalytics() {
     setStageError('');
     const res = await setDriveStage(id, stage);
     if (!res.ok) { setStageError(res.error); return; }
-    await refreshData();
+    await refreshSlice('recruitment');
   }
   const { filter, toggleFilter } = useChartFilter();
 

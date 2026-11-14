@@ -51,12 +51,9 @@ class SupabaseDB:
         # upsert: path embeds the content hash, so a re-upload is byte-identical.
         # Without it, a file whose DB insert failed after a successful upload
         # would 409 here forever and never land.
-        try:
-            self.c.storage.from_("documents").upload(
-                path, content, {"content-type": mime_type, "upsert": "true"})
-            return True
-        except Exception:
-            return False
+        self.c.storage.from_("documents").upload(
+            path, content, {"content-type": mime_type, "upsert": "true"})
+        return True
 
     def insert_harvested_import(self, **kw):
         rows = self.c.table("harvested_imports").insert({

@@ -25,6 +25,33 @@ export function countByStatus(rows: { ingest_status: IngestStatus }[]): StatusCo
   return counts;
 }
 
+export interface MonitorSummary {
+  counts: StatusCounts;
+  traceability: { share: number; cited: number; total: number } | null;
+}
+
+export async function fetchMonitorSummary(): Promise<MonitorSummary | null> {
+  if (!supabase || typeof supabase.rpc !== 'function') return null;
+  const { data, error } = await supabase.rpc('rag_monitor_summary');
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) return null;
+  const rawCounts = (row.status_counts ?? {}) as Partial<Record<IngestStatus, number>>;
+  const counts: StatusCounts = {
+    pending: Number(rawCounts.pending ?? 0),
+    processing: Number(rawCounts.processing ?? 0),
+    indexed: Number(rawCounts.indexed ?? 0),
+    failed: Number(rawCounts.failed ?? 0),
+    skipped: Number(rawCounts.skipped ?? 0),
+  };
+  const cited = Number(row.traceability_cited ?? 0);
+  const total = Number(row.traceability_total ?? 0);
+  return {
+    counts,
+    traceability: total > 0 ? { share: cited / total, cited, total } : null,
+  };
+}
+
 export async function fetchMonitorRows(): Promise<MonitorRow[]> {
   if (!supabase) return [];
   const { data, error } = await supabase

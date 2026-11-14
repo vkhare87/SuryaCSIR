@@ -24,6 +24,9 @@ beforeAll(async () => {
     CREATE POLICY "HRAdmin and MasterAdmin can write contract_staff" ON public.contract_staff FOR ALL TO authenticated USING (true);
     CREATE POLICY "Users can update own profile" ON public.user_profiles FOR UPDATE TO authenticated USING (auth.uid() = user_id);
     CREATE POLICY "collegiums_select" ON public.pms_evaluation_committees FOR SELECT TO authenticated USING (true);
+    -- 20261114000003 later ships an HR-only policy under this same name; the
+    -- live drift row was the open one. Replace it to recreate the drift.
+    DROP POLICY IF EXISTS "vacancy_posts_insert" ON public.vacancy_posts;
     CREATE POLICY "vacancy_posts_insert" ON public.vacancy_posts FOR INSERT TO authenticated WITH CHECK (true);
     DROP POLICY "evaluation_committees_select" ON public.pms_evaluation_committees;
 
@@ -58,6 +61,10 @@ describe('live policy drift', () => {
     await expect(as(db, SCI, tx => tx.query(`INSERT INTO staff ("ID", "Name") VALUES ('DR-Y', 'Self-made')`)))
       .rejects.toThrow(/row-level security/);
     const committees = (await db.query(`SELECT policyname FROM pg_policies WHERE tablename = 'pms_evaluation_committees' ORDER BY 1`)).rows;
-    expect(committees).toEqual([{ policyname: 'evaluation_committees_select' }, { policyname: 'evaluation_committees_write' }]);
+    // The drift row is gone and the repo's read rule is back. (Write rules are
+    // split by 20261114000003, which runs after this file on a real database.)
+    const names = committees.map((r) => (r as { policyname: string }).policyname);
+    expect(names).toContain('evaluation_committees_select');
+    expect(names).not.toContain('collegiums_select');
   });
 });

@@ -4,11 +4,12 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'rec
 import { Card, Badge } from '../components/ui/Cards';
 import { EmptyState } from '../components/ui/EmptyState';
 import {
-  fetchMonitorRows, fetchLatencies, fetchDownvoted, fetchQueryLogRows, labelRoute,
-  requeueDocument, requeueAll, countByStatus, percentile, computeTraceability, toCsv,
+  fetchMonitorRows, fetchMonitorSummary, fetchLatencies, fetchDownvoted, fetchQueryLogRows, labelRoute,
+  requeueDocument, requeueAll, countByStatus, percentile, toCsv,
   fetchReviewQueue, setAccessTier,
 } from '../lib/rag/monitor';
-import type { MonitorRow, IngestStatus, LatencyPoint, DownvotedQuery, RouteMode, QueryLogRow, ReviewRow, AccessTier } from '../lib/rag/monitor';
+import type { MonitorRow, IngestStatus, LatencyPoint, DownvotedQuery, RouteMode, ReviewRow, AccessTier, StatusCounts } from '../lib/rag/monitor';
+import { friendlyError } from '../lib/errors';
 
 const ROUTES: RouteMode[] = ['structured', 'document', 'hybrid'];
 
@@ -24,23 +25,74 @@ const STATUS_VARIANT: Record<IngestStatus, 'success' | 'warning' | 'danger' | 'i
 
 export default function RagMonitor() {
   const [rows, setRows] = useState<MonitorRow[]>([]);
+  const [summaryCounts, setSummaryCounts] = useState<StatusCounts | null>(null);
+  const [summaryFailed, setSummaryFailed] = useState(false);
+  const [traceability, setTraceability] = useState<{ share: number; cited: number; total: number } | null>(null);
   const [latencies, setLatencies] = useState<LatencyPoint[]>([]);
   const [downvoted, setDownvoted] = useState<DownvotedQuery[]>([]);
-  const [queryRows, setQueryRows] = useState<QueryLogRow[]>([]);
   const [reviewQueue, setReviewQueue] = useState<ReviewRow[]>([]);
+  const [sectionErrors, setSectionErrors] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   async function load() {
     setLoading(true);
+    setSectionErrors([]);
     try {
-      setRows(await fetchMonitorRows());
-      setLatencies(await fetchLatencies());
-      setDownvoted(await fetchDownvoted());
-      setQueryRows(await fetchQueryLogRows());
-      setReviewQueue(await fetchReviewQueue());
-    } catch (e) {
-      console.error('Failed to load RAG monitor', e);
-      setRows([]);
+      const [rowsRes, summaryRes, latenciesRes, downvotedRes, reviewRes] = await Promise.allSettled([
+        fetchMonitorRows(),
+        fetchMonitorSummary(),
+        fetchLatencies(),
+        fetchDownvoted(),
+        fetchReviewQueue(),
+      ]);
+
+      const nextErrors: string[] = [];
+
+      if (rowsRes.status === 'fulfilled') {
+        setRows(rowsRes.value);
+      } else {
+        console.error('Failed to load RAG monitor rows', rowsRes.reason);
+        nextErrors.push(`Ingestion queue: ${friendlyError(rowsRes.reason)}`);
+        setRows([]);
+      }
+
+      if (summaryRes.status === 'fulfilled') {
+        setSummaryFailed(false);
+        setSummaryCounts(summaryRes.value?.counts ?? null);
+        setTraceability(summaryRes.value?.traceability ?? null);
+      } else {
+        console.error('Failed to load RAG monitor summary', summaryRes.reason);
+        nextErrors.push(`Summary: ${friendlyError(summaryRes.reason)}`);
+        setSummaryFailed(true);
+        setSummaryCounts(null);
+        setTraceability(null);
+      }
+
+      if (latenciesRes.status === 'fulfilled') {
+        setLatencies(latenciesRes.value);
+      } else {
+        console.error('Failed to load RAG query latencies', latenciesRes.reason);
+        nextErrors.push(`Query latency: ${friendlyError(latenciesRes.reason)}`);
+        setLatencies([]);
+      }
+
+      if (downvotedRes.status === 'fulfilled') {
+        setDownvoted(downvotedRes.value);
+      } else {
+        console.error('Failed to load downvoted queries', downvotedRes.reason);
+        nextErrors.push(`Downvoted queries: ${friendlyError(downvotedRes.reason)}`);
+        setDownvoted([]);
+      }
+
+      if (reviewRes.status === 'fulfilled') {
+        setReviewQueue(reviewRes.value);
+      } else {
+        console.error('Failed to load review queue', reviewRes.reason);
+        nextErrors.push(`Review queue: ${friendlyError(reviewRes.reason)}`);
+        setReviewQueue([]);
+      }
+
+      setSectionErrors(nextErrors);
     } finally {
       setLoading(false);
     }
@@ -48,9 +100,9 @@ export default function RagMonitor() {
 
   useEffect(() => { void load(); }, []);
 
-  const counts = useMemo(
-    () => countByStatus(rows.map((r) => ({ ingest_status: r.status }))),
-    [rows],
+  const partialCounts = useMemo(
+    () => (summaryCounts || summaryFailed ? null : countByStatus(rows.map((r) => ({ ingest_status: r.status })))),
+    [summaryCounts, summaryFailed, rows],
   );
 
   const latencyStats = useMemo(() => {
@@ -58,22 +110,25 @@ export default function RagMonitor() {
     return { p50: percentile(values, 50), p90: percentile(values, 90), p99: percentile(values, 99) };
   }, [latencies]);
 
-  const traceability = useMemo(() => computeTraceability(queryRows), [queryRows]);
-
-  function exportCsv() {
-    const csv = toCsv(
-      ['created_at', 'question', 'mode', 'answer', 'citations', 'feedback', 'latency_ms'],
-      queryRows.map((r) => [
-        r.createdAt, r.question, r.mode, r.answer,
-        r.citations?.length ?? 0, r.feedback, r.latencyMs,
-      ]),
-    );
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `query_log_${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+  async function exportCsv() {
+    try {
+      const queryRows = await fetchQueryLogRows();
+      const csv = toCsv(
+        ['created_at', 'question', 'mode', 'answer', 'citations', 'feedback', 'latency_ms'],
+        queryRows.map((r) => [
+          r.createdAt, r.question, r.mode, r.answer,
+          r.citations?.length ?? 0, r.feedback, r.latencyMs,
+        ]),
+      );
+      const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `query_log_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('CSV export failed', e);
+    }
   }
 
   async function label(q: DownvotedQuery, route: RouteMode) {
@@ -140,13 +195,32 @@ export default function RagMonitor() {
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-        {STATUS_ORDER.map((s) => (
-          <Card key={s} className="p-4">
-            <div className="text-2xl font-semibold text-text">{counts[s]}</div>
-            <div className="text-sm capitalize text-text-muted">{s}</div>
-          </Card>
-        ))}
+        {STATUS_ORDER.map((s) => {
+          const val = summaryCounts ? summaryCounts[s] : partialCounts ? partialCounts[s] : null;
+          return (
+            <Card key={s} className="p-4">
+              <div className="text-2xl font-semibold text-text">{val ?? '—'}</div>
+              <div className="text-sm capitalize text-text-muted">
+                {s}
+                {partialCounts && !summaryCounts && (
+                  <span className="ml-1 text-xs">(in last {rows.length})</span>
+                )}
+              </div>
+            </Card>
+          );
+        })}
       </div>
+
+      {sectionErrors.length > 0 && (
+        <div
+          role="alert"
+          className="rounded-lg border border-danger/30 bg-badge-danger-bg px-4 py-3 text-sm text-badge-danger-fg space-y-1"
+        >
+          {sectionErrors.map((msg) => (
+            <div key={msg}>{msg}</div>
+          ))}
+        </div>
+      )}
 
       {latencies.length > 0 && (
         <Card className="p-4 space-y-3">

@@ -3,17 +3,33 @@ MAX_DEPTH = 3
 MAX_FANOUT = 10
 
 
-def _page_text(parsed, start_1, end_1):
+def _page_text(parsed, start_1, end_1, page_map=None):
+    if page_map is not None:
+        return "\n".join(page_map[n] for n in range(start_1, end_1 + 1) if n in page_map)
     return "\n".join(p.text for p in parsed.pages if start_1 <= p.index + 1 <= end_1)
 
 
-def _flat_nodes(parsed, llm):
+def _summarize_range(parsed, llm, start_1, end_1, cache, on_leaf_summarized, page_text=None, page_map=None):
+    key = f"{start_1}:{end_1}"
+    if key in cache and (cache[key] or "").strip():
+        return cache[key]
+    text = _page_text(parsed, start_1, end_1, page_map=page_map) if page_text is None else page_text
+    summary = llm.summarize(text)
+    cache[key] = summary
+    if on_leaf_summarized is not None:
+        on_leaf_summarized(key, summary)
+    return summary
+
+
+def _flat_nodes(parsed, llm, cache, on_leaf_summarized):
     nodes = []
     for p in parsed.pages:
         n = p.index + 1
         nodes.append({
             "title": f"Page {n}",
-            "summary": llm.summarize(p.text),
+            "summary": _summarize_range(
+                parsed, llm, n, n, cache, on_leaf_summarized, page_text=p.text,
+            ),
             "page_start": n, "page_end": n, "nodes": [],
         })
     return nodes
@@ -61,24 +77,30 @@ def _cap_fanout(nodes, depth):
         nodes[:] = groups
 
 
-def _summarize_bottom_up(node, parsed, llm):
+def _summarize_bottom_up(node, parsed, llm, cache, on_leaf_summarized, page_map=None):
     """Post-order: leaves summarize their page text, parents summarize child summaries."""
     if node["nodes"]:
         for child in node["nodes"]:
-            _summarize_bottom_up(child, parsed, llm)
+            _summarize_bottom_up(child, parsed, llm, cache, on_leaf_summarized, page_map=page_map)
         node["summary"] = llm.summarize("\n".join(c["summary"] for c in node["nodes"]))
     else:
-        node["summary"] = llm.summarize(_page_text(parsed, node["page_start"], node["page_end"]))
+        node["summary"] = _summarize_range(
+            parsed, llm, node["page_start"], node["page_end"], cache, on_leaf_summarized,
+            page_map=page_map,
+        )
 
 
-def build_tree(parsed, llm, doc_title: str) -> dict:
+def build_tree(parsed, llm, doc_title: str, cached_summaries: dict | None = None,
+               on_leaf_summarized=None) -> dict:
+    cache = dict(cached_summaries) if cached_summaries else {}
     top_level = [t for t in parsed.toc if t[0] == 1]
     if top_level:
+        page_map = {p.index + 1: p.text for p in parsed.pages}
         nodes = _nest_toc(parsed.toc, len(parsed.pages))
         for n in nodes:
-            _summarize_bottom_up(n, parsed, llm)
+            _summarize_bottom_up(n, parsed, llm, cache, on_leaf_summarized, page_map=page_map)
     else:
-        nodes = _flat_nodes(parsed, llm)
+        nodes = _flat_nodes(parsed, llm, cache, on_leaf_summarized)
     root_summary = llm.summarize("\n".join(n["summary"] for n in nodes))
     return {"tree_version": TREE_VERSION,
             "root": {"title": doc_title, "summary": root_summary, "nodes": nodes}}

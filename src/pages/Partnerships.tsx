@@ -21,7 +21,7 @@ const TT_STATUS_VARIANT: Record<TechTransfer['status'], 'success' | 'warning' | 
 };
 
 export default function Partnerships() {
-  const { mous, techTransfers, projects, refreshData } = useData();
+  const { mous, techTransfers, projects, refreshSlice } = useData();
   const { role } = useAuth();
   const canWrite = role ? WRITE_ROLES.includes(role) : false;
   const [tab, setTab] = useState<'mous' | 'transfers'>('mous');
@@ -66,7 +66,7 @@ export default function Partnerships() {
     setShowForm(false);
     setMouForm({ partnerName: '', partnerType: 'Academic', purpose: '', signedDate: '', validUntil: '', divisionCode: '' });
     setTtForm({ technologyTitle: '', licensee: '', licenseeType: 'Industry', agreementType: 'License', agreementDate: '', valueLakhs: '', divisionCode: '' });
-    await refreshData();
+    await refreshSlice('partnerships');
   }
 
   const inputCls = 'w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text placeholder:text-text-muted';

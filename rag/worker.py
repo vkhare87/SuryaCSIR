@@ -11,21 +11,45 @@ from llm import make_llm
 from corpus import build_collection_summaries
 
 
+CHECKPOINT_INTERVAL = 5
+
+
 def process_document(doc, db, ocr, llm) -> None:
+    checkpoint = {}
+    unsaved_leaves = 0
+    model = getattr(llm, "model", "unknown")
+    page_count = 0
     try:
         if doc.mime_type != "application/pdf":
             db.mark(doc.id, "skipped")
             return
         data = db.download(doc.storage_bucket, doc.storage_path)
         parsed = parse_pdf(data, ocr)
-        tree = build_tree(parsed, llm, doc.title)
+        page_count = len(parsed.pages)
+        db.save_pages(doc.id, parsed.pages)  # pages before index: an indexed doc always has its pages
+        checkpoint = db.load_checkpoint(doc.id, model) if hasattr(db, "load_checkpoint") else {}
+
+        def on_leaf(key: str, summary: str) -> None:
+            nonlocal unsaved_leaves
+            checkpoint[key] = summary
+            unsaved_leaves += 1
+            if unsaved_leaves >= CHECKPOINT_INTERVAL and hasattr(db, "save_checkpoint"):
+                db.save_checkpoint(doc.id, model, checkpoint, page_count)
+                unsaved_leaves = 0
+
+        tree = build_tree(parsed, llm, doc.title, cached_summaries=checkpoint,
+                          on_leaf_summarized=on_leaf)
         if tree_is_empty(tree):
             db.mark(doc.id, "failed", "no extractable text — scanned PDF with OCR disabled?")
             return
-        db.save_pages(doc.id, parsed.pages)  # pages before index: an indexed doc always has its pages
-        db.save_index(doc.id, tree, getattr(llm, "model", "unknown"), len(parsed.pages))
+        db.save_index(doc.id, tree, model, page_count)
         db.mark(doc.id, "indexed")
     except Exception as e:  # per-doc isolation: never halt the loop
+        if unsaved_leaves > 0 and page_count > 0 and hasattr(db, "save_checkpoint"):
+            try:
+                db.save_checkpoint(doc.id, model, checkpoint, page_count)
+            except Exception:
+                pass
         db.mark(doc.id, "failed", str(e))
 
 

@@ -256,6 +256,7 @@ function RequestPanel({ r, userId, isAdmin, nameOf, onDone }: RequestPanelProps)
       });
     } else {
       // Not atomic: the record write and the resolve are two calls. A retry is safe (same patch, then resolve).
+      let recordUpdated = false;
       if (action === 'accept' && submittedChanges.length > 0 && r.recordRef) {
         const patch = Object.fromEntries(submittedChanges.map(c => [c.field, c.to === '' ? null : c.to]));
         const write = await updateEntityRecord(r.domain, r.recordRef, patch);
@@ -263,11 +264,20 @@ function RequestPanel({ r, userId, isAdmin, nameOf, onDone }: RequestPanelProps)
           setBusy(false);
           return setError(`Could not update the record: ${write.error}`);
         }
+        recordUpdated = true;
       }
       res = await actOnContributionRequest(r.id, action, {
         note: needsNote ? note.trim() : undefined,
         target: action === 'delegate' || action === 'claim' ? target?.userId : undefined,
       });
+      if (!res.ok) {
+        setBusy(false);
+        if (recordUpdated) {
+          await onDone();
+          return setError(`Record updated, but could not mark request accepted: ${res.error}. Click Accept again to finish.`);
+        }
+        return setError(res.error);
+      }
     }
     setBusy(false);
     if (!res.ok) return setError(res.error);

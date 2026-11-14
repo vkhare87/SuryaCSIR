@@ -14,7 +14,7 @@ interface OutputsPanelProps {
 }
 
 export function OutputsPanel({ project, canLink }: OutputsPanelProps) {
-  const { scientificOutputs, ipIntelligence, equipment, mous, techTransfers, refreshData } = useData();
+  const { scientificOutputs, ipIntelligence, equipment, mous, techTransfers, refreshSlice } = useData();
   const id = project.ProjectID;
   const linked = useMemo(() => ({
     publication: scientificOutputs.filter(o => o.projectId === id).map(o => ({ id: o.id, label: `${o.title} — ${o.journal}, ${o.year}` })),
@@ -37,7 +37,7 @@ export function OutputsPanel({ project, canLink }: OutputsPanelProps) {
 
   async function change(k: OutputKind, outputId: string, projectId: string | null) {
     setError('');
-    try { await linkOutput(k, outputId, projectId); setPick(''); await refreshData(); }
+    try { await linkOutput(k, outputId, projectId); setPick(''); await refreshSlice(k === 'equipment' ? 'facilities' : 'outputs'); }
     catch (e) { setError(friendlyError(e)); }
   }
 

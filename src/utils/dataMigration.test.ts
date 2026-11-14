@@ -11,8 +11,11 @@ import {
   resolveImportDivisions,
   applyColumnMapping,
   parseFileRaw,
+  pushToSupabase,
   MAX_UPLOAD_BYTES,
   MAX_UPLOAD_ROWS,
+  MAX_UPSERT_ROWS,
+  MAX_UPSERT_PAYLOAD_BYTES,
   type FileType,
 } from './dataMigration';
 
@@ -219,5 +222,100 @@ describe('upload limits (SEC-03)', () => {
     expect((await parseFileRaw(csv(MAX_UPLOAD_ROWS))).rowCount).toBe(MAX_UPLOAD_ROWS);
     expect(await parseFileRaw(csv(MAX_UPLOAD_ROWS + 1)))
       .toEqual({ success: false, error: 'Too many rows (max 50,000).' });
+  });
+});
+
+describe('pushToSupabase atomic upsert', () => {
+  it('sends all rows in a single atomic upsert call and converts empty strings to null', async () => {
+    const upsert = vi.fn().mockResolvedValue({ error: null });
+    const client = { from: vi.fn(() => ({ upsert })) };
+    const rows = Array.from({ length: 120 }, (_, i) => ({ ID: `E${i}`, Name: `Staff ${i}`, DOJ: '' }));
+
+    const res = await pushToSupabase(client, 'staff', rows, () => {});
+    expect(res).toEqual({ upserted: 120, failed: 0 });
+    expect(upsert).toHaveBeenCalledTimes(1);
+    expect(upsert.mock.calls[0][0]).toHaveLength(120);
+    expect(upsert.mock.calls[0][0][0]).toEqual({ ID: 'E0', Name: 'Staff 0', DOJ: null });
+  });
+
+  it('reports 0 upserted and all failed when the atomic transaction fails', async () => {
+    const upsert = vi.fn().mockResolvedValue({ error: { message: 'duplicate key' } });
+    const client = { from: vi.fn(() => ({ upsert })) };
+    const rows = Array.from({ length: 75 }, (_, i) => ({ ID: `E${i}` }));
+    const logs: string[] = [];
+
+    const res = await pushToSupabase(client, 'staff', rows, (m) => logs.push(m));
+    expect(res).toEqual({ upserted: 0, failed: 75 });
+    expect(upsert).toHaveBeenCalledTimes(1);
+    expect(logs[0]).toContain('rolled back 75 rows');
+  });
+
+  it('rejects batches exceeding MAX_UPSERT_ROWS before sending', async () => {
+    const upsert = vi.fn();
+    const client = { from: vi.fn(() => ({ upsert })) };
+    const rows = Array.from({ length: MAX_UPSERT_ROWS + 1 }, (_, i) => ({ ID: `E${i}` }));
+    const logs: string[] = [];
+
+    const res = await pushToSupabase(client, 'staff', rows, (m) => logs.push(m));
+    expect(res).toEqual({ upserted: 0, failed: MAX_UPSERT_ROWS + 1 });
+    expect(upsert).not.toHaveBeenCalled();
+    expect(logs[0]).toContain('single-request limit');
+  });
+
+  it('rejects batches exceeding MAX_UPSERT_PAYLOAD_BYTES before sending', async () => {
+    const upsert = vi.fn();
+    const client = { from: vi.fn(() => ({ upsert })) };
+    const big = 'x'.repeat(Math.floor(MAX_UPSERT_PAYLOAD_BYTES / 2) + 1024);
+    const rows = [{ ID: 'E1', bio: big }, { ID: 'E2', bio: big }];
+    const logs: string[] = [];
+
+    const res = await pushToSupabase(client, 'staff', rows, (m) => logs.push(m));
+    expect(res).toEqual({ upserted: 0, failed: 2 });
+    expect(upsert).not.toHaveBeenCalled();
+    expect(logs[0]).toContain('payload size');
+  });
+
+  it('does not claim rollback when an exception leaves server outcome unknown', async () => {
+    const upsert = vi.fn().mockRejectedValue(new Error('Failed to fetch'));
+    const client = { from: vi.fn(() => ({ upsert })) };
+    const rows = [{ ID: 'E1' }, { ID: 'E2' }];
+    const logs: string[] = [];
+
+    const res = await pushToSupabase(client, 'staff', rows, (m) => logs.push(m));
+    expect(res).toEqual({ upserted: 0, failed: 2 });
+    expect(logs[0]).toContain('server outcome unknown');
+    expect(logs[0]).not.toContain('rolled back');
+  });
+
+  it('does not claim rollback for a resolved Supabase transport error with status 0', async () => {
+    const upsert = vi.fn().mockResolvedValue({
+      data: null,
+      error: { message: 'TypeError: Failed to fetch' },
+      status: 0,
+    });
+    const client = { from: vi.fn(() => ({ upsert })) };
+    const rows = [{ ID: 'E1' }, { ID: 'E2' }];
+    const logs: string[] = [];
+
+    const res = await pushToSupabase(client, 'staff', rows, (m) => logs.push(m));
+    expect(res).toEqual({ upserted: 0, failed: 2 });
+    expect(logs[0]).toContain('server outcome unknown');
+    expect(logs[0]).not.toContain('rolled back');
+  });
+
+  it('does not claim rollback for a gateway error such as HTTP 504', async () => {
+    const upsert = vi.fn().mockResolvedValue({
+      data: null,
+      error: { message: 'Gateway Timeout' },
+      status: 504,
+    });
+    const client = { from: vi.fn(() => ({ upsert })) };
+    const rows = [{ ID: 'E1' }, { ID: 'E2' }];
+    const logs: string[] = [];
+
+    const res = await pushToSupabase(client, 'staff', rows, (m) => logs.push(m));
+    expect(res).toEqual({ upserted: 0, failed: 2 });
+    expect(logs[0]).toContain('server outcome unknown');
+    expect(logs[0]).not.toContain('rolled back');
   });
 });

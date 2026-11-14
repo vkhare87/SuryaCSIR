@@ -28,7 +28,7 @@ const EMPTY: PhDStudent = {
 };
 
 export function PhDStudentFormModal({ isOpen, onClose, student }: Props) {
-  const { divisions, staff, projects, refreshData } = useData();
+  const { divisions, staff, projects, refreshSlice } = useData();
   const isEdit = !!student;
 
   const [form, setForm] = useState<PhDStudent>(EMPTY);
@@ -67,16 +67,17 @@ export function PhDStudentFormModal({ isOpen, onClose, student }: Props) {
     setSubmitting(true);
     setSubmitError(null);
 
+    const { projectId: _projectId, ...payload } = form;
     const { error } = isEdit
-      ? await supabase.from('phd_students').update(form).eq('EnrollmentNo', form.EnrollmentNo)
-      : await supabase.from('phd_students').insert(form);
+      ? await supabase.from('phd_students').update(payload).eq('EnrollmentNo', form.EnrollmentNo)
+      : await supabase.from('phd_students').insert(payload);
 
     setSubmitting(false);
     if (error) {
       setSubmitError(friendlyError(error));
       return;
     }
-    await refreshData();
+    await refreshSlice('phd');
     onClose();
   }
 
@@ -90,7 +91,7 @@ export function PhDStudentFormModal({ isOpen, onClose, student }: Props) {
       setSubmitError(friendlyError(error));
       return;
     }
-    await refreshData();
+    await refreshSlice('phd');
     onClose();
   }
 

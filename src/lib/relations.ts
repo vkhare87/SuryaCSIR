@@ -80,10 +80,54 @@ export function buildGraph(
     });
   }
   if (kinds.staff && kinds.project) {
+    // Pre-index PI/member -> projects once instead of O(S * (P + PS)) scans
+    const projectsByPi = new Map<string, ProjectInfo[]>();
+    const projectsByNo = new Map<string, ProjectInfo[]>();
+    for (const p of projects) {
+      const pi = norm(p.PrincipalInvestigator);
+      if (pi) {
+        const list = projectsByPi.get(pi);
+        if (list) list.push(p);
+        else projectsByPi.set(pi, [p]);
+      }
+      if (p.ProjectNo) {
+        const list = projectsByNo.get(p.ProjectNo);
+        if (list) list.push(p);
+        else projectsByNo.set(p.ProjectNo, [p]);
+      }
+    }
+    const projectNosByStaffName = new Map<string, Set<string>>();
+    for (const ps of projectStaff) {
+      const staffName = norm(ps.StaffName);
+      if (!staffName || !ps.ProjectNo) continue;
+      let set = projectNosByStaffName.get(staffName);
+      if (!set) {
+        set = new Set<string>();
+        projectNosByStaffName.set(staffName, set);
+      }
+      set.add(ps.ProjectNo);
+    }
+
     staff.forEach(s => {
-      projectsForStaff(s, projects, projectStaff).forEach(p => {
-        if (has.has(pid(p))) { links.push({ source: sid(s), target: pid(p) }); bump(sid(s)); bump(pid(p)); }
-      });
+      const seen = new Set<string>();
+      const sName = norm(s.Name);
+      const sId = norm(s.ID);
+      const addProjectLink = (p: ProjectInfo) => {
+        if (seen.has(p.ProjectID)) return;
+        seen.add(p.ProjectID);
+        if (has.has(pid(p))) {
+          links.push({ source: sid(s), target: pid(p) });
+          bump(sid(s));
+          bump(pid(p));
+        }
+      };
+      for (const p of projectsByPi.get(sName) ?? []) addProjectLink(p);
+      if (sId && sId !== sName) {
+        for (const p of projectsByPi.get(sId) ?? []) addProjectLink(p);
+      }
+      for (const pNo of projectNosByStaffName.get(sName) ?? []) {
+        for (const p of projectsByNo.get(pNo) ?? []) addProjectLink(p);
+      }
     });
   }
 

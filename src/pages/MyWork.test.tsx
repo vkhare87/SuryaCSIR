@@ -89,6 +89,15 @@ describe('MyWork', () => {
     expect(actOnContributionRequest).not.toHaveBeenCalled();
   });
 
+  it('accept refreshes state and explains partial completion when resolve fails after record write', async () => {
+    vi.mocked(actOnContributionRequest).mockResolvedValueOnce({ ok: false, error: 'network timeout' });
+    renderAt('/work?r=r4');
+    fireEvent.click(screen.getByRole('button', { name: 'Accept' }));
+    expect(await screen.findByText(/Record updated, but could not mark request accepted: network timeout/)).toBeInTheDocument();
+    expect(updateEntityRecord).toHaveBeenCalledTimes(1);
+    expect(refreshContributions).toHaveBeenCalledTimes(1);
+  });
+
   it('accept patches only allowed prefill fields, never the PK or extra columns', async () => {
     requests = [{
       ...base, id: 'r5', domain: 'projects', recordRef: 'P-1', requestedBy: 'u1', assigneeId: 'u7',

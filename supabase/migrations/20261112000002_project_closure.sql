@@ -402,7 +402,8 @@ $$;
 -- The point of the exercise (plan §5.4): what a closed project learned is
 -- institute memory, not the project team's. Only approved reports, only the
 -- lesson fields. Runs as the owner, so it is not limited by projects RLS.
-CREATE OR REPLACE VIEW public.project_lessons AS
+CREATE OR REPLACE VIEW public.project_lessons
+WITH (security_invoker = false) AS
 SELECT r.project_id, p."ProjectNo" AS project_no, p."ProjectName" AS project_name,
        p."DivisionCode" AS division_code, p."PrincipalInvestigator" AS pi_name, p.track, p.stage,
        p.start_date, p.end_date, r.summary, r.objectives_status, r.objectives_reason, r.what_worked, r.what_did_not,
@@ -410,7 +411,8 @@ SELECT r.project_id, p."ProjectNo" AS project_no, p."ProjectName" AS project_nam
        r.decided_at AS approved_at, r.published_document_id
   FROM public.project_completion_reports r
   JOIN public.projects p ON p."ProjectID" = r.project_id
- WHERE r.status = 'APPROVED';
+ WHERE r.status = 'APPROVED'
+   AND public.caller_is_verified();
 REVOKE ALL ON public.project_lessons FROM PUBLIC, anon;
 GRANT SELECT ON public.project_lessons TO authenticated, service_role;
 

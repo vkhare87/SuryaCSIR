@@ -9,7 +9,8 @@ class RejectedFile(Exception):
 def land_file(db, source: str, source_identifier: str, division_code: str | None,
               filename: str, content: bytes) -> str | None:
     """Uploads to Storage and registers the file for review/ingest. Returns
-    the new row id, or None if it's a dedupe hit or the upload failed.
+    the new row id, or None if it's a dedupe hit (raises on validation or
+    upload failure).
 
     Structured (xlsx/xls/csv) -> harvested_imports (human confirms via the
     existing ImportFlow before anything touches HR tables).
@@ -33,7 +34,7 @@ def land_file(db, source: str, source_identifier: str, division_code: str | None
 
     path = f"harvested/{source}/{h}_{sanitize_filename(filename)}"
     if not db.upload(path, content, mime_for(filename)):
-        return None
+        raise RuntimeError(f"storage upload failed for {filename!r}")
 
     if structured:
         return db.insert_harvested_import(
