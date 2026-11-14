@@ -10,7 +10,8 @@ import { useProjectReports } from '../../contexts/ProjectReportsContext';
 import { Card } from '../ui/Cards';
 import { Button } from '../ui/Button';
 import { deriveOwnMeetings } from '../../lib/dashboard/scientistData';
-import { currentNotices, myDay, withoutClaimed } from '../../lib/home/desk';
+import { myDay, withoutClaimed } from '../../lib/home/desk';
+import { NoticesBlock } from './Notices';
 import { REQUEST_KINDS, myRequests, requestLink } from '../../lib/home/requests';
 import { localIso } from '../../lib/home/today';
 
@@ -54,7 +55,6 @@ export function CommonDesk() {
     () => (user ? myRequests({ userId: user.id, tickets, proposals, progressReports, contributions: contributionRequests, now }) : []),
     [user, tickets, proposals, progressReports, contributionRequests, now],
   );
-  const notices = useMemo(() => currentNotices(calendarEvents, now), [calendarEvents, now]);
   const committees = useMemo(() => withoutClaimed(
     ownMeetings.map(m => ({ key: `meeting:${m.id}`, meeting: m })), claimed,
   ), [ownMeetings, claimed]);
@@ -113,14 +113,7 @@ export function CommonDesk() {
       </Block>
 
       <Block title="Notices">
-        {notices.length === 0
-          ? <Empty>No notices in the last two weeks.</Empty>
-          : notices.slice(0, MAX_ROWS).map(n => (
-            <Link key={n.id} to="/calendar" className={`${ROW} hover:underline`}>
-              <p className="text-sm text-text truncate" title={n.title}>{n.title}</p>
-              <p className="text-xs text-text-muted font-mono">{n.event_date}</p>
-            </Link>
-          ))}
+        <NoticesBlock />
       </Block>
 
       <Block title="People" right={<Link to="/staff" className="inline-block py-1.5 -my-1.5 hover:underline">Directory</Link>}>

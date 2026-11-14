@@ -61,11 +61,3 @@ export function withoutClaimed<T extends { key: string }>(rows: T[], claimed: Re
   const kept = rows.filter(r => !claimed.has(r.key));
   return { rows: kept, hidden: rows.length - kept.length };
 }
-
-/** Announcements that are still current, newest first. Stands in for notices until CD4. */
-export function currentNotices(events: CalendarEvent[], now: Date = new Date(), keepDays = 14): CalendarEvent[] {
-  const oldest = localIso(new Date(now.getFullYear(), now.getMonth(), now.getDate() - keepDays));
-  return events
-    .filter(e => e.event_kind === 'Announcement' && e.event_date >= oldest)
-    .sort((a, b) => b.event_date.localeCompare(a.event_date));
-}

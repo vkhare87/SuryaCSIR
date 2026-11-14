@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { CalendarEvent, Holiday, Meeting } from '../../types';
 import type { MyAction } from '../dashboard/myActions';
-import { currentNotices, deskKey, myDay, withoutClaimed } from './desk';
+import { deskKey, myDay, withoutClaimed } from './desk';
 
 const NOW = new Date(2026, 10, 13, 9, 0); // Fri 13 Nov 2026
 const event = (id: string, date: string, kind: CalendarEvent['event_kind'] = 'Custom') =>
@@ -31,15 +31,5 @@ describe('withoutClaimed', () => {
   it('drops rows the role half shows and counts them', () => {
     const rows = [{ key: deskKey.action('a1') }, { key: deskKey.meeting('m1') }];
     expect(withoutClaimed(rows, new Set(['action:a1']))).toEqual({ rows: [{ key: 'meeting:m1' }], hidden: 1 });
-  });
-});
-
-describe('currentNotices', () => {
-  it('keeps recent announcements, newest first', () => {
-    const out = currentNotices([
-      event('old', '2026-10-01', 'Announcement'), event('n1', '2026-11-05', 'Announcement'),
-      event('n2', '2026-11-12', 'Announcement'), event('x', '2026-11-12'),
-    ], NOW);
-    expect(out.map(e => e.id)).toEqual(['n2', 'n1']);
   });
 });
