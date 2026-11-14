@@ -58,7 +58,7 @@ export function CommonDesk() {
         </Button>
       </Link>
 
-      <Block title="My day" right={<Link to="/calendar" className="hover:underline">Calendar</Link>}>
+      <Block title="My day" right={<Link to="/calendar" className="inline-block py-1.5 -my-1.5 hover:underline">Calendar</Link>}>
         {day.rows.length === 0
           ? <Empty>{day.hidden > 0 ? 'Nothing else today or tomorrow.' : 'Nothing today or tomorrow.'}</Empty>
           : day.rows.slice(0, MAX_ROWS).map((r) => {
@@ -78,7 +78,7 @@ export function CommonDesk() {
         {day.hidden > 0 && <p className="text-xs text-text-muted mt-2">+<span className="font-mono">{day.hidden}</span> on the left</p>}
       </Block>
 
-      <Block title="My requests" right={<Link to="/helpdesk" className="hover:underline">See all</Link>}>
+      <Block title="My requests" right={<Link to="/helpdesk" className="inline-block py-1.5 -my-1.5 hover:underline">See all</Link>}>
         {requests.length === 0
           ? <Empty>You have no open request.</Empty>
           : requests.slice(0, MAX_ROWS).map(r => (
@@ -102,12 +102,12 @@ export function CommonDesk() {
           ))}
       </Block>
 
-      <Block title="People" right={<Link to="/staff" className="hover:underline">Directory</Link>}>
+      <Block title="People" right={<Link to="/staff" className="inline-block py-1.5 -my-1.5 hover:underline">Directory</Link>}>
         <Empty>Who is away today is not connected yet.</Empty>
       </Block>
 
       {committees.rows.length > 0 && (
-        <Block title="My committees" right={<Link to="/committees" className="hover:underline">See all</Link>}>
+        <Block title="My committees" right={<Link to="/committees" className="inline-block py-1.5 -my-1.5 hover:underline">See all</Link>}>
           {committees.rows.slice(0, MAX_ROWS).map(({ key, meeting: m }) => (
             <Link key={key} to={`/committees/${m.committee_id}/meetings/${m.id}`} className={`${ROW} hover:underline`}>
               <p className="text-sm text-text truncate" title={m.title}>{m.title}</p>

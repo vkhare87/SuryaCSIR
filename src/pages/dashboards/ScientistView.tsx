@@ -224,7 +224,7 @@ export function ScientistView() {
             : wins.slice(0, 5).map(actionRow)}
         </Card>
         <Card className="p-5">
-          <p className={BLOCK_TITLE}><span>This week</span><Link to="/calendar" className="hover:underline">Calendar</Link></p>
+          <p className={BLOCK_TITLE}><span>This week</span><Link to="/calendar" className="inline-block py-1.5 -my-1.5 hover:underline">Calendar</Link></p>
           <div className="grid grid-cols-7 gap-1.5">
             {week.map(d => {
               const n = d.marks.deadline + d.marks.meeting + d.marks.event;
@@ -249,7 +249,7 @@ export function ScientistView() {
       {/* --- 5. Everything else that is open --- */}
       {actions.length > 1 && (
         <Card className="p-5">
-          <p className={BLOCK_TITLE}><span>Also open</span><Link to="/work" className="hover:underline">See all <span className="font-mono">{actions.length}</span></Link></p>
+          <p className={BLOCK_TITLE}><span>Also open</span><Link to="/work" className="inline-block py-1.5 -my-1.5 hover:underline">See all <span className="font-mono">{actions.length}</span></Link></p>
           {alsoOpen.map(actionRow)}
         </Card>
       )}
@@ -331,7 +331,7 @@ export function ScientistView() {
       </div>
 
       <p className="text-xs text-text-muted">
-        Your papers, proposals and research profile are on <Link to="/me" className="underline">My profile</Link>.
+        Your papers, proposals and research profile are on <Link to="/me" className="inline-block py-1.5 underline">My profile</Link>.
       </p>
     </div>
   );
