@@ -560,7 +560,7 @@ No concurrency test: the PGlite harness has one connection.
 
 Closed after the review:
 
-- Task Force minutes deadline reads `committee.minutes_due_days` (`20261113000011`). The
+- Task Force minutes deadline reads `committee.minutes_due_days` (`20261113000012`). The
   review months stay fixed: no rule row holds them.
 - `getStaffPortfolio` picks records by the links in `staff_profile_facts`; the name match
   is gone from the profile brief and the PMS Evidence panel (claim corroboration uses the
