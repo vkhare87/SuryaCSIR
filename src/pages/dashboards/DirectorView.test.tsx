@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { DirectorView } from './DirectorView';
 import type { MyAction } from '../../lib/dashboard/myActions';
 
+vi.mock('../../contexts/ProjectReportsContext', () => ({ useProjectReports: () => ({ reports: [] }) }));
 vi.mock('../../components/home/Delegation', () => ({ DelegationDial: () => null }));
 vi.mock('../../components/home/Priorities', () => ({ DoFirst: () => null, PinButton: () => null, PrioritiesAsked: () => null }));
 vi.mock('../../lib/home/api', () => ({ milestonesFor: vi.fn(async () => []) }));

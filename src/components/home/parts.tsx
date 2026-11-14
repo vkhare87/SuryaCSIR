@@ -9,6 +9,7 @@ import { Button } from '../ui/Button';
 import { dueUrgency } from '../../lib/dashboard/myActions';
 import type { MyAction } from '../../lib/dashboard/myActions';
 import type { DecisionRow } from '../../lib/home/decisions';
+import type { Precheck } from '../../lib/home/prechecks';
 import { daysUntil } from '../../lib/home/today';
 
 // Shared by every role's home view, so a block looks the same on every screen.
@@ -129,7 +130,9 @@ export function WaitingOnYou({ actions, now, rows = 5, strong = true, title = 'W
 }
 
 /** Decisions that wait on this person, oldest first. Each opens the page where it is decided. */
-export function DecisionQueue({ rows, strong = true, max = 6 }: { rows: DecisionRow[]; strong?: boolean; max?: number }) {
+export function DecisionQueue({ rows, strong = true, max = 6, check }: {
+  rows: DecisionRow[]; strong?: boolean; max?: number; check?: (a: MyAction) => Precheck | null;
+}) {
   if (rows.length === 0) return null;
   return (
     <Card className="p-5">
@@ -137,18 +140,22 @@ export function DecisionQueue({ rows, strong = true, max = 6 }: { rows: Decision
         <span>Waiting on your decision · oldest first</span>
         <span>people waiting: <span className="font-mono">{rows.length}</span></span>
       </p>
-      {rows.slice(0, max).map(({ action: a, days }, i) => (
+      {rows.slice(0, max).map(({ action: a, days }, i) => {
+        const pc = check?.(a) ?? null;
+        return (
         <div key={a.id} className={ROW}>
           <div className="flex-1 min-w-0">
             <p className={clsx('text-text truncate', i === 0 ? 'text-base font-medium' : 'text-sm')} title={a.label}>{a.label}</p>
             <p className="text-xs text-text-muted truncate" title={a.detail}>{a.detail}</p>
+            {pc && <p className={clsx('text-xs truncate', pc.finding ? 'text-badge-warning-fg' : 'text-text-muted')} title={pc.text}>Check: {pc.text}</p>}
           </div>
           {days !== null && (
             <Badge variant={days >= 7 ? 'danger' : days >= 3 ? 'warning' : 'neutral'} className="font-mono normal-case shrink-0">{days} d</Badge>
           )}
           <Link to={a.link}><Button type="button" size="sm" variant={i === 0 && strong ? 'primary' : 'secondary'}>Open</Button></Link>
         </div>
-      ))}
+        );
+      })}
       {rows.length > max && (
         <p className="text-xs text-text-muted mt-2">+<span className="font-mono">{rows.length - max}</span> more · <Link to="/work" className="underline">See all</Link></p>
       )}

@@ -16,6 +16,8 @@ import { EquipmentOpsSection } from '../../components/dashboard/EquipmentOpsSect
 import { useDirectorThresholds } from '../../hooks/useDirectorThresholds';
 import { greeting, waitingLine } from '../../lib/home/greeting';
 import { decisionQueue, isDecision } from '../../lib/home/decisions';
+import { precheck } from '../../lib/home/prechecks';
+import { useProjectReports } from '../../contexts/ProjectReportsContext';
 import { deskKey } from '../../lib/home/desk';
 import { milestonesFor } from '../../lib/home/api';
 import type { HomeMilestone } from '../../lib/home/api';
@@ -51,6 +53,7 @@ export function DirectorView() {
   const { projects, divisions, equipment, meetings, committeeMembers } = useData();
   const { staffId, ownStaff, actions, doneCount, prioritiesForMe } = useHome();
   const { thresholds } = useDirectorThresholds();
+  const { reports: progressReports } = useProjectReports();
   const { rows: strengthRows, totals } = useDivisionStrength();
 
   const now = useMemo(() => new Date(), []);
@@ -114,7 +117,8 @@ export function DirectorView() {
       <AskBox placeholder="Ask SURYA: who can speak for us on hydrogen storage?"><PinButton /></AskBox>
 
       {/* --- 3. Waiting on you --- */}
-      <DecisionQueue rows={decisions} strong={prioritiesForMe.length === 0} />
+      <DecisionQueue rows={decisions} strong={prioritiesForMe.length === 0}
+        check={a => precheck(a, { projects, progressReports, milestones, now })} />
       <WaitingOnYou actions={others} now={now} rows={MAX_ROWS} strong={prioritiesForMe.length === 0 && decisions.length === 0}
         title={decisions.length > 0 ? 'Also on you' : 'Waiting on you'} />
 

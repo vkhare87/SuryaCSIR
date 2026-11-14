@@ -16,6 +16,8 @@ import { EquipmentOpsSection } from '../../components/dashboard/EquipmentOpsSect
 import { ScientistView } from './ScientistView';
 import { greeting, waitingLine } from '../../lib/home/greeting';
 import { decisionQueue, isDecision } from '../../lib/home/decisions';
+import { precheck } from '../../lib/home/prechecks';
+import { useProjectReports } from '../../contexts/ProjectReportsContext';
 import { deskKey } from '../../lib/home/desk';
 import { milestonesFor } from '../../lib/home/api';
 import type { HomeMilestone } from '../../lib/home/api';
@@ -65,6 +67,7 @@ export function HoDView() {
   const { staff, projects, projectStaff, equipment } = useData();
   const { ownStaff, actions, doneCount, prioritiesForMe } = useHome();
   const { byDivision } = useDivisionStrength();
+  const { reports: progressReports } = useProjectReports();
 
   // A view preference only; it grants nothing.
   const [view, setView] = useState<HeadView>(() => (localStorage.getItem(VIEW_KEY) === 'own' ? 'own' : 'division'));
@@ -163,7 +166,8 @@ export function HoDView() {
       <AskBox placeholder="Ask SURYA: who in my division has worked on fly ash?"><PinButton /></AskBox>
 
       {/* --- 3. Waiting on you --- */}
-      <DecisionQueue rows={decisions} strong={prioritiesForMe.length === 0} />
+      <DecisionQueue rows={decisions} strong={prioritiesForMe.length === 0}
+        check={a => precheck(a, { projects, progressReports, milestones, now })} />
       <WaitingOnYou actions={others} now={now} rows={MAX_ROWS} strong={prioritiesForMe.length === 0 && decisions.length === 0}
         title={decisions.length > 0 ? 'Also on you' : 'Waiting on you'} />
 
