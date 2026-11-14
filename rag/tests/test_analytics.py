@@ -476,3 +476,216 @@ def test_budget_variance_says_unassessable_rather_than_all_clear():
              "SanctionedCost": "1000", "UtilizedAmount": ""}]
     text = _project_budget_variance({}, _FakeClient(rows)).text
     assert "cannot be assessed" in text
+
+
+def test_rows_paginates_beyond_postgrest_1000_row_cap():
+    from analytics import _rows
+
+    all_rows = [{"id": i} for i in range(2350)]
+
+    class _PagedTable:
+        def __init__(self, data, orders):
+            self._data = data
+            self._start = 0
+            self._end = len(data) - 1
+            self._order_col = None
+            self._orders = orders
+
+        def select(self, _cols):
+            return self
+
+        def order(self, col):
+            self._order_col = col
+            self._orders.append(col)
+            return self
+
+        def range(self, start, end):
+            assert self._order_col is not None, "order() must be called before range()"
+            self._start = start
+            self._end = end
+            return self
+
+        def execute(self):
+            # Simulate PostgREST capping any page to 1000 rows max
+            hi = min(self._end + 1, self._start + 1000, len(self._data))
+            return type("R", (), {"data": self._data[self._start:hi]})()
+
+    class _PagedClient:
+        def __init__(self, data):
+            self._data = data
+            self.calls = 0
+            self.orders = []
+
+        def table(self, _name):
+            self.calls += 1
+            return _PagedTable(self._data, self.orders)
+
+    client = _PagedClient(all_rows)
+    fetched = _rows(client, "staff", "id")
+    assert len(fetched) == 2350
+    assert fetched[0]["id"] == 0
+    assert fetched[-1]["id"] == 2349
+    assert client.calls == 3
+    assert client.orders == ["ID", "ID", "ID"]
+
+
+def test_division_summary_pushes_filters_to_query_builder():
+    calls = []
+
+    class _FilteringTable:
+        def __init__(self, table_name):
+            self._table = table_name
+            self._eq = {}
+            self._ilike = {}
+
+        def select(self, _cols):
+            return self
+
+        def eq(self, col, val):
+            self._eq[col] = val
+            return self
+
+        def ilike(self, col, val):
+            self._ilike[col] = val
+            return self
+
+        def execute(self):
+            calls.append((self._table, dict(self._eq), dict(self._ilike)))
+            if self._table == "divisions":
+                return type("R", (), {"data": [{
+                    "divCode": "CMD", "divName": "Materials",
+                    "divHoD": "Dr A", "divCurrentStrength": 5, "divSanctionedstrength": 8,
+                }]})()
+            if self._table == "staff":
+                return type("R", (), {"data": [{"Division": "CMD"}]})()
+            return type("R", (), {"data": [{"DivisionCode": "CMD", "ProjectStatus": "Ongoing"}]})()
+
+    class _FilteringClient:
+        def table(self, name):
+            return _FilteringTable(name)
+
+    ans = run_analytics("division_summary", {"division_code": "CMD"}, _FilteringClient())
+    assert "CMD" in ans.text
+    assert calls == [
+        ("divisions", {}, {"divCode": "CMD"}),
+        ("staff", {"Division": "CMD"}, {}),
+        ("projects", {"DivisionCode": "CMD"}, {}),
+    ]
+
+
+class _PostgrestSimTable:
+    """Filter-aware table evaluating eq, ilike, and or_ predicates like PostgREST."""
+
+    def __init__(self, rows):
+        self._rows = rows
+        self._predicates = []
+
+    def select(self, _cols):
+        return self
+
+    def _match_ilike(self, val, pattern):
+        import re as _re
+        text = str(val or "")
+        # Unescape \% and \_ after building regex
+        regex_parts = []
+        i = 0
+        while i < len(pattern):
+            ch = pattern[i]
+            if ch == "\\" and i + 1 < len(pattern):
+                regex_parts.append(_re.escape(pattern[i + 1]))
+                i += 2
+            elif ch == "%":
+                regex_parts.append(".*")
+                i += 1
+            elif ch == "_":
+                regex_parts.append(".")
+                i += 1
+            else:
+                regex_parts.append(_re.escape(ch))
+                i += 1
+        return _re.fullmatch("".join(regex_parts), text, _re.IGNORECASE | _re.DOTALL) is not None
+
+    def _eval_clause(self, row, clause):
+        # Supports col.eq.val, col.ilike.pat, col.in.("a","b")
+        col, op, rest = clause.split(".", 2)
+        if op == "eq":
+            return str(row.get(col) or "") == rest
+        if op == "ilike":
+            return self._match_ilike(row.get(col), rest)
+        if op == "in":
+            assert rest.startswith("(") and rest.endswith(")")
+            inner = rest[1:-1]
+            vals = [v.strip().strip('"') for v in inner.split(",") if v.strip()]
+            return str(row.get(col) or "") in vals
+        raise AssertionError(f"Unsupported op: {op}")
+
+    def eq(self, col, val):
+        self._predicates.append(lambda r: str(r.get(col) or "") == str(val))
+        return self
+
+    def ilike(self, col, pattern):
+        self._predicates.append(lambda r: self._match_ilike(r.get(col), pattern))
+        return self
+
+    def or_(self, expr):
+        # Split on commas outside parentheses
+        clauses, buf, depth = [], [], 0
+        for ch in expr:
+            if ch == "(":
+                depth += 1
+            elif ch == ")":
+                depth -= 1
+            if ch == "," and depth == 0:
+                clauses.append("".join(buf))
+                buf = []
+            else:
+                buf.append(ch)
+        if buf:
+            clauses.append("".join(buf))
+        self._predicates.append(lambda r: any(self._eval_clause(r, c) for c in clauses))
+        return self
+
+    def execute(self):
+        data = [r for r in self._rows if all(p(r) for p in self._predicates)]
+        return type("R", (), {"data": data})()
+
+
+class _PostgrestSimClient:
+    """Tables through the PostgREST filter simulator; rpc("staff_profile_facts")
+    answers from `facts`, keyed by staff ID (the person's linked records)."""
+    def __init__(self, tables, facts=None):
+        self._tables = tables
+        self._facts = facts or {}
+
+    def table(self, name):
+        return _PostgrestSimTable(self._tables.get(name, []))
+
+    def rpc(self, name, params):
+        assert name == "staff_profile_facts"
+        return _PostgrestSimTable(self._facts.get(params["p_staff_id"], []))
+
+
+def _project_fact(project_id, title, role):
+    return {"section": "PROJECT", "record_id": project_id, "title": title, "role": role}
+
+
+def test_staff_and_projects_lookup_by_lowercase_id_through_filters():
+    client = _PostgrestSimClient({"staff": _STAFF}, facts={
+        "S001": [_project_fact("P-1", "GAP-001 Alpha", "PI"), _project_fact("P-2", "GAP-002 Beta", "Team member")],
+    })
+    prof = run_analytics("staff_profile", {"name": "s001"}, client)
+    assert "Anil Sharma" in prof.text
+    projs = run_analytics("projects_for_staff", {"name": "s001"}, client)
+    assert "GAP-001" in projs.text and "GAP-002" in projs.text
+
+
+def test_projects_for_staff_counts_linked_records_only_not_name_matches():
+    """20261113000005 / P2: projects come from the person's links. A project
+    whose PI text merely resembles the name is not counted."""
+    client = _PostgrestSimClient({
+        "staff": [{"ID": "S001", "Name": "Sharma, Anil"}, {"ID": "S002", "Name": "Rekha Nair"}],
+        "projects": [{"ProjectNo": "GAP-009", "ProjectName": "Name only", "PrincipalInvestigator": " Sharma, Anil "}],
+    }, facts={"S001": [_project_fact("P-1", "GAP(001) Beta", "Team member")]})
+    ans = run_analytics("projects_for_staff", {"name": "S001"}, client)
+    assert "GAP(001)" in ans.text
+    assert "GAP-009" not in ans.text

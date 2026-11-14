@@ -20,7 +20,7 @@ interface MeetingFormModalProps {
 const MEETING_STATUSES = ['Scheduled', 'Completed', 'Cancelled'] as const;
 
 export function MeetingFormModal({ isOpen, onClose, committeeId, meeting }: MeetingFormModalProps) {
-  const { refreshData } = useData();
+  const { refreshSlice } = useData();
 
   const isEdit = !!meeting;
 
@@ -135,7 +135,7 @@ export function MeetingFormModal({ isOpen, onClose, committeeId, meeting }: Meet
         if (agendaErr) throw agendaErr;
       }
 
-      await refreshData?.();
+      await refreshSlice?.('committees');
       onClose();
     } catch (err) {
       setSubmitError(friendlyError(err, 'Failed to save meeting'));

@@ -43,7 +43,7 @@ const EMPTY_STAFF: StaffMember = {
 };
 
 export function StaffFormModal({ isOpen, onClose, staffMember }: Props) {
-  const { divisions, staff, refreshData } = useData();
+  const { divisions, staff, refreshSlice } = useData();
   const isEdit = !!staffMember;
 
   const [form, setForm] = useState<StaffMember>(EMPTY_STAFF);
@@ -96,7 +96,7 @@ export function StaffFormModal({ isOpen, onClose, staffMember }: Props) {
       return;
     }
 
-    await refreshData();
+    await refreshSlice('hr');
     onClose();
   }
 
@@ -110,7 +110,7 @@ export function StaffFormModal({ isOpen, onClose, staffMember }: Props) {
       setSubmitError(friendlyError(error));
       return;
     }
-    await refreshData();
+    await refreshSlice('hr');
     onClose();
   }
 

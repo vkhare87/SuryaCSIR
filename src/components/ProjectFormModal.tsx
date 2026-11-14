@@ -38,7 +38,7 @@ const EMPTY: ProjectInfo = {
 };
 
 export function ProjectFormModal({ isOpen, onClose, project }: Props) {
-  const { divisions, staff, refreshData } = useData();
+  const { divisions, staff, refreshSlice } = useData();
   const isEdit = !!project;
 
   const [form, setForm] = useState<ProjectInfo>(EMPTY);
@@ -94,7 +94,7 @@ export function ProjectFormModal({ isOpen, onClose, project }: Props) {
       setSubmitError(friendlyError(error));
       return;
     }
-    await refreshData();
+    await refreshSlice('projects');
     onClose();
   }
 
@@ -108,7 +108,7 @@ export function ProjectFormModal({ isOpen, onClose, project }: Props) {
       setSubmitError(friendlyError(error));
       return;
     }
-    await refreshData();
+    await refreshSlice('projects');
     onClose();
   }
 

@@ -15,8 +15,6 @@ export type { FileType };
 // Constants
 // ---------------------------------------------------------------------------
 
-const BATCH_SIZE = 50;
-
 /**
  * Maps Excel/CSV header names to canonical Supabase column names.
  * Only column names listed here will be renamed; others pass through as-is.
@@ -603,46 +601,70 @@ function blanksToNull(row: Record<string, any>): Record<string, any> {
   return out;
 }
 
+export const MAX_UPSERT_ROWS = 5_000;
+export const MAX_UPSERT_PAYLOAD_BYTES = 5 * 1024 * 1024;
+
 /**
- * Upserts rows to a Supabase table in batches of BATCH_SIZE.
+ * Upserts rows to a Supabase table in a single atomic PostgREST request.
  * Calls onLog() with progress messages. Never rejects.
+ *
+ * Previously chunked into 50-row browser loops, which meant a failure on batch k
+ * left batches 1..k-1 permanently committed (partial import). PostgREST executes
+ * a multi-row upsert inside a single database transaction, so all rows succeed
+ * or the entire import rolls back cleanly.
  */
+const GATEWAY_UNKNOWN_STATUSES = new Set([0, 408, 502, 503, 504]);
+
+function isServerOutcomeUnknown(status: number | undefined, error: { code?: string | null }): boolean {
+  if (typeof status !== 'number') return false;
+  if (GATEWAY_UNKNOWN_STATUSES.has(status)) return true;
+  return status >= 500 && !error.code;
+}
+
 export async function pushToSupabase(
   client: any,
   tableName: string,
   rows: Record<string, any>[],
   onLog: (msg: string) => void,
 ): Promise<{ upserted: number; failed: number }> {
-  let upserted = 0;
-  let failed = 0;
+  if (rows.length === 0) return { upserted: 0, failed: 0 };
 
-  const chunks: Record<string, any>[][] = [];
-  for (let i = 0; i < rows.length; i += BATCH_SIZE) {
-    chunks.push(rows.slice(i, i + BATCH_SIZE).map(blanksToNull));
+  if (rows.length > MAX_UPSERT_ROWS) {
+    onLog(
+      `Import aborted — ${rows.length} rows exceed single-request limit (${MAX_UPSERT_ROWS} rows). Split the file and retry.`,
+    );
+    return { upserted: 0, failed: rows.length };
   }
 
-  const total = chunks.length;
+  const payload = rows.map(blanksToNull);
+  const payloadBytes = new TextEncoder().encode(JSON.stringify(payload)).length;
+  if (payloadBytes > MAX_UPSERT_PAYLOAD_BYTES) {
+    onLog(
+      `Import aborted — payload size (${(payloadBytes / (1024 * 1024)).toFixed(2)} MB) exceeds single-request limit (${MAX_UPSERT_PAYLOAD_BYTES / (1024 * 1024)} MB).`,
+    );
+    return { upserted: 0, failed: rows.length };
+  }
 
-  for (let idx = 0; idx < chunks.length; idx++) {
-    const chunk = chunks[idx];
-    const batchNum = idx + 1;
-
-    try {
-      const { error } = await client.from(tableName).upsert(chunk);
-      if (error) {
-        failed += chunk.length;
-        onLog(`Batch ${batchNum}/${total}: failed — ${friendlyError(error)}`);
+  try {
+    const { error, status } = await client.from(tableName).upsert(payload);
+    if (error) {
+      if (isServerOutcomeUnknown(status, error)) {
+        onLog(
+          `Import request failed (server outcome unknown for ${payload.length} rows — verify existing records before retrying) — ${friendlyError(error)}`,
+        );
       } else {
-        upserted += chunk.length;
-        onLog(`Batch ${batchNum}/${total}: upserted ${chunk.length} rows`);
+        onLog(`Import failed (rolled back ${payload.length} rows) — ${friendlyError(error)}`);
       }
-    } catch (err: any) {
-      failed += chunk.length;
-      onLog(`Batch ${batchNum}/${total}: failed — ${err?.message ?? 'Unknown error'}`);
+      return { upserted: 0, failed: payload.length };
     }
+    onLog(`Upserted ${payload.length} rows atomically`);
+    return { upserted: payload.length, failed: 0 };
+  } catch (err: any) {
+    onLog(
+      `Import request failed (server outcome unknown for ${payload.length} rows — verify existing records before retrying) — ${friendlyError(err)}`,
+    );
+    return { upserted: 0, failed: payload.length };
   }
-
-  return { upserted, failed };
 }
 
 // ---------------------------------------------------------------------------

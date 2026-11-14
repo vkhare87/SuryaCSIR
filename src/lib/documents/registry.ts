@@ -190,14 +190,15 @@ export async function openDocumentUrl(resolve: () => Promise<string | null>): Pr
 }
 
 /** List registry rows for one entity (shared bucket). */
-export async function listDocuments(entityType: string, entityId: string) {
+export async function listDocuments(entityType: string, entityId: string, limit = 200) {
   if (!supabase) return [];
   const { data, error } = await supabase
     .from('documents')
     .select('id, doc_type, title, storage_path, file_name, file_size, created_at, ingest_status, access_tier')
     .eq('entity_type', entityType)
     .eq('entity_id', entityId)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .limit(limit);
   if (error) { logger.error('[documents] list failed', error); return []; }
   return data ?? [];
 }

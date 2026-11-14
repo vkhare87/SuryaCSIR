@@ -9,7 +9,7 @@ import { Histogram } from '../components/viz/Histogram';
 import { OrgTree, type OrgNode } from '../components/viz/OrgTree';
 import { NetworkGraph, type GraphLink, type GraphNode } from '../components/viz/NetworkGraph';
 import { useChartFilter } from '../utils/useChartFilter';
-import { personNamesMatch } from '../utils/analytics';
+import { normalizePersonName } from '../utils/analytics';
 import { coAuthorPairs } from '../lib/intelligence/collaboration';
 import { successionRisk } from '../lib/staff/successionRisk';
 import { yearsUntilRetirement } from '../lib/staff/retirement';
@@ -68,12 +68,38 @@ export default function StaffAnalytics() {
 
   const collabGraph = useMemo<{ nodes: GraphNode[]; links: GraphLink[] }>(() => {
     if (staff.length === 0 || scientificOutputs.length === 0) return { nodes: [], links: [] };
+    const staffById = new Map(staff.map((s) => [s.ID, s]));
+    const normStaff = staff
+      .map((s) => ({ id: s.ID, norm: normalizePersonName(s.Name) }))
+      .filter((x) => x.norm.length > 0);
+    const exactByNorm = new Map<string, string>();
+    for (const s of normStaff) {
+      if (!exactByNorm.has(s.norm)) exactByNorm.set(s.norm, s.id);
+    }
+    const authorCache = new Map<string, string | null>();
+    const resolveStaffId = (authorName: string): string | undefined => {
+      if (authorCache.has(authorName)) return authorCache.get(authorName) ?? undefined;
+      const needle = normalizePersonName(authorName);
+      if (!needle) {
+        authorCache.set(authorName, null);
+        return undefined;
+      }
+      const exact = exactByNorm.get(needle);
+      if (exact) {
+        authorCache.set(authorName, exact);
+        return exact;
+      }
+      const fuzzy = normStaff.find((s) => s.norm.includes(needle) || needle.includes(s.norm))?.id ?? null;
+      authorCache.set(authorName, fuzzy);
+      return fuzzy ?? undefined;
+    };
+
     const outputCount = new Map<string, number>();
     const linkCount = new Map<string, number>();
     for (const pub of scientificOutputs) {
       const authors = pub.authors ?? [];
       const matched = authors
-        .map((authorName) => staff.find((s) => personNamesMatch(s.Name, authorName))?.ID)
+        .map(resolveStaffId)
         .filter((id): id is string => Boolean(id));
       for (const id of matched) outputCount.set(id, (outputCount.get(id) ?? 0) + 1);
       for (let i = 0; i < matched.length; i++) {
@@ -85,7 +111,7 @@ export default function StaffAnalytics() {
       }
     }
     const nodes: GraphNode[] = Array.from(outputCount, ([id, count]) => {
-      const s = staff.find((x) => x.ID === id);
+      const s = staffById.get(id);
       return { id, label: s?.Name ?? id, group: s?.Division, value: count };
     });
     const links: GraphLink[] = Array.from(linkCount, ([key, value]) => {

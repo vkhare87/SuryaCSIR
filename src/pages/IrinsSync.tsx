@@ -25,7 +25,6 @@ interface SyncLogEntry {
   total_scientists: number;
   succeeded: number;
   failed: number;
-  error_details: unknown;
 }
 
 // ---------------------------------------------------------------------------
@@ -48,7 +47,11 @@ export default function IrinsSync() {
     try {
       const [profilesRes, logsRes] = await Promise.all([
         fetchAll(supabase.from('irins_profiles').select('*').order('synced_at', { ascending: false }).order('vidwan_id')),
-        supabase.from('irins_sync_log').select('*').order('started_at', { ascending: false }).limit(20),
+        supabase
+          .from('irins_sync_log')
+          .select('id, triggered_by, started_at, completed_at, status, total_scientists, succeeded, failed')
+          .order('started_at', { ascending: false })
+          .limit(20),
       ]);
       if (profilesRes.error) throw profilesRes.error;
       if (logsRes.error) throw logsRes.error;

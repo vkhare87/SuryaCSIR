@@ -80,15 +80,26 @@ export default function ProjectsAnalytics() {
 
   const divFundHeatmap = useMemo(() => {
     const src = filter && filter.dim === 'division' ? projects : filteredProjects;
-    const divs = Array.from(new Set(src.map((p) => p.DivisionCode).filter(Boolean))).sort();
-    const funds = Array.from(new Set(src.map((p) => p.FundType || 'Unspecified'))).sort();
+    const divSet = new Set<string>();
+    const fundSet = new Set<string>();
+    const counts = new Map<string, number>();
+    for (const p of src) {
+      const f = p.FundType || 'Unspecified';
+      fundSet.add(f);
+      if (!p.DivisionCode) continue;
+      divSet.add(p.DivisionCode);
+      const key = `${p.DivisionCode}\0${f}`;
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    const divs = Array.from(divSet).sort();
+    const funds = Array.from(fundSet).sort();
     const cells = [];
     for (const d of divs) {
       for (const f of funds) {
         cells.push({
           row: d,
           col: f,
-          value: src.filter((p) => p.DivisionCode === d && (p.FundType || 'Unspecified') === f).length,
+          value: counts.get(`${d}\0${f}`) ?? 0,
         });
       }
     }
