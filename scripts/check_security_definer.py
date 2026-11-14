@@ -163,6 +163,7 @@ EXEMPT: dict[str, str] = {
     "contribution_requests_sweep": "cron-only; EXECUTE revoked from client roles",
     "project_staff_link_rows": "internal to project_staff_link_legacy / project_staff_backfill, which authorize first; EXECUTE revoked from clients (20261113000003)",
     "caller_acting_as": "caller-identity resolver: does the caller hold this role in acting charge today. Keyed on auth.uid(); answers only about the caller (20261113000004)",
+    "committee_minutes_days": "read-only: returns one checked csir_rules value (minutes due days for TFM / LSG), the same for every caller; writes nothing, takes no record id (20261113000011)",
     "acting_capacity": "returns the office-order fact 'Acting HOD of D1 (order)' for a user on a day, for the timeline; office orders are not confidential within the institute (20261113000004)",
     "pms_timeline_sweep": "daily cron job: deemed acceptance and overdue reminders across all reports. EXECUTE revoked from client roles (20261112000018)",
     "pms_reports_set_questionnaire_b": "trigger on pms_reports INSERT; reads the report scientist's designation. The insert itself is gated by reports_insert. EXECUTE revoked (20261112000020)",

@@ -72,5 +72,9 @@ describe('csir_rule_set', () => {
     expect(await minutes()).toBe(7);
     await set(U.master, 'committee.minutes_due_days', { LSG: 2, TFM: 3 }, '2026-11-01');
     expect(await minutes()).toBe(3);
+    await set(U.master, 'committee.minutes_due_days', { LSG: 2, TFM: -5 }, '2026-11-02');
+    await expect(minutes()).rejects.toThrow(/whole days from 1 to 90/);
+    await set(U.master, 'committee.minutes_due_days', { LSG: 2, TFM: 'soon' }, '2026-11-03');
+    await expect(minutes()).rejects.toThrow(/whole days from 1 to 90/);
   });
 });
