@@ -23,8 +23,12 @@ export interface PrecheckContext {
 export function precheck(a: MyAction, ctx: PrecheckContext): Precheck | null {
   if (!a.id.startsWith('pr-review-')) return null;
   const report = ctx.progressReports.find(r => `pr-review-${r.id}` === a.id);
-  const project = report ? ctx.projects.find(p => p.ProjectNo === report.projectNo) : undefined;
-  if (!report || !project) return null;
+  if (!report) return null;
+  // A project number can cover several work packages (ProjectNo is not unique). Only an unambiguous match is read.
+  const matches = ctx.projects.filter(p => p.ProjectNo === report.projectNo
+    && (!report.divisionCode || !p.DivisionCode || p.DivisionCode === report.divisionCode));
+  if (matches.length !== 1) return null;
+  const project = matches[0];
   const reading = readProject(project, ctx.milestones.filter(m => m.projectId === project.ProjectID), ctx.now);
   const due = report.dueDate ? ` · was due ${report.dueDate}` : '';
   return reading.reasons.length > 0

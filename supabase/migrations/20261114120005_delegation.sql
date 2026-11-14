@@ -90,7 +90,8 @@ BEGIN
         RAISE EXCEPTION 'Only the Director issues a delegation order';
     END IF;
     IF p_lines IS NULL OR jsonb_typeof(p_lines) <> 'array' THEN RAISE EXCEPTION 'Give the lines of the order'; END IF;
-    IF v_from < public.ist_today() THEN RAISE EXCEPTION 'An order cannot start in the past'; END IF;
+    -- An order takes effect the day it is issued, so ending the order before it is always right.
+    IF v_from <> public.ist_today() THEN RAISE EXCEPTION 'An order takes effect the day it is issued'; END IF;
 
     FOR v_line IN SELECT * FROM jsonb_array_elements(p_lines) LOOP
         IF coalesce(v_line->>'mode', '') NOT IN ('SELF', 'HEAD_TELL', 'HEAD_FLAGS') THEN
@@ -98,6 +99,11 @@ BEGIN
         END IF;
         IF v_line->>'mode' <> 'SELF' AND public.delegation_is_floor(v_line->>'kind') THEN
             RAISE EXCEPTION '% cannot be delegated (rule delegation.floor.%)', v_line->>'kind', v_line->>'kind';
+        END IF;
+        -- A kind that carries money goes to a head only with a limit.
+        IF v_line->>'mode' <> 'SELF' AND v_line->>'kind' = 'INDENT'
+           AND (v_line->>'limit' IS NULL OR (v_line->>'limit')::numeric < 0) THEN
+            RAISE EXCEPTION 'Give a money limit for %', v_line->>'kind';
         END IF;
     END LOOP;
 
@@ -143,21 +149,28 @@ BEGIN
     IF (SELECT auth.uid()) IS NULL THEN RAISE EXCEPTION 'not authorized'; END IF;
     SELECT * INTO v_order FROM public.delegation_orders
      WHERE ended_at IS NULL AND effective_from <= public.ist_today();
-    IF NOT FOUND THEN RETURN QUERY SELECT 'UNCHANGED'::text, NULL::uuid, NULL::text; RETURN; END IF;
-
+    -- The floor holds with or without an order.
     IF public.delegation_is_floor(p_kind) THEN
         RETURN QUERY SELECT 'DIRECTOR'::text, v_order.id, 'SELF'::text; RETURN;
     END IF;
+    IF v_order.id IS NULL THEN RETURN QUERY SELECT 'UNCHANGED'::text, NULL::uuid, NULL::text; RETURN; END IF;
     SELECT * INTO v_line FROM public.delegation_lines l
      WHERE l.order_id = v_order.id AND l.kind = p_kind AND l.division_code IN (coalesce(p_division, '*'), '*')
      ORDER BY (l.division_code = '*')
      LIMIT 1;
     IF NOT FOUND OR v_line.mode = 'SELF'
-       OR (v_line.amount_limit IS NOT NULL AND coalesce(p_amount, 0) > v_line.amount_limit)
-       -- No self-approval: a head never decides an item they asked for.
-       OR (p_requester IS NOT NULL AND EXISTS (
-            SELECT 1 FROM public.user_roles r
-             WHERE r.user_id = p_requester AND r.role IN ('HOD', 'DivisionHead') AND r.division_code = p_division)) THEN
+       -- An unknown amount is never inside a limit.
+       OR (v_line.amount_limit IS NOT NULL AND (p_amount IS NULL OR p_amount > v_line.amount_limit))
+       -- No self-approval: a head (held or acting) never decides an item they asked for.
+       -- With no division given, any head asking goes to the Director.
+       OR (p_requester IS NOT NULL AND (
+            EXISTS (SELECT 1 FROM public.user_roles r
+                     WHERE r.user_id = p_requester AND r.role IN ('HOD', 'DivisionHead')
+                       AND (p_division IS NULL OR r.division_code = p_division))
+         OR EXISTS (SELECT 1 FROM public.acting_assignments a
+                     WHERE a.acting_user_id = p_requester AND a.role IN ('HOD', 'DivisionHead')
+                       AND public.ist_today() BETWEEN a.from_on AND a.to_on
+                       AND (p_division IS NULL OR a.division_code = p_division)))) THEN
         RETURN QUERY SELECT 'DIRECTOR'::text, v_order.id, coalesce(v_line.mode, 'SELF'); RETURN;
     END IF;
     RETURN QUERY SELECT 'HEAD'::text, v_order.id, v_line.mode;

@@ -167,7 +167,7 @@ export function HoDView() {
 
       {/* --- 3. Waiting on you --- */}
       <DecisionQueue rows={decisions} strong={prioritiesForMe.length === 0}
-        check={a => precheck(a, { projects, progressReports, milestones, now })} />
+        check={a => precheck(a, { projects: divisionProjects, progressReports, milestones, now })} />
       <WaitingOnYou actions={others} now={now} rows={MAX_ROWS} strong={prioritiesForMe.length === 0 && decisions.length === 0}
         title={decisions.length > 0 ? 'Also on you' : 'Waiting on you'} />
 

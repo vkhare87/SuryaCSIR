@@ -19,6 +19,11 @@ describe('precheck', () => {
     })).toEqual({ text: '1 milestone late · was due 2026-11-10', finding: true });
   });
 
+  it('gives no line when the project number matches more than one project', () => {
+    const twin = { ...project, ProjectID: 'P2' } as ProjectInfo;
+    expect(precheck(act('pr-review-r1'), { projects: [project, twin], progressReports: [report], milestones: [], now: NOW })).toBeNull();
+  });
+
   it('gives no line for kinds it cannot check, or when the record is not loaded', () => {
     expect(precheck(act('prop-review-1'), { projects: [project], progressReports: [report], milestones: [], now: NOW })).toBeNull();
     expect(precheck(act('pr-review-zz'), { projects: [project], progressReports: [report], milestones: [], now: NOW })).toBeNull();

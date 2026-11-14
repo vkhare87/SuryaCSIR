@@ -25,6 +25,7 @@ beforeAll(async () => {
     INSERT INTO public.user_roles (user_id, role, division_code) VALUES
       ('${U.dir}', 'Director', NULL), ('${U.acting}', 'Scientist', 'D1'), ('${U.hod}', 'HOD', 'D1'), ('${U.sci}', 'Scientist', 'D1');
     UPDATE public.user_profiles p SET active_role = (SELECT role FROM public.user_roles r WHERE r.user_id = p.user_id LIMIT 1);
+    INSERT INTO public.divisions ("divCode", "divName") VALUES ('D1', 'Materials') ON CONFLICT DO NOTHING;
     INSERT INTO public.acting_assignments (role, division_code, principal_user_id, acting_user_id, from_on, to_on, order_ref)
       VALUES ('Director', NULL, '${U.dir}', '${U.acting}', public.ist_today() - 1, public.ist_today() + 5, 'O/1');
   `);
@@ -35,6 +36,7 @@ afterAll(async () => { await db?.close(); });
 describe('delegation_issue', () => {
   it('with no order in force, every module keeps its own rule', async () => {
     expect(await authority('INDENT', 'D1', 100)).toEqual({ authority: 'UNCHANGED', mode: null });
+    expect(await authority('MOU_SIGNING', 'D1')).toEqual({ authority: 'DIRECTOR', mode: 'SELF' });
   });
 
   it('only a held Director issues; an acting Director and a head cannot', async () => {
@@ -87,6 +89,16 @@ describe('decision_authority', () => {
     await db.exec(`INSERT INTO csir_rules (rule_key, value, effective_from, source_ref) VALUES ('delegation.floor.WRITE_OFF', 'false', public.ist_today() - 1, 'test')`);
     expect((await q<{ f: boolean }>(db, `SELECT delegation_is_floor('WRITE_OFF') f`))[0].f).toBe(false);
     expect((await q<{ f: boolean }>(db, `SELECT delegation_is_floor('MOU_SIGNING') f`))[0].f).toBe(true);
+  });
+
+  it('fails closed: unknown amount, acting head asking, floor with no order, no limit, future order', async () => {
+    expect(await authority('INDENT', 'D1', null)).toMatchObject({ authority: 'DIRECTOR' });
+    await db.exec(`INSERT INTO acting_assignments (role, division_code, principal_user_id, acting_user_id, from_on, to_on, order_ref)
+                   VALUES ('HOD', 'D1', '${U.hod}', '${U.sci}', public.ist_today() - 1, public.ist_today() + 3, 'O/2')`);
+    expect(await authority('LEAVE_TOUR', 'D1', null, U.sci)).toMatchObject({ authority: 'DIRECTOR' });
+    expect(await authority('LEAVE_TOUR', null, null, U.hod)).toMatchObject({ authority: 'DIRECTOR' });
+    await expect(issue(U.dir, [{ kind: 'INDENT', mode: 'HEAD_TELL' }])).rejects.toThrow(/Give a money limit for INDENT/);
+    await expect(call(U.dir, `SELECT delegation_issue('BALANCED', '[]'::jsonb, public.ist_today() + 3)`)).rejects.toThrow(/day it is issued/);
   });
 
   it('nobody writes the order tables directly', async () => {
