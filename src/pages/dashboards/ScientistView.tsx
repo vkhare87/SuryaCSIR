@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Lightbulb } from 'lucide-react';
 import clsx from 'clsx';
+import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
+import { useProjectReports } from '../../contexts/ProjectReportsContext';
 import { useClaim, useHome } from '../../contexts/HomeContext';
 import { Card, Badge } from '../../components/ui/Cards';
 import { Button } from '../../components/ui/Button';
@@ -17,6 +19,7 @@ import { localIso, weekStrip } from '../../lib/home/today';
 import type { DayMark } from '../../lib/home/today';
 import { deskKey } from '../../lib/home/desk';
 import { reportTimers } from '../../lib/home/requests';
+import { canSnooze, consequenceLine, nextWorkingDay, onTimeRecord, readSnoozes, snoozedIds, writeSnoozes } from '../../lib/home/nudges';
 import type { ReportTimer } from '../../lib/home/requests';
 import { milestonesFor } from '../../lib/home/api';
 import type { HomeMilestone } from '../../lib/home/api';
@@ -62,15 +65,27 @@ function MilestoneTrack({ milestones, today }: { milestones: HomeMilestone[]; to
 export function ScientistView() {
   const { projects, projectStaff, phDStudents, meetings, committeeMembers, actionItems, calendarEvents, holidays } = useData();
   const { staffId, ownStaff, staffResolved, actions, doneCount, prioritiesForMe } = useHome();
+  const { user } = useAuth();
+  const { reports: progressReports } = useProjectReports();
   const [milestones, setMilestones] = useState<HomeMilestone[]>([]);
 
   const now = useMemo(() => new Date(), []);
   const today = localIso(now);
   const ownName = ownStaff?.Name ?? '';
 
-  // --- 1. What needs me ---
-  const next = useMemo(() => doNext(actions), [actions]);
-  const wins = useMemo(() => quickWins(actions).filter(a => a.id !== next?.id), [actions, next]);
+  // --- 1. What needs me (items put off until tomorrow stay out of these three) ---
+  const [snoozes, setSnoozes] = useState<Record<string, string>>(() => (user ? readSnoozes(user.id) : {}));
+  const snoozed = useMemo(() => snoozedIds(snoozes, today), [snoozes, today]);
+  const visible = useMemo(() => actions.filter(a => !snoozed.has(a.id)), [actions, snoozed]);
+  const next = useMemo(() => doNext(visible), [visible]);
+  const wins = useMemo(() => quickWins(visible).filter(a => a.id !== next?.id), [visible, next]);
+  const putOff = (id: string) => {
+    if (!user) return;
+    const s = { ...snoozes, [id]: nextWorkingDay(today, holidays.map(h => h.holiday_date)) };
+    writeSnoozes(user.id, s, today);
+    setSnoozes(s);
+  };
+  const record = useMemo(() => (user ? onTimeRecord(progressReports, user.id, today) : { sent: 0, onTime: 0 }), [progressReports, user, today]);
   const overdue = useMemo(() => actions.filter(a => a.due !== null && a.due < today).length, [actions, today]);
   const groups = useMemo(() => countByGroup(actions), [actions]);
   const sentence = useMemo(
@@ -128,8 +143,8 @@ export function ScientistView() {
   const timers = useMemo(() => reportTimers(actions, now), [actions, now]);
   const alsoOpen = useMemo(() => {
     const timed = new Set(timers.map(t => t.action.id));
-    return actions.filter(a => a.id !== next?.id && !wins.includes(a) && !timed.has(a.id)).slice(0, 5);
-  }, [actions, next, wins, timers]);
+    return visible.filter(a => a.id !== next?.id && !wins.includes(a) && !timed.has(a.id)).slice(0, 5);
+  }, [visible, next, wins, timers]);
   useClaim(useMemo(() => [
     ...(next ? [deskKey.action(next.id)] : []),
     ...wins.slice(0, 5).map(a => deskKey.action(a.id)),
@@ -148,7 +163,7 @@ export function ScientistView() {
       <HomeGreeting
         done={doneCount} total={total} sentence={sentence}
         sub={ownStaff
-          ? `${ownStaff.Designation} · Division ${ownStaff.Division}`
+          ? `${ownStaff.Designation} · Division ${ownStaff.Division}${record.sent > 0 ? ` · ${record.onTime} of ${record.sent} reports sent on time this year` : ''}`
           : staffResolved
             ? 'This account is not linked to a staff record. Ask the System Admin to link it; project, committee and team blocks need it.'
             : ' '}
@@ -172,6 +187,7 @@ export function ScientistView() {
               <p className="text-sm text-text-muted">{next.detail}</p>
             </div>
             {(() => { const due = dueText(next.due, now); return due && <Badge variant={due.variant} className="font-mono normal-case">{due.text}</Badge>; })()}
+            {canSnooze(next, today) && <Button type="button" variant="ghost" onClick={() => putOff(next.id)}>Tomorrow</Button>}
             <Link to={next.link}><Button type="button" variant={prioritiesForMe.length > 0 ? 'secondary' : 'primary'}>Open</Button></Link>
           </div>
         </Card>
@@ -221,6 +237,7 @@ export function ScientistView() {
                   <p className="text-xs text-text-muted truncate" title={t.action.detail}>
                     {t.daysLeft < 0 ? `${-t.daysLeft} days late` : t.daysLeft === 0 ? 'due today' : `due ${t.action.due}`}
                   </p>
+                  {consequenceLine(t.action, t.daysLeft) && <p className="text-xs text-text-muted">{consequenceLine(t.action, t.daysLeft)}</p>}
                 </div>
               </Link>
             ))}

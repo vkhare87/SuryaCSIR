@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ScientistView } from './ScientistView';
 import type { MyAction } from '../../lib/dashboard/myActions';
@@ -14,6 +14,8 @@ let home: Record<string, unknown>;
 const claimed = vi.fn();
 vi.mock('../../contexts/HomeContext', () => ({ useHome: () => home, useClaim: (keys: string[]) => claimed(keys) }));
 
+vi.mock('../../contexts/AuthContext', () => ({ useAuth: () => ({ user: { id: 'u1' } }) }));
+vi.mock('../../contexts/ProjectReportsContext', () => ({ useProjectReports: () => ({ reports: [] }) }));
 let data: Record<string, unknown>;
 vi.mock('../../contexts/DataContext', () => ({ useData: () => data }));
 
@@ -68,6 +70,28 @@ describe('ScientistView', () => {
     renderView();
     expect(screen.getByText('Report timers · days left')).toBeInTheDocument();
     expect(screen.getByText(`due ${iso}`)).toBeInTheDocument();
+  });
+
+  it('puts the next item off until the next working day', () => {
+    localStorage.clear();
+    const later = new Date(Date.now() + 10 * 86400000).toISOString().slice(0, 10);
+    home = { ...home, actions: [
+      { id: 'p1', kind: 'proposal', due: later, label: 'first job', detail: '', link: '/a' },
+      { id: 'p2', kind: 'proposal', due: null, label: 'second job', detail: '', link: '/b' },
+    ] };
+    renderView();
+    expect(screen.getAllByText('first job')[0].closest('div')?.textContent).toMatch(/first job/);
+    fireEvent.click(screen.getByRole('button', { name: 'Tomorrow' }));
+    expect(screen.queryByText('first job')).toBeNull();
+    expect(screen.getByText('second job')).toBeInTheDocument();
+  });
+
+  it('states what happens to a late progress report', () => {
+    const d = new Date(Date.now() - 3 * 86400000);
+    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    home = { ...home, actions: [{ id: 'slot-9', kind: 'project-review', due: iso, label: 'Progress report due — GAP-1', detail: '', link: '/reports/new' }] };
+    renderView();
+    expect(screen.getByText(/your head of division is told\./)).toBeInTheDocument();
   });
 
   it('says plainly when an office block is not connected', () => {

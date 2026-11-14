@@ -19,7 +19,10 @@ Baseline before any change (2026-11-14): `npm run build` passed; `npm test` 148 
 | `SH2` report timers | **Done**, client version | Seen in tests only (`requests.test.ts`, `ScientistView.test.tsx`); the dev login owes no dated report |
 | **Wave 2** | **Done** | — |
 | `SH3` priorities + `HH7` | **Done**; migration on live (2026-11-14, owner approved, same scratch-copy push; dry run listed only this file; schema cache reloaded; `work_priorities` read and `priority_may_pin` checked on live) | `20261114120002_work_priorities.sql`: table, `priority_may_pin`, six RPCs, the four rules. DB test `priorities.db.test.ts` (7 tests), parts test `Priorities.test.tsx` (4 tests). Seen in the browser as HOD: the Pin form opens with 18 people; Do first is hidden because the table is not on live (the page logs one load error per visit until it is pushed) |
-| Rest of wave 3 (`HH2`, `CD6`, `SH4`, `CD4`) | Next | — |
+| `CD4` notices | **Done**; migration `20261114120003` **not on live** | DB test `notices.db.test.ts` (6), `Notices.test.tsx` (4). Audience = all or divisions only (roles and named people not built) |
+| `HH2` + `CD6` decision queue | **Done**, client version | Items carry `since`; oldest first; people waiting in the greeting. No approve-in-place, no answer-time record, no pre-checks (`HH3`) |
+| `SH4` nudges | **Done**; migration `20261114120004` **not on live** | `home_overdue_sweep` tells the head at 7 days late (window 7–37 days), DB test `homeSweep.db.test.ts` (2). Tomorrow is kept in the browser (not a table). On-time record and consequence line on the scientist screen. Seen in the browser as Scientist |
+| **Wave 3** | **Done in code** | Two migrations to push. Wave 4 next |
 
 ## SH1 — what was built
 

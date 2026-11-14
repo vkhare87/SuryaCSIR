@@ -107,6 +107,7 @@ EXEMPT: dict[str, str] = {
     "project_change_apply": "internal: applies an approved change; called only by project_change_record_step after its own check. EXECUTE revoked (20261112000001)",
     "project_change_log": "trigger on project_change_requests; writes the timeline. EXECUTE revoked (20261112000001)",
     "project_completion_log": "trigger on project_completion_reports; writes the timeline. EXECUTE revoked (20261112000002)",
+    "home_overdue_sweep": "scheduled sweep (pg_cron, no caller): tells the head of division about a progress report 7 days late. EXECUTE revoked from clients (20261114120004)",
     "priority_notify": "internal: writes one notification for a priority step; called only by the priority_* RPCs after their own checks. EXECUTE revoked from clients (20261114120002)",
     "project_caller_is_party": (
         "caller-identity resolver: is the caller PI, author or co-PI of this "
