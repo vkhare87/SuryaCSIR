@@ -1,12 +1,12 @@
 export interface SidebarLayout {
   /** Ordered "For you" paths; null means the role's default list. */
   pins: string[] | null;
-  /** Section labels folded inside "More". */
-  closed: string[];
+  /** Nav paths the user opened, newest first. */
+  recent: string[];
   collapsed: boolean;
 }
 
-const DEFAULT_LAYOUT: SidebarLayout = { pins: null, closed: [], collapsed: false };
+const DEFAULT_LAYOUT: SidebarLayout = { pins: null, recent: [], collapsed: false };
 
 const isStrings = (v: unknown): v is string[] => Array.isArray(v) && v.every(x => typeof x === 'string');
 
@@ -21,7 +21,7 @@ export function readLayout(key: string): SidebarLayout {
     if (!raw || typeof raw !== 'object') return DEFAULT_LAYOUT;
     return {
       pins: isStrings(raw.pins) ? raw.pins : null,
-      closed: isStrings(raw.closed) ? raw.closed : [],
+      recent: isStrings(raw.recent) ? raw.recent : [],
       collapsed: raw.collapsed === true,
     };
   } catch {

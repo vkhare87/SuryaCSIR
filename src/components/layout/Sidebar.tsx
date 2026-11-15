@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { MouseEvent } from 'react';
-import { NavLink } from 'react-router-dom';
-import {Pin, PinOff, RotateCcw, Users, Briefcase, BookOpen, LogOut, PanelLeftClose, PanelLeftOpen, Settings as SettingsIcon, LayoutDashboard, Calendar as CalendarIcon, Building2, Handshake, Activity, FileText, Database, Network, Cloud, X, ClipboardCheck, Ticket as TicketIcon, CalendarDays, UserCog, UserCheck, ScanText, Sparkles, Share2, Microscope, SlidersHorizontal, ChevronDown, MoreHorizontal, Inbox, Gauge, Lightbulb, Link2, Scale, ClipboardList, TrendingUp, GraduationCap} from 'lucide-react';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import {Pin, PinOff, RotateCcw, Search, User, FlaskConical, Landmark, ShieldCheck, Users, Briefcase, BookOpen, LogOut, PanelLeftClose, PanelLeftOpen, Settings as SettingsIcon, LayoutDashboard, Calendar as CalendarIcon, Building2, Handshake, Activity, FileText, Database, Network, Cloud, X, ClipboardCheck, Ticket as TicketIcon, CalendarDays, UserCog, UserCheck, ScanText, Sparkles, Share2, Microscope, SlidersHorizontal, ChevronDown, Inbox, Gauge, Lightbulb, Link2, Scale, ClipboardList, TrendingUp, GraduationCap} from 'lucide-react';
 import clsx from 'clsx';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import type { LucideIcon } from 'lucide-react';
@@ -9,9 +9,11 @@ import { HoverCard } from '../ui/HoverCard';
 import { moveIn, readLayout, toggleIn, writeLayout } from '../../utils/sidebarLayout';
 import type { SidebarLayout } from '../../utils/sidebarLayout';
 import { useAuth } from '../../contexts/AuthContext';
+import { useData } from '../../contexts/DataContext';
 import { useFeatureControls } from '../../contexts/FeatureControlContext';
 import { ROLE_ROUTES } from '../../constants/roleRoutes';
 import { PRIMARY_NAV } from '../../constants/access';
+import { inboxBucket, isReviewer } from '../../lib/contributions/state';
 import { useDialog } from '../../utils/useDialog';
 
 interface NavItem {
@@ -22,25 +24,27 @@ interface NavItem {
 
 interface NavSection {
   label: string;
+  icon: LucideIcon;
   items: NavItem[];
 }
 
+// Grouped by what a person comes to do, in plain words: my own things, the
+// people, the research, the running of the institute, the system.
 const NAV_SECTIONS: NavSection[] = [
   {
-    label: 'Overview',
+    label: 'Me',
+    icon: User,
     items: [
       { path: '/',             label: 'Dashboard',       icon: LayoutDashboard },
       { path: '/work',         label: 'My Work',         icon: Inbox },
       { path: '/me',           label: 'My Profile',      icon: UserCog },
-      { path: '/ask',          label: 'Ask SURYA',       icon: Sparkles },
-      { path: '/intelligence', label: 'Intelligence',    icon: Microscope },
-      { path: '/publication-files', label: 'Publication Files', icon: FileText },
-      { path: '/explore',      label: 'Explore Graph',   icon: Share2 },
       { path: '/calendar',     label: 'Calendar',        icon: CalendarIcon },
+      { path: '/ask',          label: 'Ask SURYA',       icon: Sparkles },
     ],
   },
   {
-    label: 'Unified Human Resource',
+    label: 'People',
+    icon: Users,
     items: [
       { path: '/staff',        label: 'Human Capital',   icon: Users },
       { path: '/staff/project', label: 'Project Staff',   icon: UserCog },
@@ -54,28 +58,34 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    label: 'Research Ops',
+    label: 'Research',
+    icon: FlaskConical,
     items: [
       { path: '/projects',     label: 'Projects',        icon: Briefcase },
       { path: '/proposals',    label: 'Proposals',       icon: FileText },
       { path: '/reports',      label: 'Progress Reports',icon: ClipboardCheck },
+      { path: '/portfolio',    label: 'Project Portfolio', icon: Gauge },
       { path: '/facilities',   label: 'Instruments',     icon: Building2 },
       { path: '/partnerships', label: 'Partnerships',    icon: Handshake },
       { path: '/rnd-monitor',  label: 'R&D Monitor',     icon: Activity },
-      { path: '/portfolio',    label: 'Project Portfolio', icon: Gauge },
+      { path: '/intelligence', label: 'Intelligence',    icon: Microscope },
+      { path: '/publication-files', label: 'Publication Files', icon: FileText },
+      { path: '/explore',      label: 'Explore Graph',   icon: Share2 },
       { path: '/lessons',      label: 'Lessons Learned', icon: Lightbulb },
     ],
   },
   {
-    label: 'Governance',
+    label: 'Institute',
+    icon: Landmark,
     items: [
+      { path: '/pms',          label: 'Performance Mgmt',icon: ClipboardCheck },
       { path: '/committees',   label: 'Committees',      icon: Building2 },
       { path: '/helpdesk',     label: 'Helpdesk',        icon: TicketIcon },
-      { path: '/pms',          label: 'Performance Mgmt',icon: ClipboardCheck },
     ],
   },
   {
     label: 'Admin',
+    icon: ShieldCheck,
     items: [
       { path: '/admin/access-requests', label: 'Access Requests', icon: UserCheck },
       { path: '/admin/features', label: 'Feature Controls', icon: SlidersHorizontal },
@@ -89,7 +99,18 @@ const NAV_SECTIONS: NavSection[] = [
   },
 ];
 
-const MORE_OPEN_KEY = 'surya_sidebar_more_open';
+const ALL_ITEMS = NAV_SECTIONS.flatMap(section => section.items);
+const GROUP_OF = new Map(NAV_SECTIONS.flatMap(s => s.items.map(i => [i.path, s.label] as const)));
+const RECENT_SHOWN = 3;
+const HEADING = 'px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-warm-silver/55';
+
+function CountBadge({ n }: { n: number }) {
+  return (
+    <span className="ml-auto shrink-0 min-w-5 h-5 px-1.5 rounded-full bg-terracotta text-ivory text-[11px] font-semibold font-mono flex items-center justify-center">
+      {n > 99 ? '99+' : n}
+    </span>
+  );
+}
 
 interface SidebarLinkProps {
   item: NavItem;
@@ -97,14 +118,15 @@ interface SidebarLinkProps {
   dashboardPath: string;
   onNavigate: (e: MouseEvent) => void;
   pinned: boolean;
+  count?: number;
   onTogglePin?: () => void;
-  /** Present on a "For you" link that can move: Alt+Up / Alt+Down. */
+  /** Present on a pinned link that can move: Alt+Up / Alt+Down. */
   onMove?: (delta: -1 | 1) => void;
   /** Touch screens have no hover, so the pin button stays on show. */
   pinAlwaysVisible: boolean;
 }
 
-function SidebarLink({ item, expanded, dashboardPath, onNavigate, pinned, onTogglePin, onMove, pinAlwaysVisible }: SidebarLinkProps) {
+function SidebarLink({ item, expanded, dashboardPath, onNavigate, pinned, count = 0, onTogglePin, onMove, pinAlwaysVisible }: SidebarLinkProps) {
   const to = item.path === '/' ? dashboardPath : item.path;
   const link = (
     <NavLink
@@ -120,7 +142,7 @@ function SidebarLink({ item, expanded, dashboardPath, onNavigate, pinned, onTogg
         onMove(e.key === 'ArrowUp' ? -1 : 1);
       })}
       className={({ isActive }) => clsx(
-        'relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all group',
+        'relative flex items-center gap-3 px-3 py-2 rounded-lg transition-all group',
         expanded && onTogglePin && 'pr-9',
         isActive
           ? 'bg-dark-surface text-ivory font-medium shadow-[inset_2px_0_0_var(--color-terracotta),0_0_18px_-6px_color-mix(in_srgb,var(--color-coral)_70%,transparent)]'
@@ -130,8 +152,13 @@ function SidebarLink({ item, expanded, dashboardPath, onNavigate, pinned, onTogg
       {({ isActive }) => (
         <>
           {isActive && <span className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-[3px] rounded-r bg-terracotta" />}
-          <item.icon size={20} className={clsx(expanded ? 'shrink-0' : 'mx-auto shrink-0', isActive && 'text-terracotta')} />
-          {expanded && <span className="truncate">{item.label}</span>}
+          <span className={clsx('relative', expanded ? 'shrink-0' : 'mx-auto shrink-0')}>
+            <item.icon size={19} className={clsx(isActive && 'text-terracotta')} />
+            {!expanded && count > 0 && <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-terracotta" />}
+          </span>
+          {expanded && <span className="truncate text-sm">{item.label}</span>}
+          {expanded && count > 0 && <CountBadge n={count} />}
+          {count > 0 && <span className="sr-only">, {count} waiting</span>}
         </>
       )}
     </NavLink>
@@ -139,7 +166,7 @@ function SidebarLink({ item, expanded, dashboardPath, onNavigate, pinned, onTogg
   if (!expanded) {
     return (
       <HoverCard
-        side="right" openDelay={100} content={item.label} className="block"
+        side="right" openDelay={100} content={count > 0 ? `${item.label} · ${count}` : item.label} className="block"
         panelClassName="px-2.5 py-1.5 text-xs font-medium text-text whitespace-nowrap"
       >
         {link}
@@ -153,10 +180,11 @@ function SidebarLink({ item, expanded, dashboardPath, onNavigate, pinned, onTogg
         <button
           type="button"
           onClick={onTogglePin}
-          aria-label={pinned ? `Unpin ${item.label}` : `Pin ${item.label} to For you`}
-          title={pinned ? 'Unpin' : 'Pin to For you'}
+          aria-label={pinned ? `Unpin ${item.label}` : `Pin ${item.label}`}
+          title={pinned ? 'Unpin' : 'Pin to the top'}
           className={clsx(
-            'absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 rounded text-warm-silver hover:text-ivory hover:bg-dark-surface transition-opacity',
+            'absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 rounded hover:text-ivory hover:bg-dark-surface transition-opacity',
+            pinned ? 'text-terracotta' : 'text-warm-silver',
             !pinAlwaysVisible && 'opacity-0 group-hover/link:opacity-100 focus-visible:opacity-100',
           )}
         >
@@ -171,12 +199,12 @@ interface SidebarBodyProps {
   isMobileView: boolean;
   sidebarOpen: boolean;
   onToggleCollapse: () => void;
-  primaryItems: NavItem[];
-  moreSections: NavSection[];
-  moreOpen: boolean;
-  onToggleMore: () => void;
-  closedSections: string[];
-  onToggleSection: (label: string) => void;
+  pinnedItems: NavItem[];
+  recentItems: NavItem[];
+  sections: NavSection[];
+  openGroup: string | null;
+  onToggleGroup: (label: string) => void;
+  counts: Record<string, number>;
   pinsCustomized: boolean;
   onSetPins: (paths: string[] | null) => void;
   dashboardPath: string;
@@ -188,30 +216,50 @@ interface SidebarBodyProps {
 /** The rail's inner chrome. Top-level component (never redefined per render)
  *  so navigating or collapsing never remounts it — no state reset / flicker. */
 function SidebarBody({
-  isMobileView, sidebarOpen, onToggleCollapse, primaryItems, moreSections, moreOpen,
-  onToggleMore, closedSections, onToggleSection, pinsCustomized, onSetPins,
+  isMobileView, sidebarOpen, onToggleCollapse, pinnedItems, recentItems, sections, openGroup,
+  onToggleGroup, counts, pinsCustomized, onSetPins,
   dashboardPath, onCloseMobile, onOpenSettings, onLogout,
 }: SidebarBodyProps) {
   const expanded = sidebarOpen || isMobileView;
+  const navigate = useNavigate();
+  const [query, setQuery] = useState('');
   // A drag ends with a click on the link under the pointer; that click must not navigate.
   const dragging = useRef(false);
-  const pinPaths = primaryItems.map(item => item.path);
+  const pinPaths = pinnedItems.map(item => item.path);
   const linkProps = {
     expanded,
     dashboardPath,
     pinAlwaysVisible: isMobileView,
     onNavigate: (e: MouseEvent) => {
       if (dragging.current) { e.preventDefault(); return; }
+      setQuery('');
       if (isMobileView) onCloseMobile();
     },
   };
-  const forYouLink = (item: NavItem) => (
+  const plainLink = (item: NavItem) => (
     <SidebarLink
-      item={item} {...linkProps} pinned
+      key={item.path} item={item} {...linkProps} pinned={pinPaths.includes(item.path)} count={counts[item.path]}
+      onTogglePin={() => onSetPins(toggleIn(pinPaths, item.path))}
+    />
+  );
+  const pinnedLink = (item: NavItem) => (
+    <SidebarLink
+      item={item} {...linkProps} pinned count={counts[item.path]}
       onTogglePin={() => onSetPins(toggleIn(pinPaths, item.path))}
       onMove={(delta) => onSetPins(moveIn(pinPaths, item.path, delta))}
     />
   );
+
+  const q = query.trim().toLowerCase();
+  const found = q ? sections.flatMap(s => s.items).filter(i => i.label.toLowerCase().includes(q)) : [];
+  const openFirst = () => {
+    const first = found[0];
+    if (!first) return;
+    navigate(first.path === '/' ? dashboardPath : first.path);
+    setQuery('');
+    if (isMobileView) onCloseMobile();
+  };
+
   return (
     <div className="flex flex-col h-full">
       {/* Logo */}
@@ -234,112 +282,139 @@ function SidebarBody({
         )}
       </div>
 
-      {/* Nav */}
-      <nav className="flex-1 overflow-y-auto py-4 px-2">
-        <div className="relative space-y-1">
-          {expanded && (
-            <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-warm-silver/55">
-              For you
-            </div>
-          )}
-          {expanded && pinsCustomized && (
-            <button
-              type="button"
-              onClick={() => onSetPins(null)}
-              aria-label="Reset For you to the default list"
-              title="Reset to default"
-              className="absolute right-1.5 -top-1.5 p-1.5 rounded text-warm-silver/70 hover:text-ivory hover:bg-dark-surface transition-colors"
-            >
-              <RotateCcw size={12} />
-            </button>
-          )}
-          {expanded && !isMobileView ? (
-            <Reorder.Group as="div" axis="y" values={pinPaths} onReorder={onSetPins} className="space-y-1">
-              {primaryItems.map(item => (
-                <Reorder.Item
-                  as="div" key={item.path} value={item.path}
-                  onDragStart={() => { dragging.current = true; }}
-                  onDragEnd={() => { window.setTimeout(() => { dragging.current = false; }); }}
-                >
-                  {forYouLink(item)}
-                </Reorder.Item>
-              ))}
-            </Reorder.Group>
-          ) : primaryItems.map(item => <div key={item.path}>{forYouLink(item)}</div>)}
+      {/* Find a page */}
+      {expanded && (
+        <div className="px-2 pt-3">
+          <div className="relative">
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-warm-silver/70" aria-hidden="true" />
+            <input
+              type="search"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') openFirst(); if (e.key === 'Escape') setQuery(''); }}
+              aria-label="Find a page"
+              placeholder="Find a page…"
+              className="w-full h-9 pl-9 pr-3 rounded-lg bg-dark-surface/60 border border-dark-surface text-sm text-ivory placeholder:text-warm-silver/60 outline-none focus:border-terracotta/60 focus:bg-dark-surface transition-colors"
+            />
+          </div>
         </div>
+      )}
 
-        {moreSections.length > 0 && (
-          <div className={clsx(expanded ? 'mt-5' : 'mt-3 border-t border-dark-surface/60 pt-3')}>
-            <button
-              onClick={onToggleMore}
-              aria-expanded={moreOpen}
-              title={expanded ? undefined : 'More'}
-              aria-label={expanded ? undefined : 'More'}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-warm-silver hover:text-ivory hover:bg-dark-surface/60 w-full transition-colors"
-            >
-              {expanded ? (
-                <>
-                  <span className="flex-1 text-left text-[10px] font-semibold uppercase tracking-[0.12em]">More</span>
-                  <ChevronDown size={16} className={clsx('shrink-0 transition-transform', moreOpen && 'rotate-180')} />
-                </>
-              ) : (
-                <MoreHorizontal size={20} className="mx-auto shrink-0" />
-              )}
-            </button>
-
-            {moreOpen && moreSections.map((section, sectionIdx) => {
-              // The icon rail has no headers to fold by, so it always shows every group.
-              const open = !expanded || !closedSections.includes(section.label);
-              return (
-                <div
-                  key={section.label}
-                  className={clsx(
-                    'space-y-1',
-                    expanded ? 'mt-3' : sectionIdx > 0 && 'mt-3 border-t border-dark-surface/60 pt-3'
-                  )}
+      {/* Nav */}
+      <nav className="flex-1 overflow-y-auto py-3 px-2">
+        {q ? (
+          <div className="space-y-1">
+            <div className={HEADING} aria-live="polite">{found.length === 0 ? 'No page matches' : `${found.length} found · Enter opens the first`}</div>
+            {found.map(plainLink)}
+          </div>
+        ) : (
+          <>
+            {/* Pinned: the user's own short list, in the user's own order */}
+            <div className="relative space-y-1">
+              {expanded && <div className={HEADING}>Pinned</div>}
+              {expanded && pinsCustomized && (
+                <button
+                  type="button"
+                  onClick={() => onSetPins(null)}
+                  aria-label="Reset pinned to the default list"
+                  title="Reset to default"
+                  className="absolute right-1.5 -top-1.5 p-1.5 rounded text-warm-silver/70 hover:text-ivory hover:bg-dark-surface transition-colors"
                 >
-                  {expanded && (
+                  <RotateCcw size={12} />
+                </button>
+              )}
+              {expanded && pinnedItems.length === 0 && (
+                <p className="px-3 py-1 text-xs text-warm-silver/60">Hover a page and press the pin to keep it here.</p>
+              )}
+              {expanded && !isMobileView ? (
+                <Reorder.Group as="div" axis="y" values={pinPaths} onReorder={onSetPins} className="space-y-1">
+                  {pinnedItems.map(item => (
+                    <Reorder.Item
+                      as="div" key={item.path} value={item.path}
+                      onDragStart={() => { dragging.current = true; }}
+                      onDragEnd={() => { window.setTimeout(() => { dragging.current = false; }); }}
+                    >
+                      {pinnedLink(item)}
+                    </Reorder.Item>
+                  ))}
+                </Reorder.Group>
+              ) : pinnedItems.map(item => <div key={item.path}>{pinnedLink(item)}</div>)}
+            </div>
+
+            {/* Recent: where the user just was */}
+            {expanded && recentItems.length > 0 && (
+              <div className="mt-4 space-y-1">
+                <div className={HEADING}>Recent</div>
+                {recentItems.map(plainLink)}
+              </div>
+            )}
+
+            {/* Every page, by group. One group is open at a time: the one the user is in. */}
+            <div className={clsx(expanded ? 'mt-4 space-y-0.5' : 'mt-3 border-t border-dark-surface/60 pt-3 space-y-1')}>
+              {expanded && <div className={HEADING}>All pages</div>}
+              {sections.map(section => {
+                const open = openGroup === section.label;
+                const waiting = section.items.reduce((sum, i) => sum + (counts[i.path] ?? 0), 0);
+                if (!expanded) {
+                  // The icon rail shows the pages of the group the user is in.
+                  return open ? <div key={section.label} className="space-y-1">{section.items.map(plainLink)}</div> : null;
+                }
+                return (
+                  <div key={section.label}>
                     <button
                       type="button"
-                      onClick={() => onToggleSection(section.label)}
+                      onClick={() => onToggleGroup(section.label)}
                       aria-expanded={open}
-                      className="flex w-full items-center justify-between gap-2 px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-warm-silver/55 hover:text-warm-silver transition-colors"
+                      className={clsx(
+                        'flex w-full items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors',
+                        open ? 'text-ivory' : 'text-warm-silver hover:text-ivory hover:bg-dark-surface/60',
+                      )}
                     >
-                      <span className="truncate">{section.label}</span>
-                      <ChevronDown size={12} className={clsx('shrink-0 transition-transform', !open && '-rotate-90')} />
+                      <section.icon size={17} className={clsx('shrink-0', open && 'text-coral')} />
+                      <span className="font-medium">{section.label}</span>
+                      <span className="text-[11px] font-mono text-warm-silver/50">{section.items.length}</span>
+                      {!open && waiting > 0 && <CountBadge n={waiting} />}
+                      <ChevronDown size={14} className={clsx('shrink-0 transition-transform', !(waiting > 0 && !open) && 'ml-auto', !open && '-rotate-90')} />
                     </button>
-                  )}
-                  {open && section.items.map(item => (
-                    <SidebarLink
-                      key={item.path} item={item} {...linkProps} pinned={false}
-                      onTogglePin={() => onSetPins(toggleIn(pinPaths, item.path))}
-                    />
-                  ))}
-                </div>
-              );
-            })}
-          </div>
+                    <AnimatePresence initial={false}>
+                      {open && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                          className="overflow-hidden"
+                        >
+                          <div className="ml-[1.35rem] pl-2 border-l border-dark-surface space-y-0.5 py-1">
+                            {section.items.map(plainLink)}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                );
+              })}
+            </div>
+          </>
         )}
       </nav>
 
       {/* Bottom actions */}
-      <div className="p-4 border-t border-dark-surface space-y-2">
+      <div className="p-3 border-t border-dark-surface space-y-1">
         <button
           onClick={() => { onOpenSettings(); if (isMobileView) onCloseMobile(); }}
           title={expanded ? undefined : 'Settings'}
-              aria-label={expanded ? undefined : 'Settings'}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-warm-silver hover:bg-dark-surface/60 hover:text-ivory w-full transition-colors"
+          aria-label={expanded ? undefined : 'Settings'}
+          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-warm-silver hover:bg-dark-surface/60 hover:text-ivory w-full transition-colors"
         >
-          <SettingsIcon size={20} className={expanded ? 'shrink-0' : 'mx-auto shrink-0'} />
+          <SettingsIcon size={19} className={expanded ? 'shrink-0' : 'mx-auto shrink-0'} />
           {expanded && <span>Settings</span>}
         </button>
         <button
           onClick={() => { onLogout(); if (isMobileView) onCloseMobile(); }}
           title={expanded ? undefined : 'Logout'}
-              aria-label={expanded ? undefined : 'Logout'}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-coral hover:bg-dark-surface/60 w-full transition-colors"
+          aria-label={expanded ? undefined : 'Logout'}
+          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-coral hover:bg-dark-surface/60 w-full transition-colors"
         >
-          <LogOut size={20} className={expanded ? 'shrink-0' : 'mx-auto shrink-0'} />
+          <LogOut size={19} className={expanded ? 'shrink-0' : 'mx-auto shrink-0'} />
           {expanded && <span>Logout</span>}
         </button>
       </div>
@@ -365,14 +440,13 @@ export function Sidebar(props: SidebarProps) {
 }
 
 function SidebarForRole({ layoutKey, isMobile, deviceType, mobileOpen, onCloseMobile, onOpenSettings }: SidebarProps & { layoutKey: string }) {
-  const { role, logout } = useAuth();
+  const { user, role, logout } = useAuth();
   const { canAccess } = useFeatureControls();
+  const { contributionRequests, dataStewards, tickets } = useData();
+  const { pathname } = useLocation();
   const [layout, setLayout] = useState(() => readLayout(layoutKey));
   const [sidebarOpen, setSidebarOpen] = useState(!layout.collapsed);
   const drawerRef = useDialog<HTMLElement>(isMobile && mobileOpen, onCloseMobile);
-  const [moreOpen, setMoreOpen] = useState(() => {
-    try { return localStorage.getItem(MORE_OPEN_KEY) === '1'; } catch { return false; }
-  });
 
   const saveLayout = (patch: Partial<SidebarLayout>) => {
     const next = { ...layout, ...patch };
@@ -388,28 +462,60 @@ function SidebarForRole({ layoutKey, isMobile, deviceType, mobileOpen, onCloseMo
 
   const dashboardPath = role ? ROLE_ROUTES[role] : '/';
   const resolve = (path: string) => (path === '/' ? dashboardPath : path);
-  const primaryPaths: string[] = layout.pins ?? (role ? PRIMARY_NAV[role] : []);
-  const allItems = NAV_SECTIONS.flatMap(section => section.items);
 
-  // A stored pin grants nothing: every item still passes canAccess().
-  const primaryItems = primaryPaths
-    .map(path => allItems.find(item => item.path === path))
+  // The nav page the user is on: the longest nav path that starts the URL.
+  const herePath = useMemo(() => {
+    const at = (p: string) => (p === '/' ? dashboardPath : p);
+    return ALL_ITEMS
+      .filter(i => pathname === at(i.path) || pathname.startsWith(`${at(i.path)}/`))
+      .sort((a, b) => at(b.path).length - at(a.path).length)[0]?.path ?? null;
+  }, [pathname, dashboardPath]);
+
+  // Follow the user: open the group they are in, and remember the page as recent.
+  const [openGroup, setOpenGroup] = useState<string | null>(() => (herePath ? GROUP_OF.get(herePath) ?? null : null));
+  useEffect(() => {
+    if (!herePath) return;
+    setOpenGroup(GROUP_OF.get(herePath) ?? null);
+    setLayout((prev) => {
+      if (prev.recent[0] === herePath) return prev;
+      const next = { ...prev, recent: [herePath, ...prev.recent.filter(p => p !== herePath)].slice(0, 8) };
+      writeLayout(layoutKey, next);
+      return next;
+    });
+  }, [herePath, layoutKey]);
+
+  const primaryPaths: string[] = layout.pins ?? (role ? PRIMARY_NAV[role] : []);
+
+  // A stored pin or recent path grants nothing: every item still passes canAccess().
+  const pinnedItems = primaryPaths
+    .map(path => ALL_ITEMS.find(item => item.path === path))
     .filter((item): item is NavItem => item != null && canAccess(item.path))
     // EmpoweredCommittee's dashboard *is* /pms — don't list it twice.
     .filter((item, i, items) => items.findIndex(x => resolve(x.path) === resolve(item.path)) === i);
 
-  const moreSections = NAV_SECTIONS
-    .map(section => ({
-      ...section,
-      items: section.items.filter(item => canAccess(item.path) && !primaryPaths.includes(item.path)),
-    }))
+  const recentItems = layout.recent
+    .filter(path => path !== herePath && !primaryPaths.includes(path))
+    .map(path => ALL_ITEMS.find(item => item.path === path))
+    .filter((item): item is NavItem => item != null && canAccess(item.path))
+    .slice(0, RECENT_SHOWN);
+
+  const sections = NAV_SECTIONS
+    .map(section => ({ ...section, items: section.items.filter(item => canAccess(item.path)) }))
     .filter(section => section.items.length > 0);
 
-  const toggleMore = () => {
-    const next = !moreOpen;
-    setMoreOpen(next);
-    try { localStorage.setItem(MORE_OPEN_KEY, next ? '1' : '0'); } catch { /* storage blocked — state still works */ }
-  };
+  // Live counts: what waits on this person, from the same rules the pages use.
+  const userId = user?.id ?? '';
+  const roles = user?.roles;
+  const counts = useMemo<Record<string, number>>(() => {
+    const none: Record<string, number> = {};
+    if (!userId) return none;
+    const work = contributionRequests.filter((r) => {
+      const bucket = inboxBucket(r, userId, isReviewer(r, userId, roles ?? [], dataStewards));
+      return bucket === 'todo' || bucket === 'review';
+    }).length;
+    const mine = tickets.filter(t => t.assigned_to === userId && (t.status === 'Open' || t.status === 'InProgress')).length;
+    return { '/work': work, '/helpdesk': mine };
+  }, [contributionRequests, dataStewards, tickets, userId, roles]);
 
   const bodyProps = {
     sidebarOpen,
@@ -417,12 +523,12 @@ function SidebarForRole({ layoutKey, isMobile, deviceType, mobileOpen, onCloseMo
       if (deviceType === 'desktop') saveLayout({ collapsed: sidebarOpen });
       else setSidebarOpen(v => !v);
     },
-    primaryItems,
-    moreSections,
-    moreOpen,
-    onToggleMore: toggleMore,
-    closedSections: layout.closed,
-    onToggleSection: (label: string) => saveLayout({ closed: toggleIn(layout.closed, label) }),
+    pinnedItems,
+    recentItems,
+    sections,
+    openGroup,
+    onToggleGroup: (label: string) => setOpenGroup(g => (g === label ? null : label)),
+    counts,
     pinsCustomized: layout.pins !== null,
     onSetPins: (pins: string[] | null) => saveLayout({ pins }),
     dashboardPath,

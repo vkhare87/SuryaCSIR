@@ -11,15 +11,15 @@ describe('sidebarLayout', () => {
   beforeEach(() => store.clear());
 
   it('gives the default when nothing or rubbish is stored', () => {
-    expect(readLayout('k')).toEqual({ pins: null, closed: [], collapsed: false });
+    expect(readLayout('k')).toEqual({ pins: null, recent: [], collapsed: false });
     store.set('k', '{not json');
     expect(readLayout('k').pins).toBeNull();
-    store.set('k', JSON.stringify({ pins: [1, 2], closed: 'x', collapsed: 'yes' }));
-    expect(readLayout('k')).toEqual({ pins: null, closed: [], collapsed: false });
+    store.set('k', JSON.stringify({ pins: [1, 2], recent: 'x', collapsed: 'yes' }));
+    expect(readLayout('k')).toEqual({ pins: null, recent: [], collapsed: false });
   });
 
   it('reads back what was written', () => {
-    const layout = { pins: ['/work', '/'], closed: ['Admin'], collapsed: true };
+    const layout = { pins: ['/work', '/'], recent: ['/phd'], collapsed: true };
     writeLayout('k', layout);
     expect(readLayout('k')).toEqual(layout);
   });
