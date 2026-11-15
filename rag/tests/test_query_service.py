@@ -664,6 +664,21 @@ def test_totals_runs_an_aggregate_function():
     finally:
         query_service.CATALOG = old
     assert a.mode == "structured" and "refusal" not in (a.trace or {})
+    # Same caller, same topic, a non-aggregate count: refused — so this is the totals path.
+    b = handle_query("SCOPE:projects:lab COUNT documents", _as("Scientist", cls=_NoReadClient), FakeLLM())
+    assert b.trace["refusal"] == "totals_only"
+
+
+def test_stream_structured_routes_once():
+    calls = []
+
+    class Spy(FakeLLM):
+        def route(self, question, catalog, examples=None):
+            calls.append(question)
+            return super().route(question, catalog, examples)
+
+    ev = list(stream_query("COUNT documents by status", _as("Director", documents=[{"ingest_status": "indexed"}]), Spy()))
+    assert len(calls) == 1 and ev[-1][1].mode == "structured"
 
 
 def test_totals_with_document_route_is_refused_but_not_a_strike():
@@ -684,7 +699,7 @@ def test_director_gets_todays_behaviour():
 
 
 def test_unknown_classification_proceeds():
-    a = handle_query("what is in the intro", _as("Scientist", **_DOCS), FakeLLM())
+    a = handle_query("SCOPE:bogus:bogus what is in the intro", _as("Scientist", **_DOCS), FakeLLM())
     assert a.text != SCOPE_REFUSAL_TEXT
 
 

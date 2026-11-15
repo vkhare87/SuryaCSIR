@@ -97,6 +97,16 @@ describe('AskSurya question history', () => {
     await waitFor(() => expect(askSuryaStream).toHaveBeenCalledWith('How many projects?', [], expect.any(Function), null));
   });
 
+  it('asking from history keeps a half-typed draft', async () => {
+    render(<MemoryRouter><AskSurya /></MemoryRouter>);
+    const box = screen.getByRole('textbox', { name: 'Ask SURYA a question' }) as HTMLInputElement;
+    fireEvent.change(box, { target: { value: 'my draft' } });
+    fireEvent.click(await screen.findByRole('button', { name: 'How many projects?' }));
+    await waitFor(() => expect(askSuryaStream).toHaveBeenCalled());
+    await screen.findByText(/licensed for 300,000/);
+    expect(box.value).toBe('my draft');
+  });
+
   it('pin button saves the question and reloads history', async () => {
     render(<MemoryRouter><AskSurya /></MemoryRouter>);
     fireEvent.click(await screen.findByRole('button', { name: 'Save question: How many projects?' }));

@@ -48,7 +48,7 @@ def _route_part(data: dict, catalog: dict) -> dict:
     if route not in VALID_ROUTES or route == "document":
         return dict(_FALLBACK)
     function = data.get("function")
-    if function not in catalog:
+    if not isinstance(function, str) or function not in catalog:
         return dict(_FALLBACK)
     params = data.get("params")
     if not isinstance(params, dict):

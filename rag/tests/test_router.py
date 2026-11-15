@@ -115,3 +115,8 @@ def test_subject_division_is_a_trimmed_string_or_none():
     assert d["subject_division"] == "D2"
     d = decide("q", replying('{"route":"document","topic":"projects","subject":"division","subject_division":7}'), CAT)
     assert d["subject_division"] is None
+
+
+def test_unhashable_function_falls_back():
+    d = decide("q", replying('{"route":"structured","function":["x"],"params":{}}'), CAT)
+    assert d["route"] == "document"

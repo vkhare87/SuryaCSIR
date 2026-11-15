@@ -288,6 +288,11 @@ def handle_query(question, client, llm, history=None, entity=None):
     gated = _scope_gate(decision, client, asked)
     if gated is not None:
         return gated
+    return _answer(question, entity_docs, decision, client, llm)
+
+
+def _answer(question, entity_docs, decision, client, llm):
+    """Everything after the gate, for a decision already made and allowed."""
     trace = {"route": decision["route"], "function": decision.get("function"),
              "params": decision.get("params")}
     fetch_texts = make_fetch_texts(client)
@@ -319,7 +324,8 @@ def stream_query(question, client, llm, history=None, entity=None):
         yield ("done", gated)
         return
     if decision["route"] in ("structured", "hybrid"):
-        answer = handle_query(question, client, llm, history=history, entity=entity)
+        # Reuse the gated decision: routing again could relabel past the gate.
+        answer = _answer(q, entity_docs, decision, client, llm)
         yield ("token", answer.text)
         yield ("done", answer)
         return

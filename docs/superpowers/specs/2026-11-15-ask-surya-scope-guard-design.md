@@ -178,6 +178,13 @@ staff record (date of birth, contact, pay, category, service history).
 | SystemAdmin | refuse | refuse | refuse | totals |
 | Guest, DefaultUser | no access to Ask SURYA at all (today's gate, unchanged) |
 
+**As built (after review):** for `subject = other_person` the guard takes the caller's
+best cell across own division and elsewhere, because it cannot know which division the
+named person sits in; RLS narrows the rest. So a DivisionHead / HOD asking about one
+person gets `full` (not a strike), and a Scientist still gets `refuse` for the three
+sensitive topics. `subject = division` with no code named means the caller's own
+division; codes compare case-insensitively.
+
 Rule for the builder: before shipping, compare every `full` cell with the RLS
 policies. Where RLS is narrower than the cell, narrow the cell. Where RLS is wider,
 keep the cell (the guard may be stricter than RLS on these three sensitive topics;

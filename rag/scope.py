@@ -92,7 +92,16 @@ def verdict(scope: dict, topic: str, subject: str, subject_division=None, questi
     name = " ".join((scope.get("staff_name") or "").lower().split())
     if subject == "other_person" and name and re.search(rf"\b{re.escape(name)}\b", " ".join(question.lower().split())):
         return "full"
-    div = scope.get("division")
-    own = subject == "division" and bool(div) and bool(subject_division) and subject_division == div
-    cells = [_cell(r, topic, own) for r in scope.get("roles", ()) if r in _TABLE]
-    return max(cells, key=_RANK.__getitem__, default="refuse")
+    roles = [r for r in scope.get("roles", ()) if r in _TABLE]
+    best = lambda own: max((_cell(r, topic, own) for r in roles), key=_RANK.__getitem__, default="refuse")
+    if subject == "other_person":
+        # Which division a named person sits in is unknown here. Take the
+        # caller's best cell and let RLS narrow: a head asking about someone in
+        # their own division must not be struck (anti-goals: no false strikes,
+        # no refusing what RLS allows).
+        return max(best(True), best(False), key=_RANK.__getitem__)
+    div = (scope.get("division") or "").strip().upper()
+    asked = (subject_division or "").strip().upper()
+    # "my division" with no code named means the caller's own division.
+    own = subject == "division" and bool(div) and asked in ("", div)
+    return best(own)

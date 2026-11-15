@@ -63,10 +63,12 @@ export default function AskSurya() {
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    void ask(question);
+    void ask(question, true);
   }
 
-  async function ask(text: string) {
+  // fromForm: only a question typed in the box clears the box. A click on a
+  // history question must not wipe a half-typed draft.
+  async function ask(text: string, fromForm = false) {
     const q = text.trim();
     if (!q || loading) return;
     setLoading(true);
@@ -79,7 +81,7 @@ export default function AskSurya() {
       const answer = await askSuryaStream(q, recentTurns, (chunk) =>
         setStreamText((prev) => prev + chunk), entity);
       setTurns((prev) => [...prev, { question: q, answer, rated: false }]);
-      setQuestion('');
+      if (fromForm) setQuestion('');
     } catch (err) {
       setError(friendlyError(err, 'Query failed'));
     } finally {
@@ -298,6 +300,8 @@ function AskHistoryPanel({ history, disabled, onAsk, onTogglePin }: {
                   disabled={!item.pinned && savedFull}
                   onClick={() => onTogglePin(item)}
                   aria-label={item.pinned ? `Remove saved question: ${item.question}` : `Save question: ${item.question}`}
+                  aria-pressed={item.pinned}
+                  title={!item.pinned && savedFull ? `You can save up to ${SAVED_LIMIT} questions` : undefined}
                   className="shrink-0 text-text-muted hover:text-text disabled:opacity-40"
                 >
                   {item.pinned ? <BookmarkCheck className="h-4 w-4" /> : <Bookmark className="h-4 w-4" />}

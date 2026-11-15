@@ -35,7 +35,10 @@ CELLS = [
     (("DivisionHead",), "proposals", "division", "D2", "refuse"),
     (("HOD",), "projects", "division", "D1", "full"),
     (("HOD",), "projects", "division", "D2", "totals"),
-    (("HOD",), "projects", "other_person", None, "totals"),
+    (("HOD",), "projects", "other_person", None, "full"),
+    (("DivisionHead",), "proposals", "other_person", None, "full"),
+    (("DivisionHead",), "proposals", "division", None, "full"),
+    (("DivisionHead",), "proposals", "division", "d1", "full"),
     (("Scientist",), "pms_scores", "other_person", None, "refuse"),
     (("Technician",), "personal_details", "other_person", None, "refuse"),
     (("ProjectStaff",), "proposals", "lab", None, "refuse"),
@@ -82,8 +85,9 @@ def test_no_table_role_refuses_sensitive():
     assert verdict(S(), "pms_scores", "other_person") == "refuse"
 
 
-def test_missing_division_never_matches_own():
+def test_missing_caller_division_never_matches_own():
     assert verdict(S("DivisionHead", division=None), "proposals", "division", None) == "refuse"
+    assert verdict(S("DivisionHead", division=None), "proposals", "division", "D1") == "refuse"
 
 
 class _Exec:
