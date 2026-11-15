@@ -167,22 +167,24 @@ export const FREQUENT_LIMIT = 5;
 export const SAVED_LIMIT = 20;
 const HISTORY_DAYS = 90;
 const HISTORY_ROWS = 500;
-const SCOPE_REFUSALS = new Set(['out_of_scope', 'totals_only']);
+const SCOPE_REFUSALS = new Set(['out_of_scope', 'totals_only', 'scope_unavailable']);
 
 /** Groups a person's logged questions (newest first) into the three history lists.
- * Refused questions appear in none; two questions match after trim + lower-case. */
-export function buildAskHistory(rows: AskLogRow[]): AskHistory {
+ * Refused questions appear in none; two questions match after trim + lower-case.
+ * frequentSince: only rows at or after this ISO time count toward Most used. */
+export function buildAskHistory(rows: AskLogRow[], frequentSince?: string): AskHistory {
   const groups = new Map<string, { newest: AskLogRow; pinned?: AskLogRow; count: number; order: number }>();
   for (const row of rows) {
     if (row.refusal_reason && SCOPE_REFUSALS.has(row.refusal_reason)) continue;
     const key = row.question.trim().toLowerCase();
     if (!key) continue;
+    const counts = !frequentSince || row.created_at >= frequentSince ? 1 : 0;
     const g = groups.get(key);
     if (g) {
-      g.count += 1;
+      g.count += counts;
       if (row.pinned && !g.pinned) g.pinned = row;
     } else {
-      groups.set(key, { newest: row, pinned: row.pinned ? row : undefined, count: 1, order: groups.size });
+      groups.set(key, { newest: row, pinned: row.pinned ? row : undefined, count: counts, order: groups.size });
     }
   }
   const item = (r: AskLogRow): AskHistoryItem => ({ id: r.id, question: r.question, pinned: r.pinned });
@@ -205,10 +207,11 @@ const HISTORY_COLUMNS = 'id, question, pinned, created_at, refusal_reason';
 export async function fetchAskHistory(userId: string): Promise<AskHistory> {
   if (!supabase) return { recent: [], frequent: [], saved: [] };
   const since = new Date(Date.now() - HISTORY_DAYS * 86_400_000).toISOString();
-  // ponytail: 500-row window, move the grouping into an RPC if a person outgrows it.
+  // Recent has no date bound; the 90 days apply only to Most used (frequentSince).
+  // ponytail: newest 500 rows, move the grouping into an RPC if a person outgrows it.
   const [window, pins] = await Promise.all([
     supabase.from('query_log').select(HISTORY_COLUMNS).eq('user_id', userId)
-      .gte('created_at', since).order('created_at', { ascending: false }).limit(HISTORY_ROWS),
+      .order('created_at', { ascending: false }).limit(HISTORY_ROWS),
     supabase.from('query_log').select(HISTORY_COLUMNS).eq('user_id', userId)
       .eq('pinned', true).order('created_at', { ascending: false }).limit(SAVED_LIMIT),
   ]);
@@ -217,7 +220,7 @@ export async function fetchAskHistory(userId: string): Promise<AskHistory> {
   const byId = new Map<string, AskLogRow>();
   for (const r of [...(window.data ?? []), ...(pins.data ?? [])] as AskLogRow[]) byId.set(r.id, r);
   const rows = [...byId.values()].sort((a, b) => b.created_at.localeCompare(a.created_at));
-  return buildAskHistory(rows);
+  return buildAskHistory(rows, since);
 }
 
 export async function setQuestionPinned(queryId: string, pinned: boolean): Promise<void> {

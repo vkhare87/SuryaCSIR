@@ -239,7 +239,7 @@ def test_fake_llm_classifies_marked_questions():
   - `log_query` writes `refusal_reason` = `trace["refusal"]` when present, else today's `"no_grounded_answer"` rule.
 
 Behaviour, in both `handle_query` and `stream_query`:
-1. Classify with `decide(raw, ...)` where `raw` = entity preamble + the **current question only**. Then, as today, build the history-prefixed question for retrieval and answering. (Today `decide` gets the history-prefixed text; that changes. If the route for a follow-up like "and for 2024?" degrades, the fallback is the document route — acceptable; do not feed history back to the classifier.)
+1. Classify with `decide(route_q, ...)` where `route_q` = record line + earlier history **questions** (no answers) + the current question. Follow-ups like "and for 2024?" need the earlier questions to route. The gate's name check reads the same `route_q`, so an asker who named themself earlier keeps that on a follow-up. Answering still gets the full history. A record page's documents are read only after the gate. (As built.)
 2. `v = verdict(scope_of(client), d["topic"], d["subject"], d["subject_division"], question)`.
 3. `refuse` → refused Answer, `refusal="out_of_scope"`. No `traverse`, `select_corpus`, `run_analytics`, `pick_context` call.
 4. `totals` → if `d["route"] == "structured"` and `d["function"] in AGGREGATE`, run only the structured function and return it; if that fails or the route is anything else → refused Answer, `refusal="totals_only"`.
@@ -309,7 +309,7 @@ def test_aggregate_is_a_subset_of_the_catalog_and_names_no_person_function():
 
 - [ ] **Step 3: Implement** per the Behaviour list. One private helper `_scope_gate(decision, client, question) -> Answer | None | "totals"` shared by `handle_query` and `stream_query` keeps the two paths identical.
 
-- [ ] **Step 4: Check each `AGGREGATE` function against RLS.** For each of the 11, read its body in `rag/analytics.py`: if it counts rows through `client.table(...)` on a table whose SELECT policy is narrower than "any verified user" (see `supabase/migrations/20260718000001_rls_scope_reads.sql`), a Scientist would get a partial total — remove that name from `AGGREGATE` and from the Task 3 Interfaces list in this plan, and note it in the commit message. Functions that go through a `SECURITY DEFINER` RPC (`metric`) stay.
+- [ ] **Step 4: Check each `AGGREGATE` function against RLS.** For each of the 11, read its body in `rag/analytics.py`: if it counts rows through `client.table(...)` on a table whose SELECT policy is narrower than "any verified user" (see `supabase/migrations/20260718000001_rls_scope_reads.sql`), a Scientist would get a partial total — remove that name from `AGGREGATE` and from the Task 3 Interfaces list in this plan, and note it in the commit message. A function stays only if every table it counts has a read-`true` policy. `metric` is removed: `metric_value` and its metric functions run as invoker, so they count through RLS.
 
 - [ ] **Step 5: Run** `python -m pytest` in `rag/`. Expected: all PASS.
 
@@ -407,7 +407,7 @@ export async function setQuestionPinned(queryId: string, pinned: boolean): Promi
 
 `buildAskHistory` rules: drop rows whose `refusal_reason` is `'out_of_scope'` or `'totals_only'`. Two questions are the same when equal after `trim().toLowerCase()`; the newest row represents the group. `recent` = first 10 groups. `frequent` = groups asked 2 or more times, by count descending then newest, first 5. `saved` = groups with any pinned row (the item is the pinned row), first 20.
 
-`fetchAskHistory`: two reads of `query_log`, both `.eq('user_id', userId)` — (a) last 90 days, newest first, limit 500; (b) `pinned = true`, newest first, limit 20 — merged by `id` before `buildAskHistory`. Selects `id, question, pinned, created_at, refusal_reason` only; never `answer` or `citations`. `// ponytail: 500-row window, move the grouping into an RPC if a person outgrows it`.
+`fetchAskHistory`: two reads of `query_log`, both `.eq('user_id', userId)` — (a) newest first, limit 500, no date bound (the 90 days apply only to Most used, via `buildAskHistory(rows, frequentSince)`); (b) `pinned = true`, newest first, limit 20 — merged by `id` before `buildAskHistory`. Selects `id, question, pinned, created_at, refusal_reason` only; never `answer` or `citations`. `// ponytail: newest 500 rows, move the grouping into an RPC if a person outgrows it`.
 
 - [ ] **Step 1: Write the failing tests.** In `src/lib/ask/client.test.ts`:
 

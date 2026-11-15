@@ -59,12 +59,25 @@ describe('buildAskHistory', () => {
     expect(h.recent[0]).toEqual({ id: 'old', question: 'a', pinned: true });
   });
 
+  it('frequent counts only rows inside the window; recent and saved keep old rows', () => {
+    const since = '2026-08-17T00:00:00Z';
+    const h = buildAskHistory([
+      row('new', 'a', { created_at: '2026-11-15T00:00:00Z' }),
+      row('old', 'a', { created_at: '2026-01-01T00:00:00Z', pinned: true }),
+      row('ancient', 'b', { created_at: '2025-01-01T00:00:00Z' }),
+    ], since);
+    expect(h.frequent).toEqual([]);
+    expect(h.recent.map((i) => i.question)).toEqual(['a', 'b']);
+    expect(h.saved.map((i) => i.id)).toEqual(['old']);
+  });
+
   it('refused questions appear in no list', () => {
     const h = buildAskHistory([
       row('1', 'secret', { refusal_reason: 'out_of_scope', pinned: true }),
       row('2', 'secret', { refusal_reason: 'out_of_scope' }),
       row('3', 'team', { refusal_reason: 'totals_only' }),
       row('4', 'missing', { refusal_reason: 'no_grounded_answer' }),
+      row('5', 'broken', { refusal_reason: 'scope_unavailable' }),
     ]);
     expect([...h.recent, ...h.frequent, ...h.saved].map((i) => i.question)).toEqual(['missing']);
   });
@@ -82,6 +95,7 @@ describe('fetchAskHistory', () => {
     expect(filterCalls.filter((c) => c[0] === 'eq' && c[1] === 'user_id')).toEqual([['eq', 'user_id', 'U1'], ['eq', 'user_id', 'U1']]);
     expect(h.recent.map((i) => i.id)).toEqual(['w1', 'p1']);
     expect(h.saved.map((i) => i.id)).toEqual(['p1']);
+    expect(filterCalls.some((c) => c[0] === 'gte')).toBe(false);
   });
 });
 

@@ -528,7 +528,8 @@ plus decision-trace columns from `20260714000002`: `route`, `function_name`,
 `function_params jsonb`, `refusal_reason`, `catalog_version`, and `pinned boolean NOT NULL
 DEFAULT false` (`20261115000001`, a saved question).
 `refusal_reason`: `no_grounded_answer` (honest miss), `out_of_scope` (scope guard refused —
-a **strike**), `totals_only` (only a total was allowed and none could be served — not a strike).
+a **strike**), `totals_only` (only a total was allowed and none could be served — not a strike),
+`scope_unavailable` (the caller's roles could not be read — not a strike).
 **Index:** `(user_id, created_at DESC)`; partial `query_log_strikes_idx (user_id, created_at)
 WHERE refusal_reason = 'out_of_scope'`. RLS: own rows (SystemAdmin / MasterAdmin read all).
 **Grants:** `authenticated` may UPDATE only `(feedback, pinned)`; the migration asserts that

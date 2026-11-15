@@ -46,8 +46,11 @@ _TABLE["HOD"] = _TABLE["DivisionHead"]
 _DIVISION_ROLES = ("DivisionHead", "HOD")
 
 
-def _empty_scope() -> dict:
-    return {"roles": set(), "staff_id": None, "staff_name": None, "division": None, "lab": LAB}
+def _empty_scope(lookup_failed: bool = False) -> dict:
+    scope = {"roles": set(), "staff_id": None, "staff_name": None, "division": None, "lab": LAB}
+    if lookup_failed:
+        scope["lookup_failed"] = True
+    return scope
 
 
 def scope_of(client) -> dict:
@@ -61,7 +64,9 @@ def scope_of(client) -> dict:
         divs = sorted(rows, key=lambda r: r.get("role") not in _DIVISION_ROLES)
         scope["division"] = next((r["division_code"] for r in divs if r.get("division_code")), None)
     except Exception:
-        return _empty_scope()
+        # Empty roles still refuse the sensitive topics; the flag keeps that
+        # refusal from counting as a strike (rag/query_service.py _scope_gate).
+        return _empty_scope(lookup_failed=True)
     try:
         scope["staff_id"] = client.rpc("caller_staff_id", {}).execute().data or None
         if scope["staff_id"]:

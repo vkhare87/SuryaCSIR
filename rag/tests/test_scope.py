@@ -124,4 +124,4 @@ def test_scope_of_reads_roles_staff_and_division():
 
 def test_scope_of_survives_db_errors():
     assert scope_of(_Client(boom=True)) == {"roles": set(), "staff_id": None, "staff_name": None,
-                                            "division": None, "lab": "AMPRI"}
+                                            "division": None, "lab": "AMPRI", "lookup_failed": True}

@@ -620,7 +620,7 @@ from scope import SCOPE_REFUSAL_TEXT
 
 class _NoReadClient(_FakeClient):
     """Fails the test if any retrieval or analytics table is read."""
-    _ALLOWED = ("staff", "route_labels")
+    _ALLOWED = ("staff", "route_labels", "projects")
 
     def table(self, name):
         assert name in self._ALLOWED, f"guard let a refused question read {name}"
@@ -721,3 +721,39 @@ def test_log_query_records_scope_refusal_reason():
     a = Answer(SCOPE_REFUSAL_TEXT, "document", [], trace={"route": "document", "refusal": "out_of_scope"})
     log_query(client, "q", a)
     assert client.inserts[0]["refusal_reason"] == "out_of_scope"
+
+
+def _as_named(name, *roles, cls=_FakeClient, **tables):
+    client = _as(*roles, cls=cls, **tables)
+    rpc = client.rpc
+    client.rpc = lambda n, p: _FakeQuery("S1") if n == "caller_staff_id" else rpc(n, p)
+    client._tables.setdefault("staff", [{"Name": name}])
+    return client
+
+
+def test_follow_up_keeps_an_earlier_self_name():
+    history = [{"question": "What PMS score did Asha Rao get in 2025?", "answer": "x"}]
+    c = _as_named("Asha Rao", "Scientist", **_DOCS)
+    a = handle_query("SCOPE:pms_scores:other_person and for 2024?", c, FakeLLM(), history=history)
+    assert a.text != SCOPE_REFUSAL_TEXT
+    ev = list(stream_query("SCOPE:pms_scores:other_person and for 2024?", c, FakeLLM(), history=history))
+    assert ev[-1][1].text != SCOPE_REFUSAL_TEXT
+
+
+def test_role_lookup_failure_refuses_without_a_strike():
+    class Broken(_NoReadClient):
+        def rpc(self, name, _p):
+            return _FakeQuery(None, raise_on_execute=True)
+    a = handle_query("SCOPE:pms_scores:other_person score of Dr X", Broken({}), FakeLLM())
+    assert a.text == SCOPE_REFUSAL_TEXT and a.trace["refusal"] == "scope_unavailable"
+
+
+def test_refused_question_from_a_record_page_reads_no_documents():
+    c = _as("Scientist", cls=_NoReadClient,
+            projects=[{"ProjectID": "P1", "ProjectNo": "HCP1", "ProjectName": "Fly ash"}])
+    a = handle_query("SCOPE:pms_scores:other_person score of the PI", c, FakeLLM(),
+                     entity={"type": "project", "id": "P1"})
+    assert a.trace["refusal"] == "out_of_scope"
+    ev = list(stream_query("SCOPE:pms_scores:other_person score of the PI", c, FakeLLM(),
+                           entity={"type": "project", "id": "P1"}))
+    assert ev[-1][1].trace["refusal"] == "out_of_scope"

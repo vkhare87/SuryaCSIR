@@ -138,7 +138,7 @@ their own row and no column grant narrows it. A person could blank their own
 
 No new table. `query_log` is already owner-readable.
 
-- **Recent** — last 10 distinct questions of the caller, newest first.
+- **Recent** — last 10 distinct questions of the caller, newest first, no date bound.
 - **Most used** — top 5 questions of the caller by count, last 90 days.
 - **Saved** — new column `query_log.pinned boolean NOT NULL DEFAULT false`. The
   person pins a past question. Limit 20 pins per person, enforced in the UI.
