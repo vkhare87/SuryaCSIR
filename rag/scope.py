@@ -56,7 +56,7 @@ def scope_of(client) -> dict:
     refuses the sensitive topics, which is the safe side."""
     scope = _empty_scope()
     try:
-        rows = client.table("user_roles").select("role, division_code").execute().data or []
+        rows = client.rpc("caller_roles", {}).execute().data or []
         scope["roles"] = {r["role"] for r in rows if r.get("role")}
         divs = sorted(rows, key=lambda r: r.get("role") not in _DIVISION_ROLES)
         scope["division"] = next((r["division_code"] for r in divs if r.get("division_code")), None)

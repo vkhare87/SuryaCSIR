@@ -2,7 +2,7 @@
 // Ask SURYA scope guard: strike sweep + query_log column grants (20261115000001).
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { PGlite } from '@electric-sql/pglite';
-import { migratedDb } from './pgliteHarness';
+import { migratedDb, as } from './pgliteHarness';
 
 const PROBER = '71000000-0000-0000-0000-000000000001';
 const HR1 = '71000000-0000-0000-0000-000000000002';
@@ -94,5 +94,20 @@ describe('query_log grants', () => {
     const r = await db.query<{ ok: boolean }>(
       `SELECT has_function_privilege('authenticated', 'public.ask_scope_sweep()', 'EXECUTE') AS ok`);
     expect(r.rows[0].ok).toBe(false);
+  });
+});
+
+describe('caller_roles', () => {
+  it('returns only the roles of the caller', async () => {
+    const rows = await as(db, HR1, async tx =>
+      (await tx.query<{ role: string }>(`SELECT role FROM public.caller_roles() ORDER BY role`)).rows);
+    // Every new user also gets DefaultUser from the auto-register trigger.
+    expect(rows).toEqual([{ role: 'DefaultUser' }, { role: 'HRAdmin' }]);
+  });
+
+  it('never returns the roles of another user', async () => {
+    const rows = await as(db, PROBER, async tx =>
+      (await tx.query<{ role: string }>(`SELECT role FROM public.caller_roles()`)).rows);
+    expect(rows).toEqual([{ role: 'DefaultUser' }]);
   });
 });

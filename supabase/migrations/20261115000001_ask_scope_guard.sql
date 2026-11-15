@@ -19,6 +19,19 @@ ALTER TABLE public.query_log ADD COLUMN IF NOT EXISTS pinned boolean NOT NULL DE
 REVOKE UPDATE ON public.query_log FROM PUBLIC, anon, authenticated;
 GRANT UPDATE (feedback, pinned) ON public.query_log TO authenticated;
 
+-- ── 2b. The caller's own held roles, for the guard in rag/scope.py ────
+-- Filters on auth.uid() itself rather than trusting user_roles' SELECT policy
+-- to stay own-rows-only: a future admin read-all policy must not hand an
+-- admin's guard every user's roles. Invoker: it reads nothing RLS would hide.
+CREATE OR REPLACE FUNCTION public.caller_roles()
+RETURNS TABLE (role text, division_code text)
+LANGUAGE sql STABLE SET search_path = public AS $$
+    SELECT ur.role, ur.division_code FROM public.user_roles ur
+     WHERE ur.user_id = (SELECT auth.uid());
+$$;
+REVOKE ALL ON FUNCTION public.caller_roles() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.caller_roles() TO authenticated, service_role;
+
 -- ── 3. Strikes ────────────────────────────────────────────────────────
 CREATE INDEX IF NOT EXISTS query_log_strikes_idx
     ON public.query_log (user_id, created_at)

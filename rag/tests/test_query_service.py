@@ -620,7 +620,7 @@ from scope import SCOPE_REFUSAL_TEXT
 
 class _NoReadClient(_FakeClient):
     """Fails the test if any retrieval or analytics table is read."""
-    _ALLOWED = ("user_roles", "staff", "route_labels")
+    _ALLOWED = ("staff", "route_labels")
 
     def table(self, name):
         assert name in self._ALLOWED, f"guard let a refused question read {name}"
@@ -628,7 +628,10 @@ class _NoReadClient(_FakeClient):
 
 
 def _as(*roles, cls=_FakeClient, **tables):
-    return cls({"user_roles": [{"role": r, "division_code": "D1"} for r in roles], **tables})
+    client = cls(tables)
+    client.rpc = lambda name, _p: _FakeQuery(
+        [{"role": r, "division_code": "D1"} for r in roles] if name == "caller_roles" else None)
+    return client
 
 
 _DOCS = {

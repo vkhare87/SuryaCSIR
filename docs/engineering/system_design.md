@@ -112,7 +112,7 @@ sequenceDiagram
   API->>LLM: route(question, CATALOG, few-shots)      [call 1]
   LLM-->>API: {route, function, params, topic, subject}
   API->>API: function ∈ CATALOG? else fall back to document
-  API->>PG: user_roles, caller_staff_id (scope_of)
+  API->>PG: caller_roles(), caller_staff_id() (scope_of)
   API->>API: verdict(roles, topic, subject) — refuse → fixed line, no reads
 
   alt structured / hybrid

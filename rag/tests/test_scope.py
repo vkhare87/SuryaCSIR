@@ -110,10 +110,10 @@ class _Client:
 
 def test_scope_of_reads_roles_staff_and_division():
     fake = _Client(
-        tables={"user_roles": [{"role": "Scientist", "division_code": None},
-                               {"role": "HOD", "division_code": "D1"}],
-                "staff": [{"Name": "Asha Rao"}]},
-        rpcs={"caller_staff_id": "S1"})
+        tables={"staff": [{"Name": "Asha Rao"}]},
+        rpcs={"caller_staff_id": "S1",
+              "caller_roles": [{"role": "Scientist", "division_code": None},
+                               {"role": "HOD", "division_code": "D1"}]})
     assert scope_of(fake) == {"roles": {"Scientist", "HOD"}, "staff_id": "S1",
                               "staff_name": "Asha Rao", "division": "D1", "lab": "AMPRI"}
 
