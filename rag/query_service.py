@@ -11,7 +11,8 @@ from answer import Answer
 from llm import NOT_FOUND, REFUSAL_TEXT
 from router import decide
 from retrieval import traverse, pick_context, flatten, select_docs, section_label
-from analytics import run_analytics, CATALOG
+from analytics import run_analytics, CATALOG, AGGREGATE
+from scope import scope_of, verdict, SCOPE_REFUSAL_TEXT
 
 
 def _catalog_version() -> str:
@@ -227,25 +228,66 @@ HISTORY_MAX_TURNS = 3
 HISTORY_ANSWER_CHARS = 300
 
 
-def _with_history(question, history):
+def _with_history(question, history, answers=True):
     """Prepend a condensed transcript so route, picks and answer all see the
-    conversation. The raw question is what gets logged (api.py logs its own copy)."""
-    turns = [f"Q: {h.get('question', '')}\nA: {(h.get('answer') or '')[:HISTORY_ANSWER_CHARS]}"
+    conversation. The raw question is what gets logged (api.py logs its own copy).
+    answers=False is the router's copy: earlier questions give a follow-up its
+    meaning, but client-sent answers are free text an asker could forge to steer
+    the scope labels."""
+    turns = [f"Q: {h.get('question', '')}"
+             + (f"\nA: {(h.get('answer') or '')[:HISTORY_ANSWER_CHARS]}" if answers else "")
              for h in history[-HISTORY_MAX_TURNS:]]
     return "Earlier in this conversation:\n" + "\n".join(turns) + f"\n\nCurrent question: {question}"
 
 
-def handle_query(question, client, llm, history=None, entity=None):
-    """Route and answer. client must be the caller's RLS-scoped client.
-    history: optional [{'question','answer'}] recent turns for follow-ups.
-    entity: optional {'type','id'}, the record the question was asked from."""
+def _refused(decision, reason):
+    """SURYA's scope refusal. reason 'out_of_scope' is a strike (the HR sweep
+    counts it); 'totals_only' is an ordinary question we cannot total honestly."""
+    return Answer(SCOPE_REFUSAL_TEXT, "document", [], trace={
+        "route": decision["route"], "function": decision.get("function"),
+        "params": decision.get("params"), "refusal": reason,
+        "topic": decision.get("topic"), "subject": decision.get("subject")})
+
+
+def _scope_gate(decision, client, question):
+    """None = full scope, carry on. Otherwise the Answer to return as-is: a
+    refusal, or under a 'totals' verdict the one aggregate it may serve."""
+    v = verdict(scope_of(client), decision.get("topic", "unknown"), decision.get("subject", "unknown"),
+                decision.get("subject_division"), question)
+    if v == "full":
+        return None
+    if v == "refuse":
+        return _refused(decision, "out_of_scope")
+    if decision["route"] == "structured" and decision.get("function") in AGGREGATE:
+        answer = _run_structured(decision["function"], decision["params"], client)
+        if answer is not None:
+            answer.trace = {"route": "structured", "function": decision["function"],
+                            "params": decision.get("params")}
+            return answer
+    return _refused(decision, "totals_only")
+
+
+def _prepare(question, client, llm, history, entity):
+    """(question with preamble and history, entity docs, route decision)."""
     entity_docs = None
     if entity:
         preamble, entity_docs = entity_context(client, entity)
         question = preamble + "\n" + question
-    if history:
-        question = _with_history(question, history)
-    decision = decide(question, llm, CATALOG, examples=read_route_labels(client))
+    route_q = _with_history(question, history, answers=False) if history else question
+    decision = decide(route_q, llm, CATALOG, examples=read_route_labels(client))
+    full_q = _with_history(question, history) if history else question
+    return full_q, entity_docs, decision
+
+
+def handle_query(question, client, llm, history=None, entity=None):
+    """Route, check scope, answer. client must be the caller's RLS-scoped client.
+    history: optional [{'question','answer'}] recent turns for follow-ups.
+    entity: optional {'type','id'}, the record the question was asked from."""
+    asked = question
+    question, entity_docs, decision = _prepare(question, client, llm, history, entity)
+    gated = _scope_gate(decision, client, asked)
+    if gated is not None:
+        return gated
     trace = {"route": decision["route"], "function": decision.get("function"),
              "params": decision.get("params")}
     fetch_texts = make_fetch_texts(client)
@@ -270,13 +312,12 @@ def stream_query(question, client, llm, history=None, entity=None):
     ('done', Answer). Only the document path truly streams; structured/hybrid
     answers arrive as a single token. Grounding invariant matches traverse:
     NOT_FOUND / blank answers become the refusal with zero citations."""
-    entity_docs = None
-    q = question
-    if entity:
-        preamble, entity_docs = entity_context(client, entity)
-        q = preamble + "\n" + q
-    q = _with_history(q, history) if history else q
-    decision = decide(q, llm, CATALOG, examples=read_route_labels(client))
+    q, entity_docs, decision = _prepare(question, client, llm, history, entity)
+    gated = _scope_gate(decision, client, question)
+    if gated is not None:
+        yield ("token", gated.text)
+        yield ("done", gated)
+        return
     if decision["route"] in ("structured", "hybrid"):
         answer = handle_query(question, client, llm, history=history, entity=entity)
         yield ("token", answer.text)
@@ -353,7 +394,8 @@ def log_query(client, question, answer, latency_ms=None):
             "route": trace.get("route"),
             "function_name": trace.get("function"),
             "function_params": trace.get("params"),
-            "refusal_reason": "no_grounded_answer" if answer.text == REFUSAL_TEXT else None,
+            "refusal_reason": trace.get("refusal")
+                              or ("no_grounded_answer" if answer.text == REFUSAL_TEXT else None),
             "catalog_version": CATALOG_VERSION,
         }).execute().data)
         return row[0]["id"] if row else None

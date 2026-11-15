@@ -5,6 +5,8 @@ RLS stays the lock. This table is the front door: it refuses the three
 sensitive topics politely and records the attempt. An unclear classification
 never refuses, so only a confident model label can count against a person."""
 
+import re
+
 SCOPE_REFUSAL_TEXT = "This information cannot be retrieved for you."
 
 TOPICS = ("pms_scores", "personal_details", "proposals", "projects", "staff_directory",
@@ -84,8 +86,11 @@ def verdict(scope: dict, topic: str, subject: str, subject_division=None, questi
         return "full"
     if subject not in SUBJECTS or subject == "self":
         return "full"
-    name = (scope.get("staff_name") or "").strip().lower()
-    if subject == "other_person" and name and name in question.lower():
+    # ponytail: an asker naming themself is not probing. Fail-open by design: a
+    # question naming them AND someone else passes here, and RLS still hides the
+    # other person's rows — this check only decides refusal copy and strikes.
+    name = " ".join((scope.get("staff_name") or "").lower().split())
+    if subject == "other_person" and name and re.search(rf"\b{re.escape(name)}\b", " ".join(question.lower().split())):
         return "full"
     div = scope.get("division")
     own = subject == "division" and bool(div) and bool(subject_division) and subject_division == div

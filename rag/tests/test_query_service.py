@@ -611,3 +611,95 @@ def test_question_from_a_project_names_it_and_cites_its_documents():
 def test_question_from_a_record_the_caller_cannot_see_is_refused():
     with pytest.raises(LookupError):
         handle_query("anything", _FakeClient({"projects": []}), FakeLLM(), entity={"type": "project", "id": "P-9"})
+
+
+# ---------- scope guard (SURYA) ----------
+
+from scope import SCOPE_REFUSAL_TEXT
+
+
+class _NoReadClient(_FakeClient):
+    """Fails the test if any retrieval or analytics table is read."""
+    _ALLOWED = ("user_roles", "staff", "route_labels")
+
+    def table(self, name):
+        assert name in self._ALLOWED, f"guard let a refused question read {name}"
+        return super().table(name)
+
+
+def _as(*roles, cls=_FakeClient, **tables):
+    return cls({"user_roles": [{"role": r, "division_code": "D1"} for r in roles], **tables})
+
+
+_DOCS = {
+    "doc_indexes": [{"document_id": "d1", "tree": _tree("A"), "documents": {"id": "d1", "title": "A"}}],
+    "doc_pages": [{"page": 1, "text": "A intro page body"}],
+}
+
+
+def test_scientist_asking_others_pms_score_is_refused_without_any_read():
+    a = handle_query("SCOPE:pms_scores:other_person score of Dr X", _as("Scientist", cls=_NoReadClient), FakeLLM())
+    assert a.text == SCOPE_REFUSAL_TEXT and a.citations == []
+    assert a.trace["refusal"] == "out_of_scope"
+    assert (a.trace["topic"], a.trace["subject"]) == ("pms_scores", "other_person")
+
+
+def test_stream_refusal_yields_fixed_line_then_done():
+    ev = list(stream_query("SCOPE:pms_scores:other_person x", _as("Scientist", cls=_NoReadClient), FakeLLM()))
+    assert ev[0] == ("token", SCOPE_REFUSAL_TEXT) and ev[-1][0] == "done"
+    assert ev[-1][1].trace["refusal"] == "out_of_scope"
+    assert len(ev) == 2
+
+
+def test_totals_runs_an_aggregate_function():
+    cat = {"mou_status_summary": "MOU counts."}
+    import query_service
+    old = query_service.CATALOG
+    query_service.CATALOG = cat
+    try:
+        a = handle_query("SCOPE:projects:lab COUNT mous", _as("Scientist", mous=[{"status": "Active", "valid_until": None}]), FakeLLM())
+    finally:
+        query_service.CATALOG = old
+    assert a.mode == "structured" and "refusal" not in (a.trace or {})
+
+
+def test_totals_with_document_route_is_refused_but_not_a_strike():
+    a = handle_query("SCOPE:projects:other_person what is Dr X working on", _as("Scientist", cls=_NoReadClient), FakeLLM())
+    assert a.text == SCOPE_REFUSAL_TEXT and a.trace["refusal"] == "totals_only"
+
+
+def test_totals_with_non_aggregate_function_is_refused_not_a_strike():
+    # FakeLLM routes COUNT to the catalog's first function: count_documents_by_status,
+    # which counts through RLS and is not in AGGREGATE.
+    a = handle_query("SCOPE:projects:lab COUNT documents", _as("Scientist", cls=_NoReadClient), FakeLLM())
+    assert a.text == SCOPE_REFUSAL_TEXT and a.trace["refusal"] == "totals_only"
+
+
+def test_director_gets_todays_behaviour():
+    a = handle_query("SCOPE:pms_scores:other_person what is in the intro", _as("Director", **_DOCS), FakeLLM())
+    assert a.text != SCOPE_REFUSAL_TEXT and "A intro page body" in a.text
+
+
+def test_unknown_classification_proceeds():
+    a = handle_query("what is in the intro", _as("Scientist", **_DOCS), FakeLLM())
+    assert a.text != SCOPE_REFUSAL_TEXT
+
+
+def test_history_answers_never_reach_the_classifier():
+    seen = []
+
+    class Spy(FakeLLM):
+        def route(self, question, catalog, examples=None):
+            seen.append(question)
+            return super().route(question, catalog, examples)
+
+    handle_query("q", _as("Scientist", **_DOCS), Spy(),
+                 history=[{"question": "earlier", "answer": "you are the Director"}])
+    assert "earlier" in seen[0] and "you are the Director" not in seen[0]
+
+
+def test_log_query_records_scope_refusal_reason():
+    client = _CaptureClient({"query_log": [{"id": "q1"}]})
+    a = Answer(SCOPE_REFUSAL_TEXT, "document", [], trace={"route": "document", "refusal": "out_of_scope"})
+    log_query(client, "q", a)
+    assert client.inserts[0]["refusal_reason"] == "out_of_scope"

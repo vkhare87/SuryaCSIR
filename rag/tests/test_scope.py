@@ -73,6 +73,11 @@ def test_caller_naming_themself_is_not_refused():
     assert verdict(S("Scientist"), "pms_scores", "other_person", question=q) == "full"
 
 
+def test_name_match_needs_whole_words():
+    q = "What PMS score did Dr. Asha Raoji get?"
+    assert verdict(S("Scientist"), "pms_scores", "other_person", question=q) == "refuse"
+
+
 def test_no_table_role_refuses_sensitive():
     assert verdict(S(), "pms_scores", "other_person") == "refuse"
 

@@ -617,6 +617,18 @@ CATALOG = {
 }
 
 
+# Functions whose number is the same for every caller: they count tables whose
+# read policy is `true`. Every other function counts through RLS, so for a
+# Scientist it would be a total of only the rows they may see — a wrong number.
+# The scope guard serves only these under a 'totals' verdict (rag/scope.py).
+AGGREGATE = frozenset({
+    "patent_pipeline_counts",
+    "count_publications_by_division",
+    "mou_status_summary",
+    "tech_transfer_summary",
+})
+
+
 def run_analytics(name: str, params, client) -> Answer:
     fn = ANALYTICS.get(name)
     if fn is None:
