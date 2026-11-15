@@ -120,7 +120,7 @@ export default function MyWork() {
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.15 }}
       className="max-w-7xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-[500] text-text font-serif">My Work</h1>
+        <h1 className="page-title">My Work</h1>
         <p className="text-sm text-text-muted mt-1">Data requests for you to complete, review or pick up.</p>
       </div>
 
@@ -427,7 +427,7 @@ function ChangeTable({ changes, labels }: {
 }) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-sm">
+      <table className="ledger w-full text-sm">
         <thead>
           <tr className="text-left text-xs text-text-muted border-b border-border">
             <th className="py-1.5 pr-3 font-semibold">Field</th>

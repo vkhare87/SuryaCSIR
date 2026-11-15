@@ -44,7 +44,7 @@ export default function Proposals() {
   const showCreate = user ? canCreateProposal(user) : false;
 
   const renderProposalCard = (p: Proposal) => (
-    <Card className="h-full flex flex-col bg-surface hover:bg-surface-hover hover:border-[#c96442]/50 transition-colors">
+    <Card className="h-full flex flex-col bg-surface hover:bg-surface-hover hover:border-terracotta/50 transition-colors">
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="min-w-0">
           <h3 className="font-bold text-text line-clamp-2" title={p.title}>{p.title}</h3>
@@ -73,7 +73,7 @@ export default function Proposals() {
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-text">Project Proposals</h1>
+          <h1 className="page-title">Project Proposals</h1>
           <p className="text-text-muted text-sm">Track scientist-submitted project proposals.</p>
         </div>
         {showCreate && (

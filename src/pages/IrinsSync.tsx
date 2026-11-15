@@ -125,8 +125,8 @@ export default function IrinsSync() {
   if (loading) {
     return (
       <div className="space-y-6 max-w-6xl">
-        <h1 className="text-2xl font-[500] text-text font-serif flex items-center gap-3">
-          <Cloud size={24} className="text-[#c96442]" />
+        <h1 className="page-title flex items-center gap-3">
+          <Cloud size={24} className="text-terracotta" />
           IRINS Data Sync
         </h1>
         <p className="text-text-muted">Loading...</p>
@@ -138,8 +138,8 @@ export default function IrinsSync() {
     <div className="space-y-6 max-w-6xl">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-[500] text-text font-serif flex items-center gap-3">
-          <Cloud size={24} className="text-[#c96442]" />
+        <h1 className="page-title flex items-center gap-3">
+          <Cloud size={24} className="text-terracotta" />
           IRINS Data Sync
         </h1>
         <p className="text-text-muted mt-1">
@@ -177,7 +177,7 @@ export default function IrinsSync() {
           <button
             onClick={triggerSync}
             disabled={syncing}
-            className="flex items-center gap-2 px-5 py-2.5 bg-[#c96442] text-white rounded-lg text-sm font-semibold hover:bg-[#b5593b] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-5 py-2.5 bg-terracotta text-white rounded-lg text-sm font-semibold hover:bg-terracotta-hover transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <RefreshCw size={15} className={syncing ? 'animate-spin' : ''} />
             {syncing ? 'Refreshing...' : 'Refresh'}
@@ -208,7 +208,7 @@ export default function IrinsSync() {
           placeholder="Search scientists..."
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="w-full pl-9 pr-4 py-2.5 bg-surface border border-border rounded-lg text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-[#c96442]/30"
+          className="w-full pl-9 pr-4 py-2.5 bg-surface border border-border rounded-lg text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-terracotta/30"
         />
       </div>
 
@@ -238,7 +238,7 @@ export default function IrinsSync() {
                   href={`https://ampri.irins.org/profile/${s.VidwanID}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-[#c96442] hover:underline text-xs flex items-center gap-1"
+                  className="text-terracotta hover:underline text-xs flex items-center gap-1"
                   onClick={e => e.stopPropagation()}
                 >
                   VID-{s.VidwanID} <ExternalLink size={11} />
@@ -285,7 +285,7 @@ export default function IrinsSync() {
                             {(data.publications as Array<{ title: string; year?: string; journal?: string }>).slice(0, 10).map((pub, i) => (
                               <p key={i} className="text-[11px] text-text-muted leading-relaxed">
                                 <span className="text-text">{pub.title?.substring(0, 100)}{pub.title?.length && pub.title.length > 100 ? '...' : ''}</span>
-                                {pub.year && <span className="text-[#c96442] ml-1">({pub.year})</span>}
+                                {pub.year && <span className="text-terracotta ml-1">({pub.year})</span>}
                               </p>
                             ))}
                           </div>
@@ -300,7 +300,7 @@ export default function IrinsSync() {
                             {(data.patents as Array<{ title: string; status?: string }>).slice(0, 5).map((p, i) => (
                               <span key={i} className="text-[11px] px-2 py-0.5 bg-surface-hover rounded border border-border text-text-muted">
                                 {p.title?.substring(0, 60)}{p.title?.length && p.title.length > 60 ? '...' : ''}
-                                {p.status && <span className="text-[#c96442] ml-1">[{p.status}]</span>}
+                                {p.status && <span className="text-terracotta ml-1">[{p.status}]</span>}
                               </span>
                             ))}
                           </div>
@@ -324,7 +324,7 @@ export default function IrinsSync() {
         <div className="space-y-3">
           <h2 className="text-lg font-[500] text-text font-serif">Sync History</h2>
           <div className="overflow-x-auto">
-            <table className="w-full text-xs">
+            <table className="ledger w-full text-xs">
               <thead>
                 <tr className="border-b border-border text-text-muted">
                   <th className="text-left py-2 pr-4 font-medium">Time</th>

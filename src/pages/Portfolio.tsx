@@ -59,7 +59,7 @@ export default function Portfolio() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-[500] font-serif text-text">Project portfolio</h1>
+        <h1 className="page-title">Project portfolio</h1>
         <p className="text-sm text-text-muted">
           Every running project: time elapsed against money spent and milestones met, and what is overdue.
         </p>
@@ -92,7 +92,7 @@ export default function Portfolio() {
       {view.length > 0 && (
         <Card className="p-0 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-[56rem]">
+            <table className="ledger w-full text-sm min-w-[56rem]">
               <thead>
                 <tr className="text-left text-[11px] uppercase tracking-wide text-text-muted border-b border-border">
                   <th className="px-4 py-2 font-semibold">Project</th>

@@ -76,9 +76,9 @@ session reads it as ground truth.
 | R5 sentence-first greeting | Not implemented | — |
 | R6 ledger tables | Partial | `SystemAdminView` only |
 | Lit register: shell | **Shipped** 2026-11-15 | Glass sticky top bar, account `Popover`, role switcher on `Popover` (`Layout.tsx`); sidebar pin / reorder (drag, Alt+↑/↓) / foldable groups / rail labels (`Sidebar.tsx`, `utils/sidebarLayout.ts`) |
-| Lit register: shared parts | **Shipped** 2026-11-15 | `ui/Popover`, `ui/Section`, `ui/Stagger`, `ui/Peeks`, `Card variant="contrast"`, sliding pill in `ui/Tabs`, glass `HoverCard` |
+| Lit register: shared parts | **Shipped** 2026-11-15 | `ui/Popover`, `ui/Section`, `ui/Stagger`, `Card variant="contrast"`, sliding pill in `ui/Tabs`, glass `HoverCard` |
 | Lit register: role homes | **Shipped** 2026-11-15 | Ink greeting, entry stagger, foldable blocks and one chart or ring each on Director, HoD/DivisionHead, Scientist, Technician, Student, ProjectStaff. Admin homes (HRAdmin, FinanceAdmin, SystemAdmin, MasterAdmin, PME, Guest) got the ink header and entry stagger only; their blocks do not fold and their raw-hex classes remain. EmpoweredCommittee and PendingAccess are placeholders, not touched |
-| Lit register: other pages | Not implemented | ~80 pages; next plan, in groups |
+| Lit register: other pages | Partial | Shipped 2026-11-15 by shared CSS, on every page but Login, ChangePassword and SetupWizard: one `.page-title`, `table.ledger` on `DataTable` and the 32 hand-rolled tables, block-by-block page entry (`.page-slot` in `Layout.tsx`), 435 raw hex classes swapped for same-value tokens. Ink header on 7 record pages (project, instrument, proposal, progress report, committee, meeting, ticket). `EntityLink` peeks on the Projects list. Not done: foldable `Section` blocks, filter rows as `Tabs`, `Card` wrappers on PMS pages, dark-mode fixes for hard-coded light colors, a serial column in ledger tables |
 
 Also shipped 2026-07-25: IBM Plex Mono and Tiro Devanagari Sanskrit are now
 actually fetched (both were specified below but never loaded), and the

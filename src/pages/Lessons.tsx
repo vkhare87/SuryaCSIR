@@ -39,7 +39,7 @@ export default function Lessons() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-[500] font-serif text-text">Lessons learned</h1>
+        <h1 className="page-title">Lessons learned</h1>
         <p className="text-sm text-text-muted max-w-2xl">
           What closed projects learned, from their approved completion reports — what worked, what did not, and what a
           future team should know. For questions across reports, ask SURYA.

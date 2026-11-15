@@ -86,7 +86,7 @@ export default function CommitteeList() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-[500] text-text font-serif">Committees</h1>
+          <h1 className="page-title">Committees</h1>
           <p className="text-text-muted mt-1">Institute governance committees and meeting management</p>
         </div>
         {showCreate && (
@@ -147,7 +147,7 @@ export default function CommitteeList() {
             placeholder="Search committees..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            className="pl-9 pr-4 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm w-full sm:w-64"
+            className="pl-9 pr-4 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-focus-blue outline-none text-sm w-full sm:w-64"
           />
         </div>
         <div className="relative">
@@ -155,7 +155,7 @@ export default function CommitteeList() {
           <select aria-label="Filter by type"
             value={typeFilter}
             onChange={e => setTypeFilter(e.target.value)}
-            className="w-full sm:w-auto sm:max-w-xs max-w-full pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm appearance-none cursor-pointer"
+            className="w-full sm:w-auto sm:max-w-xs max-w-full pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-focus-blue outline-none text-sm appearance-none cursor-pointer"
           >
             <option value="All">All Types</option>
             <option value="Standing">Standing</option>
@@ -169,7 +169,7 @@ export default function CommitteeList() {
           <select aria-label="Filter by status"
             value={statusFilter}
             onChange={e => setStatusFilter(e.target.value)}
-            className="w-full sm:w-auto sm:max-w-xs max-w-full pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm appearance-none cursor-pointer"
+            className="w-full sm:w-auto sm:max-w-xs max-w-full pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-focus-blue outline-none text-sm appearance-none cursor-pointer"
           >
             <option value="All">All Status</option>
             <option value="Active">Active</option>
@@ -218,7 +218,7 @@ export default function CommitteeList() {
           <p className="text-text-muted">No committees match your filters.</p>
           <button
             onClick={() => { setSearchTerm(''); setTypeFilter('All'); setStatusFilter('All'); }}
-            className="text-sm text-[#c96442] hover:underline"
+            className="text-sm text-terracotta hover:underline"
           >
             Clear all filters
           </button>

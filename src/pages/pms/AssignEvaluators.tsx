@@ -60,7 +60,7 @@ export default function AssignEvaluators() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-serif font-medium text-text">Assign Evaluation Committee</h1>
+      <h1 className="page-title">Assign Evaluation Committee</h1>
       <p className="text-sm text-text-muted">
         {submittedReports.length} report{submittedReports.length !== 1 ? 's' : ''} awaiting assignment
       </p>
@@ -131,7 +131,7 @@ export default function AssignEvaluators() {
                         checked={selectedCommitteeId === c.id}
                         onChange={() => setSelectedCommitteeId(c.id)}
                         disabled={!panelOk}
-                        className="accent-[#c96442]"
+                        className="accent-terracotta"
                       />
                       <div className="flex-1">
                         <p className="text-sm font-medium text-text">{c.name}</p>

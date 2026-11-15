@@ -83,10 +83,10 @@ export default function ProposalDetail() {
 
   return (
     <div className="max-w-5xl mx-auto p-6 space-y-6">
-      <div className="flex items-start justify-between">
+      <div className="card-contrast border rounded-xl p-5 flex items-start justify-between">
         <div>
           <p className="text-xs text-text-muted">{proposal.proposalCode}</p>
-          <h1 className="text-2xl font-semibold text-text">{proposal.title}</h1>
+          <h1 className="page-title">{proposal.title}</h1>
           {proposal.acronym && <p className="text-text-muted text-sm">({proposal.acronym})</p>}
           {proposal.parentProjectId && (
             <p className="text-sm text-text-muted">
@@ -133,7 +133,7 @@ export default function ProposalDetail() {
       {changes.length > 0 && (
         <Card className="p-4 space-y-2">
           <h2 className="text-sm font-medium text-text">Changed since the last submission</h2>
-          <table className="w-full text-sm">
+          <table className="ledger w-full text-sm">
             <tbody>
               {changes.map(c => (
                 <tr key={c.label} className="border-t border-border align-top">
@@ -171,7 +171,7 @@ export default function ProposalDetail() {
           <p className="text-sm text-text-muted">No comparable past projects found.</p>
         ) : (
           <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="ledger w-full text-sm">
             <thead>
               <tr className="text-left text-xs uppercase tracking-wide text-text-muted">
                 <th className="py-1 pr-2">Project</th>
@@ -210,7 +210,7 @@ export default function ProposalDetail() {
             </p>
           </div>
           <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="ledger w-full text-sm">
             <thead>
               <tr className="text-left text-xs uppercase tracking-wide text-text-muted">
                 <th className="py-1 pr-2">Project</th>

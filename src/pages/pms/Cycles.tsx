@@ -138,7 +138,7 @@ export default function Cycles() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-serif font-medium text-text">Appraisal Cycles</h1>
+        <h1 className="page-title">Appraisal Cycles</h1>
         <Button onClick={openCreate}>New Cycle</Button>
       </div>
 

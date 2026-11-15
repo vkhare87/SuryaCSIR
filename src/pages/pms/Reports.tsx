@@ -85,7 +85,7 @@ export default function Reports() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-serif font-medium text-text">
+        <h1 className="page-title">
           {isAdmin ? 'All Reports' : 'My Reports'}
         </h1>
         <div className="flex items-center gap-2">
@@ -189,7 +189,7 @@ export default function Reports() {
                 min={0}
                 value={dutyDaysInput}
                 onChange={e => setDutyDaysInput(e.target.value)}
-                className="w-32 px-3 py-2 border border-border rounded-xl text-sm bg-background text-text focus:outline-none focus:border-[#c96442]"
+                className="w-32 px-3 py-2 border border-border rounded-xl text-sm bg-background text-text focus:outline-none focus:border-terracotta"
               />
               <Button size="sm" isLoading={saving} onClick={handleSaveDutyDays}>Save</Button>
             </div>

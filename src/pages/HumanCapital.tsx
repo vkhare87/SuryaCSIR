@@ -87,7 +87,7 @@ export default function HumanCapital() {
       value: (member: StaffMember) => member.Email ?? '',
       cell: (member: StaffMember) => (
         <div className="text-sm">
-          <div className="text-[#c96442] truncate max-w-[200px]" title={member.Email}>{member.Email}</div>
+          <div className="text-terracotta truncate max-w-[200px]" title={member.Email}>{member.Email}</div>
           <div className="text-xs text-text-muted mt-0.5">Ext: {member.Ext}</div>
         </div>
       ),
@@ -97,14 +97,14 @@ export default function HumanCapital() {
   const renderStaffCard = (member: StaffMember) => {
     const divInfo = divisions.find(d => d.divCode === member.Division);
     return (
-      <Card className="h-full flex flex-col bg-surface hover:bg-surface-hover hover:border-[#c96442]/50 transition-colors pointer-events-none group-hover:bg-surface-hover">
+      <Card className="h-full flex flex-col bg-surface hover:bg-surface-hover hover:border-terracotta/50 transition-colors pointer-events-none group-hover:bg-surface-hover">
         <div className="flex items-start gap-4 mb-4">
-          <div className="w-12 h-12 rounded-full bg-[#c96442]/10 text-[#c96442] flex items-center justify-center font-bold text-lg shrink-0 ring-4 ring-background">
+          <div className="w-12 h-12 rounded-full bg-terracotta/10 text-terracotta flex items-center justify-center font-bold text-lg shrink-0 ring-4 ring-background">
             {member.Name?.charAt(0) || '?'}
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="font-bold text-text truncate" title={member.Name}>{member.Name}</h3>
-            <div className="text-sm text-[#c96442] font-medium mt-0.5 truncate">{member.Designation}</div>
+            <div className="text-sm text-terracotta font-medium mt-0.5 truncate">{member.Designation}</div>
           </div>
         </div>
         
@@ -126,7 +126,7 @@ export default function HumanCapital() {
           </div>
           <div className="flex items-center justify-between">
             <span>Email</span>
-            <span className="text-[#c96442] truncate max-w-[150px]" title={member.Email}>{member.Email}</span>
+            <span className="text-terracotta truncate max-w-[150px]" title={member.Email}>{member.Email}</span>
           </div>
           <div className="flex items-center justify-between">
             <span>Extension</span>
@@ -141,7 +141,7 @@ export default function HumanCapital() {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-[500] text-text font-serif">Human Capital</h1>
+          <h1 className="page-title">Human Capital</h1>
           <p className="text-text-muted mt-1">Staff Directory and Division Assignments</p>
         </div>
 
@@ -158,7 +158,7 @@ export default function HumanCapital() {
           {canEdit && (
             <button
               onClick={() => setShowCreate(true)}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#c96442] text-[#faf9f5] rounded-lg text-sm font-medium hover:bg-[#b5593b] transition-colors"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-terracotta text-ivory rounded-lg text-sm font-medium hover:bg-terracotta-hover transition-colors"
             >
               <Plus size={14} /> New Staff
             </button>
@@ -170,7 +170,7 @@ export default function HumanCapital() {
               placeholder="Search staff, ID..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 pr-4 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm w-full sm:w-64"
+              className="pl-9 pr-4 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-focus-blue outline-none text-sm w-full sm:w-64"
             />
           </div>
           
@@ -179,7 +179,7 @@ export default function HumanCapital() {
             <select aria-label="Filter by division"
               value={selectedDivision}
               onChange={(e) => setSelectedDivision(e.target.value)}
-              className="w-full sm:w-auto sm:max-w-xs max-w-full pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm appearance-none cursor-pointer"
+              className="w-full sm:w-auto sm:max-w-xs max-w-full pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-focus-blue outline-none text-sm appearance-none cursor-pointer"
             >
               <option value="ALL">All Divisions</option>
               {divisions.map(d => (

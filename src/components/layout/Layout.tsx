@@ -245,6 +245,7 @@ export function Layout() {
                    anything typed — every time a tab or filter changed. */}
                <motion.div
                  key={pathname}
+                 className="page-slot"
                  initial={{ opacity: 0, y: 10 }}
                  animate={{ opacity: 1, y: 0 }}
                  exit={{ opacity: 0, y: -10 }}

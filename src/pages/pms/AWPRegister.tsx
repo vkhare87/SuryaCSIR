@@ -67,7 +67,7 @@ export default function AWPRegister() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-serif font-medium text-text">Annual Work Plan Register</h1>
+        <h1 className="page-title">Annual Work Plan Register</h1>
         <div className="flex items-center gap-3">
           <label className="flex items-center gap-1.5 text-sm text-text-muted">
             <input type="checkbox" className="accent-terracotta" checked={onlyMissing} onChange={e => setOnlyMissing(e.target.checked)} />
@@ -88,7 +88,7 @@ export default function AWPRegister() {
       {error && <p role="alert" className="text-sm text-danger">{error}</p>}
 
       <div className="overflow-x-auto border border-border rounded-2xl bg-surface">
-        <table className="w-full text-sm">
+        <table className="ledger w-full text-sm">
           <thead className="text-left text-xs text-text-muted border-b border-border">
             <tr>
               <th className="px-4 py-2">Scientist</th>

@@ -164,7 +164,7 @@ export default function HolidaysAdmin() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-[500] text-text font-serif">Holidays Admin</h1>
+        <h1 className="page-title">Holidays Admin</h1>
         <p className="text-text-muted mt-1">Manage the institute holiday list. SystemAdmin only.</p>
       </div>
 
@@ -200,7 +200,7 @@ export default function HolidaysAdmin() {
             </select>
             <button
               onClick={addHoliday}
-              className="col-span-1 bg-[#c96442] text-white rounded-md py-1.5 hover:bg-[#b5593b]"
+              className="col-span-1 bg-terracotta text-white rounded-md py-1.5 hover:bg-terracotta-hover"
               aria-label="Add holiday"
             >
               <Plus size={16} />
@@ -208,7 +208,7 @@ export default function HolidaysAdmin() {
           </div>
 
           <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="ledger w-full text-sm">
             <thead className="text-xs text-text-muted uppercase border-b border-border">
               <tr>
                 <th className="text-left py-2">Date</th>
@@ -265,7 +265,7 @@ export default function HolidaysAdmin() {
             <>
               <div className="mt-4 max-h-80 overflow-y-auto">
                 <div className="overflow-x-auto">
-                <table className="w-full text-xs">
+                <table className="ledger w-full text-xs">
                   <thead className="text-text-muted uppercase border-b border-border">
                     <tr>
                       <th className="text-left py-1">Date</th>
@@ -290,7 +290,7 @@ export default function HolidaysAdmin() {
               <button
                 onClick={commitImport}
                 disabled={importRows.filter((r) => !r.error).length === 0}
-                className="mt-3 bg-[#c96442] text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-[#b5593b] disabled:opacity-50"
+                className="mt-3 bg-terracotta text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-terracotta-hover disabled:opacity-50"
               >
                 Import {importRows.filter((r) => !r.error).length} valid rows
               </button>

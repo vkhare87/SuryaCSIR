@@ -51,7 +51,7 @@ function SectionHeader({
 }) {
   return (
     <div className="flex items-center gap-2 mb-4">
-      <Icon size={16} className="text-[#c96442]" />
+      <Icon size={16} className="text-terracotta" />
       <h3 className="text-sm font-[500] text-text font-serif">{title}</h3>
       {count !== undefined && (
         <Badge variant="neutral">{count}</Badge>
@@ -206,7 +206,7 @@ export default function MeetingDetail() {
   return (
     <div className="space-y-6">
       {/* --- Back Nav --- */}
-      <div className="flex items-center gap-4">
+      <div className="card-contrast border rounded-xl p-5 flex items-center gap-4">
         <button
           onClick={goBack}
           aria-label="Back"
@@ -215,7 +215,7 @@ export default function MeetingDetail() {
           <ArrowLeft size={20} />
         </button>
         <div>
-          <h1 className="text-2xl font-[500] text-text font-serif">Meeting Detail</h1>
+          <h1 className="page-title">Meeting Detail</h1>
           <p className="text-text-muted text-sm">{committee?.name ?? 'Committee'}</p>
         </div>
       </div>
@@ -255,7 +255,7 @@ export default function MeetingDetail() {
       <Card className="p-4">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <ListOrdered size={16} className="text-[#c96442]" />
+            <ListOrdered size={16} className="text-terracotta" />
             <h3 className="text-sm font-medium text-text">Agenda</h3>
             <Badge variant="info">{meetingAgendaItems.length}</Badge>
           </div>
@@ -361,7 +361,7 @@ export default function MeetingDetail() {
       <Card className="p-4">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <FileText size={16} className="text-[#c96442]" />
+            <FileText size={16} className="text-terracotta" />
             <h3 className="text-sm font-medium text-text">Documents</h3>
             <Badge variant="info">{meetingDocumentList.length}</Badge>
           </div>

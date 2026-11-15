@@ -95,7 +95,7 @@ export default function AuditLog() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-serif font-medium text-text">Audit Log</h1>
+      <h1 className="page-title">Audit Log</h1>
       <p className="text-sm text-text-muted">All state transitions and administrative actions</p>
 
       <div className="inline-flex rounded-lg border border-border overflow-hidden text-sm">

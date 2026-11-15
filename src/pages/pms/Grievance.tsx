@@ -97,7 +97,7 @@ export default function Grievance() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-serif font-medium text-text">Grievance Redressal Committee</h1>
+      <h1 className="page-title">Grievance Redressal Committee</h1>
       <p className="text-sm text-text-muted">
         {pending.length} representation{pending.length !== 1 ? 's' : ''} pending review
       </p>
@@ -152,7 +152,7 @@ export default function Grievance() {
               value={resolution}
               onChange={e => setResolution(e.target.value)}
               placeholder="Committee's decision and reasoning…"
-              className="w-full px-3 py-2 border border-border rounded-xl text-sm bg-background text-text focus:outline-none focus:border-[#c96442] resize-none"
+              className="w-full px-3 py-2 border border-border rounded-xl text-sm bg-background text-text focus:outline-none focus:border-terracotta resize-none"
             />
           </div>
 
@@ -169,7 +169,7 @@ export default function Grievance() {
                 value={revisedScore}
                 onChange={e => setRevisedScore(e.target.value)}
                 placeholder="0 – 100"
-                className="w-32 px-3 py-2 border border-border rounded-xl text-sm bg-background text-text focus:outline-none focus:border-[#c96442]"
+                className="w-32 px-3 py-2 border border-border rounded-xl text-sm bg-background text-text focus:outline-none focus:border-terracotta"
               />
               {parsedScore != null && !isNaN(parsedScore) && (
                 <span className="text-sm text-text-muted">{getGrade(parsedScore)}</span>
@@ -183,7 +183,7 @@ export default function Grievance() {
               value={reasonsOutstanding}
               onChange={e => setReasonsOutstanding(e.target.value)}
               placeholder="Reasons for Outstanding grade (mandatory for 90+)…"
-              className="w-full px-3 py-2 border border-border rounded-xl text-sm bg-background text-text focus:outline-none focus:border-[#c96442] resize-none"
+              className="w-full px-3 py-2 border border-border rounded-xl text-sm bg-background text-text focus:outline-none focus:border-terracotta resize-none"
             />
           )}
           {needsBelow && (
@@ -193,14 +193,14 @@ export default function Grievance() {
                 value={reasonsBelow}
                 onChange={e => setReasonsBelow(e.target.value)}
                 placeholder="Reasons for score below threshold (mandatory for ≤75)…"
-                className="w-full px-3 py-2 border border-border rounded-xl text-sm bg-background text-text focus:outline-none focus:border-[#c96442] resize-none"
+                className="w-full px-3 py-2 border border-border rounded-xl text-sm bg-background text-text focus:outline-none focus:border-terracotta resize-none"
               />
               <textarea
                 rows={2}
                 value={suggestions}
                 onChange={e => setSuggestions(e.target.value)}
                 placeholder="Suggestions for improvement (mandatory for ≤75)…"
-                className="w-full px-3 py-2 border border-border rounded-xl text-sm bg-background text-text focus:outline-none focus:border-[#c96442] resize-none"
+                className="w-full px-3 py-2 border border-border rounded-xl text-sm bg-background text-text focus:outline-none focus:border-terracotta resize-none"
               />
             </>
           )}

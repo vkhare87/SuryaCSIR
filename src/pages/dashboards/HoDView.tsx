@@ -6,8 +6,7 @@ import { useData } from '../../contexts/DataContext';
 import { useHome } from '../../contexts/HomeContext';
 import { Card, Badge } from '../../components/ui/Cards';
 import { Section } from '../../components/ui/Section';
-import { HoverCard } from '../../components/ui/HoverCard';
-import { StaffPeek } from '../../components/ui/Peeks';
+import { EntityLink } from '../../components/EntityLink';
 import { Stagger } from '../../components/ui/Stagger';
 import { CategoryBar } from '../../components/viz/CategoryBar';
 import {
@@ -228,7 +227,7 @@ export function HoDView() {
               {retiring.length > 0 && (
                 <p className="text-xs text-text-muted truncate">
                   {retiring.map((s, i) => (
-                    <span key={s.ID}>{i > 0 && ', '}<HoverCard content={<StaffPeek staff={s} />}><span className="underline decoration-dotted">{s.Name}</span></HoverCard></span>
+                    <span key={s.ID}>{i > 0 && ', '}<EntityLink kind="staff" id={s.ID} className="underline decoration-dotted hover:text-text" /></span>
                   ))}
                 </p>
               )}

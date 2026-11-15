@@ -34,7 +34,7 @@ export default function EvaluatorQueue() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-serif font-medium text-text">My Evaluation Queue</h1>
+      <h1 className="page-title">My Evaluation Queue</h1>
       <p className="text-sm text-text-muted">
         {pendingCount} pending evaluation{pendingCount !== 1 ? 's' : ''}
       </p>

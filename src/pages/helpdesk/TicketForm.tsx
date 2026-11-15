@@ -157,11 +157,11 @@ export default function TicketForm() {
       </button>
 
       <div className="flex items-start gap-3">
-        <div className="p-2 rounded-[8px] bg-[#f0eee6] text-[#c96442]">
+        <div className="p-2 rounded-[8px] bg-border-cream text-terracotta">
           <MessageSquare size={20} />
         </div>
         <div>
-          <h1 className="text-2xl font-[500] text-text font-serif">New Helpdesk Ticket</h1>
+          <h1 className="page-title">New Helpdesk Ticket</h1>
           <p className="text-text-muted mt-1">
             Submit a new ticket — it will be auto-routed to the appropriate handler.
           </p>
@@ -183,14 +183,14 @@ export default function TicketForm() {
                 onClick={() => setCategory(entry.value)}
                 className={`flex items-center gap-3 px-4 py-3 rounded-[12px] text-left transition-colors ${
                   isSelected
-                    ? 'border-2 border-[#c96442] bg-surface ring-1 ring-[#c96442]/20'
-                    : 'border border-border bg-surface hover:border-[#c96442]/30'
+                    ? 'border-2 border-terracotta bg-surface ring-1 ring-terracotta/20'
+                    : 'border border-border bg-surface hover:border-terracotta/30'
                 }`}
               >
                 {Icon && (
                   <Icon
                     size={20}
-                    className={isSelected ? 'text-[#c96442]' : 'text-text-muted'}
+                    className={isSelected ? 'text-terracotta' : 'text-text-muted'}
                   />
                 )}
                 <span
@@ -232,7 +232,7 @@ export default function TicketForm() {
             maxLength={200}
             disabled={submitting}
             placeholder="Brief summary of your issue..."
-            className={`w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-[#3898ec] outline-none disabled:opacity-60${fieldErrors.includes('subject') ? ' border-danger' : ''}`}
+            className={`w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-focus-blue outline-none disabled:opacity-60${fieldErrors.includes('subject') ? ' border-danger' : ''}`}
           />
           {fieldErrors.includes('subject') && (
             <p className="text-xs text-danger mt-1">Subject is required.</p>
@@ -254,7 +254,7 @@ export default function TicketForm() {
                   disabled={submitting}
                   className={`flex-1 px-3 py-2 text-sm transition-colors ${
                     active
-                      ? 'bg-[#c96442] text-[#faf9f5] font-medium'
+                      ? 'bg-terracotta text-ivory font-medium'
                       : 'bg-surface text-text-muted hover:bg-surface-hover'
                   } disabled:opacity-60`}
                 >
@@ -274,7 +274,7 @@ export default function TicketForm() {
             onChange={(e) => setDescription(e.target.value)}
             disabled={submitting}
             placeholder="Describe your issue in detail..."
-            className={`w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-[#3898ec] outline-none resize-y disabled:opacity-60${fieldErrors.includes('description') ? ' border-danger' : ''}`}
+            className={`w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-focus-blue outline-none resize-y disabled:opacity-60${fieldErrors.includes('description') ? ' border-danger' : ''}`}
           />
           {fieldErrors.includes('description') && (
             <p className="text-xs text-danger mt-1">Description is required.</p>
@@ -283,7 +283,7 @@ export default function TicketForm() {
       </section>
 
       {error && (
-        <div role="alert" className="bg-[#f5e8e8] border border-[#e8c8c8] text-[#b53333] px-4 py-3 rounded-lg text-sm">
+        <div role="alert" className="bg-[#f5e8e8] border border-[#e8c8c8] text-danger px-4 py-3 rounded-lg text-sm">
           {error}
         </div>
       )}

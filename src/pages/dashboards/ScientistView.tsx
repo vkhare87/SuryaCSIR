@@ -10,8 +10,7 @@ import { Card, Badge } from '../../components/ui/Cards';
 import { Section } from '../../components/ui/Section';
 import { Stagger } from '../../components/ui/Stagger';
 import { Button } from '../../components/ui/Button';
-import { HoverCard } from '../../components/ui/HoverCard';
-import { ProjectPeek } from '../../components/ui/Peeks';
+import { EntityLink } from '../../components/EntityLink';
 import { CategoryBar } from '../../components/viz/CategoryBar';
 import { ProgressRing } from '../../components/viz/ProgressRing';
 import { DoFirst, PinButton, PrioritiesAsked } from '../../components/home/Priorities';
@@ -303,13 +302,10 @@ export function ScientistView() {
             const late = ms.filter(m => (m.status === 'PLANNED' || m.status === 'PROPOSED') && m.targetDate < today).length;
             return (
               <div key={p.ProjectID} className={clsx(ROW, 'flex-wrap')}>
-                <HoverCard className="w-full sm:w-64 min-w-0" content={<ProjectPeek project={p} />}>
-                  <Link to={`/projects/${encodeURIComponent(p.ProjectID)}`} className="block group">
-                    <p className="text-sm text-text truncate group-hover:underline">
-                      <span className="font-mono text-xs text-text-muted mr-2">{p.ProjectNo}</span>{p.ProjectName}
-                    </p>
-                  </Link>
-                </HoverCard>
+                <div className="w-full sm:w-64 min-w-0">
+                  <EntityLink kind="project" id={p.ProjectID} className="block w-full text-left text-sm text-text truncate hover:underline"
+                    label={<><span className="font-mono text-xs text-text-muted mr-2">{p.ProjectNo}</span>{p.ProjectName}</>} />
+                </div>
                 <div className="flex-1 min-w-[160px]"><MilestoneTrack milestones={ms} today={today} /></div>
                 {late > 0 && <Badge variant="danger" className="font-mono normal-case">{late} late</Badge>}
               </div>

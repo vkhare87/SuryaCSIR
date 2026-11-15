@@ -69,7 +69,7 @@ export default function IdentityLinks() {
     <div className="space-y-8 pb-12">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-3xl font-[500] text-text uppercase tracking-tight font-serif flex items-center gap-3">
+          <h1 className="page-title flex items-center gap-3">
             <Link2 size={26} className="text-terracotta" /> People Links
           </h1>
           <p className="text-text-muted mt-1 text-sm font-medium">
@@ -84,7 +84,7 @@ export default function IdentityLinks() {
       {error && <p className="text-sm text-badge-danger-fg">{error}</p>}
 
       <Card className="p-0 overflow-hidden">
-        <table className="w-full text-sm">
+        <table className="ledger w-full text-sm">
           <thead className="text-xs text-text-muted uppercase tracking-wide border-b border-border">
             <tr><th className="text-left px-6 py-3">Where</th><th className="text-left px-3 py-3">Name</th><th className="text-left px-3 py-3">Record</th><th className="text-left px-6 py-3">Who is it?</th></tr>
           </thead>

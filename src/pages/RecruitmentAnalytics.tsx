@@ -106,7 +106,7 @@ export default function RecruitmentAnalytics() {
           <p className="text-sm text-text-muted">No open drives with a recorded issue date.</p>
         ) : (
           <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="ledger w-full text-sm">
             <thead>
               <tr className="text-left text-xs uppercase tracking-wide text-text-muted">
                 <th className="py-1 pr-2">Vacancy</th>
@@ -136,7 +136,7 @@ export default function RecruitmentAnalytics() {
 
       <ChartCard title="Drive progress" subtitle="drives per stage — permanent vs project staff" className="lg:col-span-2">
         <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="ledger w-full text-sm">
           <thead>
             <tr className="text-left text-xs uppercase tracking-wide text-text-muted">
               <th className="py-1 pr-2">Stage</th>

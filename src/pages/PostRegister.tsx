@@ -76,7 +76,7 @@ export default function PostRegister() {
     <div className="space-y-6 pb-12">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-3xl font-[500] text-text uppercase tracking-tight font-serif flex items-center gap-3">
+          <h1 className="page-title flex items-center gap-3">
             <ClipboardList size={26} className="text-terracotta" /> Sanctioned Posts
           </h1>
           <p className="text-text-muted mt-1 text-sm">One row per sanctioned post. Strength on every page comes from here.</p>
@@ -109,7 +109,7 @@ export default function PostRegister() {
             {strength.map(s => <option key={s.division_code} value={s.division_code}>{s.division_code} · {s.filled}/{s.sanctioned}</option>)}
           </select>
         </div>
-        <table className="w-full text-sm">
+        <table className="ledger w-full text-sm">
           <thead className="text-xs text-text-muted"><tr>
             <th className="text-left px-5 py-2">Post</th><th className="text-left">Designation</th><th className="text-left">Division</th>
             <th className="text-left">State</th><th className="text-left">Holder / vacant since</th><th className="px-5" />

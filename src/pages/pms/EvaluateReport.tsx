@@ -165,7 +165,7 @@ export default function EvaluateReport() {
   if (report?.proformaVersion === '2026' && !isCompleted) {
     return (
       <div className="space-y-6 max-w-3xl">
-        <h1 className="text-2xl font-serif font-medium text-text">Evaluation Committee Appraisal</h1>
+        <h1 className="page-title">Evaluation Committee Appraisal</h1>
         <PanelScore2026 report={report} />
       </div>
     );
@@ -174,7 +174,7 @@ export default function EvaluateReport() {
   return (
     <div className="space-y-6 max-w-3xl">
       <div>
-        <h1 className="text-2xl font-serif font-medium text-text">Evaluation Committee Appraisal</h1>
+        <h1 className="page-title">Evaluation Committee Appraisal</h1>
         <p className="text-sm text-text-muted mt-1">
           {report?.cycle?.name ?? 'Report'} · ID: {evaluation.reportId.slice(0, 8)}…
         </p>
@@ -253,7 +253,7 @@ export default function EvaluateReport() {
                   onChange={e => setScore(dim.key, e.target.value)}
                   disabled={isCompleted}
                   placeholder={`${SCORE_RANGE.min}–${SCORE_RANGE.max}`}
-                  className="w-24 px-2 py-1.5 border border-border rounded-lg text-sm bg-background text-text focus:outline-none focus:border-[#c96442] disabled:opacity-50"
+                  className="w-24 px-2 py-1.5 border border-border rounded-lg text-sm bg-background text-text focus:outline-none focus:border-terracotta disabled:opacity-50"
                 />
                 {scores[dim.key] != null && (
                   <span className="text-xs text-text-muted">{getGrade(scores[dim.key])}</span>
@@ -265,9 +265,9 @@ export default function EvaluateReport() {
       </div>
 
       {/* Total score + grade */}
-      <div className="p-4 bg-[#fdf0e8] border border-[#c96442]/20 rounded-2xl space-y-2">
+      <div className="p-4 bg-[#fdf0e8] border border-terracotta/20 rounded-2xl space-y-2">
         <div className="flex items-center gap-3">
-          <label htmlFor="score-total" className="text-sm font-medium text-[#c96442]">Total score (0–100):</label>
+          <label htmlFor="score-total" className="text-sm font-medium text-terracotta">Total score (0–100):</label>
           <input
             id="score-total"
             type="number"
@@ -281,10 +281,10 @@ export default function EvaluateReport() {
             }}
             disabled={isCompleted}
             placeholder={avgScore != null ? String(avgScore) : '—'}
-            className="w-24 px-2 py-1.5 border border-border rounded-lg text-sm bg-background text-text focus:outline-none focus:border-[#c96442] disabled:opacity-50"
+            className="w-24 px-2 py-1.5 border border-border rounded-lg text-sm bg-background text-text focus:outline-none focus:border-terracotta disabled:opacity-50"
           />
           {effectiveTotal != null && (
-            <span className="text-sm font-medium text-[#c96442]">Grade: {getGrade(effectiveTotal)}</span>
+            <span className="text-sm font-medium text-terracotta">Grade: {getGrade(effectiveTotal)}</span>
           )}
         </div>
         {avgScore != null && totalScore == null && (
@@ -305,7 +305,7 @@ export default function EvaluateReport() {
             onChange={e => setReasonsOutstanding(e.target.value)}
             disabled={isCompleted}
             placeholder="Mandatory for scores of 90 or above…"
-            className="w-full px-3 py-2 border border-border rounded-xl text-sm bg-background text-text focus:outline-none focus:border-[#c96442] resize-none disabled:opacity-50"
+            className="w-full px-3 py-2 border border-border rounded-xl text-sm bg-background text-text focus:outline-none focus:border-terracotta resize-none disabled:opacity-50"
           />
         </div>
       )}
@@ -322,7 +322,7 @@ export default function EvaluateReport() {
               onChange={e => setReasonsBelow(e.target.value)}
               disabled={isCompleted}
               placeholder="Mandatory for scores of 75 or below…"
-              className="w-full px-3 py-2 border border-border rounded-xl text-sm bg-background text-text focus:outline-none focus:border-[#c96442] resize-none disabled:opacity-50"
+              className="w-full px-3 py-2 border border-border rounded-xl text-sm bg-background text-text focus:outline-none focus:border-terracotta resize-none disabled:opacity-50"
             />
           </div>
           <div>
@@ -336,7 +336,7 @@ export default function EvaluateReport() {
               onChange={e => setSuggestions(e.target.value)}
               disabled={isCompleted}
               placeholder="Mandatory for scores of 75 or below…"
-              className="w-full px-3 py-2 border border-border rounded-xl text-sm bg-background text-text focus:outline-none focus:border-[#c96442] resize-none disabled:opacity-50"
+              className="w-full px-3 py-2 border border-border rounded-xl text-sm bg-background text-text focus:outline-none focus:border-terracotta resize-none disabled:opacity-50"
             />
           </div>
         </>
@@ -354,7 +354,7 @@ export default function EvaluateReport() {
           onChange={e => setComments(e.target.value)}
           disabled={isCompleted}
           placeholder="Additional observations or remarks…"
-          className="w-full px-3 py-2 border border-border rounded-xl text-sm bg-background text-text focus:outline-none focus:border-[#c96442] resize-none disabled:opacity-50"
+          className="w-full px-3 py-2 border border-border rounded-xl text-sm bg-background text-text focus:outline-none focus:border-terracotta resize-none disabled:opacity-50"
         />
       </div>
 

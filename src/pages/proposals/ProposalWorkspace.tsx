@@ -67,7 +67,7 @@ function NewIdea() {
     <div className="max-w-2xl mx-auto p-6">
       <Card className="space-y-4">
         <div>
-          <h1 className="text-2xl font-[500] font-serif text-text">New project idea</h1>
+          <h1 className="page-title">New project idea</h1>
           <p className="text-sm text-text-muted mt-1">
             Give it a working title. Everything else can wait, and it stays private until you submit.
           </p>

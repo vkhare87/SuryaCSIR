@@ -269,6 +269,49 @@
   }
 }
 
+/* The one page title. Pages add layout classes (flex, gap) beside it. */
+.page-title {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: 1.5rem;
+  line-height: 1.25;
+  color: var(--color-text);
+}
+
+/* Ledger tables (DESIGN.md R6): hairline rules, no zebra, figures that line
+   up, and a terracotta margin mark on the row under the pointer. */
+table.ledger { font-variant-numeric: tabular-nums; }
+table.ledger thead th {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+table.ledger tbody tr {
+  border-bottom: 1px solid var(--color-border);
+  transition: background-color var(--duration-fast), box-shadow var(--duration-fast);
+}
+table.ledger tbody tr:last-child { border-bottom: 0; }
+table.ledger tbody tr:hover {
+  background-color: var(--color-surface-hover);
+  box-shadow: inset 3px 0 0 var(--color-terracotta);
+}
+
+/* Page entry: the blocks of a page rise in, one after the other. Layout puts
+   `.page-slot` around every routed page, so no page has to opt in. */
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(12px); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .page-slot > * > * { animation: rise-in var(--duration-slow) var(--ease-out-expo) backwards; }
+  .page-slot > * > :nth-child(2) { animation-delay: 50ms; }
+  .page-slot > * > :nth-child(3) { animation-delay: 100ms; }
+  .page-slot > * > :nth-child(4) { animation-delay: 150ms; }
+  .page-slot > * > :nth-child(5) { animation-delay: 200ms; }
+  .page-slot > * > :nth-child(n+6) { animation-delay: 250ms; }
+}
+
 /* <Section> folds with a height transition where the browser can animate to
    `auto`; elsewhere it opens and closes at once. */
 @supports (interpolate-size: allow-keywords) {

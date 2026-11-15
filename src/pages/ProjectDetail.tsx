@@ -177,7 +177,7 @@ export default function ProjectDetail() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
+      <div className="card-contrast border rounded-xl p-5 flex items-center gap-4">
         <button
           onClick={goBack}
           aria-label="Back"
@@ -187,7 +187,7 @@ export default function ProjectDetail() {
         </button>
         <div className="flex-1">
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl font-[500] text-text font-serif">{project.ProjectNo}</h1>
+            <h1 className="page-title">{project.ProjectNo}</h1>
             <Badge variant={statusVariant}>{projectStatusLabel(project)}</Badge>
             {daysLeft !== null && daysLeft > 0 && daysLeft <= 30 && (
               <Badge variant="danger" className="flex items-center gap-1">
@@ -279,7 +279,7 @@ export default function ProjectDetail() {
                   </div>
                   <div className="w-full bg-border rounded-full h-2">
                     <div
-                      className={`h-2 rounded-full transition-all ${percentUtilized > 85 ? 'bg-rose-500' : 'bg-[#c96442]'}`}
+                      className={`h-2 rounded-full transition-all ${percentUtilized > 85 ? 'bg-rose-500' : 'bg-terracotta'}`}
                       style={{ width: `${percentUtilized}%` }}
                     />
                   </div>
@@ -308,7 +308,7 @@ export default function ProjectDetail() {
           {/* Timeline */}
           <Card>
             <h3 className="text-lg font-[500] text-text flex items-center gap-2 mb-4 font-serif">
-              <Calendar size={18} className="text-[#c96442]" />
+              <Calendar size={18} className="text-terracotta" />
               Timeline
             </h3>
             <div className="space-y-3 text-sm">
@@ -333,18 +333,18 @@ export default function ProjectDetail() {
           {division && (
             <Card>
               <h3 className="text-base font-[500] text-text flex items-center gap-2 mb-3 font-serif">
-                <Building2 size={16} className="text-[#5e5d59]" />
+                <Building2 size={16} className="text-olive-gray" />
                 Division
               </h3>
               <Link
                 to="/divisions"
-                className="flex items-center gap-3 p-3 rounded-xl border border-border hover:border-[#c96442]/40 hover:bg-surface-hover transition-all group"
+                className="flex items-center gap-3 p-3 rounded-xl border border-border hover:border-terracotta/40 hover:bg-surface-hover transition-all group"
               >
-                <div className="w-10 h-10 rounded-xl bg-[#c96442]/10 flex items-center justify-center font-semibold text-[#c96442] text-xs">
+                <div className="w-10 h-10 rounded-xl bg-terracotta/10 flex items-center justify-center font-semibold text-terracotta text-xs">
                   {division.divCode}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-bold text-text group-hover:text-[#c96442] transition-colors truncate">{division.divName}</div>
+                  <div className="text-sm font-bold text-text group-hover:text-terracotta transition-colors truncate">{division.divName}</div>
                   <div className="text-xs text-text-muted">{division.divCurrentStrength}/{division.divSanctionedstrength} staff</div>
                 </div>
                 <ChevronRight size={14} className="text-text-muted group-hover:translate-x-1 transition-all" />
@@ -361,38 +361,38 @@ export default function ProjectDetail() {
             <h2 className="text-xl font-[500] text-text mb-3 leading-snug font-serif">{project.ProjectName}</h2>
             <div className="flex items-center gap-4 py-3 border-y border-border">
               <div className="flex items-center gap-2 text-sm text-text">
-                <FileText size={16} className="text-[#c96442]" />
+                <FileText size={16} className="text-terracotta" />
                 <span className="text-text-muted">Approval Authority:</span> {project.ApprovalAuthority}
               </div>
             </div>
             <div className="mt-5">
               <h3 className="font-[500] text-text mb-3 flex items-center gap-2 font-serif">
-                <UserPlus size={18} className="text-[#c96442]" />
+                <UserPlus size={18} className="text-terracotta" />
                 Principal Investigator
               </h3>
               {piRecord ? (
                 <Link
                   to={`/staff/${piRecord.ID}`}
-                  className="flex items-center gap-4 p-4 bg-surface-hover rounded-xl border border-border hover:border-[#c96442]/40 transition-all group"
+                  className="flex items-center gap-4 p-4 bg-surface-hover rounded-xl border border-border hover:border-terracotta/40 transition-all group"
                 >
-                  <div className="w-12 h-12 rounded-full bg-[#c96442]/10 flex items-center justify-center text-lg font-bold text-[#c96442] ring-2 ring-border">
+                  <div className="w-12 h-12 rounded-full bg-terracotta/10 flex items-center justify-center text-lg font-bold text-terracotta ring-2 ring-border">
                     {piRecord.Name.charAt(0)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-bold text-text group-hover:text-[#c96442] transition-colors">{piRecord.Name}</p>
-                    <p className="text-sm text-[#c96442] mt-0.5">{piRecord.Designation}</p>
+                    <p className="font-bold text-text group-hover:text-terracotta transition-colors">{piRecord.Name}</p>
+                    <p className="text-sm text-terracotta mt-0.5">{piRecord.Designation}</p>
                     <p className="text-xs text-text-muted mt-0.5">{piRecord.Email}</p>
                   </div>
                   <ChevronRight size={16} className="text-text-muted group-hover:translate-x-1 transition-all" />
                 </Link>
               ) : (
                 <div className="flex items-start gap-4 p-4 bg-surface-hover rounded-xl border border-border">
-                  <div className="w-12 h-12 rounded-full bg-[#c96442]/10 flex items-center justify-center text-lg font-bold text-[#c96442] ring-2 ring-border">
+                  <div className="w-12 h-12 rounded-full bg-terracotta/10 flex items-center justify-center text-lg font-bold text-terracotta ring-2 ring-border">
                     {project.PrincipalInvestigator.charAt(0)}
                   </div>
                   <div>
                     <p className="font-bold text-text">{project.PrincipalInvestigator}</p>
-                    <p className="text-sm text-[#c96442] mt-0.5">Principal Investigator (PI)</p>
+                    <p className="text-sm text-terracotta mt-0.5">Principal Investigator (PI)</p>
                     <p className="text-xs text-text-muted mt-1">Division: {project.DivisionCode}</p>
                   </div>
                 </div>
@@ -417,7 +417,7 @@ export default function ProjectDetail() {
           {/* Project Staff Roster */}
           <Card className="p-0 overflow-hidden">
             <div className="p-5 border-b border-border bg-surface flex items-center gap-2">
-              <Users size={18} className="text-[#c96442]" />
+              <Users size={18} className="text-terracotta" />
               <h3 className="text-base font-[500] text-text font-serif">Project Staff Roster ({teamStaff.length})</h3>
             </div>
             {teamStaff.length > 0 ? (
@@ -429,7 +429,7 @@ export default function ProjectDetail() {
                   return (
                     <div key={s.id} className={`p-4 hover:bg-surface-hover transition-colors flex items-center justify-between gap-4 ${expiringSoon ? 'bg-rose-50/50 dark:bg-rose-900/10' : ''}`}>
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-[#c96442]/10 flex items-center justify-center font-bold text-sm text-[#c96442] shrink-0">
+                        <div className="w-9 h-9 rounded-full bg-terracotta/10 flex items-center justify-center font-bold text-sm text-terracotta shrink-0">
                           {s.StaffName.charAt(0)}
                         </div>
                         <div>

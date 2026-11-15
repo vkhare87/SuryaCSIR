@@ -316,7 +316,7 @@ export function DataTable<T>({
       ) : (
         <Card className={clsx("overflow-hidden p-0", className)} variant="raised">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
+            <table className="ledger w-full text-sm text-left">
               <thead className="text-xs text-text-muted uppercase bg-surface-hover border-b border-border sticky top-0 z-10">
                 <tr>
                   {renderExpanded && <th className="w-10" />}

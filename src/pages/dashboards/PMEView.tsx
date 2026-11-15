@@ -105,7 +105,7 @@ export function PMEView() {
   return (
     <Stagger className="space-y-8 pb-12">
       <div className="card-contrast border rounded-xl p-5">
-        <h1 className="text-3xl font-[500] text-text uppercase tracking-tight font-serif">PME Desk</h1>
+        <h1 className="page-title">PME Desk</h1>
         <p className="text-text-muted mt-1 text-sm font-medium">
           Every project file, from submission to archive
         </p>

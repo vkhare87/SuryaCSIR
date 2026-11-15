@@ -134,7 +134,7 @@ export default function EvaluationCommittees() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-serif font-medium text-text">Evaluation Committees</h1>
+        <h1 className="page-title">Evaluation Committees</h1>
         <Button onClick={() => { setCommitteeForm({ name: '', description: '', cycleId: cycles[0]?.id ?? '', tier: 'I' }); setFormError(null); setShowCreate(true); }}>
           New Committee
         </Button>
