@@ -14,6 +14,7 @@ import { useData } from '../../contexts/DataContext';
 import { usePMS } from '../../contexts/PMSContext';
 import { useFeatureControls } from '../../contexts/FeatureControlContext';
 import { Card } from '../../components/ui/Cards';
+import { Stagger } from '../../components/ui/Stagger';
 import { KpiCard } from '../../components/ui/KpiCard';
 import type { ReportStatus } from '../../types/pms';
 import { isActiveProject } from '../../lib/projects/stage';
@@ -164,8 +165,8 @@ export function SystemAdminView() {
   }, [provisioned]);
 
   return (
-    <div className="space-y-8 pb-12">
-      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-2">
+    <Stagger className="space-y-8 pb-12">
+      <div className="card-contrast border rounded-xl p-5 flex flex-col md:flex-row md:items-end md:justify-between gap-2">
         <div>
           <h1 className="text-3xl font-[500] text-text uppercase tracking-tight font-serif">
             System Administration
@@ -409,6 +410,6 @@ export function SystemAdminView() {
         </div>
         {loadingRoles && <div className="text-[11px] text-text-muted">Refreshing user roles…</div>}
       </Card>
-    </div>
+    </Stagger>
   );
 }

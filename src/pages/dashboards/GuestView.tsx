@@ -2,6 +2,7 @@ import { Building2, Users, Briefcase, Microscope } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
 import { KpiCard } from '../../components/ui/KpiCard';
 import { Card } from '../../components/ui/Cards';
+import { Stagger } from '../../components/ui/Stagger';
 import { isActiveProject } from '../../lib/projects/stage';
 
 export function GuestView() {
@@ -11,12 +12,12 @@ export function GuestView() {
   const activeProjects = projects.filter(isActiveProject).length;
 
   return (
-    <div className="space-y-8 pb-12">
-      <div>
-        <h1 className="text-3xl font-[500] text-[#141413] uppercase tracking-tight font-serif">
+    <Stagger className="space-y-8 pb-12">
+      <div className="card-contrast border rounded-xl p-5">
+        <h1 className="text-3xl font-[500] text-text uppercase tracking-tight font-serif">
           CSIR-AMPRI Overview
         </h1>
-        <p className="text-[#87867f] mt-1 text-sm font-medium">
+        <p className="text-text-muted mt-1 text-sm font-medium">
           Guest view — read-only institute summary
         </p>
       </div>
@@ -62,6 +63,6 @@ export function GuestView() {
           </table>
         </div>
       </Card>
-    </div>
+    </Stagger>
   );
 }

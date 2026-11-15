@@ -4,6 +4,9 @@ import { useData } from '../../contexts/DataContext';
 import { useClaim, useHome } from '../../contexts/HomeContext';
 import { useRules } from '../../contexts/RulesContext';
 import { Card } from '../../components/ui/Cards';
+import { Section } from '../../components/ui/Section';
+import { Stagger } from '../../components/ui/Stagger';
+import { ProgressRing } from '../../components/viz/ProgressRing';
 import { Button } from '../../components/ui/Button';
 import {
   AskBox, BLOCK_TITLE, HomeGreeting, NotConnected, ROW, WaitingOnYou,
@@ -71,13 +74,14 @@ export function ProjectStaffView() {
           countWord(clock.daysLeft)} ${clock.daysLeft === 1 ? 'day is' : 'days are'} left.`;
 
   return (
-    <div className="space-y-4 pb-12">
+    <Stagger className="space-y-4 pb-12">
       {/* --- 1. Greeting and two clocks --- */}
       <HomeGreeting
         done={doneCount} total={actions.length + doneCount} sentence={sentence}
         sub={engagement
           ? <>Position <span className="font-mono">{engagement.positionCode}</span>{project ? ` · ${project.ProjectName}` : ''}</>
           : record === null ? 'PME or HR links your login to your record.' : ' '}
+        right={clock && <ProgressRing value={Math.round(clock.share * 100)} max={100} size={72} label="used" />}
       />
       {engagement && clock && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -125,13 +129,12 @@ export function ProjectStaffView() {
               <p className="text-xs text-text-muted mt-2">Ask for leave through your project leader. A request form comes later.</p>
             </>}
         </Card>
-        <Card className="p-5">
-          <p className={BLOCK_TITLE}><span>Papers I can ask for</span></p>
+        <Section id="projectstaff-papers-i-can-ask-for" title="Papers I can ask for">
           <div className="flex flex-wrap gap-2">
             {LETTERS.map(l => <Link key={l} to="/helpdesk/new"><Button variant="secondary" size="sm" type="button">{l}</Button></Link>)}
           </div>
           <p className="text-xs text-text-muted mt-3">Each opens a request to the office today. One-click letters from your record come later.</p>
-        </Card>
+        </Section>
       </div>
 
       {/* --- 5. Blocks that wait on other work --- */}
@@ -139,6 +142,6 @@ export function ProjectStaffView() {
         <NotConnected title="My pay">Your last pay and any pay-raise request will show here when Accounts' files are linked.</NotConnected>
         <NotConnected title="What next for me">Open posts that fit you under the rules will show here.</NotConnected>
       </div>
-    </div>
+    </Stagger>
   );
 }

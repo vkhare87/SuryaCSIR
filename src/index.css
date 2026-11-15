@@ -227,6 +227,32 @@
   @media (prefers-reduced-motion: reduce) {
     .shimmer::after, .animate-sun, .animate-amber-glow, .animate-slide-in { animation: none; }
   }
+  /* DESIGN.md "Lit register": the one ink card of a page. Token classes inside
+     it (text-text, border-border…) flip with the ground, so any block can go in. */
+  .card-contrast {
+    --color-text: #faf9f5;
+    --color-text-muted: #b0aea5;
+    --color-border: #4d4c48;
+    --color-surface-hover: #30302e;
+    --color-surface: #30302e;
+    --color-surface-raised: #3d3d3a;
+    --color-archive-green: #7fa388;
+    background: #141413;
+    color: var(--color-text);
+    border-color: #141413;
+    box-shadow: var(--shadow-e3);
+  }
+  .dark .card-contrast {
+    --color-text: #141413;
+    --color-text-muted: #5e5d59;
+    --color-border: #d1cfc5;
+    --color-surface-hover: #e8e6dc;
+    --color-surface: #f0eee6;
+    --color-surface-raised: #ffffff;
+    --color-archive-green: #3f5c46;
+    background: #faf9f5;
+    border-color: #faf9f5;
+  }
   .glass-dark {
     @apply bg-background/80 backdrop-blur-md border border-border;
   }
@@ -240,6 +266,20 @@
   }
   .gap-density {
     gap: var(--density-gap-base);
+  }
+}
+
+/* <Section> folds with a height transition where the browser can animate to
+   `auto`; elsewhere it opens and closes at once. */
+@supports (interpolate-size: allow-keywords) {
+  @media (prefers-reduced-motion: no-preference) {
+    details.section { interpolate-size: allow-keywords; }
+    details.section::details-content {
+      block-size: 0;
+      overflow: hidden;
+      transition: block-size var(--duration-base) var(--ease-out-expo), content-visibility var(--duration-base) allow-discrete;
+    }
+    details.section[open]::details-content { block-size: auto; }
   }
 }
 

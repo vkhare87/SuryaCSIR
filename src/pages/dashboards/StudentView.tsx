@@ -3,10 +3,12 @@ import { Link } from 'react-router-dom';
 import clsx from 'clsx';
 import { useData } from '../../contexts/DataContext';
 import { useClaim, useHome } from '../../contexts/HomeContext';
-import { Card } from '../../components/ui/Cards';
+import { Section } from '../../components/ui/Section';
+import { Stagger } from '../../components/ui/Stagger';
+import { ProgressRing } from '../../components/viz/ProgressRing';
 import { Button } from '../../components/ui/Button';
 import {
-  ActionRow, AskBox, BLOCK_TITLE, HomeGreeting, NotConnected, ROW, TITLE_LINK, WaitingOnYou,
+  ActionRow, AskBox, HomeGreeting, NotConnected, ROW, TITLE_LINK, WaitingOnYou,
 } from '../../components/home/parts';
 import { DoFirst } from '../../components/home/Priorities';
 import { countWord } from '../../lib/home/greeting';
@@ -59,17 +61,17 @@ export function StudentView() {
         nextDays === null ? '.' : nextDays < 0 ? `, ${-nextDays} days past its date.` : `, in ${nextDays} days.`}`;
 
   return (
-    <div className="space-y-4 pb-12">
+    <Stagger className="space-y-4 pb-12">
       {/* --- 1. Greeting and the road --- */}
       <HomeGreeting
         done={doneCount} total={actions.length + doneCount} sentence={sentence}
         sub={own
           ? <>Enrolment <span className="font-mono">{own.EnrollmentNo}</span> · {own.Specialization || 'PhD'} · supervisor {own.SupervisorName || 'not named'}</>
           : 'Ask your supervisor or the System Admin to link your PhD record.'}
+        right={own && <ProgressRing value={passed} max={8} size={72} label="of road" />}
       />
       {own && (
-        <Card className="p-5">
-          <p className={BLOCK_TITLE}><span>Road to the thesis</span><span className="font-mono">{passed} of 8</span></p>
+        <Section id="student-road-to-the-thesis" title="Road to the thesis" right={<span className="font-mono">{passed} of 8</span>}>
           <ol className="grid grid-cols-4 sm:grid-cols-8 gap-1.5" aria-label="PhD steps">
             {road.gates.map(g => (
               <li key={g.name} className="text-center">
@@ -82,7 +84,7 @@ export function StudentView() {
             ))}
           </ol>
           <p className="text-xs text-text-muted mt-3">Fellowship: {own.FellowshipDetails || 'not on record'}.{own.ThesisTitle ? ` Thesis: ${own.ThesisTitle}.` : ''}</p>
-        </Card>
+        </Section>
       )}
 
       {/* --- 2. Ask --- */}
@@ -95,8 +97,7 @@ export function StudentView() {
 
       {/* --- 4. Work record and need something --- */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card className="p-5">
-          <p className={BLOCK_TITLE}><span>My work record</span><Link to="/me" className={TITLE_LINK}>My profile</Link></p>
+        <Section id="student-my-work-record" title="My work record" right={<Link to="/me" className={TITLE_LINK}>My profile</Link>}>
           <div className={ROW}>
             <p className="flex-1 text-sm text-text">Papers with my name</p>
             <span className="font-mono text-xs text-text-muted">{papers.length}</span>
@@ -115,14 +116,13 @@ export function StudentView() {
                 </Link>
               : <span className="text-xs text-text-muted">none on record</span>}
           </div>
-        </Card>
-        <Card className="p-5">
-          <p className={BLOCK_TITLE}><span>Need something</span></p>
+        </Section>
+        <Section id="student-need-something" title="Need something">
           <div className="flex flex-wrap gap-2">
             {NEEDS.map(n => <Link key={n.label} to={n.to}><Button variant="secondary" size="sm" type="button">{n.label}</Button></Link>)}
           </div>
           <p className="text-xs text-text-muted mt-3">You see your own road only. No other student's progress is shown here.</p>
-        </Card>
+        </Section>
       </div>
 
       {/* --- 5. Blocks that wait on other work --- */}
@@ -132,11 +132,10 @@ export function StudentView() {
       </div>
 
       {actions.length > 5 && (
-        <Card className="p-5">
-          <p className={BLOCK_TITLE}><span>Also open</span></p>
+        <Section id="student-also-open" title="Also open">
           {actions.slice(5, 10).map(a => <ActionRow key={a.id} action={a} now={now} />)}
-        </Card>
+        </Section>
       )}
-    </div>
+    </Stagger>
   );
 }

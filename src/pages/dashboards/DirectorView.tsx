@@ -3,11 +3,14 @@ import { Link } from 'react-router-dom';
 import clsx from 'clsx';
 import { useData } from '../../contexts/DataContext';
 import { useClaim, useHome } from '../../contexts/HomeContext';
-import { Card, Badge } from '../../components/ui/Cards';
+import { Badge } from '../../components/ui/Cards';
+import { Section } from '../../components/ui/Section';
+import { Stagger } from '../../components/ui/Stagger';
 import {
-  AskBox, BLOCK_TITLE, DecisionQueue, HomeGreeting, ROW, TITLE_LINK, WaitingOnYou, dueText,
+  AskBox, DecisionQueue, HomeGreeting, ROW, TITLE_LINK, WaitingOnYou, dueText,
 } from '../../components/home/parts';
 import { DoFirst, PinButton, PrioritiesAsked } from '../../components/home/Priorities';
+import { CategoryBar } from '../../components/viz/CategoryBar';
 import { DelegationDial } from '../../components/home/Delegation';
 import { AttentionStrip } from '../../components/dashboard/AttentionStrip';
 import { ProjectFinanceSection } from '../../components/dashboard/ProjectFinanceSection';
@@ -94,12 +97,17 @@ export function DirectorView() {
 
   // --- 3. Institute figures, each from a record that can be opened ---
   const utilization = useMemo(() => getInstituteUtilization(running), [running]);
+  const runningByDivision = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const p of running) if (p.DivisionCode) counts.set(p.DivisionCode, (counts.get(p.DivisionCode) ?? 0) + 1);
+    return [...counts].map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);
+  }, [running]);
   const down = useMemo(() => getEquipmentFlags(equipment, DEFAULT_THRESHOLDS, now).down.length, [equipment, now]);
 
   const total = actions.length + doneCount;
 
   return (
-    <div className="space-y-4 pb-12">
+    <Stagger className="space-y-4 pb-12">
       {/* --- 1. Greeting --- */}
       <HomeGreeting
         done={doneCount} total={total} sentence={sentence}
@@ -126,8 +134,7 @@ export function DirectorView() {
 
       {/* --- 4. Divisions and my week --- */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card className="p-5">
-          <p className={BLOCK_TITLE}><span>Divisions · those that need you</span><Link to="/divisions" className={TITLE_LINK}>See all</Link></p>
+        <Section id="director-divisions-those-that-need-you" title="Divisions · those that need you" right={<Link to="/divisions" className={TITLE_LINK}>See all</Link>}>
           {rollup.rows.slice(0, MAX_ROWS + 1).map(r => (
             <Link key={r.code} to="/divisions" className={clsx(ROW, 'group')}>
               <div className="flex-1 min-w-0">
@@ -144,10 +151,9 @@ export function DirectorView() {
             <span className="font-mono">{rollup.onCourse}</span> {rollup.onCourse === 1 ? 'division is' : 'divisions are'} on course.
           </p>
           <p className="text-xs text-text-muted mt-1">A project counts when it is past its end date, ends in 60 days, has a late milestone, or its recorded spending is far behind its time.</p>
-        </Card>
+        </Section>
 
-        <Card className="p-5">
-          <p className={BLOCK_TITLE}><span>My week · meetings I sit on</span><Link to="/committees" className={TITLE_LINK}>Committees</Link></p>
+        <Section id="director-my-week-meetings-i-sit-on" title="My week · meetings I sit on" right={<Link to="/committees" className={TITLE_LINK}>Committees</Link>}>
           {ownMeetings.length === 0
             ? <p className="text-sm text-text-muted">No meeting is scheduled for your committees.</p>
             : ownMeetings.map(m => (
@@ -159,30 +165,34 @@ export function DirectorView() {
                 </div>
               </Link>
             ))}
-        </Card>
+        </Section>
       </div>
 
       {/* --- 5. Institute at a glance: each figure opens its list --- */}
-      <Card className="p-5">
-        <p className={BLOCK_TITLE}><span>Institute · each figure opens its list</span></p>
+      <Section id="director-institute-each-figure-opens-its-list" title="Institute · each figure opens its list">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <Figure to="/projects" label="Running projects" value={String(running.length)} note={`of ${projects.length} on record`} />
           <Figure to="/portfolio" label="Project money used" value={utilization.utilized > 0 ? `${utilization.pct}%` : '—'} note={utilization.utilized > 0 ? 'of sanctioned cost, running projects' : 'no spent amount is recorded'} />
           <Figure to="/staff/posts" label="Posts filled" value={totals.sanctioned > 0 ? `${totals.filled} / ${totals.sanctioned}` : '—'} note={totals.sanctioned > 0 ? `${totals.vacant} vacant` : 'no posts are entered'} />
           <Figure to="/facilities" label="Instruments down" value={String(down)} note={`of ${equipment.length}`} />
         </div>
-      </Card>
+        {runningByDivision.length > 0 && (
+          <>
+            <p className="text-xs text-text-muted mt-4">Running projects by division</p>
+            <CategoryBar data={runningByDivision} height={200} />
+          </>
+        )}
+      </Section>
 
       {/* --- 6. Blocks that wait on other work --- */}
-      <Card className="p-5">
-        <p className={BLOCK_TITLE}><span>Not connected yet</span><span className="font-mono">{NOT_CONNECTED.length}</span></p>
+      <Section id="director-not-connected-yet" title="Not connected yet" right={<span className="font-mono">{NOT_CONNECTED.length}</span>}>
         {NOT_CONNECTED.map(b => (
           <div key={b.title} className={ROW}>
             <p className="text-sm text-text w-56 shrink-0">{b.title}</p>
             <p className="text-xs text-text-muted flex-1 min-w-0">Will show {b.waitsOn}.</p>
           </div>
         ))}
-      </Card>
+      </Section>
 
       {/* --- 7. Institute figures --- */}
       <h2 className="text-xs font-medium text-text-muted pt-4">Institute figures</h2>
@@ -190,6 +200,6 @@ export function DirectorView() {
       <ProjectFinanceSection />
       <ResearchSection />
       <EquipmentOpsSection />
-    </div>
+    </Stagger>
   );
 }

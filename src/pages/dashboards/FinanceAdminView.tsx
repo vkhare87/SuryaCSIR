@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Briefcase, TrendingUp, IndianRupee, AlertTriangle } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
 import { Card } from '../../components/ui/Cards';
+import { Stagger } from '../../components/ui/Stagger';
 import { KpiCard } from '../../components/ui/KpiCard';
 import { parseCost } from '../../utils/parseCost';
 import { isActiveProject, projectStatusLabel } from '../../lib/projects/stage';
@@ -36,13 +37,13 @@ export function FinanceAdminView() {
   }, [projects]);
 
   return (
-    <div className="space-y-8 pb-12">
+    <Stagger className="space-y-8 pb-12">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-[500] text-[#141413] uppercase tracking-tight font-serif">
+      <div className="card-contrast border rounded-xl p-5">
+        <h1 className="text-3xl font-[500] text-text uppercase tracking-tight font-serif">
           Finance Administration
         </h1>
-        <p className="text-[#87867f] mt-1 text-sm font-medium">
+        <p className="text-text-muted mt-1 text-sm font-medium">
           All projects — funding and expenditure overview
         </p>
       </div>
@@ -173,6 +174,6 @@ export function FinanceAdminView() {
           </table>
         </div>
       </Card>
-    </div>
+    </Stagger>
   );
 }

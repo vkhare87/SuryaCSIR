@@ -11,7 +11,7 @@
 
 ## Aesthetic Direction
 - **Direction:** Editorial-archival — "the well-kept register." Paper ground, ink text, a ceremonial accent used sparingly.
-- **Decoration level:** Intentional-minimal — typography and the ledger-table pattern do the work; no illustration, no gradients, no decorative blobs.
+- **Decoration level:** Intentional-minimal — typography and the ledger-table pattern do the work; no illustration, no gradients on content, no decorative blobs. Glass and the ink card are allowed under the rules in "Lit register" below.
 - **Mood:** Quiet recognition — opening a well-kept file with your name already on it. Not delight-for-delight's-sake; competence rendered warmly.
 - **Origin:** Built upon the existing "Digital Sun" identity (codified 2026-07-18 via `/design-consultation`, informed by the 2026-07-18 `/design-review` audit which scored the pre-existing system B+ design / A anti-slop). Research: 2026 dashboard trends favor serif headlines + ledger-style numerals over generic sans-only UI ([muz.li](https://muz.li/blog/best-dashboard-design-examples-inspirations-for-2026/)); gov portals converge on high-contrast, large-default-type, WCAG AA ([designrush](https://www.designrush.com/best-designs/websites/trends/best-government-institution-website-designs)). SURYA's existing warm-paper direction is ahead of the category curve, not behind it — the plan is to sharpen it, not replace it.
 
@@ -46,8 +46,18 @@
 - **Border radius:** existing hierarchical scale (`rounded-lg`/`rounded-xl`/`rounded-[12px]` etc.) — codify current usage, no new scale.
 
 ## Motion
-- **Approach:** Intentional-minimal — unchanged. `framer-motion` page-transition fades already correct; `prefers-reduced-motion` already honored in `src/index.css`.
-- **Easing/duration:** existing values are fine — no changes proposed.
+- **Approach:** Purposeful (changed 2026-11-15, was intentional-minimal). Motion shows that something moved, opened or arrived: blocks rise in on page entry (`<Stagger>`), a list item slides when it is reordered, a block folds when it is collapsed, the active segment pill slides. Nothing loops. Nothing moves that the user did not cause, except the one entry stagger.
+- **Easing/duration:** `--ease-out-expo`, 150–400 ms. `prefers-reduced-motion` is honored in `src/index.css` and by `<MotionConfig reducedMotion="user">` in `src/main.tsx`.
+
+## Lit register (2026-11-15)
+
+The register stays; it gets light. Paper, ink, terracotta and Fraunces are unchanged. Three additions:
+
+- **Transparency on floating layers only.** Glass (`.glass`, or `bg-surface-raised/90 backdrop-blur-md`) is for things that float above the page: top bar, `Popover`, `HoverCard`, sheet, command palette. Never on tables, body cards or anything that holds dense text.
+- **One ink card per page.** `<Card variant="contrast">` (`.card-contrast`: ink ground, ivory text; inverted in dark mode) marks the single most important block of a page. On a role home that is the greeting. Same scarcity rule as terracotta: two on one page means neither stands out.
+- **The parts are modular.** Home blocks are `<Section>` (collapsible, state kept per browser). The sidebar's "For you" list can be pinned to and reordered. Layout choices live in `localStorage`; access never does.
+
+Rejected alternative: "Glass observatory" (every panel translucent on a gradient ground, floating sidebar) — worse legibility on tables, backdrop blur is slow on old office PCs, and it replaces the identity instead of sharpening it.
 
 ## Implementation status (2026-07-25)
 
@@ -65,6 +75,10 @@ session reads it as ground truth.
 | R3 `<StatusSeal>` | **Shipped** 2026-07-25 | `src/components/pms/StatusSeal.tsx`; `pms/StatusBadge` now delegates to it, so all six PMS call sites render seals |
 | R5 sentence-first greeting | Not implemented | — |
 | R6 ledger tables | Partial | `SystemAdminView` only |
+| Lit register: shell | **Shipped** 2026-11-15 | Glass sticky top bar, account `Popover`, role switcher on `Popover` (`Layout.tsx`); sidebar pin / reorder (drag, Alt+↑/↓) / foldable groups / rail labels (`Sidebar.tsx`, `utils/sidebarLayout.ts`) |
+| Lit register: shared parts | **Shipped** 2026-11-15 | `ui/Popover`, `ui/Section`, `ui/Stagger`, `ui/Peeks`, `Card variant="contrast"`, sliding pill in `ui/Tabs`, glass `HoverCard` |
+| Lit register: role homes | **Shipped** 2026-11-15 | Ink greeting, entry stagger, foldable blocks and one chart or ring each on Director, HoD/DivisionHead, Scientist, Technician, Student, ProjectStaff. Admin homes (HRAdmin, FinanceAdmin, SystemAdmin, MasterAdmin, PME, Guest) got the ink header and entry stagger only; their blocks do not fold and their raw-hex classes remain. EmpoweredCommittee and PendingAccess are placeholders, not touched |
+| Lit register: other pages | Not implemented | ~80 pages; next plan, in groups |
 
 Also shipped 2026-07-25: IBM Plex Mono and Tiro Devanagari Sanskrit are now
 actually fetched (both were specified below but never loaded), and the
@@ -93,4 +107,5 @@ These are the deliberate departures from gov-software convention this session ap
 | 2026-07-18 | Initial DESIGN.md created via `/design-consultation` | Codify + evolve the existing ivory/terracotta identity rather than replace it — audit same day scored current system B+/A. Scope = "build upon the current codebase" per user request. |
 | 2026-07-18 | Memorable thing set: "An institute that remembers" | User-selected over "serious instrument" and "sun at the center" alternatives — matches existing serif+ivory+Devanagari cues already in the login page. |
 | 2026-07-18 | Adopted R1, R2, R3, R5, R6; deferred R4 | User selected via AskUserQuestion — full risk set except the Inter body-font swap, judged highest-churn-lowest-value. |
+| 2026-11-15 | "Lit register" adopted: purposeful motion, glass on floating layers, one ink card per page, modular sidebar and home blocks | User found the app a "boring portal". Chosen over "Glass observatory" via AskUserQuestion. Scope: shell + shared parts + role homes first; other pages follow in groups. Sidebar layout is stored per browser, no migration. |
 | 2026-07-18 | Terracotta scope narrowed to ceremonial/CTA use | Subagent design voice ("Ledger Illuminated") argued scarcity makes the accent meaningful; adopted as R2. |

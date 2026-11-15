@@ -4,9 +4,12 @@ import clsx from 'clsx';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
 import { useClaim, useHome } from '../../contexts/HomeContext';
-import { Card, Badge } from '../../components/ui/Cards';
+import { Badge } from '../../components/ui/Cards';
+import { Section } from '../../components/ui/Section';
+import { Stagger } from '../../components/ui/Stagger';
+import { ProgressRing } from '../../components/viz/ProgressRing';
 import {
-  AskBox, BLOCK_TITLE, HomeGreeting, NotConnected, ROW, TITLE_LINK, WaitingOnYou,
+  AskBox, HomeGreeting, NotConnected, ROW, TITLE_LINK, WaitingOnYou,
 } from '../../components/home/parts';
 import { DoFirst } from '../../components/home/Priorities';
 import { countWord } from '../../lib/home/greeting';
@@ -70,11 +73,12 @@ export function TechnicianView() {
   };
 
   return (
-    <div className="space-y-4 pb-12">
+    <Stagger className="space-y-4 pb-12">
       {/* --- 1. Greeting --- */}
       <HomeGreeting
         done={doneCount} total={actions.length + doneCount} sentence={sentence}
         sub={<>{ownStaff?.Designation ?? 'Technical staff'}{divisionCode ? ` · Division ${divisionCode}` : ''}</>}
+        right={mine.length > 0 && <ProgressRing value={mine.length - down.length} max={mine.length} size={72} label="working" />}
       />
 
       {/* --- 2. Ask --- */}
@@ -86,8 +90,7 @@ export function TechnicianView() {
       <WaitingOnYou actions={actions} now={now} rows={4} strong={prioritiesForMe.length === 0} />
 
       {/* --- 4. My instruments --- */}
-      <Card className="p-5">
-        <p className={BLOCK_TITLE}><span>My instruments</span><Link to="/facilities" className={TITLE_LINK}>All instruments</Link></p>
+      <Section id="technician-my-instruments" title="My instruments" right={<Link to="/facilities" className={TITLE_LINK}>All instruments</Link>}>
         {mine.length === 0
           ? <>
             <p className="text-sm text-text-muted">No instrument names you as in charge or as operator. The head of your division can set it on the instrument page.</p>
@@ -98,7 +101,7 @@ export function TechnicianView() {
           </>
           : [...down, ...mine.filter(e => !down.includes(e))].slice(0, 8).map(row)}
         {mine.length > 0 && <p className="text-xs text-text-muted mt-3">Open an instrument to log its use in the logbook.</p>}
-      </Card>
+      </Section>
 
       {/* --- 5. Blocks that wait on other work --- */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -106,6 +109,6 @@ export function TechnicianView() {
         <NotConnected title="Quick entry">One-tap entries for use, a finished job, a fault or low stock will show here.</NotConnected>
         <NotConnected title="My year">Your entries, grouped by appraisal output code, will show here.</NotConnected>
       </div>
-    </div>
+    </Stagger>
   );
 }

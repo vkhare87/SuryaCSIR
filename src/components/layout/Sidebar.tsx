@@ -1,9 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import type { MouseEvent } from 'react';
 import { NavLink } from 'react-router-dom';
-import {Users, Briefcase, BookOpen, LogOut, PanelLeftClose, PanelLeftOpen, Settings as SettingsIcon, LayoutDashboard, Calendar as CalendarIcon, Building2, Handshake, Activity, FileText, Database, Network, Cloud, X, ClipboardCheck, Ticket as TicketIcon, CalendarDays, UserCog, UserCheck, ScanText, Sparkles, Share2, Microscope, SlidersHorizontal, ChevronDown, MoreHorizontal, Inbox, Gauge, Lightbulb, Link2, Scale, ClipboardList, TrendingUp, GraduationCap} from 'lucide-react';
+import {Pin, PinOff, RotateCcw, Users, Briefcase, BookOpen, LogOut, PanelLeftClose, PanelLeftOpen, Settings as SettingsIcon, LayoutDashboard, Calendar as CalendarIcon, Building2, Handshake, Activity, FileText, Database, Network, Cloud, X, ClipboardCheck, Ticket as TicketIcon, CalendarDays, UserCog, UserCheck, ScanText, Sparkles, Share2, Microscope, SlidersHorizontal, ChevronDown, MoreHorizontal, Inbox, Gauge, Lightbulb, Link2, Scale, ClipboardList, TrendingUp, GraduationCap} from 'lucide-react';
 import clsx from 'clsx';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import type { LucideIcon } from 'lucide-react';
+import { HoverCard } from '../ui/HoverCard';
+import { moveIn, readLayout, toggleIn, writeLayout } from '../../utils/sidebarLayout';
+import type { SidebarLayout } from '../../utils/sidebarLayout';
 import { useAuth } from '../../contexts/AuthContext';
 import { useFeatureControls } from '../../contexts/FeatureControlContext';
 import { ROLE_ROUTES } from '../../constants/roleRoutes';
@@ -91,19 +95,33 @@ interface SidebarLinkProps {
   item: NavItem;
   expanded: boolean;
   dashboardPath: string;
-  onNavigate: () => void;
+  onNavigate: (e: MouseEvent) => void;
+  pinned: boolean;
+  onTogglePin?: () => void;
+  /** Present on a "For you" link that can move: Alt+Up / Alt+Down. */
+  onMove?: (delta: -1 | 1) => void;
+  /** Touch screens have no hover, so the pin button stays on show. */
+  pinAlwaysVisible: boolean;
 }
 
-function SidebarLink({ item, expanded, dashboardPath, onNavigate }: SidebarLinkProps) {
-  return (
+function SidebarLink({ item, expanded, dashboardPath, onNavigate, pinned, onTogglePin, onMove, pinAlwaysVisible }: SidebarLinkProps) {
+  const to = item.path === '/' ? dashboardPath : item.path;
+  const link = (
     <NavLink
-      to={item.path}
-      end={item.path === dashboardPath}
-      title={expanded ? undefined : item.label}
+      to={to}
+      end={to === dashboardPath}
+      draggable={false}
       aria-label={expanded ? undefined : item.label}
+      aria-keyshortcuts={onMove ? 'Alt+ArrowUp Alt+ArrowDown' : undefined}
       onClick={onNavigate}
+      onKeyDown={onMove && ((e) => {
+        if (!e.altKey || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return;
+        e.preventDefault();
+        onMove(e.key === 'ArrowUp' ? -1 : 1);
+      })}
       className={({ isActive }) => clsx(
         'relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all group',
+        expanded && onTogglePin && 'pr-9',
         isActive
           ? 'bg-dark-surface text-ivory font-medium shadow-[inset_2px_0_0_var(--color-terracotta),0_0_18px_-6px_color-mix(in_srgb,var(--color-coral)_70%,transparent)]'
           : 'text-warm-silver hover:text-ivory hover:bg-dark-surface/60'
@@ -118,6 +136,35 @@ function SidebarLink({ item, expanded, dashboardPath, onNavigate }: SidebarLinkP
       )}
     </NavLink>
   );
+  if (!expanded) {
+    return (
+      <HoverCard
+        side="right" openDelay={100} content={item.label} className="block"
+        panelClassName="px-2.5 py-1.5 text-xs font-medium text-text whitespace-nowrap"
+      >
+        {link}
+      </HoverCard>
+    );
+  }
+  return (
+    <div className="relative group/link">
+      {link}
+      {onTogglePin && (
+        <button
+          type="button"
+          onClick={onTogglePin}
+          aria-label={pinned ? `Unpin ${item.label}` : `Pin ${item.label} to For you`}
+          title={pinned ? 'Unpin' : 'Pin to For you'}
+          className={clsx(
+            'absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 rounded text-warm-silver hover:text-ivory hover:bg-dark-surface transition-opacity',
+            !pinAlwaysVisible && 'opacity-0 group-hover/link:opacity-100 focus-visible:opacity-100',
+          )}
+        >
+          {pinned ? <PinOff size={14} /> : <Pin size={14} />}
+        </button>
+      )}
+    </div>
+  );
 }
 
 interface SidebarBodyProps {
@@ -128,6 +175,10 @@ interface SidebarBodyProps {
   moreSections: NavSection[];
   moreOpen: boolean;
   onToggleMore: () => void;
+  closedSections: string[];
+  onToggleSection: (label: string) => void;
+  pinsCustomized: boolean;
+  onSetPins: (paths: string[] | null) => void;
   dashboardPath: string;
   onCloseMobile: () => void;
   onOpenSettings: () => void;
@@ -138,10 +189,29 @@ interface SidebarBodyProps {
  *  so navigating or collapsing never remounts it — no state reset / flicker. */
 function SidebarBody({
   isMobileView, sidebarOpen, onToggleCollapse, primaryItems, moreSections, moreOpen,
-  onToggleMore, dashboardPath, onCloseMobile, onOpenSettings, onLogout,
+  onToggleMore, closedSections, onToggleSection, pinsCustomized, onSetPins,
+  dashboardPath, onCloseMobile, onOpenSettings, onLogout,
 }: SidebarBodyProps) {
   const expanded = sidebarOpen || isMobileView;
-  const linkProps = { expanded, dashboardPath, onNavigate: () => { if (isMobileView) onCloseMobile(); } };
+  // A drag ends with a click on the link under the pointer; that click must not navigate.
+  const dragging = useRef(false);
+  const pinPaths = primaryItems.map(item => item.path);
+  const linkProps = {
+    expanded,
+    dashboardPath,
+    pinAlwaysVisible: isMobileView,
+    onNavigate: (e: MouseEvent) => {
+      if (dragging.current) { e.preventDefault(); return; }
+      if (isMobileView) onCloseMobile();
+    },
+  };
+  const forYouLink = (item: NavItem) => (
+    <SidebarLink
+      item={item} {...linkProps} pinned
+      onTogglePin={() => onSetPins(toggleIn(pinPaths, item.path))}
+      onMove={(delta) => onSetPins(moveIn(pinPaths, item.path, delta))}
+    />
+  );
   return (
     <div className="flex flex-col h-full">
       {/* Logo */}
@@ -166,13 +236,36 @@ function SidebarBody({
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-4 px-2">
-        <div className="space-y-1">
+        <div className="relative space-y-1">
           {expanded && (
             <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-warm-silver/55">
               For you
             </div>
           )}
-          {primaryItems.map(item => <SidebarLink key={item.path} item={item} {...linkProps} />)}
+          {expanded && pinsCustomized && (
+            <button
+              type="button"
+              onClick={() => onSetPins(null)}
+              aria-label="Reset For you to the default list"
+              title="Reset to default"
+              className="absolute right-1.5 -top-1.5 p-1.5 rounded text-warm-silver/70 hover:text-ivory hover:bg-dark-surface transition-colors"
+            >
+              <RotateCcw size={12} />
+            </button>
+          )}
+          {expanded && !isMobileView ? (
+            <Reorder.Group as="div" axis="y" values={pinPaths} onReorder={onSetPins} className="space-y-1">
+              {primaryItems.map(item => (
+                <Reorder.Item
+                  as="div" key={item.path} value={item.path}
+                  onDragStart={() => { dragging.current = true; }}
+                  onDragEnd={() => { window.setTimeout(() => { dragging.current = false; }); }}
+                >
+                  {forYouLink(item)}
+                </Reorder.Item>
+              ))}
+            </Reorder.Group>
+          ) : primaryItems.map(item => <div key={item.path}>{forYouLink(item)}</div>)}
         </div>
 
         {moreSections.length > 0 && (
@@ -194,22 +287,37 @@ function SidebarBody({
               )}
             </button>
 
-            {moreOpen && moreSections.map((section, sectionIdx) => (
-              <div
-                key={section.label}
-                className={clsx(
-                  'space-y-1',
-                  expanded ? 'mt-3' : sectionIdx > 0 && 'mt-3 border-t border-dark-surface/60 pt-3'
-                )}
-              >
-                {expanded && (
-                  <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-warm-silver/55">
-                    {section.label}
-                  </div>
-                )}
-                {section.items.map(item => <SidebarLink key={item.path} item={item} {...linkProps} />)}
-              </div>
-            ))}
+            {moreOpen && moreSections.map((section, sectionIdx) => {
+              // The icon rail has no headers to fold by, so it always shows every group.
+              const open = !expanded || !closedSections.includes(section.label);
+              return (
+                <div
+                  key={section.label}
+                  className={clsx(
+                    'space-y-1',
+                    expanded ? 'mt-3' : sectionIdx > 0 && 'mt-3 border-t border-dark-surface/60 pt-3'
+                  )}
+                >
+                  {expanded && (
+                    <button
+                      type="button"
+                      onClick={() => onToggleSection(section.label)}
+                      aria-expanded={open}
+                      className="flex w-full items-center justify-between gap-2 px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-warm-silver/55 hover:text-warm-silver transition-colors"
+                    >
+                      <span className="truncate">{section.label}</span>
+                      <ChevronDown size={12} className={clsx('shrink-0 transition-transform', !open && '-rotate-90')} />
+                    </button>
+                  )}
+                  {open && section.items.map(item => (
+                    <SidebarLink
+                      key={item.path} item={item} {...linkProps} pinned={false}
+                      onTogglePin={() => onSetPins(toggleIn(pinPaths, item.path))}
+                    />
+                  ))}
+                </div>
+              );
+            })}
           </div>
         )}
       </nav>
@@ -249,39 +357,51 @@ interface SidebarProps {
 
 /** Left navigation rail. Owns its own collapse state so it is independent of
  *  the surrounding Layout (topbar / main content) — no shared re-render path. */
-export function Sidebar({ isMobile, deviceType, mobileOpen, onCloseMobile, onOpenSettings }: SidebarProps) {
+export function Sidebar(props: SidebarProps) {
+  const { user, role } = useAuth();
+  // Each user arranges each role's sidebar on its own; a role switch re-reads it.
+  const layoutKey = `surya_sidebar_layout:${user?.id ?? 'anon'}:${role ?? 'none'}`;
+  return <SidebarForRole key={layoutKey} layoutKey={layoutKey} {...props} />;
+}
+
+function SidebarForRole({ layoutKey, isMobile, deviceType, mobileOpen, onCloseMobile, onOpenSettings }: SidebarProps & { layoutKey: string }) {
   const { role, logout } = useAuth();
   const { canAccess } = useFeatureControls();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [layout, setLayout] = useState(() => readLayout(layoutKey));
+  const [sidebarOpen, setSidebarOpen] = useState(!layout.collapsed);
   const drawerRef = useDialog<HTMLElement>(isMobile && mobileOpen, onCloseMobile);
   const [moreOpen, setMoreOpen] = useState(() => {
     try { return localStorage.getItem(MORE_OPEN_KEY) === '1'; } catch { return false; }
   });
 
-  // Auto-collapse on tablet, expand on desktop.
+  const saveLayout = (patch: Partial<SidebarLayout>) => {
+    const next = { ...layout, ...patch };
+    setLayout(next);
+    writeLayout(layoutKey, next);
+  };
+
+  // Auto-collapse on tablet; on desktop, the width the user left it at.
   useEffect(() => {
     if (deviceType === 'tablet') setSidebarOpen(false);
-    if (deviceType === 'desktop') setSidebarOpen(true);
-  }, [deviceType]);
+    if (deviceType === 'desktop') setSidebarOpen(!layout.collapsed);
+  }, [deviceType, layout.collapsed]);
 
   const dashboardPath = role ? ROLE_ROUTES[role] : '/';
-  const toRoute = (item: NavItem) => (item.path === '/' ? { ...item, path: dashboardPath } : item);
-  const primaryPaths: string[] = role ? PRIMARY_NAV[role] : [];
+  const resolve = (path: string) => (path === '/' ? dashboardPath : path);
+  const primaryPaths: string[] = layout.pins ?? (role ? PRIMARY_NAV[role] : []);
   const allItems = NAV_SECTIONS.flatMap(section => section.items);
 
+  // A stored pin grants nothing: every item still passes canAccess().
   const primaryItems = primaryPaths
     .map(path => allItems.find(item => item.path === path))
     .filter((item): item is NavItem => item != null && canAccess(item.path))
-    .map(toRoute)
     // EmpoweredCommittee's dashboard *is* /pms — don't list it twice.
-    .filter((item, i, items) => items.findIndex(x => x.path === item.path) === i);
+    .filter((item, i, items) => items.findIndex(x => resolve(x.path) === resolve(item.path)) === i);
 
   const moreSections = NAV_SECTIONS
     .map(section => ({
       ...section,
-      items: section.items
-        .filter(item => canAccess(item.path) && !primaryPaths.includes(item.path))
-        .map(toRoute),
+      items: section.items.filter(item => canAccess(item.path) && !primaryPaths.includes(item.path)),
     }))
     .filter(section => section.items.length > 0);
 
@@ -293,11 +413,18 @@ export function Sidebar({ isMobile, deviceType, mobileOpen, onCloseMobile, onOpe
 
   const bodyProps = {
     sidebarOpen,
-    onToggleCollapse: () => setSidebarOpen(v => !v),
+    onToggleCollapse: () => {
+      if (deviceType === 'desktop') saveLayout({ collapsed: sidebarOpen });
+      else setSidebarOpen(v => !v);
+    },
     primaryItems,
     moreSections,
     moreOpen,
     onToggleMore: toggleMore,
+    closedSections: layout.closed,
+    onToggleSection: (label: string) => saveLayout({ closed: toggleIn(layout.closed, label) }),
+    pinsCustomized: layout.pins !== null,
+    onSetPins: (pins: string[] | null) => saveLayout({ pins }),
     dashboardPath,
     onCloseMobile,
     onOpenSettings,

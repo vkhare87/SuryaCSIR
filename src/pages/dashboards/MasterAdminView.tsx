@@ -14,6 +14,7 @@ import { useData } from '../../contexts/DataContext';
 import { usePMS } from '../../contexts/PMSContext';
 import { useToast } from '../../contexts/ToastContext';
 import { Card } from '../../components/ui/Cards';
+import { Stagger } from '../../components/ui/Stagger';
 import { KpiCard } from '../../components/ui/KpiCard';
 import { averageImpactFactor } from '../../lib/intelligence/impact';
 import type { Role } from '../../types';
@@ -234,8 +235,8 @@ export function MasterAdminView() {
   };
 
   return (
-    <div className="space-y-8 pb-12">
-      <div className="flex items-start justify-between gap-3">
+    <Stagger className="space-y-8 pb-12">
+      <div className="card-contrast border rounded-xl p-5 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-2xl md:text-3xl font-[500] text-text uppercase tracking-tight font-serif break-words">
             Master Administration
@@ -527,6 +528,6 @@ export function MasterAdminView() {
         </div>
         </details>
       </Card>
-    </div>
+    </Stagger>
   );
 }

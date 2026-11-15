@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Users, Network, UserCheck, Briefcase, Wrench, BarChart3, CalendarClock } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
 import { Card } from '../../components/ui/Cards';
+import { Stagger } from '../../components/ui/Stagger';
 import { InsightsStrip } from '../../components/viz/InsightsStrip';
 import { KpiTile } from '../../components/viz/KpiTile';
 import { MiniDonut } from '../../components/viz/MiniDonut';
@@ -62,14 +63,14 @@ export function HRAdminView() {
   const fillPct = totalSanctioned > 0 ? Math.round((strength.filled / totalSanctioned) * 100) : 0;
 
   return (
-    <div className="space-y-8 pb-12">
+    <Stagger className="space-y-8 pb-12">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="card-contrast border rounded-xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-[500] text-[#141413] uppercase tracking-tight font-serif">
+          <h1 className="text-3xl font-[500] text-text uppercase tracking-tight font-serif">
             HR Administration
           </h1>
-          <p className="text-[#87867f] mt-1 text-sm font-medium">
+          <p className="text-text-muted mt-1 text-sm font-medium">
             Manage staff records and personnel information
           </p>
         </div>
@@ -223,6 +224,6 @@ export function HRAdminView() {
           </table>
         </div>
       </Card>
-    </div>
+    </Stagger>
   );
 }

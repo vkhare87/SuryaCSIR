@@ -7,7 +7,13 @@ import { useData } from '../../contexts/DataContext';
 import { useProjectReports } from '../../contexts/ProjectReportsContext';
 import { useClaim, useHome } from '../../contexts/HomeContext';
 import { Card, Badge } from '../../components/ui/Cards';
+import { Section } from '../../components/ui/Section';
+import { Stagger } from '../../components/ui/Stagger';
 import { Button } from '../../components/ui/Button';
+import { HoverCard } from '../../components/ui/HoverCard';
+import { ProjectPeek } from '../../components/ui/Peeks';
+import { CategoryBar } from '../../components/viz/CategoryBar';
+import { ProgressRing } from '../../components/viz/ProgressRing';
 import { DoFirst, PinButton, PrioritiesAsked } from '../../components/home/Priorities';
 import { ActionRow, AskBox, BLOCK_TITLE, HomeGreeting, NotConnected, ROW, dueText } from '../../components/home/parts';
 import { deriveOwnMeetings, deriveOwnActionItems } from '../../lib/dashboard/scientistData';
@@ -87,7 +93,14 @@ export function ScientistView() {
   };
   const record = useMemo(() => (user ? onTimeRecord(progressReports, user.id, today) : { sent: 0, onTime: 0 }), [progressReports, user, today]);
   const overdue = useMemo(() => actions.filter(a => a.due !== null && a.due < today).length, [actions, today]);
-  const groups = useMemo(() => countByGroup(actions), [actions]);
+  const tasksByType = useMemo(() => {
+    const g = countByGroup(actions);
+    return [
+      { label: 'Research', value: g.research },
+      { label: 'Administration', value: g.admin },
+      { label: 'Committee', value: g.committee },
+    ];
+  }, [actions]);
   const sentence = useMemo(
     () => greeting({ name: ownName, hour: now.getHours(), left: actions.length, overdue }),
     [ownName, now, actions.length, overdue],
@@ -158,7 +171,7 @@ export function ScientistView() {
   const total = actions.length + doneCount;
 
   return (
-    <div className="space-y-4 pb-12">
+    <Stagger className="space-y-4 pb-12">
       {/* --- 1. Today ring and greeting --- */}
       <HomeGreeting
         done={doneCount} total={total} sentence={sentence}
@@ -167,6 +180,7 @@ export function ScientistView() {
           : staffResolved
             ? 'This account is not linked to a staff record. Ask the System Admin to link it; project, committee and team blocks need it.'
             : ' '}
+        right={record.sent > 0 && <ProgressRing value={record.onTime} max={record.sent} size={72} label="on time" />}
       />
 
       <DoFirst now={now} />
@@ -195,14 +209,12 @@ export function ScientistView() {
 
       {/* --- 4. Quick wins and this week --- */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card className="p-5">
-          <p className={BLOCK_TITLE}><span>Quick wins · two minutes each</span><span className="font-mono">{wins.length}</span></p>
+        <Section id="scientist-quick-wins-two-minutes-each" title="Quick wins · two minutes each" right={<span className="font-mono">{wins.length}</span>}>
           {wins.length === 0
             ? <p className="text-sm text-text-muted">No two-minute items today.</p>
             : wins.slice(0, 5).map(actionRow)}
-        </Card>
-        <Card className="p-5">
-          <p className={BLOCK_TITLE}><span>This week</span><Link to="/calendar" className="inline-block py-1.5 -my-1.5 hover:underline">Calendar</Link></p>
+        </Section>
+        <Section id="scientist-this-week" title="This week" right={<Link to="/calendar" className="inline-block py-1.5 -my-1.5 hover:underline">Calendar</Link>}>
           <div className="grid grid-cols-7 gap-1.5">
             {week.map(d => {
               const n = d.marks.deadline + d.marks.meeting + d.marks.event;
@@ -218,16 +230,14 @@ export function ScientistView() {
               );
             })}
           </div>
-          <p className="text-xs text-text-muted mt-3">
-            Open tasks by type: research <span className="font-mono">{groups.research}</span> · administration <span className="font-mono">{groups.admin}</span> · committee <span className="font-mono">{groups.committee}</span>
-          </p>
-        </Card>
+          <p className="text-xs text-text-muted mt-3">Open tasks by type</p>
+          <CategoryBar horizontal height={160} data={tasksByType} />
+        </Section>
       </div>
 
       {/* --- 5. Report timers --- */}
       {timers.length > 0 && (
-        <Card className="p-5">
-          <p className={BLOCK_TITLE}><span>Report timers · days left</span><span className="font-mono">{timers.length}</span></p>
+        <Section id="scientist-report-timers-days-left" title="Report timers · days left" right={<span className="font-mono">{timers.length}</span>}>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {timers.slice(0, 6).map(t => (
               <Link key={t.action.id} to={t.action.link} className="flex items-center gap-3 rounded-lg p-2 hover:bg-surface-hover group">
@@ -242,23 +252,21 @@ export function ScientistView() {
               </Link>
             ))}
           </div>
-        </Card>
+        </Section>
       )}
 
       {/* --- 6. Everything else that is open --- */}
       {actions.length > 1 && (
-        <Card className="p-5">
-          <p className={BLOCK_TITLE}><span>Also open</span><Link to="/work" className="inline-block py-1.5 -my-1.5 hover:underline">See all <span className="font-mono">{actions.length}</span></Link></p>
+        <Section id="scientist-also-open" title="Also open" right={<Link to="/work" className="inline-block py-1.5 -my-1.5 hover:underline">See all <span className="font-mono">{actions.length}</span></Link>}>
           {alsoOpen.map(actionRow)}
-        </Card>
+        </Section>
       )}
 
       <PrioritiesAsked />
 
       {/* --- 6. Committees --- */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card className="p-5">
-          <p className={BLOCK_TITLE}><span>Committees coming up</span><span className="font-mono">{ownMeetings.length}</span></p>
+        <Section id="scientist-committees-coming-up" title="Committees coming up" right={<span className="font-mono">{ownMeetings.length}</span>}>
           {ownMeetings.length === 0
             ? <p className="text-sm text-text-muted">No meeting is scheduled for your committees.</p>
             : ownMeetings.map(m => (
@@ -270,9 +278,8 @@ export function ScientistView() {
                 </div>
               </Link>
             ))}
-        </Card>
-        <Card className="p-5">
-          <p className={BLOCK_TITLE}><span>Committee tasks on me</span><span className="font-mono">{committeeTasks.length}</span></p>
+        </Section>
+        <Section id="scientist-committee-tasks-on-me" title="Committee tasks on me" right={<span className="font-mono">{committeeTasks.length}</span>}>
           {committeeTasks.length === 0
             ? <p className="text-sm text-text-muted">No open committee task.</p>
             : committeeTasks.slice(0, 5).map(t => {
@@ -284,12 +291,11 @@ export function ScientistView() {
                 </Link>
               );
             })}
-        </Card>
+        </Section>
       </div>
 
       {/* --- 7. My projects --- */}
-      <Card className="p-5">
-        <p className={BLOCK_TITLE}><span>My projects · milestones</span><span className="font-mono">{ownProjects.length}</span></p>
+      <Section id="scientist-my-projects-milestones" title="My projects · milestones" right={<span className="font-mono">{ownProjects.length}</span>}>
         {ownProjects.length === 0
           ? <p className="text-sm text-text-muted">No running project is linked to you.</p>
           : ownProjects.slice(0, 6).map(p => {
@@ -297,23 +303,24 @@ export function ScientistView() {
             const late = ms.filter(m => (m.status === 'PLANNED' || m.status === 'PROPOSED') && m.targetDate < today).length;
             return (
               <div key={p.ProjectID} className={clsx(ROW, 'flex-wrap')}>
-                <Link to={`/projects/${encodeURIComponent(p.ProjectID)}`} className="w-full sm:w-64 min-w-0 group">
-                  <p className="text-sm text-text truncate group-hover:underline" title={p.ProjectName}>
-                    <span className="font-mono text-xs text-text-muted mr-2">{p.ProjectNo}</span>{p.ProjectName}
-                  </p>
-                </Link>
+                <HoverCard className="w-full sm:w-64 min-w-0" content={<ProjectPeek project={p} />}>
+                  <Link to={`/projects/${encodeURIComponent(p.ProjectID)}`} className="block group">
+                    <p className="text-sm text-text truncate group-hover:underline">
+                      <span className="font-mono text-xs text-text-muted mr-2">{p.ProjectNo}</span>{p.ProjectName}
+                    </p>
+                  </Link>
+                </HoverCard>
                 <div className="flex-1 min-w-[160px]"><MilestoneTrack milestones={ms} today={today} /></div>
                 {late > 0 && <Badge variant="danger" className="font-mono normal-case">{late} late</Badge>}
               </div>
             );
           })}
-      </Card>
+      </Section>
 
       {/* --- 8. Blocks that wait on other work --- */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <NotConnected title="Waiting in offices">Purchase, bills and hiring will show here when the office files are linked.</NotConnected>
-        <Card className="p-5">
-          <p className={BLOCK_TITLE}><span>My team</span><span className="font-mono">{team.length}</span></p>
+        <Section id="scientist-my-team" title="My team" right={<span className="font-mono">{team.length}</span>}>
           {team.length === 0
             ? <p className="text-sm text-text-muted">No project staff or student is linked to you.</p>
             : team.slice(0, 6).map(t => (
@@ -325,12 +332,12 @@ export function ScientistView() {
                 {t.until && <span className="font-mono text-xs text-text-muted shrink-0">to {t.until}</span>}
               </div>
             ))}
-        </Card>
+        </Section>
       </div>
 
       <p className="text-xs text-text-muted">
         Your papers, proposals and research profile are on <Link to="/me" className="inline-block py-1.5 underline">My profile</Link>.
       </p>
-    </div>
+    </Stagger>
   );
 }

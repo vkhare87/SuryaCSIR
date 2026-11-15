@@ -5,6 +5,11 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
 import { useHome } from '../../contexts/HomeContext';
 import { Card, Badge } from '../../components/ui/Cards';
+import { Section } from '../../components/ui/Section';
+import { HoverCard } from '../../components/ui/HoverCard';
+import { StaffPeek } from '../../components/ui/Peeks';
+import { Stagger } from '../../components/ui/Stagger';
+import { CategoryBar } from '../../components/viz/CategoryBar';
 import {
   AskBox, BLOCK_TITLE, DecisionQueue, HomeGreeting, NotConnected, ROW, TITLE_LINK, WaitingOnYou, dueText,
 } from '../../components/home/parts';
@@ -109,6 +114,11 @@ export function HoDView() {
   // --- 3. People ---
   const divisionStaff = useMemo(() => staff.filter(s => inDivision(s.Division)), [staff, inDivision]);
   const strength = divisionCode ? byDivision.get(divisionCode) : undefined;
+  const staffByGroup = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const s of divisionStaff) if (s.Group) counts.set(s.Group, (counts.get(s.Group) ?? 0) + 1);
+    return [...counts].map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);
+  }, [divisionStaff]);
   const retiring = useMemo(
     () => divisionStaff.filter((s) => { const y = yearsUntilRetirement(s.DOB, now); return y !== null && y >= 0 && y <= 1; }),
     [divisionStaff, now],
@@ -150,7 +160,7 @@ export function HoDView() {
   const total = actions.length + doneCount;
 
   return (
-    <div className="space-y-4 pb-12">
+    <Stagger className="space-y-4 pb-12">
       {/* --- 1. Greeting --- */}
       <HomeGreeting
         done={doneCount} total={total} sentence={sentence} right={switcher}
@@ -205,8 +215,7 @@ export function HoDView() {
 
       {/* --- 5. People and instruments --- */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card className="p-5">
-          <p className={BLOCK_TITLE}><span>People · my division</span><Link to="/staff" className={TITLE_LINK}>Directory</Link></p>
+        <Section id="hod-people-my-division" title="People · my division" right={<Link to="/staff" className={TITLE_LINK}>Directory</Link>}>
           <div className={ROW}>
             <p className="flex-1 text-sm text-text">Posts</p>
             {strength
@@ -216,7 +225,13 @@ export function HoDView() {
           <div className={ROW}>
             <div className="flex-1 min-w-0">
               <p className="text-sm text-text">Retiring within 12 months</p>
-              {retiring.length > 0 && <p className="text-xs text-text-muted truncate">{retiring.map(s => s.Name).join(', ')}</p>}
+              {retiring.length > 0 && (
+                <p className="text-xs text-text-muted truncate">
+                  {retiring.map((s, i) => (
+                    <span key={s.ID}>{i > 0 && ', '}<HoverCard content={<StaffPeek staff={s} />}><span className="underline decoration-dotted">{s.Name}</span></HoverCard></span>
+                  ))}
+                </p>
+              )}
             </div>
             <span className="font-mono text-xs text-text-muted">{retiring.length}</span>
           </div>
@@ -234,10 +249,15 @@ export function HoDView() {
             </div>
             <span className="font-mono text-xs text-text-muted">{workload === null ? '—' : overloaded.length}</span>
           </Link>
-        </Card>
+          {staffByGroup.length > 0 && (
+            <>
+              <p className="text-xs text-text-muted mt-3">Staff by group</p>
+              <CategoryBar horizontal height={Math.max(110, staffByGroup.length * 30 + 40)} data={staffByGroup} />
+            </>
+          )}
+        </Section>
 
-        <Card className="p-5">
-          <p className={BLOCK_TITLE}><span>Instruments</span><Link to="/facilities" className={TITLE_LINK}>See all</Link></p>
+        <Section id="hod-instruments" title="Instruments" right={<Link to="/facilities" className={TITLE_LINK}>See all</Link>}>
           {equipmentFlags.down.length === 0 && equipmentFlags.amcExpiring.length === 0 && (
             <p className="text-sm text-text-muted">Every instrument is working and no service contract ends in 60 days.</p>
           )}
@@ -256,7 +276,7 @@ export function HoDView() {
           {equipmentFlags.down.length > MAX_ROWS && (
             <p className="text-xs text-text-muted mt-2">+<span className="font-mono">{equipmentFlags.down.length - MAX_ROWS}</span> more down</p>
           )}
-        </Card>
+        </Section>
       </div>
 
       {/* --- 6. Blocks that wait on other work --- */}
@@ -271,7 +291,7 @@ export function HoDView() {
       <ProjectFinanceSection />
       <ResearchSection />
       <EquipmentOpsSection />
-    </div>
+    </Stagger>
   );
 }
 

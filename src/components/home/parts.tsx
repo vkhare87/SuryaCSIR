@@ -6,6 +6,7 @@ import { Search } from 'lucide-react';
 import clsx from 'clsx';
 import { Card, Badge } from '../ui/Cards';
 import { Button } from '../ui/Button';
+import { Section } from '../ui/Section';
 import { dueUrgency } from '../../lib/dashboard/myActions';
 import type { MyAction } from '../../lib/dashboard/myActions';
 import type { DecisionRow } from '../../lib/home/decisions';
@@ -46,7 +47,7 @@ export function HomeGreeting({ done, total, sentence, sub, right }: {
   done: number; total: number; sentence: string; sub: ReactNode; right?: ReactNode;
 }) {
   return (
-    <Card className="p-5 flex flex-wrap items-center gap-4">
+    <Card variant="contrast" className="p-5 flex flex-wrap items-center gap-4">
       <TodayRing done={done} total={total} />
       <div className="min-w-0 flex-1 basis-56">
         <h1 className="font-serif text-xl sm:text-2xl leading-snug text-text">{sentence}</h1>
@@ -96,10 +97,9 @@ export function ActionRow({ action, now }: { action: MyAction; now: Date }) {
 /** A block whose data source is not built yet. It says so; it never shows a made-up value. */
 export function NotConnected({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <Card className="p-5">
-      <p className={BLOCK_TITLE}><span>{title}</span></p>
+    <Section id={`not-connected-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`} title={title}>
       <p className="text-sm text-text-muted">Not connected yet. {children}</p>
-    </Card>
+    </Section>
   );
 }
 
