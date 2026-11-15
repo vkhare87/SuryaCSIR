@@ -30,29 +30,29 @@ export function GuestView() {
       </div>
 
       <Card className="p-0 overflow-hidden">
-        <div className="px-6 py-4 border-b border-border-cream">
-          <h2 className="text-base font-semibold text-charcoal-warm uppercase tracking-wide">Research Divisions</h2>
+        <div className="px-6 py-4 border-b border-border">
+          <h2 className="text-base font-semibold text-text-muted uppercase tracking-wide">Research Divisions</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="ledger w-full text-sm">
             <thead>
-              <tr className="bg-parchment">
-                <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-stone-gray">Division</th>
-                <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-stone-gray">Research Areas</th>
-                <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-stone-gray">Status</th>
+              <tr className="bg-background">
+                <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-text-muted">Division</th>
+                <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-text-muted">Research Areas</th>
+                <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-text-muted">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border-cream">
               {divisions.map(d => (
-                <tr key={d.divCode} className="hover:bg-parchment transition-colors">
+                <tr key={d.divCode} className="hover:bg-background transition-colors">
                   <td className="px-6 py-3">
-                    <div className="font-medium text-charcoal-warm">{d.divName}</div>
-                    <div className="text-[11px] text-warm-silver font-mono">{d.divCode}</div>
+                    <div className="font-medium text-text-muted">{d.divName}</div>
+                    <div className="text-[11px] text-text-muted font-mono">{d.divCode}</div>
                   </td>
-                  <td className="px-6 py-3 text-stone-gray text-xs max-w-[280px]">{d.divResearchAreas}</td>
+                  <td className="px-6 py-3 text-text-muted text-xs max-w-[280px]">{d.divResearchAreas}</td>
                   <td className="px-6 py-3">
                     <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
-                      d.divStatus === 'Active' ? 'bg-[#f0f8f0] text-[#3a7a3a]' : 'bg-parchment text-stone-gray'
+                      d.divStatus === 'Active' ? 'bg-[#f0f8f0] text-[#3a7a3a]' : 'bg-background text-text-muted'
                     }`}>
                       {d.divStatus}
                     </span>

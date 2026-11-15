@@ -107,7 +107,7 @@ export default function Grievance() {
           No pending representations.
         </div>
       ) : (
-        <div className="divide-y divide-border border border-border rounded-2xl overflow-hidden">
+        <div className="divide-y divide-border border border-border rounded-xl overflow-hidden bg-surface shadow-[var(--shadow-e1)]">
           {pending.map(rep => {
             const report = reports.find(r => r.id === rep.reportId);
             return (

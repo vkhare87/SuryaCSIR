@@ -129,7 +129,7 @@ export default function AuditLog() {
         </div>
       ) : (
         <>
-          <div className="divide-y divide-border border border-border rounded-2xl overflow-hidden">
+          <div className="divide-y divide-border border border-border rounded-xl overflow-hidden bg-surface shadow-[var(--shadow-e1)]">
             {logs.length === 0 ? (
               <div className="py-12 text-center text-text-muted text-sm">No audit log entries.</div>
             ) : logs.map((log) => {

@@ -63,7 +63,7 @@ export function PendingAccessView() {
       <div className="max-w-lg w-full space-y-8">
         <div className="text-center space-y-3">
           <div className="flex justify-center">
-            <div className="w-20 h-20 rounded-full bg-parchment border border-border-cream flex items-center justify-center text-terracotta">
+            <div className="w-20 h-20 rounded-full bg-background border border-border flex items-center justify-center text-terracotta">
               {pending ? <Clock size={36} /> : <Send size={32} />}
             </div>
           </div>
@@ -74,9 +74,9 @@ export function PendingAccessView() {
         </div>
 
         {user?.email && (
-          <div className="bg-parchment border border-border-cream rounded-[12px] px-6 py-3 flex items-center gap-3">
-            <Mail size={16} className="text-stone-gray shrink-0" />
-            <span className="text-sm text-charcoal-warm font-medium">{user.email}</span>
+          <div className="bg-background border border-border rounded-[12px] px-6 py-3 flex items-center gap-3">
+            <Mail size={16} className="text-text-muted shrink-0" />
+            <span className="text-sm text-text-muted font-medium">{user.email}</span>
           </div>
         )}
 
@@ -130,7 +130,7 @@ export function PendingAccessView() {
           </div>
         )}
 
-        <p className="text-[10px] text-warm-silver uppercase tracking-widest text-center flex items-center justify-center gap-1">
+        <p className="text-[10px] text-text-muted uppercase tracking-widest text-center flex items-center justify-center gap-1">
           <CheckCircle2 size={11} /> CSIR-AMPRI — access granted by a system administrator
         </p>
       </div>

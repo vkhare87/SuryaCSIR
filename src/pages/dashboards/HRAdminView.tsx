@@ -136,33 +136,33 @@ export function HRAdminView() {
 
       {/* Contract Renewal Queue */}
       <Card className="p-0 overflow-hidden">
-        <div className="px-6 py-4 border-b border-border-cream flex items-center gap-2">
+        <div className="px-6 py-4 border-b border-border flex items-center gap-2">
           <CalendarClock size={16} className="text-terracotta" />
-          <h2 className="text-base font-semibold text-charcoal-warm uppercase tracking-wide">
+          <h2 className="text-base font-semibold text-text-muted uppercase tracking-wide">
             Contract Renewals — next {RENEWAL_HORIZON_DAYS} days
           </h2>
         </div>
         {renewalQueue.length === 0 ? (
-          <p className="text-xs text-stone-gray italic py-8 text-center">No contracts ending in this window.</p>
+          <p className="text-xs text-text-muted italic py-8 text-center">No contracts ending in this window.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="ledger w-full text-sm">
               <thead>
-                <tr className="bg-parchment">
-                  <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-stone-gray">Name</th>
-                  <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-stone-gray">Designation</th>
-                  <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-stone-gray">Division</th>
-                  <th className="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-widest text-stone-gray">Ends</th>
-                  <th className="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-widest text-stone-gray">Days Left</th>
+                <tr className="bg-background">
+                  <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-text-muted">Name</th>
+                  <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-text-muted">Designation</th>
+                  <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-text-muted">Division</th>
+                  <th className="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-widest text-text-muted">Ends</th>
+                  <th className="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-widest text-text-muted">Days Left</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border-cream">
                 {renewalQueue.map(c => (
-                  <tr key={c.id} className="hover:bg-parchment transition-colors">
-                    <td className="px-6 py-3 text-charcoal-warm font-medium">{c.Name}</td>
-                    <td className="px-6 py-3 text-stone-gray">{c.Designation}</td>
-                    <td className="px-6 py-3 text-stone-gray font-mono text-xs">{c.Division}</td>
-                    <td className="px-6 py-3 text-right text-stone-gray text-xs">{c.ContractEndDate}</td>
+                  <tr key={c.id} className="hover:bg-background transition-colors">
+                    <td className="px-6 py-3 text-text-muted font-medium">{c.Name}</td>
+                    <td className="px-6 py-3 text-text-muted">{c.Designation}</td>
+                    <td className="px-6 py-3 text-text-muted font-mono text-xs">{c.Division}</td>
+                    <td className="px-6 py-3 text-right text-text-muted text-xs">{c.ContractEndDate}</td>
                     <td className="px-6 py-3 text-right">
                       <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
                         c.daysLeft <= 14 ? 'bg-[#fde2e2] text-[#991b1b]' : 'bg-[#fdf5e8] text-[#a06020]'
@@ -180,29 +180,29 @@ export function HRAdminView() {
 
       {/* Staff Table */}
       <Card className="p-0 overflow-hidden">
-        <div className="px-6 py-4 border-b border-border-cream">
-          <h2 className="text-base font-semibold text-charcoal-warm uppercase tracking-wide">All Staff</h2>
+        <div className="px-6 py-4 border-b border-border">
+          <h2 className="text-base font-semibold text-text-muted uppercase tracking-wide">All Staff</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="ledger w-full text-sm">
             <thead>
-              <tr className="bg-parchment">
-                <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-stone-gray">Name</th>
-                <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-stone-gray">Designation</th>
-                <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-stone-gray">Division</th>
-                <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-stone-gray">Group</th>
-                <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-stone-gray">Email</th>
-                <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-stone-gray">Actions</th>
+              <tr className="bg-background">
+                <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-text-muted">Name</th>
+                <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-text-muted">Designation</th>
+                <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-text-muted">Division</th>
+                <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-text-muted">Group</th>
+                <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-text-muted">Email</th>
+                <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-text-muted">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border-cream">
               {staff.map(s => (
-                <tr key={s.ID} className="hover:bg-parchment transition-colors">
-                  <td className="px-6 py-3 text-charcoal-warm font-medium">{s.Name}</td>
-                  <td className="px-6 py-3 text-stone-gray">{s.Designation}</td>
-                  <td className="px-6 py-3 text-stone-gray font-mono text-xs">{s.Division}</td>
-                  <td className="px-6 py-3 text-stone-gray">{s.Group}</td>
-                  <td className="px-6 py-3 text-stone-gray font-mono text-xs">{s.Email}</td>
+                <tr key={s.ID} className="hover:bg-background transition-colors">
+                  <td className="px-6 py-3 text-text-muted font-medium">{s.Name}</td>
+                  <td className="px-6 py-3 text-text-muted">{s.Designation}</td>
+                  <td className="px-6 py-3 text-text-muted font-mono text-xs">{s.Division}</td>
+                  <td className="px-6 py-3 text-text-muted">{s.Group}</td>
+                  <td className="px-6 py-3 text-text-muted font-mono text-xs">{s.Email}</td>
                   <td className="px-6 py-3">
                     <button
                       onClick={() => navigate(`/staff/${s.ID}`)}
@@ -215,7 +215,7 @@ export function HRAdminView() {
               ))}
               {staff.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-stone-gray text-xs italic">
+                  <td colSpan={6} className="px-6 py-8 text-center text-text-muted text-xs italic">
                     No staff records found.
                   </td>
                 </tr>

@@ -44,7 +44,7 @@ export default function EvaluatorQueue() {
           No reports assigned to you for evaluation.
         </div>
       ) : (
-        <div className="divide-y divide-border border border-border rounded-2xl overflow-hidden">
+        <div className="divide-y divide-border border border-border rounded-xl overflow-hidden bg-surface shadow-[var(--shadow-e1)]">
           {myEvals.map(ev => {
             const report = reports.find(r => r.id === ev.reportId);
             const statusStyle = EVAL_STATUS_COLORS[ev.status] ?? EVAL_STATUS_COLORS.PENDING;

@@ -41,31 +41,31 @@ export default function PMSIndex() {
           </div>
         )}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Link to="/pms/cycles" className="block p-6 bg-surface border border-border rounded-2xl hover:border-terracotta transition-colors">
+          <Link to="/pms/cycles" className="block p-6 bg-surface-raised border border-border rounded-xl shadow-[var(--shadow-e2)] hover:shadow-[var(--shadow-e3)] hover:border-terracotta/40 hover:-translate-y-0.5 transition-all">
             <h2 className="font-semibold text-text mb-1">Appraisal Cycles</h2>
             <p className="text-sm text-text-muted">{cycles.length} cycle{cycles.length !== 1 ? 's' : ''} total</p>
           </Link>
-          <Link to="/pms/evaluation-committees" className="block p-6 bg-surface border border-border rounded-2xl hover:border-terracotta transition-colors">
+          <Link to="/pms/evaluation-committees" className="block p-6 bg-surface-raised border border-border rounded-xl shadow-[var(--shadow-e2)] hover:shadow-[var(--shadow-e3)] hover:border-terracotta/40 hover:-translate-y-0.5 transition-all">
             <h2 className="font-semibold text-text mb-1">Evaluation Committees</h2>
             <p className="text-sm text-text-muted">Manage committee tiers and panels</p>
           </Link>
-          <Link to="/pms/assign" className="block p-6 bg-surface border border-border rounded-2xl hover:border-terracotta transition-colors">
+          <Link to="/pms/assign" className="block p-6 bg-surface-raised border border-border rounded-xl shadow-[var(--shadow-e2)] hover:shadow-[var(--shadow-e3)] hover:border-terracotta/40 hover:-translate-y-0.5 transition-all">
             <h2 className="font-semibold text-text mb-1">Assign Evaluation Committee</h2>
             <p className="text-sm text-text-muted">{submittedCount} report{submittedCount !== 1 ? 's' : ''} awaiting assignment</p>
           </Link>
-          <Link to="/pms/audit" className="block p-6 bg-surface border border-border rounded-2xl hover:border-terracotta transition-colors">
+          <Link to="/pms/audit" className="block p-6 bg-surface-raised border border-border rounded-xl shadow-[var(--shadow-e2)] hover:shadow-[var(--shadow-e3)] hover:border-terracotta/40 hover:-translate-y-0.5 transition-all">
             <h2 className="font-semibold text-text mb-1">Audit Log</h2>
             <p className="text-sm text-text-muted">View all system events</p>
           </Link>
-          <Link to="/pms/awp/import" className="block p-6 bg-surface border border-border rounded-2xl hover:border-terracotta transition-colors">
+          <Link to="/pms/awp/import" className="block p-6 bg-surface-raised border border-border rounded-xl shadow-[var(--shadow-e2)] hover:shadow-[var(--shadow-e3)] hover:border-terracotta/40 hover:-translate-y-0.5 transition-all">
             <h2 className="font-semibold text-text mb-1">Import Annual Work Plans</h2>
             <p className="text-sm text-text-muted">Read AWP PDFs into SURYA</p>
           </Link>
-          <Link to="/pms/awp/register" className="block p-6 bg-surface border border-border rounded-2xl hover:border-terracotta transition-colors">
+          <Link to="/pms/awp/register" className="block p-6 bg-surface-raised border border-border rounded-xl shadow-[var(--shadow-e2)] hover:shadow-[var(--shadow-e3)] hover:border-terracotta/40 hover:-translate-y-0.5 transition-all">
             <h2 className="font-semibold text-text mb-1">AWP Register</h2>
             <p className="text-sm text-text-muted">Who has submitted, who is late</p>
           </Link>
-          <Link to="/pms/awp/inbox" className="block p-6 bg-surface border border-border rounded-2xl hover:border-terracotta transition-colors">
+          <Link to="/pms/awp/inbox" className="block p-6 bg-surface-raised border border-border rounded-xl shadow-[var(--shadow-e2)] hover:shadow-[var(--shadow-e3)] hover:border-terracotta/40 hover:-translate-y-0.5 transition-all">
             <h2 className="font-semibold text-text mb-1">AWP Inbox</h2>
             <p className="text-sm text-text-muted">Plans waiting for a decision</p>
           </Link>
@@ -80,11 +80,11 @@ export default function PMSIndex() {
       <div className="space-y-6">
         <h1 className="page-title">Performance Management</h1>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Link to="/pms/committee" className="block p-6 bg-surface border border-border rounded-2xl hover:border-terracotta transition-colors">
+          <Link to="/pms/committee" className="block p-6 bg-surface-raised border border-border rounded-xl shadow-[var(--shadow-e2)] hover:shadow-[var(--shadow-e3)] hover:border-terracotta/40 hover:-translate-y-0.5 transition-all">
             <h2 className="font-semibold text-text mb-1">Empowered Committee Queue</h2>
             <p className="text-sm text-text-muted">{committeeCount} report{committeeCount !== 1 ? 's' : ''} awaiting decision</p>
           </Link>
-          <Link to="/pms/reports" className="block p-6 bg-surface border border-border rounded-2xl hover:border-terracotta transition-colors">
+          <Link to="/pms/reports" className="block p-6 bg-surface-raised border border-border rounded-xl shadow-[var(--shadow-e2)] hover:shadow-[var(--shadow-e3)] hover:border-terracotta/40 hover:-translate-y-0.5 transition-all">
             <h2 className="font-semibold text-text mb-1">All Reports</h2>
             <p className="text-sm text-text-muted">Browse all submitted reports</p>
           </Link>
@@ -104,22 +104,22 @@ export default function PMSIndex() {
         <h1 className="page-title">Performance Management</h1>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {isCommitteeMember && (
-            <Link to="/pms/evaluate" className="block p-6 bg-surface border border-border rounded-2xl hover:border-terracotta transition-colors">
+            <Link to="/pms/evaluate" className="block p-6 bg-surface-raised border border-border rounded-xl shadow-[var(--shadow-e2)] hover:shadow-[var(--shadow-e3)] hover:border-terracotta/40 hover:-translate-y-0.5 transition-all">
               <h2 className="font-semibold text-text mb-1">My Evaluation Queue</h2>
               <p className="text-sm text-text-muted">{pendingEvalCount} pending evaluation{pendingEvalCount !== 1 ? 's' : ''}</p>
             </Link>
           )}
           {isGrievanceMember && (
-            <Link to="/pms/grievance" className="block p-6 bg-surface border border-border rounded-2xl hover:border-terracotta transition-colors">
+            <Link to="/pms/grievance" className="block p-6 bg-surface-raised border border-border rounded-xl shadow-[var(--shadow-e2)] hover:shadow-[var(--shadow-e3)] hover:border-terracotta/40 hover:-translate-y-0.5 transition-all">
               <h2 className="font-semibold text-text mb-1">Grievance Queue</h2>
               <p className="text-sm text-text-muted">Review representations against finalized scores</p>
             </Link>
           )}
-          <Link to="/pms/awp" className="block p-6 bg-surface border border-border rounded-2xl hover:border-terracotta transition-colors">
+          <Link to="/pms/awp" className="block p-6 bg-surface-raised border border-border rounded-xl shadow-[var(--shadow-e2)] hover:shadow-[var(--shadow-e3)] hover:border-terracotta/40 hover:-translate-y-0.5 transition-all">
             <h2 className="font-semibold text-text mb-1">My Annual Work Plan</h2>
             <p className="text-sm text-text-muted">Part V — the plan you are assessed against</p>
           </Link>
-          <Link to="/pms/awp/inbox" className="block p-6 bg-surface border border-border rounded-2xl hover:border-terracotta transition-colors">
+          <Link to="/pms/awp/inbox" className="block p-6 bg-surface-raised border border-border rounded-xl shadow-[var(--shadow-e2)] hover:shadow-[var(--shadow-e3)] hover:border-terracotta/40 hover:-translate-y-0.5 transition-all">
             <h2 className="font-semibold text-text mb-1">AWP Inbox</h2>
             <p className="text-sm text-text-muted">Plans waiting for your review</p>
           </Link>
@@ -140,16 +140,16 @@ export default function PMSIndex() {
         )}
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Link to="/pms/awp" className="block p-4 bg-surface border border-border rounded-2xl hover:border-terracotta transition-colors">
+        <Link to="/pms/awp" className="block p-4 bg-surface-raised border border-border rounded-xl shadow-[var(--shadow-e2)] hover:shadow-[var(--shadow-e3)] hover:border-terracotta/40 hover:-translate-y-0.5 transition-all">
           <h2 className="font-semibold text-text mb-1">My Annual Work Plan</h2>
           <p className="text-sm text-text-muted">Part V — the plan you are assessed against</p>
         </Link>
-        <Link to="/pms/awp/inbox" className="block p-4 bg-surface border border-border rounded-2xl hover:border-terracotta transition-colors">
+        <Link to="/pms/awp/inbox" className="block p-4 bg-surface-raised border border-border rounded-xl shadow-[var(--shadow-e2)] hover:shadow-[var(--shadow-e3)] hover:border-terracotta/40 hover:-translate-y-0.5 transition-all">
           <h2 className="font-semibold text-text mb-1">AWP Inbox</h2>
           <p className="text-sm text-text-muted">Plans waiting for your review</p>
         </Link>
         {role === 'Director' && (
-          <Link to="/pms/awp/register" className="block p-4 bg-surface border border-border rounded-2xl hover:border-terracotta transition-colors">
+          <Link to="/pms/awp/register" className="block p-4 bg-surface-raised border border-border rounded-xl shadow-[var(--shadow-e2)] hover:shadow-[var(--shadow-e3)] hover:border-terracotta/40 hover:-translate-y-0.5 transition-all">
             <h2 className="font-semibold text-text mb-1">AWP Register</h2>
             <p className="text-sm text-text-muted">All scientists' plans this year</p>
           </Link>
@@ -166,7 +166,7 @@ export default function PMSIndex() {
           </p>
         </div>
       ) : (
-        <div className="divide-y divide-border border border-border rounded-2xl overflow-hidden">
+        <div className="divide-y divide-border border border-border rounded-xl overflow-hidden bg-surface shadow-[var(--shadow-e1)]">
           {myReports.map(r => (
             <div
               key={r.id}

@@ -28,6 +28,7 @@ const DOC_LABELS: Record<ProposalDocType, string> = {
   sanction_order: 'Sanction order',
 };
 import { friendlyError } from '../../lib/errors';
+import { Section } from '../../components/ui/Section';
 
 export default function ProposalDetail() {
   const { id } = useParams<{ id: string }>();
@@ -111,8 +112,7 @@ export default function ProposalDetail() {
         </div>
       </div>
 
-      <Card className="p-4">
-        <h2 className="text-sm font-medium text-text mb-3">Summary</h2>
+      <Section id="proposaldetail-summary" title="Summary" className="p-4">
         <dl className="grid grid-cols-2 gap-3 text-sm">
           <Row label="PI" value={proposal.piName} />
           <Row label="Division" value={proposal.divisionCode} />
@@ -126,7 +126,7 @@ export default function ProposalDetail() {
           <Row label="Requested Budget" value={rupees(proposal.requestedBudget)} />
           <Row label="TRL" value={`${proposal.currentTrl ?? '-'} → ${proposal.targetTrl ?? '-'}`} />
         </dl>
-      </Card>
+      </Section>
 
       {user && <ReviewPanel proposal={proposal} user={user} onChanged={reload} />}
 
@@ -237,16 +237,14 @@ export default function ProposalDetail() {
       )}
 
       {proposal.coPIs && proposal.coPIs.length > 0 && (
-        <Card className="p-4">
-          <h2 className="text-sm font-medium text-text mb-3">Co-PIs</h2>
+        <Section id="proposaldetail-co-pis" title="Co-PIs" className="p-4">
           <ul className="text-sm space-y-1">
             {proposal.coPIs.map((c) => <li key={c.staffId}>{c.staffName}</li>)}
           </ul>
-        </Card>
+        </Section>
       )}
 
-      <Card className="p-4">
-        <h2 className="text-sm font-medium text-text mb-3">Documents</h2>
+      <Section id="proposaldetail-documents" title="Documents" className="p-4">
         <ul className="text-sm space-y-1">
           {(proposal.documents ?? []).map((d) => (
             <li key={d.id} className="flex items-center justify-between">
@@ -263,10 +261,9 @@ export default function ProposalDetail() {
             <li className="text-text-muted">No documents uploaded.</li>
           )}
         </ul>
-      </Card>
+      </Section>
 
-      <Card className="p-4">
-        <h2 className="text-sm font-medium text-text mb-3">Status History</h2>
+      <Section id="proposaldetail-status-history" title="Status History" className="p-4">
         <ol className="text-sm space-y-2">
           {(proposal.history ?? []).map((h) => (
             <li key={h.id} className="flex items-start gap-3">
@@ -285,7 +282,7 @@ export default function ProposalDetail() {
             <li className="text-text-muted">No status changes yet.</li>
           )}
         </ol>
-      </Card>
+      </Section>
 
     </div>
   );

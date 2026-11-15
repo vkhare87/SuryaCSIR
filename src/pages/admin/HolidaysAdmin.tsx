@@ -10,6 +10,7 @@ import { canManageHolidays } from '../../lib/calendar/permissions';
 import { Trash2, Edit2, Upload, Plus, Save, X } from 'lucide-react';
 import { parseFileRaw } from '../../utils/dataMigration';
 import type { Holiday } from '../../types';
+import { Section } from '../../components/ui/Section';
 import { friendlyError } from '../../lib/errors';
 
 type HolidayType = Holiday['holiday_type'];
@@ -252,8 +253,7 @@ export default function HolidaysAdmin() {
         </Card>
 
         {/* RIGHT — bulk import */}
-        <Card className="p-4">
-          <h2 className="font-bold text-text text-sm mb-4">Bulk import</h2>
+        <Section id="holidaysadmin-bulk-import" title="Bulk import" className="p-4">
           <p className="text-xs text-text-muted mb-3">Expected columns: <code>date</code> (YYYY-MM-DD), <code>name</code>, <code>type</code> (Gazetted / Restricted / Institute).</p>
           <label className="flex items-center gap-2 bg-surface border border-dashed border-border rounded-md px-4 py-3 cursor-pointer hover:bg-surface-hover text-sm text-text">
             <Upload size={16} />
@@ -296,7 +296,7 @@ export default function HolidaysAdmin() {
               </button>
             </>
           )}
-        </Card>
+        </Section>
       </div>
     </div>
   );

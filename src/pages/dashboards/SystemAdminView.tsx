@@ -176,7 +176,7 @@ export function SystemAdminView() {
           </p>
         </div>
         <div className="flex items-center gap-2 text-xs">
-          <Wifi size={14} className={isBackendProvisioned ? 'text-[#16a34a]' : 'text-warm-silver'} />
+          <Wifi size={14} className={isBackendProvisioned ? 'text-[#16a34a]' : 'text-text-muted'} />
           <span className={isBackendProvisioned ? 'text-[#16a34a] font-semibold' : 'text-text-muted'}>
             {isBackendProvisioned ? 'Connected to Supabase' : 'Demo mode (mock data)'}
           </span>
@@ -240,7 +240,7 @@ export function SystemAdminView() {
         {seesPms && (
         <Card className="space-y-4">
           <div>
-            <h2 className="text-base font-semibold text-charcoal-warm uppercase tracking-wide">PMS Reports by Status</h2>
+            <h2 className="text-base font-semibold text-text-muted uppercase tracking-wide">PMS Reports by Status</h2>
             <p className="text-xs text-text-muted mt-1">Distribution across the appraisal state machine</p>
           </div>
           <div className="h-64">
@@ -263,7 +263,7 @@ export function SystemAdminView() {
 
         <Card className="space-y-4">
           <div>
-            <h2 className="text-base font-semibold text-charcoal-warm uppercase tracking-wide">Role Distribution</h2>
+            <h2 className="text-base font-semibold text-text-muted uppercase tracking-wide">Role Distribution</h2>
             <p className="text-xs text-text-muted mt-1">Active role assignments across users</p>
           </div>
           <div className="h-64">
@@ -286,7 +286,7 @@ export function SystemAdminView() {
       <Card className="space-y-4">
         <div className="flex items-end justify-between">
           <div>
-            <h2 className="text-base font-semibold text-charcoal-warm uppercase tracking-wide">Helpdesk Volume by Category</h2>
+            <h2 className="text-base font-semibold text-text-muted uppercase tracking-wide">Helpdesk Volume by Category</h2>
             <p className="text-xs text-text-muted mt-1">All-time tickets per category</p>
           </div>
           <Bell size={14} className="text-text-muted" />
@@ -308,8 +308,8 @@ export function SystemAdminView() {
       {/* ── Division strength table ──────────────────────────────── */}
       {canAccess('/divisions') && (
       <Card className="p-0 overflow-hidden">
-        <div className="px-6 py-4 border-b border-border-cream">
-          <h2 className="text-base font-semibold text-charcoal-warm uppercase tracking-wide">Division Strength</h2>
+        <div className="px-6 py-4 border-b border-border">
+          <h2 className="text-base font-semibold text-text-muted uppercase tracking-wide">Division Strength</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="ledger w-full text-sm">
@@ -351,8 +351,8 @@ export function SystemAdminView() {
 
       {/* ── Recent audit log ─────────────────────────────────────── */}
       <Card className="p-0 overflow-hidden">
-        <div className="px-6 py-4 border-b border-border-cream flex items-center justify-between">
-          <h2 className="text-base font-semibold text-charcoal-warm uppercase tracking-wide">Recent System Activity</h2>
+        <div className="px-6 py-4 border-b border-border flex items-center justify-between">
+          <h2 className="text-base font-semibold text-text-muted uppercase tracking-wide">Recent System Activity</h2>
           <span className="text-xs text-text-muted">{auditLog.length} events</span>
         </div>
         {auditLog.length === 0 ? (
@@ -382,7 +382,7 @@ export function SystemAdminView() {
 
       {/* ── Backend health card ──────────────────────────────────── */}
       <Card className="space-y-3">
-        <h2 className="text-base font-semibold text-charcoal-warm uppercase tracking-wide">Backend Health</h2>
+        <h2 className="text-base font-semibold text-text-muted uppercase tracking-wide">Backend Health</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
           <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-surface-hover">
             <Database size={18} className={isBackendProvisioned ? 'text-[#16a34a]' : 'text-text-muted'} />

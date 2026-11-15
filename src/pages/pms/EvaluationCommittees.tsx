@@ -143,7 +143,7 @@ export default function EvaluationCommittees() {
       {committees.length === 0 ? (
         <p className="text-text-muted text-sm py-8 text-center">No evaluation committees yet.</p>
       ) : (
-        <div className="divide-y divide-border border border-border rounded-2xl overflow-hidden">
+        <div className="divide-y divide-border border border-border rounded-xl overflow-hidden bg-surface shadow-[var(--shadow-e1)]">
           {committees.map(com => {
             const cycle = cycles.find(c => c.id === com.cycleId);
             const panelOk = isPanelValid(com.members ?? []);

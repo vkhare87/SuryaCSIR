@@ -43,14 +43,14 @@ const ROLE_COLORS: Record<string, string> = {
   DivisionHead: 'bg-[#e8f4fd] text-[#1a6b9a]',
   HOD:          'bg-[#e8f4fd] text-[#1a6b9a]',
   Scientist:    'bg-[#f0f8f0] text-[#3a7a3a]',
-  Technician:   'bg-parchment text-charcoal-warm',
+  Technician:   'bg-background text-text-muted',
   HRAdmin:      'bg-[#fdf5e8] text-[#a07020]',
   FinanceAdmin: 'bg-[#fdf5e8] text-[#a07020]',
   SystemAdmin:  'bg-[#f0e8fd] text-[#6a3aaa]',
   MasterAdmin:  'bg-near-black text-ivory',
   Student:      'bg-[#e8fdf5] text-[#1a7a5a]',
   ProjectStaff: 'bg-[#f5e8fd] text-[#7a1a9a]',
-  Guest:        'bg-parchment text-stone-gray',
+  Guest:        'bg-background text-text-muted',
   DefaultUser:  'bg-[#f5e8e8] text-[#a03333]',
   EmpoweredCommittee: 'bg-[#ede9fe] text-[#5b21b6]',
   PME:          'bg-surface-hover text-brand-blue',
@@ -298,7 +298,7 @@ export function MasterAdminView() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="space-y-4">
           <div>
-            <h2 className="text-base font-semibold text-charcoal-warm uppercase tracking-wide">PMS Reports by Status</h2>
+            <h2 className="text-base font-semibold text-text-muted uppercase tracking-wide">PMS Reports by Status</h2>
             <p className="text-xs text-text-muted mt-1">Across the appraisal state machine</p>
           </div>
           <div className="h-64">
@@ -318,7 +318,7 @@ export function MasterAdminView() {
 
         <Card className="space-y-4">
           <div>
-            <h2 className="text-base font-semibold text-charcoal-warm uppercase tracking-wide">Role Assignment Distribution</h2>
+            <h2 className="text-base font-semibold text-text-muted uppercase tracking-wide">Role Assignment Distribution</h2>
             <p className="text-xs text-text-muted mt-1">Total role grants (composite roles counted per assignment)</p>
           </div>
           <div className="h-64">
@@ -337,7 +337,7 @@ export function MasterAdminView() {
 
       {/* ── Backend health ───────────────────────────────────────── */}
       <Card className="space-y-3">
-        <h2 className="text-base font-semibold text-charcoal-warm uppercase tracking-wide">Backend Health</h2>
+        <h2 className="text-base font-semibold text-text-muted uppercase tracking-wide">Backend Health</h2>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
           <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-surface-hover">
             <Database size={18} className={isBackendProvisioned ? 'text-[#16a34a]' : 'text-text-muted'} />
@@ -376,7 +376,7 @@ export function MasterAdminView() {
       <Card className="p-0 overflow-hidden">
         <details className="group/users">
         <summary className="px-6 py-4 flex items-center justify-between gap-3 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden group-open/users:border-b group-open/users:border-border">
-          <h2 className="text-base font-semibold text-charcoal-warm uppercase tracking-wide">Users &amp; Roles</h2>
+          <h2 className="text-base font-semibold text-text-muted uppercase tracking-wide">Users &amp; Roles</h2>
           <span className="flex items-center gap-2 text-xs text-text-muted">
             {users.length} accounts
             <ChevronDown size={16} className="transition-transform group-open/users:rotate-180" />
@@ -390,7 +390,7 @@ export function MasterAdminView() {
         ) : (
           <div className="divide-y divide-border-cream">
             {users.map(u => (
-              <div key={u.user_id} className="px-6 py-4 hover:bg-parchment/50 transition-colors">
+              <div key={u.user_id} className="px-6 py-4 hover:bg-background/50 transition-colors">
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -407,7 +407,7 @@ export function MasterAdminView() {
                     <div className="flex flex-wrap gap-1.5 mt-2">
                       {u.roles.map(role => (
                         <div key={role} className="flex items-center gap-1">
-                          <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${ROLE_COLORS[role] ?? 'bg-parchment text-charcoal-warm'}`}>
+                          <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${ROLE_COLORS[role] ?? 'bg-background text-text-muted'}`}>
                             {role}
                           </span>
                           <button
@@ -485,7 +485,7 @@ export function MasterAdminView() {
       <Card className="p-0 overflow-hidden">
         <details className="group/divs">
         <summary className="px-6 py-4 flex items-center justify-between gap-3 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden group-open/divs:border-b group-open/divs:border-border">
-          <h2 className="text-base font-semibold text-charcoal-warm uppercase tracking-wide">Division Strength</h2>
+          <h2 className="text-base font-semibold text-text-muted uppercase tracking-wide">Division Strength</h2>
           <span className="flex items-center gap-2 text-xs text-text-muted">
             {divisions.length} divisions
             <ChevronDown size={16} className="transition-transform group-open/divs:rotate-180" />
@@ -494,7 +494,7 @@ export function MasterAdminView() {
         <div className="overflow-x-auto">
           <table className="ledger w-full text-sm">
             <thead>
-              <tr className="bg-parchment">
+              <tr className="bg-background">
                 <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-text-muted">Code</th>
                 <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-text-muted">Name</th>
                 <th className="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-widest text-text-muted">Current</th>
@@ -509,7 +509,7 @@ export function MasterAdminView() {
                   ? Math.round((d.divCurrentStrength / d.divSanctionedstrength) * 100)
                   : 0;
                 return (
-                  <tr key={d.divCode} className="hover:bg-parchment transition-colors">
+                  <tr key={d.divCode} className="hover:bg-background transition-colors">
                     <td className="px-6 py-3 font-mono text-xs text-terracotta font-semibold">{d.divCode}</td>
                     <td className="px-6 py-3 text-text">{d.divName}</td>
                     <td className="px-6 py-3 text-right font-semibold text-text">{d.divCurrentStrength}</td>

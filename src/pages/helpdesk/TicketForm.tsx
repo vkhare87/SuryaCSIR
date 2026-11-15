@@ -157,7 +157,7 @@ export default function TicketForm() {
       </button>
 
       <div className="flex items-start gap-3">
-        <div className="p-2 rounded-[8px] bg-border-cream text-terracotta">
+        <div className="p-2 rounded-[8px] bg-surface-hover text-terracotta">
           <MessageSquare size={20} />
         </div>
         <div>

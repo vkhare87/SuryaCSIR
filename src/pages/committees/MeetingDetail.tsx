@@ -14,6 +14,7 @@ import { ActionItemModal } from '../../components/committees/ActionItemModal';
 import { DeclarationsPanel } from '../../components/committees/DeclarationsPanel';
 import type { ActionItem } from '../../types';
 import { useBack } from '../../utils/useBack';
+import { Section } from '../../components/ui/Section';
 import {
   ArrowLeft,
   Calendar,
@@ -291,14 +292,13 @@ export default function MeetingDetail() {
           />
         </Card>
       ) : (
-        <Card className="p-4">
-          <h3 className="text-sm font-medium text-text mb-3">Meeting Minutes</h3>
+        <Section id="meetingdetail-meeting-minutes" title="Meeting Minutes" className="p-4">
           {meeting.summary ? (
             <p className="text-sm text-text whitespace-pre-wrap">{meeting.summary}</p>
           ) : (
             <p className="text-sm text-text-muted italic">No minutes recorded yet.</p>
           )}
-        </Card>
+        </Section>
       )}
 
       {/* --- Section 4: Action Items --- */}

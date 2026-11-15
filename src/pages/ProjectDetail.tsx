@@ -333,7 +333,7 @@ export default function ProjectDetail() {
           {division && (
             <Card>
               <h3 className="text-base font-[500] text-text flex items-center gap-2 mb-3 font-serif">
-                <Building2 size={16} className="text-olive-gray" />
+                <Building2 size={16} className="text-text-muted" />
                 Division
               </h3>
               <Link

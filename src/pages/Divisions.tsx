@@ -490,7 +490,7 @@ export default function Divisions() {
           {/* Research Framework */}
           <Card className="p-8 border-none ring-1 ring-border bg-surface relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-32 h-32 -mr-16 -mt-16 bg-terracotta/5 rounded-full blur-3xl group-hover:bg-terracotta/10 transition-all" />
-            <div className="flex items-center gap-2 mb-8 uppercase text-[10px] font-semibold text-olive-gray tracking-[0.2em]">
+            <div className="flex items-center gap-2 mb-8 uppercase text-[10px] font-semibold text-text-muted tracking-[0.2em]">
               <Target size={18} />
               <span>Research Framework</span>
             </div>

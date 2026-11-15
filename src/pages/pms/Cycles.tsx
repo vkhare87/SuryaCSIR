@@ -145,7 +145,7 @@ export default function Cycles() {
       {cycles.length === 0 ? (
         <p className="text-text-muted text-sm py-8 text-center">No cycles yet.</p>
       ) : (
-        <div className="divide-y divide-border border border-border rounded-2xl overflow-hidden">
+        <div className="divide-y divide-border border border-border rounded-xl overflow-hidden bg-surface shadow-[var(--shadow-e1)]">
           {cycles.map(c => {
             const d = cycleDeadlines(c);
             const fmt = (x: Date) => x.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });

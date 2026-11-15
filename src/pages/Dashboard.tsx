@@ -83,7 +83,7 @@ export default function Dashboard() {
     case 'PME':                 return withActions(<PMEView />);
     default:
       return (
-        <div className="flex flex-col items-center justify-center h-64 gap-4 text-stone-gray">
+        <div className="flex flex-col items-center justify-center h-64 gap-4 text-text-muted">
           <p className="text-sm font-medium">No dashboard assigned for this account.</p>
           <p className="text-xs">Contact your System Admin to assign a role.</p>
         </div>

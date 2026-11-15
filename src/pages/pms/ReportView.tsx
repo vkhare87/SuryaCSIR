@@ -226,7 +226,7 @@ export default function ReportView() {
       {report.awpActivities.length > 0 && (
         <div className="space-y-2">
           <h2 className="font-semibold text-text">Part V — Annual Work Plan</h2>
-          <div className="divide-y divide-border border border-border rounded-2xl overflow-hidden">
+          <div className="divide-y divide-border border border-border rounded-xl overflow-hidden bg-surface shadow-[var(--shadow-e1)]">
             {report.awpActivities.map(a => (
               <div key={a.id} className="px-4 py-3 bg-surface text-sm">
                 <p className="text-text font-medium">{a.natureOfActivity}</p>

@@ -112,7 +112,7 @@ function StaffMappingPanel({ divisions, staff, projectStaff, phDStudents, contra
                 <td className="px-4 py-3"><button onClick={() => expandedId === ps.id ? closeRow() : openRow(ps.id, ps.DivisionCode || '', ps.PIName || '')}
                   className="text-xs font-medium text-terracotta hover:underline">{expandedId === ps.id ? 'Cancel' : 'Edit'}</button></td>
               </tr>
-              {expandedId === ps.id && <tr className="border-b border-border bg-ivory"><td colSpan={6} className="px-4 py-4">
+              {expandedId === ps.id && <tr className="border-b border-border bg-surface"><td colSpan={6} className="px-4 py-4">
                 <div className="flex flex-wrap gap-4 items-end">
                   <div className="flex-1 min-w-[200px] space-y-1"><label className="text-[10px] font-semibold text-text-muted uppercase tracking-widest">Division</label>{divSelect(draftDivision, setDraftDivision)}</div>
                   <div className="flex-1 min-w-[200px] space-y-1"><label className="text-[10px] font-semibold text-text-muted uppercase tracking-widest">PI Name</label>{staffSelect(draftAttached, setDraftAttached)}</div>
@@ -142,7 +142,7 @@ function StaffMappingPanel({ divisions, staff, projectStaff, phDStudents, contra
                 <td className="px-4 py-3"><button onClick={() => expandedId === phd.EnrollmentNo ? closeRow() : openRow(phd.EnrollmentNo, phd.DivisionCode || '', phd.SupervisorName || '')}
                   className="text-xs font-medium text-terracotta hover:underline">{expandedId === phd.EnrollmentNo ? 'Cancel' : 'Edit'}</button></td>
               </tr>
-              {expandedId === phd.EnrollmentNo && <tr className="border-b border-border bg-ivory"><td colSpan={5} className="px-4 py-4">
+              {expandedId === phd.EnrollmentNo && <tr className="border-b border-border bg-surface"><td colSpan={5} className="px-4 py-4">
                 <div className="flex flex-wrap gap-4 items-end">
                   <div className="flex-1 min-w-[200px] space-y-1"><label className="text-[10px] font-semibold text-text-muted uppercase tracking-widest">Division</label>{divSelect(draftDivision, setDraftDivision)}</div>
                   <div className="flex-1 min-w-[200px] space-y-1"><label className="text-[10px] font-semibold text-text-muted uppercase tracking-widest">Supervisor</label>{staffSelect(draftAttached, setDraftAttached)}</div>
@@ -174,7 +174,7 @@ function StaffMappingPanel({ divisions, staff, projectStaff, phDStudents, contra
                   <td className="px-4 py-3"><button onClick={() => expandedId === cs.id ? closeRow() : openRow(cs.id, cs.Division || '', cs.AttachedToStaffID || '')}
                     className="text-xs font-medium text-terracotta hover:underline">{expandedId === cs.id ? 'Cancel' : 'Edit'}</button></td>
                 </tr>
-                {expandedId === cs.id && <tr className="border-b border-border bg-ivory"><td colSpan={6} className="px-4 py-4">
+                {expandedId === cs.id && <tr className="border-b border-border bg-surface"><td colSpan={6} className="px-4 py-4">
                   <div className="flex flex-wrap gap-4 items-end">
                     <div className="flex-1 min-w-[200px] space-y-1"><label className="text-[10px] font-semibold text-text-muted uppercase tracking-widest">Division</label>{divSelect(draftDivision, setDraftDivision)}</div>
                     <div className="flex-1 min-w-[200px] space-y-1"><label className="text-[10px] font-semibold text-text-muted uppercase tracking-widest">Attached To (Staff)</label>{staffSelect(draftAttached, setDraftAttached, true)}</div>
