@@ -234,7 +234,7 @@ def test_fake_llm_classifies_marked_questions():
 **Interfaces:**
 - Consumes: `scope.scope_of`, `scope.verdict`, `scope.SCOPE_REFUSAL_TEXT`; `decide()` keys from Task 2.
 - Produces:
-  - `analytics.AGGREGATE: frozenset[str]` = `count_documents_by_status`, `count_projects_by_division`, `count_projects_by_status`, `project_expenditure_summary`, `patent_pipeline_counts`, `count_publications_by_division`, `count_staff_by_division`, `overdue_phd_milestones`, `mou_status_summary`, `tech_transfer_summary`, `metric`.
+  - `analytics.AGGREGATE: frozenset[str]` = `patent_pipeline_counts`, `count_publications_by_division`, `mou_status_summary`, `tech_transfer_summary` (Step 4 removed the seven that count through RLS, `metric` included).
   - A refused `Answer`: `text == SCOPE_REFUSAL_TEXT`, `mode == "document"`, `citations == []`, `trace["refusal"]` is `"out_of_scope"` or `"totals_only"`, `trace["topic"]` and `trace["subject"]` set.
   - `log_query` writes `refusal_reason` = `trace["refusal"]` when present, else today's `"no_grounded_answer"` rule.
 

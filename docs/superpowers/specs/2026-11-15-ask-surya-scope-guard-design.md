@@ -60,8 +60,10 @@ the CPU host measured 3–4 minutes per question, so a second call is not afford
   caller's division.
 
 Validation is the same pattern as today's route check: a value outside the list
-becomes `unknown`. The classifier sees the **raw current question** plus the entity
-preamble. It does not see client-sent history answers (they are attacker-controlled).
+becomes `unknown`. The classifier sees the current question, the entity preamble and the
+earlier history **questions**. It does not see client-sent history answers (free text an
+asker could forge). **(as built — follow-ups like "and for 2024?" need the earlier
+questions to route at all.)**
 
 ### 5.2 Decide — in code, not in the model
 
@@ -94,6 +96,12 @@ In `handle_query` and `stream_query`, right after `decide()`:
 
 `SCOPE_REFUSAL_TEXT = "This information cannot be retrieved for you."` — a new
 constant, separate from the existing `REFUSAL_TEXT` (honest "not found").
+
+**As built:** `analytics.AGGREGATE` holds four functions — `patent_pipeline_counts`,
+`count_publications_by_division`, `mou_status_summary`, `tech_transfer_summary` — the
+counts over tables whose read policy is `true`. Projects, staff, documents, PhD milestones
+and the metric registry all count through RLS, so a Scientist's "how many projects" is
+refused (`totals_only`, no strike) rather than answered with a partial number.
 
 The builder must check each function in `analytics.CATALOG` before flagging it
 `aggregate`: under RLS a count taken with the caller's JWT can be a count of only
