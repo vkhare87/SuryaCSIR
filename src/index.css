@@ -312,6 +312,15 @@ table.ledger tbody tr:hover {
   .page-slot > * > :nth-child(n+6) { animation-delay: 250ms; }
 }
 
+/* Login signature: rings of records turn round the sun; labels stay level. */
+@keyframes orbit-spin { to { transform: rotate(360deg); } }
+.orbit { transform-origin: 300px 300px; animation: orbit-spin var(--orbit, 60s) linear infinite; }
+.orbit-upright { transform-box: fill-box; transform-origin: center; animation: orbit-spin var(--orbit, 60s) linear infinite reverse; }
+.sun-ray { animation: sun-pulse 3.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .orbit, .orbit-upright, .sun-ray { animation: none; }
+}
+
 /* <Section> folds with a height transition where the browser can animate to
    `auto`; elsewhere it opens and closes at once. */
 @supports (interpolate-size: allow-keywords) {
