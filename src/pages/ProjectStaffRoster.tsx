@@ -87,7 +87,7 @@ export default function ProjectStaffRoster() {
     <button
       onClick={() => setActiveTab(tab)}
       className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-        activeTab === tab ? 'bg-terracotta text-white' : 'text-text-muted hover:text-text'
+        activeTab === tab ? 'bg-terracotta text-ivory' : 'text-text-muted hover:text-text'
       }`}
     >
       {label}

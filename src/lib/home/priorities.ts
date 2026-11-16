@@ -55,9 +55,34 @@ export const pinPriority = (assignee: string, title: string, reason: string, wan
 export const markSeen = (id: string) => rpc('priority_seen', { p_id: id });
 export const pushBack = (id: string, reason: string, newDate: string) =>
   rpc('priority_push_back', { p_id: id, p_reason: reason, p_new_date: newDate });
-export const answerPushBack = (id: string, accept: boolean) => rpc('priority_answer', { p_id: id, p_accept: accept });
+/** expectedDate: the date the asker saw. The server refuses if it has changed since. */
+export const answerPushBack = (id: string, accept: boolean, expectedDate: string) =>
+  rpc('priority_answer', { p_id: id, p_accept: accept, p_expected_date: expectedDate });
 export const markDone = (id: string) => rpc('priority_done', { p_id: id });
 export const withdraw = (id: string) => rpc('priority_withdraw', { p_id: id });
+
+export interface PinCandidate { userId: string; name: string; note: string }
+
+/** Project staff with a login and an engagement in force today on a project I lead as PI.
+ * They hold no staff row, so the staff list misses them; priority_may_pin allows them. */
+export async function loadProjectStaffCandidates(myStaffId: string, today: string): Promise<PinCandidate[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase.from('project_engagements')
+    .select('project_staff_persons!inner(user_id, name), projects!inner("ProjectNo", pi_staff_id)')
+    .eq('projects.pi_staff_id', myStaffId).lte('from_on', today).gte('to_on', today)
+    .not('project_staff_persons.user_id', 'is', null);
+  if (error) { console.error('[home] project staff candidates load failed', error); return []; }
+  const out = new Map<string, PinCandidate>();
+  for (const r of (data ?? []) as Record<string, unknown>[]) {
+    const one = <T,>(v: unknown) => (Array.isArray(v) ? v[0] : v) as T | undefined;
+    const person = one<{ user_id: string | null; name: string }>(r.project_staff_persons);
+    const project = one<{ ProjectNo: string }>(r.projects);
+    if (person?.user_id && !out.has(person.user_id)) {
+      out.set(person.user_id, { userId: person.user_id, name: person.name, note: `project staff, ${project?.ProjectNo ?? ''}`.trim() });
+    }
+  }
+  return [...out.values()];
+}
 
 /** The asker's view of one priority, in a few words. */
 export function askerState(p: WorkPriority): string {

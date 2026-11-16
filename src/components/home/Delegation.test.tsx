@@ -25,7 +25,7 @@ describe('DelegationDial', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Issue as an order' }));
     expect(issueOrder).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Issue the order' }));
-    await waitFor(() => expect(issueOrder).toHaveBeenCalledWith('HANDS_ON', PRESETS.HANDS_ON));
+    await waitFor(() => expect(issueOrder).toHaveBeenCalledWith('HANDS_ON', PRESETS.HANDS_ON, []));
   });
 
   it('marks a changed line as custom', async () => {
@@ -34,6 +34,31 @@ describe('DelegationDial', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Set it' }));
     fireEvent.change(screen.getByLabelText('New proposals'), { target: { value: 'HEAD_TELL' } });
     expect(screen.getByText('custom')).toBeTruthy();
+  });
+});
+
+describe('DelegationDial safety', () => {
+  it('blocks changes when the order in force cannot be loaded', async () => {
+    vi.mocked(loadOrderInForce).mockRejectedValue(new Error('lines failed'));
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    render(<DelegationDial />);
+    expect((await screen.findByRole('alert')).textContent).toMatch(/could not be loaded/);
+    expect(screen.queryByRole('button', { name: /Set it|Change/ })).toBeNull();
+  });
+
+  it('carries division-specific lines over when the order is reissued', async () => {
+    const override = { kind: 'INDENT', mode: 'SELF' as const, limit: null, division: 'D1' };
+    vi.mocked(loadOrderInForce).mockResolvedValue({
+      id: 'o', orderNo: 'DO/2026/01', preset: null, effectiveFrom: '2026-11-14',
+      lines: [{ kind: 'INDENT', mode: 'HEAD_TELL', limit: 500000, division: '*' }, override],
+    });
+    render(<DelegationDial />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Change' }));
+    expect(screen.getByText(/1 division-specific provision carries over unchanged/)).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('New proposals'), { target: { value: 'HEAD_TELL' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Issue as an order' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Issue the order' }));
+    await waitFor(() => expect(issueOrder).toHaveBeenCalledWith(null, expect.any(Array), [override]));
   });
 });
 

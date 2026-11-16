@@ -10,6 +10,10 @@ import { busyDuring, callMeeting, cancelMeeting, loadMyMeetings, replyMeeting, t
 import type { GeneralMeeting, Reply } from '../../lib/home/meetings';
 import { localIso } from '../../lib/home/today';
 
+const MAX_ROWS = 5;
+// Only web links become clickable: the link is free text typed by the organiser.
+const safeLink = (link: string | null) => (link && /^https?:\/\//i.test(link.trim()) ? link.trim() : null);
+
 const INPUT = 'w-full h-9 px-3 rounded-lg border border-border bg-surface-raised text-sm text-text focus:outline-none focus-visible:ring-2 focus-visible:ring-terracotta/60';
 
 function CallForm({ onDone }: { onDone: () => void }) {
@@ -99,6 +103,7 @@ export function MyMeetings() {
   const [list, setList] = useState<GeneralMeeting[]>([]);
   const [error, setError] = useState('');
   const [cancelling, setCancelling] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
   const reload = useCallback(() => { if (user) loadMyMeetings(user.id).then(setList); }, [user]);
   useEffect(() => { reload(); }, [reload]);
 
@@ -111,7 +116,7 @@ export function MyMeetings() {
     <div>
       <div className="flex justify-end -mt-1 mb-1"><CallMeetingButtonLink onCalled={reload} /></div>
       {list.length === 0 && <p className="text-sm text-text-muted">No meeting in the next two weeks.</p>}
-      {list.slice(0, 5).map(m => (
+      {(showAll ? list : list.slice(0, MAX_ROWS)).map(m => (
         <div key={m.id} className={clsx(ROW, 'flex-wrap')}>
           <div className="flex-1 min-w-0">
             <p className="text-sm text-text truncate" title={m.title}>{m.title}</p>
@@ -119,6 +124,16 @@ export function MyMeetings() {
               <span className="font-mono">{timeLabel(m.startsAt, m.endsAt)}</span>{m.place ? ` · ${m.place}` : ''}
               {m.myReply === undefined ? <> · <span className="font-mono">{m.yes}</span> of <span className="font-mono">{m.invitees}</span> said yes</> : null}
             </p>
+            {safeLink(m.link) && (
+              <a href={safeLink(m.link) as string} target="_blank" rel="noopener noreferrer"
+                className="text-xs text-text-muted underline decoration-dotted hover:text-text">Join online</a>
+            )}
+            {m.agenda.trim() && (
+              <details className="text-xs text-text-muted">
+                <summary className="cursor-pointer hover:text-text">Agenda</summary>
+                <p className="mt-1 text-sm text-text whitespace-pre-line">{m.agenda}</p>
+              </details>
+            )}
           </div>
           {m.myReply !== undefined && (
             <div className="flex gap-1" role="group" aria-label={`Reply to ${m.title}`}>
@@ -135,6 +150,12 @@ export function MyMeetings() {
             : <Button type="button" size="sm" variant="ghost" onClick={() => setCancelling(m.id)}>Cancel</Button>)}
         </div>
       ))}
+      {list.length > MAX_ROWS && (
+        <button type="button" onClick={() => setShowAll(v => !v)} aria-expanded={showAll}
+          className="text-xs text-text-muted inline-block py-1.5 mt-1 hover:underline">
+          {showAll ? 'Show fewer' : `Show all ${list.length} meetings`}
+        </button>
+      )}
       {error && <p role="alert" className="text-xs text-danger mt-2">{error}</p>}
     </div>
   );

@@ -245,8 +245,10 @@ export default function Login() {
   useEffect(() => {
     const root = storyRef.current;
     if (!root || !('IntersectionObserver' in window)) return;
+    // Only an entry at or past half visible counts: one callback can carry the
+    // chapter leaving (still intersecting, under half) after the one arriving.
     const seen = new IntersectionObserver((entries) => {
-      for (const e of entries) if (e.isIntersecting) setChapter(Number((e.target as HTMLElement).dataset.chapter));
+      for (const e of entries) if (e.intersectionRatio >= 0.5) setChapter(Number((e.target as HTMLElement).dataset.chapter));
     }, { threshold: 0.5 });
     root.querySelectorAll('[data-chapter]').forEach(el => seen.observe(el));
     return () => seen.disconnect();
@@ -254,7 +256,8 @@ export default function Login() {
 
   const goTo = (i: number) => storyRef.current
     ?.querySelector(`[data-chapter="${i}"]`)
-    ?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
+    // 'instant', not 'auto': 'auto' still follows the container's scroll-smooth class.
+    ?.scrollIntoView({ behavior: reducedMotion ? 'instant' : 'smooth', block: 'start' });
 
   // Navigate to role-specific dashboard once auth and role are both resolved
   useEffect(() => {

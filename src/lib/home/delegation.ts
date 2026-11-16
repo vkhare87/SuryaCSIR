@@ -55,12 +55,16 @@ export function floorKinds(rules: CsirRule[], on?: string): { kind: string; note
 
 export interface DelegationOrder { id: string; orderNo: string; preset: Preset | null; effectiveFrom: string; lines: (Line & { division: string })[] }
 
+/** The order in force, or null when there is none. Throws when either read
+ * fails: a failed read shown as "no order" or "no lines" would let the
+ * Director issue defaults over the real provisions. */
 export async function loadOrderInForce(): Promise<DelegationOrder | null> {
   if (!supabase) return null;
   const o = await supabase.from('delegation_orders').select('*').is('ended_at', null).maybeSingle();
-  if (o.error) { console.error('[home] delegation order load failed', o.error); return null; }
+  if (o.error) throw new Error(o.error.message);
   if (!o.data) return null;
   const l = await supabase.from('delegation_lines').select('*').eq('order_id', o.data.id);
+  if (l.error) throw new Error(l.error.message);
   return {
     id: o.data.id as string, orderNo: o.data.order_no as string, preset: (o.data.preset as Preset | null) ?? null,
     effectiveFrom: o.data.effective_from as string,
@@ -71,10 +75,16 @@ export async function loadOrderInForce(): Promise<DelegationOrder | null> {
   };
 }
 
-export async function issueOrder(preset: Preset | null, lines: Line[]): Promise<void> {
+/** Issues a new order. `kept`: division-specific lines of the order in force,
+ * which the dial does not show; they carry over unchanged. */
+export async function issueOrder(preset: Preset | null, lines: Line[], kept: (Line & { division: string })[] = []): Promise<void> {
   if (!supabase) throw new Error('Not connected');
   const { error } = await supabase.rpc('delegation_issue', {
-    p_preset: preset, p_lines: lines.map(l => ({ kind: l.kind, mode: l.mode, limit: l.limit })),
+    p_preset: kept.length ? null : preset,
+    p_lines: [
+      ...lines.map(l => ({ kind: l.kind, mode: l.mode, limit: l.limit })),
+      ...kept.map(l => ({ kind: l.kind, mode: l.mode, limit: l.limit, division: l.division })),
+    ],
   });
   if (error) throw new Error(error.message);
 }
