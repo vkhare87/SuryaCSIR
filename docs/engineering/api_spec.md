@@ -166,7 +166,7 @@ is the RLS policy, not a query parameter.
 | `pms_reports` and children | Owner + admins + assigned evaluators + committee + grievance members | Owner in `DRAFT` only; transitions via RPC |
 | `documents` | `documents_can_read` — four-tier ladder | Insert: `owner_id = auth.uid()`. Update: admins only |
 | `doc_indexes`, `doc_pages`, `collection_indexes` | Follows the parent document's readability | Worker (service role) only |
-| `query_log` | Own rows | Insert by the API as the caller; `feedback` update by owner |
+| `query_log` | Own rows; SystemAdmin and MasterAdmin read all rows (questions and answers) | Insert by the API as the caller; owner may update `feedback` and `pinned` only |
 | `route_labels` | Admins | Admins |
 | `user_roles`, `user_profiles` | Own rows + admins | **Column-narrowed grants.** Role changes via RPC only |
 | `feature_controls` | All authenticated (read) | MasterAdmin |
@@ -700,6 +700,15 @@ Document-mode response:
   "query_id": "7b0e…"
 }
 ```
+
+**Scope refusal.** Before answer retrieval and analytics, the route call also labels `topic` and `subject`,
+and `rag/scope.py` checks them against the caller's held roles. An out-of-scope question
+returns `200` with `text` = `This information cannot be retrieved for you.`, `mode`
+`document`, no citations, and `trace.refusal` = `out_of_scope` or `totals_only` (also written
+to `query_log.refusal_reason`; `scope_unavailable` when the caller's roles or name could not be read, `self_unsure` when a
+refused question names the asker or says "my", "I" or "myself" — neither is a strike; "me" alone does not count). The router sees earlier `history` questions but not their answers.
+Exception: with `context_entity`, the record itself is read under RLS before the gate,
+because routing needs its name; its documents are read only after the gate allows it.
 
 `query_id` is `null` if logging failed — logging is best-effort and never breaks an answer.
 Use it with `sendFeedback(queryId, 1 | -1)`, which updates `query_log.feedback` directly

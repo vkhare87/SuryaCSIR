@@ -1,11 +1,13 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Sparkles, Send, ThumbsUp, ThumbsDown, FileText, CalendarClock } from 'lucide-react';
+import { Sparkles, Send, ThumbsUp, ThumbsDown, FileText, CalendarClock, Bookmark, BookmarkCheck } from 'lucide-react';
 import { Card, Badge } from '../components/ui/Cards';
 import { Sheet } from '../components/ui/Sheet';
 import { useAuth } from '../contexts/AuthContext';
-import { askSuryaStream, parseAskEntity, sendFeedback, scheduleBrief } from '../lib/ask/client';
-import type { AskAnswer } from '../lib/ask/client';
+import {
+  askSuryaStream, parseAskEntity, sendFeedback, scheduleBrief, fetchAskHistory, setQuestionPinned, SAVED_LIMIT,
+} from '../lib/ask/client';
+import type { AskAnswer, AskHistory, AskHistoryItem } from '../lib/ask/client';
 import { citationHref } from '../lib/ask/citations';
 import { friendlyError } from '../lib/errors';
 
@@ -36,27 +38,56 @@ export default function AskSurya() {
   const [error, setError] = useState('');
   const [source, setSource] = useState<SourceView | null>(null);
   const [sourceLoading, setSourceLoading] = useState(false);
+  const [history, setHistory] = useState<AskHistory>({ recent: [], frequent: [], saved: [] });
 
-  async function submit(e: React.FormEvent) {
+  const userId = user?.id;
+  const loadHistory = useCallback(async () => {
+    if (!userId) return;
+    try {
+      setHistory(await fetchAskHistory(userId));
+    } catch (err) {
+      console.error('Ask history failed', err);
+    }
+  }, [userId]);
+
+  useEffect(() => { void loadHistory(); }, [loadHistory]);
+
+  async function togglePin(item: AskHistoryItem) {
+    try {
+      await setQuestionPinned(item.id, !item.pinned);
+      await loadHistory();
+    } catch (err) {
+      setError(friendlyError(err, 'Could not save the question'));
+    }
+  }
+
+  function submit(e: React.FormEvent) {
     e.preventDefault();
-    const q = question.trim();
-    if (!q) return;
+    void ask(question, true);
+  }
+
+  // fromForm: only a question typed in the box clears the box. A click on a
+  // history question must not wipe a half-typed draft.
+  async function ask(text: string, fromForm = false) {
+    const q = text.trim();
+    if (!q || loading) return;
     setLoading(true);
     setError('');
     setStreamText('');
     try {
-      const history = turns
+      const recentTurns = turns
         .slice(-HISTORY_TURNS)
         .map((t) => ({ question: t.question, answer: t.answer.answer }));
-      const answer = await askSuryaStream(q, history, (chunk) =>
+      const answer = await askSuryaStream(q, recentTurns, (chunk) =>
         setStreamText((prev) => prev + chunk), entity);
       setTurns((prev) => [...prev, { question: q, answer, rated: false }]);
-      setQuestion('');
+      if (fromForm) setQuestion('');
     } catch (err) {
       setError(friendlyError(err, 'Query failed'));
     } finally {
       setLoading(false);
       setStreamText('');
+      void loadHistory();
     }
   }
 
@@ -110,7 +141,10 @@ export default function AskSurya() {
           Ask about institute documents and data. Answers are scoped to what your role can access.
           Follow-up questions carry the conversation.
         </p>
+        <p className="text-xs text-text-muted">Out-of-scope requests are recorded.</p>
       </div>
+
+      <AskHistoryPanel history={history} disabled={loading} onAsk={(q) => void ask(q)} onTogglePin={(i) => void togglePin(i)} />
 
       {/* Busy while streaming, so a screen reader announces the finished answer once, not every chunk. */}
       <div aria-live="polite" aria-busy={loading} className="space-y-6">
@@ -226,5 +260,57 @@ export default function AskSurya() {
         )}
       </Sheet>
     </div>
+  );
+}
+
+const HISTORY_LISTS: { key: keyof AskHistory; title: string }[] = [
+  { key: 'saved', title: 'Saved' },
+  { key: 'recent', title: 'Recent' },
+  { key: 'frequent', title: 'Most used' },
+];
+
+function AskHistoryPanel({ history, disabled, onAsk, onTogglePin }: {
+  history: AskHistory;
+  disabled: boolean;
+  onAsk: (question: string) => void;
+  onTogglePin: (item: AskHistoryItem) => void;
+}) {
+  const lists = HISTORY_LISTS.filter((l) => history[l.key].length > 0);
+  if (lists.length === 0) return null;
+  const savedFull = history.saved.length >= SAVED_LIMIT;
+  return (
+    <Card className="p-4 grid gap-4 sm:grid-cols-3">
+      {lists.map((l) => (
+        <div key={l.key} className="space-y-1 min-w-0">
+          <h2 className="text-xs font-medium uppercase tracking-wide text-text-muted">{l.title}</h2>
+          <ul className="space-y-1">
+            {history[l.key].map((item) => (
+              <li key={`${l.key}-${item.id}`} className="flex items-start gap-1">
+                <button
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => onAsk(item.question)}
+                  className="flex-1 min-w-0 truncate text-left text-sm text-text hover:underline disabled:opacity-50"
+                  title={item.question}
+                >
+                  {item.question}
+                </button>
+                <button
+                  type="button"
+                  disabled={!item.pinned && savedFull}
+                  onClick={() => onTogglePin(item)}
+                  aria-label={item.pinned ? `Remove saved question: ${item.question}` : `Save question: ${item.question}`}
+                  aria-pressed={item.pinned}
+                  title={!item.pinned && savedFull ? `You can save up to ${SAVED_LIMIT} questions` : undefined}
+                  className="shrink-0 text-text-muted hover:text-text disabled:opacity-40"
+                >
+                  {item.pinned ? <BookmarkCheck className="h-4 w-4" /> : <Bookmark className="h-4 w-4" />}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </Card>
   );
 }

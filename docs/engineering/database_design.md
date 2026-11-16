@@ -525,8 +525,20 @@ The evidence layer: `retrieval._context` fetches the picked nodes' page spans fr
 #### `query_log`
 `(id uuid PK, user_id uuid FK DEFAULT auth.uid(), question, mode, answer, citations jsonb, feedback smallint? CHECK ∈ (-1,1), latency_ms int?, created_at)`,
 plus decision-trace columns from `20260714000002`: `route`, `function_name`,
-`function_params jsonb`, `refusal_reason`, `catalog_version`.
-**Index:** `(user_id, created_at DESC)`. RLS: own rows only.
+`function_params jsonb`, `refusal_reason`, `catalog_version`, and `pinned boolean NOT NULL
+DEFAULT false` (`20261115000001`, a saved question).
+`refusal_reason`: `no_grounded_answer` (honest miss), `out_of_scope` (scope guard refused —
+a **strike**), `totals_only` (only a total was allowed and none could be served — not a strike),
+`scope_unavailable` (the caller's roles or name could not be read — not a strike),
+`self_unsure` (refused, but the question names the asker or says "my" — not a strike).
+**Index:** `(user_id, created_at DESC)`; partial `query_log_strikes_idx (user_id, created_at)
+WHERE refusal_reason = 'out_of_scope'`. RLS: own rows (SystemAdmin / MasterAdmin read all).
+**Grants:** `authenticated` may UPDATE only `(feedback, pinned)`; the migration asserts that
+`refusal_reason` is not updatable, so a person cannot erase their own strikes.
+**`ask_scope_sweep()`** (cron `ask-scope-sweep`, 07:20 IST, `SECURITY DEFINER`, EXECUTE
+revoked from clients): a person with more than 5 strikes on the previous IST day → one
+`notifications` row (`kind 'ask-scope'`) per HRAdmin, deduped per person per day. The body is
+name · count · day; the question text is never copied.
 
 #### `collection_indexes`
 `(collection_key text PK, title, summary, document_count int, model, built_at)`.
