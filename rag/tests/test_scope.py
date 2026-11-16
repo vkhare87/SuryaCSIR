@@ -76,6 +76,20 @@ def test_caller_naming_themself_is_not_refused():
     assert verdict(S("Scientist"), "pms_scores", "other_person", question=q) == "full"
 
 
+def test_first_person_question_is_not_refused():
+    for q in ("What is my PMS score?", "Show me the PMS score I got", "what did i score"):
+        assert verdict(S("Scientist"), "pms_scores", "other_person", question=q) == "full"
+    # Word boundaries: "mine" inside "determine" is not first person.
+    assert verdict(S("Scientist"), "pms_scores", "other_person", question="Determine Dr X's score") == "refuse"
+
+
+def test_staff_lookup_failure_is_flagged():
+    fake = _Client(rpcs={"caller_roles": [{"role": "Scientist", "division_code": None}]})
+    fake.rpc = (lambda real: (lambda name, p: _Q(None, True) if name == "caller_staff_id" else real(name, p)))(fake.rpc)
+    s = scope_of(fake)
+    assert s["roles"] == {"Scientist"} and s["staff_name"] is None and s["lookup_failed"] is True
+
+
 def test_name_match_needs_whole_words():
     q = "What PMS score did Dr. Asha Raoji get?"
     assert verdict(S("Scientist"), "pms_scores", "other_person", question=q) == "refuse"

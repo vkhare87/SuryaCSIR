@@ -44,6 +44,7 @@ _TABLE = {
 _TABLE["HOD"] = _TABLE["DivisionHead"]
 
 _DIVISION_ROLES = ("DivisionHead", "HOD")
+_FIRST_PERSON = re.compile(r"\b(i|me|my|mine|myself|i'm|i've)\b")
 
 
 def _empty_scope(lookup_failed: bool = False) -> dict:
@@ -74,7 +75,10 @@ def scope_of(client) -> dict:
                      .limit(1).execute().data) or []
             scope["staff_name"] = (staff[0].get("Name") or None) if staff else None
     except Exception:
+        # Without the name the self-name check cannot run, so a refusal now
+        # must not count as a strike either.
         scope["staff_id"] = scope["staff_name"] = None
+        scope["lookup_failed"] = True
     return scope
 
 
@@ -94,8 +98,13 @@ def verdict(scope: dict, topic: str, subject: str, subject_division=None, questi
     # ponytail: an asker naming themself is not probing. Fail-open by design: a
     # question naming them AND someone else passes here, and RLS still hides the
     # other person's rows — this check only decides refusal copy and strikes.
+    text = " ".join(question.lower().split())
     name = " ".join((scope.get("staff_name") or "").lower().split())
-    if subject == "other_person" and name and re.search(rf"\b{re.escape(name)}\b", " ".join(question.lower().split())):
+    if subject == "other_person" and name and re.search(rf"\b{re.escape(name)}\b", text):
+        return "full"
+    # "What is my PMS score?" labelled other_person is a model slip, not a probe.
+    # First-person wording never refuses; RLS decides what "my" can reach.
+    if subject == "other_person" and _FIRST_PERSON.search(text):
         return "full"
     roles = [r for r in scope.get("roles", ()) if r in _TABLE]
     best = lambda own: max((_cell(r, topic, own) for r in roles), key=_RANK.__getitem__, default="refuse")

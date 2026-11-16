@@ -166,7 +166,7 @@ is the RLS policy, not a query parameter.
 | `pms_reports` and children | Owner + admins + assigned evaluators + committee + grievance members | Owner in `DRAFT` only; transitions via RPC |
 | `documents` | `documents_can_read` — four-tier ladder | Insert: `owner_id = auth.uid()`. Update: admins only |
 | `doc_indexes`, `doc_pages`, `collection_indexes` | Follows the parent document's readability | Worker (service role) only |
-| `query_log` | Own rows | Insert by the API as the caller; owner may update `feedback` and `pinned` only |
+| `query_log` | Own rows; SystemAdmin and MasterAdmin read all rows (questions and answers) | Insert by the API as the caller; owner may update `feedback` and `pinned` only |
 | `route_labels` | Admins | Admins |
 | `user_roles`, `user_profiles` | Own rows + admins | **Column-narrowed grants.** Role changes via RPC only |
 | `feature_controls` | All authenticated (read) | MasterAdmin |
