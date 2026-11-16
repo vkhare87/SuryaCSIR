@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { DoFirst, PinButton, PrioritiesAsked } from './Priorities';
 import { answerPushBack, loadProjectStaffCandidates, markSeen, pushBack } from '../../lib/home/priorities';
 import type { WorkPriority } from '../../lib/home/priorities';
+import { istIso } from '../../lib/home/today';
 
 vi.mock('../../lib/home/priorities', async (orig) => ({
   ...(await orig<typeof import('../../lib/home/priorities')>()),
@@ -80,7 +81,7 @@ describe('PinButton', () => {
     ]);
     view(<PinButton />);
     fireEvent.click(screen.getByRole('button', { name: 'Pin a priority' }));
-    await waitFor(() => expect(loadProjectStaffCandidates).toHaveBeenCalledWith('S0', expect.any(String)));
+    await waitFor(() => expect(loadProjectStaffCandidates).toHaveBeenCalledWith('S0', istIso()));
     expect(await screen.findByRole('option', { name: 'Ravi Kumar · project staff, HCP0054' })).toBeTruthy();
     expect(screen.queryByRole('option', { name: /Dr. Mehta dup/ })).toBeNull();
     expect(screen.queryByRole('option', { name: /^Me/ })).toBeNull();

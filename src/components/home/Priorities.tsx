@@ -14,7 +14,7 @@ import {
   answerPushBack, askerState, loadProjectStaffCandidates, markDone, markSeen, pinPriority, pushBack, withdraw,
 } from '../../lib/home/priorities';
 import type { PinCandidate, WorkPriority } from '../../lib/home/priorities';
-import { localIso } from '../../lib/home/today';
+import { istIso, localIso } from '../../lib/home/today';
 
 const INPUT = 'w-full h-9 px-3 rounded-lg border border-border bg-surface-raised text-sm text-text focus:outline-none focus-visible:ring-2 focus-visible:ring-terracotta/60';
 
@@ -100,7 +100,8 @@ function PinForm({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     if (!myStaffId) return;
     let cancelled = false;
-    loadProjectStaffCandidates(myStaffId, localIso(new Date())).then((c) => { if (!cancelled) setProjectStaff(c); });
+    // India date, as priority_may_pin checks the engagement with ist_today().
+    loadProjectStaffCandidates(myStaffId, istIso()).then((c) => { if (!cancelled) setProjectStaff(c); });
     return () => { cancelled = true; };
   }, [myStaffId]);
   const people = useMemo(() => {
