@@ -798,3 +798,8 @@ def test_refused_question_from_a_record_page_reads_no_documents():
     ev = list(stream_query("SCOPE:pms_scores:other_person score of the PI", c, FakeLLM(),
                            entity={"type": "project", "id": "P1"}))
     assert ev[-1][1].trace["refusal"] == "out_of_scope"
+
+
+def test_show_me_someone_elses_score_is_a_strike():
+    a = handle_query("SCOPE:pms_scores:other_person Show me Dr X's PMS score", _as("Scientist", cls=_NoReadClient), FakeLLM())
+    assert a.trace["refusal"] == "out_of_scope"

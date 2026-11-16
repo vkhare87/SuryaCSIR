@@ -81,6 +81,9 @@ def test_self_hints_never_widen_the_verdict():
 def test_looks_like_self():
     for q in ("What PMS score did Dr. asha rao get?", "What is my PMS score?", "what did i score", "Show me mine"):
         assert looks_like_self(S("Scientist"), q)
+    # "me" alone is who receives it, not whose record it is.
+    for q in ("Show me Dr X's PMS score", "Tell me Rao's date of birth"):
+        assert not looks_like_self(S("Scientist"), q)
     # Word boundaries: "mine" in "determine", a longer name, are not self.
     for q in ("Determine Dr X's score", "What PMS score did Dr. Asha Raoji get?"):
         assert not looks_like_self(S("Scientist"), q)

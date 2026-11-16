@@ -706,7 +706,7 @@ and `rag/scope.py` checks them against the caller's held roles. An out-of-scope 
 returns `200` with `text` = `This information cannot be retrieved for you.`, `mode`
 `document`, no citations, and `trace.refusal` = `out_of_scope` or `totals_only` (also written
 to `query_log.refusal_reason`; `scope_unavailable` when the caller's roles or name could not be read, `self_unsure` when a
-refused question names the asker or says "my" — neither is a strike). The router sees earlier `history` questions but not their answers.
+refused question names the asker or says "my", "I" or "myself" — neither is a strike; "me" alone does not count). The router sees earlier `history` questions but not their answers.
 Exception: with `context_entity`, the record itself is read under RLS before the gate,
 because routing needs its name; its documents are read only after the gate allows it.
 

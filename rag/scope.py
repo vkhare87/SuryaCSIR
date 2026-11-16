@@ -44,7 +44,9 @@ _TABLE = {
 _TABLE["HOD"] = _TABLE["DivisionHead"]
 
 _DIVISION_ROLES = ("DivisionHead", "HOD")
-_FIRST_PERSON = re.compile(r"\b(i|me|my|mine|myself|i'm|i've)\b")
+# Owner and subject forms only. "me" is left out: "Show me Dr X's score" asks
+# for someone else's record, delivered to me.
+_FIRST_PERSON = re.compile(r"\b(i|my|mine|myself|i'm|i've)\b")
 
 
 def _empty_scope(lookup_failed: bool = False) -> dict:
