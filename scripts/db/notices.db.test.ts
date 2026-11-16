@@ -15,6 +15,11 @@ const issue = (who: string, title: string, divs: string[] | null, ack = false) =
 let allId = '';
 let d1Id = '';
 
+async function ensureNoticesIssued() {
+  if (!allId) allId = await issue(U.dir, 'Tour claims', null, true);
+  if (!d1Id) d1Id = await issue(U.hod, 'D1 lab safety', ['D1']);
+}
+
 beforeAll(async () => {
   db = await migratedDb();
   const users = Object.values(U).map(id => `('${id}', '${id.slice(-2)}@n.local')`).join(', ');
@@ -45,6 +50,7 @@ describe('who issues', () => {
   });
 
   it('readers get one message each; the issuer gets none', async () => {
+    await ensureNoticesIssued();
     const n = await q<{ user_id: string }>(db, `SELECT user_id FROM notifications WHERE dedupe_key = $1 ORDER BY user_id`, [`notice:${allId}`]);
     expect(n.map(r => r.user_id)).toEqual([U.hod, U.sci, U.sci2, U.other].sort());
   });
@@ -52,12 +58,14 @@ describe('who issues', () => {
 
 describe('who reads', () => {
   it('a division notice is invisible to another division', async () => {
+    await ensureNoticesIssued();
     expect((await call<{ title: string }>(U.other, `SELECT title FROM notices`)).map(r => r.title)).toEqual(['Tour claims']);
     expect((await call(U.sci, `SELECT id FROM notices`)).length).toBe(2);
     await expect(call(U.other, `SELECT notice_mark_read($1)`, [d1Id])).rejects.toThrow(/not addressed to you/);
   });
 
   it('the issuer sees counts and who has not acknowledged; others do not', async () => {
+    await ensureNoticesIssued();
     await call(U.sci, `SELECT notice_mark_read($1, true)`, [allId]);
     await call(U.sci2, `SELECT notice_mark_read($1)`, [allId]);
     const c = (await call<{ readers: number; read: number; acked: number; not_acked: string[] }>(U.dir, `SELECT * FROM notice_read_counts($1)`, [allId]))[0];
@@ -69,12 +77,15 @@ describe('who reads', () => {
   });
 
   it('a later read never removes an acknowledgement; nobody writes the tables directly', async () => {
+    await ensureNoticesIssued();
+    await call(U.sci, `SELECT notice_mark_read($1, true)`, [allId]);
     await call(U.sci, `SELECT notice_mark_read($1, false)`, [allId]);
     expect((await q<{ a: boolean }>(db, `SELECT acked_at IS NOT NULL a FROM notice_reads WHERE notice_id = $1 AND user_id = $2`, [allId, U.sci]))[0].a).toBe(true);
     await expect(call(U.sci, `INSERT INTO notice_reads (notice_id, user_id) VALUES ($1, $2)`, [d1Id, U.sci])).rejects.toThrow(/permission denied/);
   });
 
   it('a replacement marks the old notice', async () => {
+    await ensureNoticesIssued();
     const id = (await call<{ id: string }>(U.dir, `SELECT notice_issue('OFFICE_ORDER', 'Tour claims (revised)', '', NULL, false, NULL, NULL, $1) id`, [allId]))[0].id;
     expect((await q<{ s: string }>(db, `SELECT superseded_by::text s FROM notices WHERE id = $1`, [allId]))[0].s).toBe(id);
     await expect(call(U.hod, `SELECT notice_issue('NOTICE', 'x', '', ARRAY['D1'], false, NULL, NULL, $1)`, [allId])).rejects.toThrow(/Only its issuer/);

@@ -72,7 +72,7 @@ describe('post register', () => {
 
 describe('workload, outlook, careers', () => {
   it('workload counts running projects and flags more than four', async () => {
-    const w = (await call(U.hr, `SELECT active_projects, as_pi, overload FROM staff_workload('P-A')`))[0];
+    const w = (await asOn(U.hr, T, tx => q(tx, `SELECT active_projects, as_pi, overload FROM staff_workload('P-A')`)))[0];
     expect(w).toEqual({ active_projects: 2, as_pi: 2, overload: false });
   });
 
@@ -212,7 +212,9 @@ describe('acting charge', () => {
       return (await q<{ acted_as: string | null }>(tx,
         `SELECT acted_as FROM entity_timeline WHERE entity_type = 'project' AND entity_id = 'PS-RUN' AND kind <> 'created' ORDER BY at DESC LIMIT 1`))[0];
     });
-    await expect(call_('2026-12-10')).resolves.toBeDefined();
+    const cap = (await call<{ c: string | null }>(U.acting, `SELECT acting_capacity($1, '2026-12-10') c`, [U.acting]))[0].c;
+    expect(cap).toBe('Acting Director (DG Order 3/2026)');
+    await expect(call_('2026-12-10')).resolves.toEqual({ acted_as: expect.stringMatching(/^Acting /) });
     await expect(call_('2026-12-11')).rejects.toThrow(/Only the Director or PME/);
   });
 
