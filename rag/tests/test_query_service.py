@@ -735,13 +735,31 @@ def _as_named(name, *roles, cls=_FakeClient, **tables):
     return client
 
 
-def test_follow_up_keeps_an_earlier_self_name():
+def test_follow_up_after_naming_yourself_is_refused_without_a_strike():
     history = [{"question": "What PMS score did Asha Rao get in 2025?", "answer": "x"}]
-    c = _as_named("Asha Rao", "Scientist", **_DOCS)
+    c = _as_named("Asha Rao", "Scientist", cls=_NoReadClient)
     a = handle_query("SCOPE:pms_scores:other_person and for 2024?", c, FakeLLM(), history=history)
-    assert a.text != SCOPE_REFUSAL_TEXT
+    assert a.text == SCOPE_REFUSAL_TEXT and a.trace["refusal"] == "self_unsure"
     ev = list(stream_query("SCOPE:pms_scores:other_person and for 2024?", c, FakeLLM(), history=history))
-    assert ev[-1][1].text != SCOPE_REFUSAL_TEXT
+    assert ev[-1][1].trace["refusal"] == "self_unsure"
+
+
+def test_first_person_question_is_refused_without_a_strike():
+    a = handle_query("SCOPE:pms_scores:other_person what is my score", _as("Scientist", cls=_NoReadClient), FakeLLM())
+    assert a.text == SCOPE_REFUSAL_TEXT and a.trace["refusal"] == "self_unsure"
+
+
+def test_first_person_wording_does_not_widen_totals():
+    a = handle_query("SCOPE:projects:other_person what is my colleague working on", _as("Scientist", cls=_NoReadClient), FakeLLM())
+    assert a.trace["refusal"] == "totals_only"
+
+
+def test_name_lookup_failure_refusal_is_not_a_strike():
+    c = _as("Scientist", cls=_NoReadClient)
+    rpc = c.rpc
+    c.rpc = lambda n, p: _FakeQuery(None, raise_on_execute=True) if n == "caller_staff_id" else rpc(n, p)
+    a = handle_query("SCOPE:pms_scores:other_person score of Dr X", c, FakeLLM())
+    assert a.trace["refusal"] == "scope_unavailable"
 
 
 def test_role_lookup_failure_refuses_without_a_strike():

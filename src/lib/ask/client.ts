@@ -167,7 +167,7 @@ export const FREQUENT_LIMIT = 5;
 export const SAVED_LIMIT = 20;
 const HISTORY_DAYS = 90;
 const HISTORY_ROWS = 500;
-const SCOPE_REFUSALS = new Set(['out_of_scope', 'totals_only', 'scope_unavailable']);
+const SCOPE_REFUSALS = new Set(['out_of_scope', 'totals_only', 'scope_unavailable', 'self_unsure']);
 
 /** Groups a person's logged questions (newest first) into the three history lists.
  * Refused questions appear in none; two questions match after trim + lower-case.

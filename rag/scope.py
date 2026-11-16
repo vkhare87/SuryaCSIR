@@ -75,10 +75,10 @@ def scope_of(client) -> dict:
                      .limit(1).execute().data) or []
             scope["staff_name"] = (staff[0].get("Name") or None) if staff else None
     except Exception:
-        # Without the name the self-name check cannot run, so a refusal now
-        # must not count as a strike either.
+        # Roles are known, so the verdict stands; but without the name the
+        # self check cannot run, so a refusal must not count as a strike.
         scope["staff_id"] = scope["staff_name"] = None
-        scope["lookup_failed"] = True
+        scope["name_lookup_failed"] = True
     return scope
 
 
@@ -89,22 +89,22 @@ def _cell(role: str, topic: str, own: bool) -> str:
     return cell
 
 
-def verdict(scope: dict, topic: str, subject: str, subject_division=None, question: str = "") -> str:
-    """'full' | 'totals' | 'refuse' for one classified question."""
+def looks_like_self(scope: dict, question: str) -> bool:
+    """True when a refused question may really be about the asker: it names
+    them, or uses first-person wording ("What is my PMS score?" mislabelled
+    other_person). Never widens access; it only keeps a refusal from being a
+    strike. ponytail: wording can be faked, which only dodges a strike — the
+    same as rephrasing; the verdict and RLS still decide the data."""
+    text = " ".join(question.lower().split())
+    name = " ".join((scope.get("staff_name") or "").lower().split())
+    return bool((name and re.search(rf"\b{re.escape(name)}\b", text)) or _FIRST_PERSON.search(text))
+
+
+def verdict(scope: dict, topic: str, subject: str, subject_division=None) -> str:
+    """'full' | 'totals' | 'refuse' for one classified question, from the role table only."""
     if topic not in ("pms_scores", "personal_details", "proposals") + _SHARED:
         return "full"
     if subject not in SUBJECTS or subject == "self":
-        return "full"
-    # ponytail: an asker naming themself is not probing. Fail-open by design: a
-    # question naming them AND someone else passes here, and RLS still hides the
-    # other person's rows — this check only decides refusal copy and strikes.
-    text = " ".join(question.lower().split())
-    name = " ".join((scope.get("staff_name") or "").lower().split())
-    if subject == "other_person" and name and re.search(rf"\b{re.escape(name)}\b", text):
-        return "full"
-    # "What is my PMS score?" labelled other_person is a model slip, not a probe.
-    # First-person wording never refuses; RLS decides what "my" can reach.
-    if subject == "other_person" and _FIRST_PERSON.search(text):
         return "full"
     roles = [r for r in scope.get("roles", ()) if r in _TABLE]
     best = lambda own: max((_cell(r, topic, own) for r in roles), key=_RANK.__getitem__, default="refuse")

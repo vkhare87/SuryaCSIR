@@ -183,10 +183,11 @@ best cell across own division and elsewhere, because it cannot know which divisi
 named person sits in; RLS narrows the rest. So a DivisionHead / HOD asking about one
 person gets `full` (not a strike), and a Scientist still gets `refuse` for the three
 sensitive topics. `subject = division` with no code named means the caller's own
-division; codes compare case-insensitively. First-person wording ("my", "me", "I",
-"myself") on an `other_person` label never refuses: "What is my PMS score?" mislabelled
-must not be a strike, and RLS decides what "my" reaches. A failed role or name lookup
-refuses without a strike (`scope_unavailable`).
+division; codes compare case-insensitively. The verdict comes from the role table only. A refused question
+that names the asker or uses first-person wording ("my", "me", "I", "myself") is still
+refused, but logged `self_unsure`, not a strike: "What is my PMS score?" mislabelled
+`other_person` is a model slip. These hints never widen access. A failed role read refuses
+every question; a failed name read refuses without a strike (both `scope_unavailable`).
 
 Rule for the builder: before shipping, compare every `full` cell with the RLS
 policies. Where RLS is narrower than the cell, narrow the cell. Where RLS is wider,

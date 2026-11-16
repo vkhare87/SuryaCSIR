@@ -1,5 +1,5 @@
 import pytest
-from scope import verdict, scope_of, SCOPE_REFUSAL_TEXT
+from scope import verdict, scope_of, looks_like_self, SCOPE_REFUSAL_TEXT
 
 
 def S(*roles, division="D1", name="Asha Rao"):
@@ -71,28 +71,27 @@ def test_most_permissive_held_role_wins():
     assert verdict(S("Scientist", "HRAdmin"), "personal_details", "other_person") == "full"
 
 
-def test_caller_naming_themself_is_not_refused():
-    q = "What PMS score did Dr. asha rao get?"
-    assert verdict(S("Scientist"), "pms_scores", "other_person", question=q) == "full"
+def test_self_hints_never_widen_the_verdict():
+    for q in ("What PMS score did Dr. asha rao get?", "What is my PMS score?"):
+        assert verdict(S("Scientist"), "pms_scores", "other_person") == "refuse"
+        assert looks_like_self(S("Scientist"), q)
+    assert verdict(S("Scientist"), "projects", "other_person") == "totals"
 
 
-def test_first_person_question_is_not_refused():
-    for q in ("What is my PMS score?", "Show me the PMS score I got", "what did i score"):
-        assert verdict(S("Scientist"), "pms_scores", "other_person", question=q) == "full"
-    # Word boundaries: "mine" inside "determine" is not first person.
-    assert verdict(S("Scientist"), "pms_scores", "other_person", question="Determine Dr X's score") == "refuse"
+def test_looks_like_self():
+    for q in ("What PMS score did Dr. asha rao get?", "What is my PMS score?", "what did i score", "Show me mine"):
+        assert looks_like_self(S("Scientist"), q)
+    # Word boundaries: "mine" in "determine", a longer name, are not self.
+    for q in ("Determine Dr X's score", "What PMS score did Dr. Asha Raoji get?"):
+        assert not looks_like_self(S("Scientist"), q)
 
 
 def test_staff_lookup_failure_is_flagged():
     fake = _Client(rpcs={"caller_roles": [{"role": "Scientist", "division_code": None}]})
     fake.rpc = (lambda real: (lambda name, p: _Q(None, True) if name == "caller_staff_id" else real(name, p)))(fake.rpc)
     s = scope_of(fake)
-    assert s["roles"] == {"Scientist"} and s["staff_name"] is None and s["lookup_failed"] is True
-
-
-def test_name_match_needs_whole_words():
-    q = "What PMS score did Dr. Asha Raoji get?"
-    assert verdict(S("Scientist"), "pms_scores", "other_person", question=q) == "refuse"
+    assert s["roles"] == {"Scientist"} and s["staff_name"] is None and s["name_lookup_failed"] is True
+    assert "lookup_failed" not in s
 
 
 def test_no_table_role_refuses_sensitive():

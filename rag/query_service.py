@@ -12,7 +12,7 @@ from llm import NOT_FOUND, REFUSAL_TEXT
 from router import decide
 from retrieval import traverse, pick_context, flatten, select_docs, section_label
 from analytics import run_analytics, CATALOG, AGGREGATE
-from scope import scope_of, verdict, SCOPE_REFUSAL_TEXT
+from scope import scope_of, verdict, looks_like_self, SCOPE_REFUSAL_TEXT
 
 
 def _catalog_version() -> str:
@@ -260,17 +260,22 @@ def _scope_gate(decision, client, question):
     current question), so an asker who named themself earlier keeps that on a
     follow-up such as "and for 2024?"."""
     scope = scope_of(client)
-    if scope.get("lookup_failed") and not scope["roles"]:
+    if scope.get("lookup_failed"):
         # The roles could not be read, so no scope can be checked: refuse
-        # everything, never as a strike. (A failed name read alone does not.)
+        # everything, never as a strike.
         return _refused(decision, "scope_unavailable")
     v = verdict(scope, decision.get("topic", "unknown"), decision.get("subject", "unknown"),
-                decision.get("subject_division"), question)
+                decision.get("subject_division"))
     if v == "full":
         return None
     if v == "refuse":
-        # A failed role read is our fault, not the asker's: refuse, never strike.
-        return _refused(decision, "scope_unavailable" if scope.get("lookup_failed") else "out_of_scope")
+        # Only a refusal we are sure of is a strike. A failed name read means
+        # the self check could not run; self-like wording may be a model slip.
+        if scope.get("name_lookup_failed"):
+            return _refused(decision, "scope_unavailable")
+        if looks_like_self(scope, question):
+            return _refused(decision, "self_unsure")
+        return _refused(decision, "out_of_scope")
     if decision["route"] == "structured" and decision.get("function") in AGGREGATE:
         answer = _run_structured(decision["function"], decision["params"], client)
         if answer is not None:

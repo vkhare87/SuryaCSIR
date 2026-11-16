@@ -78,6 +78,7 @@ describe('buildAskHistory', () => {
       row('3', 'team', { refusal_reason: 'totals_only' }),
       row('4', 'missing', { refusal_reason: 'no_grounded_answer' }),
       row('5', 'broken', { refusal_reason: 'scope_unavailable' }),
+      row('6', 'mine', { refusal_reason: 'self_unsure' }),
     ]);
     expect([...h.recent, ...h.frequent, ...h.saved].map((i) => i.question)).toEqual(['missing']);
   });
