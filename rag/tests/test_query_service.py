@@ -803,3 +803,57 @@ def test_refused_question_from_a_record_page_reads_no_documents():
 def test_show_me_someone_elses_score_is_a_strike():
     a = handle_query("SCOPE:pms_scores:other_person Show me Dr X's PMS score", _as("Scientist", cls=_NoReadClient), FakeLLM())
     assert a.trace["refusal"] == "out_of_scope"
+
+
+def test_entity_docs_filters_by_entity_type_as_well_as_entity_id():
+    from query_service import entity_docs
+
+    class _FilteringQuery:
+        def __init__(self, rows):
+            self._rows = rows
+            self._filters = []
+
+        def select(self, *_):
+            return self
+
+        def eq(self, col, val):
+            self._filters.append(("eq", col, val))
+            return self
+
+        def in_(self, col, vals):
+            self._filters.append(("in", col, list(vals)))
+            return self
+
+        def execute(self):
+            out = []
+            for row in self._rows:
+                doc = row.get("documents") or {}
+                ok = True
+                for op, col, val in self._filters:
+                    field = col.split(".", 1)[1] if col.startswith("documents.") else col
+                    actual = doc.get(field) if col.startswith("documents.") else row.get(field)
+                    if op == "eq" and actual != val:
+                        ok = False
+                    elif op == "in" and actual not in val:
+                        ok = False
+                if ok:
+                    out.append(row)
+            return _FakeExec(out)
+
+    class _FilteringClient:
+        def __init__(self, tables):
+            self._tables = tables
+
+        def table(self, name):
+            return _FilteringQuery(self._tables.get(name, []))
+
+    client = _FilteringClient({
+        "project_reports": [{"id": "R-1", "project_id": "P-1"}],
+        "doc_indexes": [
+            {"document_id": "d-proj", "tree": _tree("Proj"), "documents": {"id": "d-proj", "title": "Project doc", "entity_type": "project", "entity_id": "P-1"}},
+            {"document_id": "d-rep", "tree": _tree("Rep"), "documents": {"id": "d-rep", "title": "Progress report", "entity_type": "project_report", "entity_id": "R-1"}},
+            {"document_id": "d-div", "tree": _tree("Div"), "documents": {"id": "d-div", "title": "Wrong division doc", "entity_type": "division", "entity_id": "P-1"}},
+        ],
+    })
+    docs = entity_docs(client, {"type": "project", "id": "P-1"})
+    assert [d["id"] for d in docs] == ["d-proj", "d-rep"]

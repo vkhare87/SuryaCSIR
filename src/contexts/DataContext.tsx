@@ -351,10 +351,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }
 
       const skipped = Promise.resolve({ data: [], error: null });
-      const strengthCall = supabase.from('division_strength').select('*').order('division_code');
+      const strengthCall = Promise.resolve(
+        supabase.from('division_strength').select('*').order('division_code'),
+      );
       primeDivisionStrength(
         null,
-        Promise.resolve(strengthCall).then(r => ((r?.data ?? []) as DivisionStrength[]), () => []),
+        strengthCall.then(r => ((r?.data ?? []) as DivisionStrength[]), () => []),
       );
       const [
         divRes, staffRes, projRes, psRes, csRes, strengthRes,

@@ -43,7 +43,11 @@ export function primeDirectorThresholds(userId: string, preferences: unknown): v
   primedUserId = userId;
   const remote = sanitize((preferences as Record<string, unknown> | null)?.directorThresholds);
   if (remote && typeof localStorage !== 'undefined') {
-    saveLocal(remote);
+    try {
+      saveLocal(remote);
+    } catch {
+      primedUserId = null;
+    }
   }
 }
 

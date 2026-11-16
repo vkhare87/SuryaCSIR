@@ -3,13 +3,18 @@ import { loadDivisionStrength, type DivisionStrength } from './api';
 
 let cachedRows: DivisionStrength[] | null = null;
 let inflightPromise: Promise<DivisionStrength[]> | null = null;
+let generation = 0;
 const listeners = new Set<(rows: DivisionStrength[]) => void>();
 
 export function primeDivisionStrength(rows: DivisionStrength[] | null, inflight?: Promise<DivisionStrength[]> | null): void {
   cachedRows = rows;
   inflightPromise = inflight ?? null;
   if (rows !== null) {
+    generation += 1;
     for (const fn of listeners) fn(rows);
+  } else if (!inflight) {
+    generation += 1;
+    for (const fn of listeners) fn([]);
   }
 }
 
@@ -22,13 +27,16 @@ export function useDivisionStrength() {
   const [rows, setRows] = useState<DivisionStrength[]>(() => cachedRows ?? []);
   useEffect(() => {
     let live = true;
+    const capturedGen = generation;
     listeners.add(setRows);
     if (cachedRows !== null) {
       setRows(cachedRows);
       return () => { live = false; listeners.delete(setRows); };
     }
     const source = inflightPromise ?? loadDivisionStrength();
-    source.then(r => { if (live) setRows(r); }).catch(() => { if (live) setRows([]); });
+    source
+      .then(r => { if (live && capturedGen === generation) setRows(r); })
+      .catch(() => { if (live && capturedGen === generation) setRows([]); });
     return () => { live = false; listeners.delete(setRows); };
   }, []);
   const byDivision = useMemo(() => new Map(rows.map(r => [r.division_code, r])), [rows]);

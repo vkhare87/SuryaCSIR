@@ -1,4 +1,5 @@
 import { supabase } from '../../utils/supabaseClient';
+import { fetchAll } from '../data/fetchAll';
 
 export type NoticeKind = 'OFFICE_ORDER' | 'CIRCULAR' | 'NOTICE' | 'EVENT';
 
@@ -29,18 +30,31 @@ const RECENT_NOTICES = 30;
 export async function loadNotices(today: string): Promise<Notice[]> {
   const db = supabase;
   if (!db) return [];
+  const inForce = () => db.from('notices').select('*').is('superseded_by', null)
+    .or(`valid_to.is.null,valid_to.gte.${today}`);
   const [n, r] = await Promise.all([
-    db.from('notices').select('*').is('superseded_by', null)
-      .or(`valid_to.is.null,valid_to.gte.${today}`)
+    inForce()
       .order('must_ack', { ascending: false })
       .order('issued_on', { ascending: false })
       .order('created_at', { ascending: false })
       .limit(RECENT_NOTICES),
-    db.from('notice_reads').select('notice_id, read_at, acked_at'),
+    fetchAll<{ notice_id: string; read_at: string | null; acked_at: string | null }>(
+      db.from('notice_reads').select('notice_id, read_at, acked_at').order('notice_id').order('user_id'),
+    ),
   ]);
   if (n.error) { console.error('[home] notices load failed', n.error); return []; }
-  const reads = new Map((r.data ?? []).map(x => [x.notice_id as string, x]));
-  return (n.data ?? []).map((x) => {
+  if (r.error) console.error('[home] notice reads load failed', r.error);
+  const reads = new Map(r.data.map(x => [x.notice_id, x]));
+  const rows = new Map((n.data ?? []).map(x => [x.id as string, x]));
+  // When RECENT_NOTICES is saturated, ensure older must_ack orders are never cut off.
+  if ((n.data ?? []).length >= RECENT_NOTICES) {
+    const ack = await fetchAll<Record<string, unknown>>(
+      inForce().eq('must_ack', true).order('issued_on', { ascending: false }).order('id'),
+    );
+    if (ack.error) console.error('[home] notices to acknowledge load failed', ack.error);
+    for (const x of ack.data) rows.set(x.id as string, x);
+  }
+  return [...rows.values()].map((x) => {
     const read = reads.get(x.id as string);
     return {
       id: x.id as string, noticeNo: x.notice_no as string, kind: x.kind as NoticeKind, title: x.title as string,

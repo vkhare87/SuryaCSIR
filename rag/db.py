@@ -235,11 +235,12 @@ class SupabaseDB:
             ),
             order_col="id",
         )
-        stale_ids = [
-            row["id"] for row in rows
+        cutoff_iso = cutoff_dt.isoformat()
+        stale_rows = [
+            row for row in rows
             if _is_before(row.get("processing_started_at") or row.get("created_at"), cutoff_dt)
         ]
-        if not stale_ids:
+        if not stale_rows:
             return 0
         patch = {
             "ingest_status": "pending",
@@ -247,20 +248,35 @@ class SupabaseDB:
             "processing_started_at": None,
         }
         base_q = self.c.table("documents").update(patch)
-        if not hasattr(base_q, "in_"):
+        if not hasattr(base_q, "in_") or not hasattr(base_q, "lt") or not hasattr(base_q, "is_"):
             n = 0
-            for doc_id in stale_ids:
-                upd = (self.c.table("documents")
-                       .update(patch)
-                       .eq("id", doc_id).eq("ingest_status", "processing")
-                       .execute().data)
+            for row in stale_rows:
+                q = self.c.table("documents").update(patch).eq("id", row["id"]).eq("ingest_status", "processing")
+                if row.get("processing_started_at"):
+                    q = q.eq("processing_started_at", row["processing_started_at"])
+                elif hasattr(q, "is_"):
+                    q = q.is_("processing_started_at", "null")
+                upd = q.execute().data
                 n += len(upd) if upd else 0
             return n
+        started_ids = [r["id"] for r in stale_rows if r.get("processing_started_at")]
+        null_started_ids = [r["id"] for r in stale_rows if not r.get("processing_started_at")]
         n = 0
-        for i in range(0, len(stale_ids), 200):
+        for i in range(0, len(started_ids), 200):
             upd = (self.c.table("documents")
                    .update(patch)
-                   .in_("id", stale_ids[i : i + 200]).eq("ingest_status", "processing")
+                   .in_("id", started_ids[i : i + 200])
+                   .eq("ingest_status", "processing")
+                   .lt("processing_started_at", cutoff_iso)
+                   .execute().data)
+            n += len(upd) if upd else 0
+        for i in range(0, len(null_started_ids), 200):
+            upd = (self.c.table("documents")
+                   .update(patch)
+                   .in_("id", null_started_ids[i : i + 200])
+                   .eq("ingest_status", "processing")
+                   .is_("processing_started_at", "null")
+                   .lt("created_at", cutoff_iso)
                    .execute().data)
             n += len(upd) if upd else 0
         return n

@@ -99,24 +99,47 @@ def entity_preamble(client, entity):
     return f"This question is about {kind} {rid}" + (f" ({named})" if named else "") + "."
 
 
+_ENTITY_DOC_TYPES = {
+    "project": ["project"],
+    "staff": ["staff", "staff_profile", "publication"],
+    "division": ["division"],
+    "instrument": ["instrument", "equipment"],
+}
+
+
 def entity_docs(client, entity):
     """That record's indexed documents (for a project, also its progress
     reports), or None when it has none; the caller then searches the whole
     corpus. Read only after the scope gate allows retrieval."""
     kind, rid = entity.get("type"), str(entity.get("id") or "")
-    ids = [rid]
+    doc_types = _ENTITY_DOC_TYPES.get(kind)
+    if not doc_types or not rid:
+        return None
+    select_cols = "document_id, tree, documents!inner(id, title, storage_path, entity_type, entity_id)"
+    rows = (client.table("doc_indexes")
+            .select(select_cols)
+            .in_("documents.entity_type", doc_types)
+            .eq("documents.entity_id", rid)
+            .execute().data) or []
     if kind == "project":
         reports = (client.table("project_reports").select("id").eq("project_id", rid).execute().data) or []
-        ids += [r["id"] for r in reports]
-    rows = (client.table("doc_indexes")
-            .select("document_id, tree, documents!inner(id, title, storage_path, entity_id)")
-            .in_("documents.entity_id", ids).execute().data) or []
-    docs = []
+        report_ids = [r["id"] for r in reports]
+        if report_ids:
+            rows = list(rows) + ((client.table("doc_indexes")
+                                  .select(select_cols)
+                                  .eq("documents.entity_type", "project_report")
+                                  .in_("documents.entity_id", report_ids)
+                                  .execute().data) or [])
+    docs, seen_ids = [], set()
     for r in rows:
         doc = r.get("documents") or {}
         if isinstance(doc, list):
             doc = doc[0] if doc else {}
-        docs.append({"id": doc.get("id", r["document_id"]), "title": doc.get("title", "Document"),
+        doc_id = doc.get("id", r["document_id"])
+        if doc_id in seen_ids:
+            continue
+        seen_ids.add(doc_id)
+        docs.append({"id": doc_id, "title": doc.get("title", "Document"),
                      "storage_path": doc.get("storage_path", ""), "tree": r["tree"]})
     return docs or None
 

@@ -1,4 +1,5 @@
 import { supabase } from '../../utils/supabaseClient';
+import { fetchAll } from '../data/fetchAll';
 
 export interface WorkPriority {
   id: string;
@@ -39,9 +40,11 @@ const mapRow = (r: Record<string, unknown>): WorkPriority => ({
 /** Priorities on me and priorities I asked; RLS returns only those two kinds of row. */
 export async function loadPriorities(): Promise<WorkPriority[]> {
   if (!supabase) return [];
-  const { data, error } = await supabase.from('work_priorities').select('*').order('wanted_by');
+  const { data, error } = await fetchAll<Record<string, unknown>>(
+    supabase.from('work_priorities').select('*').order('wanted_by').order('id'),
+  );
   if (error) { console.error('[home] priorities load failed', error); return []; }
-  return (data ?? []).map(r => mapRow(r as Record<string, unknown>));
+  return data.map(r => mapRow(r));
 }
 
 async function rpc(fn: string, args: Record<string, unknown>): Promise<void> {
