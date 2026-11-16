@@ -29,8 +29,8 @@ describe('headPowers', () => {
   const order: DelegationOrder = {
     id: 'o', orderNo: 'DO/2026/01', preset: null, effectiveFrom: '2026-11-14',
     lines: [
-      { kind: 'INDENT', mode: 'HEAD_TELL', limit: 500000, division: '*' },
-      { kind: 'PROPOSAL', mode: 'SELF', limit: null, division: '*' },
+      { kind: 'INDENT', mode: 'HEAD_TELL', limit: 500000, division: '*', sample: 0 },
+      { kind: 'PROPOSAL', mode: 'SELF', limit: null, division: '*', sample: 0 },
       { kind: 'PS_HIRE_EXTEND', mode: 'HEAD_TELL', limit: null, division: 'D2' },
     ],
   };

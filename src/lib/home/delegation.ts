@@ -53,7 +53,8 @@ export function floorKinds(rules: CsirRule[], on?: string): { kind: string; note
     .map(({ k, r }) => ({ kind: k.slice('delegation.floor.'.length), note: r?.note ?? k, verified: Boolean(r?.verified) }));
 }
 
-export interface DelegationOrder { id: string; orderNo: string; preset: Preset | null; effectiveFrom: string; lines: (Line & { division: string })[] }
+export type OrderLine = Line & { division: string; sample: number };
+export interface DelegationOrder { id: string; orderNo: string; preset: Preset | null; effectiveFrom: string; lines: OrderLine[] }
 
 /** The order in force, or null when there is none. Throws when either read
  * fails: a failed read shown as "no order" or "no lines" would let the
@@ -70,27 +71,27 @@ export async function loadOrderInForce(): Promise<DelegationOrder | null> {
     effectiveFrom: o.data.effective_from as string,
     lines: (l.data ?? []).map(x => ({
       kind: x.kind as string, mode: x.mode as DelegationMode, limit: x.amount_limit === null ? null : Number(x.amount_limit),
-      division: x.division_code as string,
+      division: x.division_code as string, sample: Number(x.sample_rate ?? 0),
     })),
   };
 }
 
 /** Issues a new order. `kept`: division-specific lines of the order in force,
- * which the dial does not show; they carry over unchanged. */
-export async function issueOrder(preset: Preset | null, lines: Line[], kept: (Line & { division: string })[] = []): Promise<void> {
+ * which the dial does not show; they carry over unchanged, sample rate included. */
+export async function issueOrder(preset: Preset | null, lines: Line[], kept: OrderLine[] = []): Promise<void> {
   if (!supabase) throw new Error('Not connected');
   const { error } = await supabase.rpc('delegation_issue', {
     p_preset: kept.length ? null : preset,
     p_lines: [
       ...lines.map(l => ({ kind: l.kind, mode: l.mode, limit: l.limit })),
-      ...kept.map(l => ({ kind: l.kind, mode: l.mode, limit: l.limit, division: l.division })),
+      ...kept.map(l => ({ kind: l.kind, mode: l.mode, limit: l.limit, division: l.division, sample: l.sample })),
     ],
   });
   if (error) throw new Error(error.message);
 }
 
 /** The lines a head of this division decides under the order. */
-export function headPowers(order: DelegationOrder | null, division: string | null): (Line & { division: string })[] {
+export function headPowers(order: DelegationOrder | null, division: string | null): OrderLine[] {
   if (!order) return [];
   return order.lines.filter(l => l.mode !== 'SELF' && (l.division === '*' || l.division === division));
 }
