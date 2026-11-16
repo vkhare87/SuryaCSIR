@@ -92,9 +92,9 @@ export default function ProjectReportDetail() {
         <ArrowLeft size={16} /> Back
       </button>
 
-      <div className="flex items-start justify-between gap-4">
+      <div className="card-contrast border rounded-xl p-5 flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-text">{report.projectName}</h1>
+          <h1 className="page-title">{report.projectName}</h1>
           <p className="text-text-muted text-sm">{report.projectNo} · {report.periodLabel}{report.dueDate ? ` · due ${report.dueDate}` : ''}</p>
         </div>
         <Badge variant={PR_STATUS_VARIANT[report.status]}>{PR_STATUS_LABELS[report.status]}</Badge>

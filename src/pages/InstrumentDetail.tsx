@@ -87,7 +87,7 @@ export default function InstrumentDetail() {
   return (
     <div className="space-y-6">
       {/* Back nav */}
-      <div className="flex items-center justify-between gap-4">
+      <div className="card-contrast border rounded-xl p-5 flex items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <button
             onClick={goBack}
@@ -97,7 +97,7 @@ export default function InstrumentDetail() {
             <ArrowLeft size={20} />
           </button>
           <div>
-            <h1 className="text-2xl font-[500] text-text font-serif">Instrument Profile</h1>
+            <h1 className="page-title">Instrument Profile</h1>
             <p className="text-text-muted text-sm">Scientific Instrument Record</p>
           </div>
         </div>
@@ -128,16 +128,16 @@ export default function InstrumentDetail() {
         <div className="lg:col-span-1 space-y-4">
 
           {/* Identity card */}
-          <Card className="border-t-4 border-[#c96442] relative overflow-hidden pt-6">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-[#d97757]/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
+          <Card className="border-t-4 border-terracotta relative overflow-hidden pt-6">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-coral/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
             <div className="flex flex-col items-center text-center space-y-3 z-10 relative">
               <div className="w-16 h-16 rounded-full bg-surface-hover border-4 border-background flex items-center justify-center ring-2 ring-border">
-                <FlaskConical size={28} className="text-[#c96442]" />
+                <FlaskConical size={28} className="text-terracotta" />
               </div>
               <div>
                 <h2 className="text-lg font-[500] text-text font-serif leading-snug">{instrument.Name}</h2>
                 {instrument.instrument_code && (
-                  <p className="text-xs font-mono text-[#c96442] mt-1">{instrument.instrument_code}</p>
+                  <p className="text-xs font-mono text-terracotta mt-1">{instrument.instrument_code}</p>
                 )}
                 <div className="mt-2 flex justify-center gap-2 flex-wrap">
                   <Badge variant={statusVariant(instrument.WorkingStatus)}>
@@ -154,7 +154,7 @@ export default function InstrumentDetail() {
 
           {/* Identification card */}
           <Card>
-            <div className="flex items-center gap-2 text-[10px] font-semibold text-[#c96442] uppercase tracking-[0.2em] mb-3">
+            <div className="flex items-center gap-2 text-[10px] font-semibold text-terracotta uppercase tracking-[0.2em] mb-3">
               <Package size={13} />
               Identification
             </div>
@@ -189,7 +189,7 @@ export default function InstrumentDetail() {
 
           {/* Location card */}
           <Card>
-            <div className="flex items-center gap-2 text-[10px] font-semibold text-[#c96442] uppercase tracking-[0.2em] mb-3">
+            <div className="flex items-center gap-2 text-[10px] font-semibold text-terracotta uppercase tracking-[0.2em] mb-3">
               <MapPin size={13} />
               Location
             </div>
@@ -203,7 +203,7 @@ export default function InstrumentDetail() {
 
           {/* Procurement card */}
           <Card>
-            <div className="flex items-center gap-2 text-[10px] font-semibold text-[#c96442] uppercase tracking-[0.2em] mb-3">
+            <div className="flex items-center gap-2 text-[10px] font-semibold text-terracotta uppercase tracking-[0.2em] mb-3">
               <DollarSign size={13} />
               Procurement
             </div>
@@ -221,7 +221,7 @@ export default function InstrumentDetail() {
           {/* People card */}
           <Card className="p-0 overflow-hidden">
             <div className="p-4 border-b border-border bg-surface flex items-center gap-2">
-              <Users size={16} className="text-[#c96442]" />
+              <Users size={16} className="text-terracotta" />
               <h3 className="text-sm font-[500] text-text font-serif">Associated Personnel</h3>
             </div>
             <div className="divide-y divide-border">
@@ -236,11 +236,11 @@ export default function InstrumentDetail() {
                       to={`/staff/${member.ID}`}
                       className="flex items-center gap-2 flex-1 group"
                     >
-                      <div className="w-8 h-8 rounded-full bg-[#c96442]/10 flex items-center justify-center font-bold text-sm text-[#c96442] shrink-0">
+                      <div className="w-8 h-8 rounded-full bg-terracotta/10 flex items-center justify-center font-bold text-sm text-terracotta shrink-0">
                         {member.Name.charAt(0)}
                       </div>
                       <div>
-                        <div className="text-sm font-medium text-text group-hover:text-[#c96442] transition-colors">{member.Name}</div>
+                        <div className="text-sm font-medium text-text group-hover:text-terracotta transition-colors">{member.Name}</div>
                         <div className="text-xs text-text-muted">{member.Designation}</div>
                       </div>
                     </Link>
@@ -257,7 +257,7 @@ export default function InstrumentDetail() {
           {/* Remark */}
           {instrument.Remark && (
             <Card>
-              <div className="flex items-center gap-2 text-[10px] font-semibold text-[#c96442] uppercase tracking-[0.2em] mb-2">
+              <div className="flex items-center gap-2 text-[10px] font-semibold text-terracotta uppercase tracking-[0.2em] mb-2">
                 <Wrench size={13} />
                 Remark
               </div>

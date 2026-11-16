@@ -1,0 +1,236 @@
+# Lane 1 progress — home screens and common desk
+
+Branch `lane1/home`, cut from `feature/enterprise-phases` at `d632f030` (enterprise P1–P9
+are committed there, not yet on `main`). Order: [`BUILD-ORDER.md`](../../roadmap/sources/BUILD-ORDER.md).
+
+Baseline before any change (2026-11-14): `npm run build` passed; `npm test` 148 files,
+1287 tests passed.
+
+| Phase | Status | Not verified / notes |
+|---|---|---|
+| `SH1` scientist home | **Done** on today's data | Seen in the browser as a Scientist at 1440 px, light and dark theme (2026-11-14): greeting in Fraunces, counts in IBM Plex Mono, one strong button, no console error. The owner agreed to add the Scientist role to the dev login for this check; **the role is still on that login**. Seen at phone width (375 px) too: desk below the role half, no sideways scroll, every link at least 24 px high. Fault found and fixed in the browser check: a role switch counted as work done on the ring (the done-today list is now kept per role) |
+| `CD0` shell | **Done** on today's data | Seen in the browser as MasterAdmin at 1440 px and at phone width: two halves on desktop, desk below the role half on a phone, no sideways scroll, no console error. **Not seen in dark theme** (the app's theme is a class, the browser's colour-scheme switch does not set it). Not seen as other roles |
+| `HH1` head home | **Done** on today's data | Seen in the browser as HOD (2026-11-14), desktop and phone: switch to My own work and back works, no sideways scroll, no console error. The dev login's HOD role has division `DEV`, which has no projects, so the exception rows were seen only in tests (`HoDView.test.tsx`, 6 tests; `division.test.ts`). Acting-head scope is not tested here; it rests on the existing RLS (`caller_in_division` has the acting branch) |
+| `DH1` Director home | **Done** on today's data | Seen in the browser as Director (2026-11-14) on live data, desktop and phone: no sideways scroll, no console error. `DirectorView.test.tsx` (5 tests). Not seen as an acting Director |
+| `ST1` student home | **Done** on today's data | Seen as Student, desktop (2026-11-14). The dev login has no PhD record, so only the "not linked" path was seen live; the road was seen in tests (`roleHomes.test.tsx`, `people.test.ts`) |
+| `PJ1` project staff home | **Done**; migration on live | `20261114120001_project_staff_self_read.sql` pushed to live on 2026-11-14 (owner approved). Live also held four migrations from branch `codebase_feature_review_improvements` (`20261114000001`–`04`) that this branch does not have, so the push ran from a scratch copy holding this branch's files plus those four, unchanged; the dry run listed only this migration. The first number chosen, `20261114000001`, clashed with that branch and was changed. After the push the API needed `NOTIFY pgrst, 'reload schema'`. Checked on live: `project_staff_caller_person()` answers with no error. Clocks and leave seen in tests only (no linked record on the dev login). DB test `projectStaffSelf.db.test.ts` (4 tests) |
+| `TS1` technical staff home | **Done** on today's data | Seen as Technician, desktop and phone. The dev login has no instrument in its charge, so the list was seen in tests only |
+| CD phase A (`CD1`, `CD2`, `CD3`) | **Done**, client version | Seen in the browser (2026-11-14): the door lists ten kinds; "Leave" opens the ticket form with category and subject filled and routing shown; My requests lists proposals and tickets with holder and days. Nothing was submitted |
+| `SH2` report timers | **Done**, client version | Seen in tests only (`requests.test.ts`, `ScientistView.test.tsx`); the dev login owes no dated report |
+| **Wave 2** | **Done** | — |
+| `SH3` priorities + `HH7` | **Done**; migration on live (2026-11-14, owner approved, same scratch-copy push; dry run listed only this file; schema cache reloaded; `work_priorities` read and `priority_may_pin` checked on live) | `20261114120002_work_priorities.sql`: table, `priority_may_pin`, six RPCs, the four rules. DB test `priorities.db.test.ts` (7 tests), parts test `Priorities.test.tsx` (4 tests). Seen in the browser as HOD: the Pin form opens with 18 people; Do first is hidden because the table is not on live (the page logs one load error per visit until it is pushed) |
+| `CD4` notices | **Done**; migration `20261114120003` on live (2026-11-14, owner approved) | DB test `notices.db.test.ts` (6), `Notices.test.tsx` (4). Audience = all or divisions only (roles and named people not built) |
+| `HH2` + `CD6` decision queue | **Done**, client version | Items carry `since`; oldest first; people waiting in the greeting. No approve-in-place, no answer-time record, no pre-checks (`HH3`) |
+| `SH4` nudges | **Done**; migration `20261114120004` on live (2026-11-14, owner approved; cron job `home-overdue-sweep` 45 1 * * * confirmed) | `home_overdue_sweep` tells the head at 7 days late (window 7–37 days), DB test `homeSweep.db.test.ts` (2). Tomorrow is kept in the browser (not a table). On-time record and consequence line on the scientist screen. Seen in the browser as Scientist |
+| **Wave 3** | **Done**, on live | Both pushed from the scratch copy; dry run listed only these two; cache reloaded; notices read and the sweep refused from a browser login, on live. Wave 4 next |
+| `DH2` delegation dial | **Done**; migration `20261114120005` **not on live** | DB test `delegation.db.test.ts` (10), `Delegation.test.tsx` (3), `delegation.test.ts` (4). Seen as Director: the dial opens with presets, lines and the indent limit; nothing issued. Fixed after a background security review: unknown amount fails closed, acting heads cannot approve their own request, the floor holds with no order, orders take effect the day issued. **No module reads the dial yet** (DH3, Lane 2); the screen says so. Floor = plan defaults, unverified, until the Delegation of Powers text is entered |
+| `HH3` pre-checks | **Done**, progress-report reviews only | Time, money and milestones of the project; no line when the project number is ambiguous. Other kinds show no line until their data is on hand. Ask (`decision_questions`) not built |
+| `DH4` oversight | **Not started** | Needs `decision_log`, which comes only when a module records its decisions (DH3) |
+| `CD10` general meetings | **Done**; migration `20261114120006` **not on live** | DB test `generalMeetings.db.test.ts` (5), `Meetings.test.tsx` (4). Seen as Director: the Meetings block and its Call a meeting link. No room booking (committee plan CM1) and no meeting notes |
+| **Wave 4 (Lane 1)** | **Done except DH4** | Two migrations to push |
+
+## SH1 — what was built
+
+- `src/lib/home/`: `classify.ts` (kind → group, minutes), `doNext.ts` (ranking, quick wins,
+  next item), `today.ts` (local dates, done-today, week strip), `greeting.ts`, `api.ts`
+  (`callerStaffId`, `milestonesFor`).
+- `src/contexts/HomeContext.tsx`: mounted by `Dashboard.tsx` only. Holds the staff link
+  (by `caller_staff_id()`), the ranked open items, and the done-today count.
+- `src/pages/dashboards/ScientistView.tsx`: rewritten. `MyActions` is no longer rendered
+  above it. `MyActions` (other roles) now reads the same ranked list from `HomeContext`.
+
+## HH1 — what was built
+
+- `src/pages/dashboards/HoDView.tsx`: greeting, Division / My-own-work switch (remembered
+  per browser), Waiting on you (one strong button), division projects by exception with
+  time and money bars, People (posts, retirements, contracts ending, heavy load),
+  Instruments (down, service contract ending), then the existing division figures.
+  `DivisionHeadView.tsx` now re-exports it.
+- `src/lib/home/division.ts`: `readProject`, `projectsByException`.
+- `src/components/home/parts.tsx`: shared greeting, ask box, action row, block styles and
+  the "not connected yet" block. `ScientistView` uses them too.
+
+Differences from the plan, on purpose:
+
+- **No `caller_division_codes()` and no migration.** The data a head loads is already cut
+  to the division by RLS, and `caller_in_division()` already honours acting charges. The
+  view also filters by the role's division code.
+- "Needs attention" today = past end date, ends within 60 days, late milestones, or money
+  use more than 25 points behind time use. "Vacant post on the project" and "review soon"
+  are not in the rule yet (they need `HH2` / post-to-project links).
+- "Waiting on you" is the ranked action list until `HH2` builds the decision queue. It has
+  no pre-check line and no days-waiting yet.
+- The old attention strip, staff table and project table are gone from this page; the
+  directory and project pages hold them.
+
+## DH1 — what was built
+
+- `src/pages/dashboards/DirectorView.tsx`: greeting, ask box, Waiting on you (one strong
+  button), Divisions by exception, My week, four institute figures that each open their
+  list, one card that names the seven blocks not connected yet, then the existing
+  institute charts.
+- `src/lib/home/division.ts`: `divisionRollup`. `parts.tsx`: `WaitingOnYou`, shared with
+  the head screen.
+
+Found on live data and fixed:
+
+- **No project has a spent amount recorded**, so "money far behind time" flagged every
+  project (19 of 19 in one division). The rule now needs a recorded spent amount; without
+  one the money figure is "—" and there is no flag. The same gap makes the old
+  "low fund burn 82" tile at the bottom of the page meaningless; that tile is old code and
+  was left as it is.
+- After the fix the live figures are 9 of 19, 7 of 16 and so on. These come from real end
+  dates that are past (39 running projects are past their end date). That is a data matter
+  for PME, not a screen fault.
+
+Differences from the plan, on purpose:
+
+- `division_rollup()` is a client function over data the Director already loads, not a
+  database function. Move it to SQL when `DH13` needs it on the server.
+- The head's answer time is not in the division row yet (`HH2`).
+- Posts show "—" because no sanctioned posts are entered on live.
+- The old data-freshness table and the threshold sliders are gone from this page.
+
+## ST1, PJ1, TS1 — what was built
+
+- `StudentView.tsx`: greeting that names the next PhD step, the road of eight steps,
+  ask box, waiting on you, work record, need-something buttons, and two blocks not
+  connected yet (supervisor meetings, fellowship clock). A student sees only their own road.
+- `ProjectStaffView.tsx`: contract clock and cap clock (cap and leave days read from
+  `csir_rules`, never a constant), leave since 1 April, letter buttons, and two blocks not
+  connected yet (pay, what next).
+- `TechnicianView.tsx`: my instruments, down first, with service-contract dates; links to
+  the instrument page where the logbook already is; three blocks not connected yet
+  (queue, quick entry, my year).
+- `src/lib/home/people.ts` (+ tests): PhD road, leave year, paid leave used, contract
+  clock, tenure in years and months, and the loader for the caller's own engagement.
+- Migration `20261114120001_project_staff_self_read.sql`: `project_staff_persons.user_id`,
+  `project_staff_caller_person()`, a self branch on the engagements read policy (person
+  and leave policies follow it), and `project_staff_link_user()` for PME / HR.
+
+Differences from the plan, on purpose:
+
+- **Students are still matched by name**, the same as the `phd_students` read policy. A
+  login link for students is a later migration.
+- **No screen to link a project staff login yet.** PME / HR can call
+  `project_staff_link_user(person, user)`; a button on the roster page is Lane 2's page.
+- **Technician "my instruments"** = instruments whose owner is the login, or whose operator
+  name matches. The in-charge register is `TS2`.
+- The leave year is 1 April – 31 March until a rule names it.
+- No leave request form and no one-click letters: those are `PJ2` and `PJ3`. The buttons
+  open a helpdesk request today.
+
+## CD phase A and SH2 — what was built
+
+- `src/lib/home/requests.ts` (+ tests): the request kinds and their ticket-form address;
+  `myRequests` over tickets, proposals, progress reports and contribution requests, each
+  with who holds it and for how many days; `reportTimers` over the reports a person owes.
+- Common desk: "Raise a request" opens the list of kinds; My requests shows every kind.
+- `TicketForm.tsx` (helpdesk page, small additive change): reads `?category=` and
+  `?subject=` so the door can fill them in. An unknown category is ignored.
+- Scientist screen: Report timers block, one ring per report with days left (negative
+  when late); those reports no longer repeat under "Also open".
+
+Differences from the plan, on purpose (each can move to SQL when Ask SURYA needs it):
+
+- `CD1` my day stays the client `myDay` from CD0; no `my_day()` function, no
+  `starts_at` column, no `.ics` link yet.
+- `CD2` has no `request_norms` table and no Remind button: it shows days, not days past a norm.
+- `CD3` kinds are a constant in code, not a `request_catalog` table; every kind is a
+  helpdesk ticket. "A complaint" goes to the HR grievance desk by the existing routing;
+  **it is not confidential yet** (the plan's confidential rule needs a migration).
+- `SH2` has no `my_report_timers()` function and no "lines left": timers come from the
+  open actions that carry a due date.
+
+## SH3 and HH7 — what was built
+
+- Migration `20261114120002_work_priorities.sql`: `work_priorities` (read by the person
+  and the asker only; no direct writes), `priority_may_pin()` (Director; head of the
+  division, held or acting; reporting officer; PI of a project the person works on,
+  by `project_staff.staff_id` or a current engagement; PhD supervisor), and
+  `priority_pin`, `priority_seen`, `priority_push_back`, `priority_answer`,
+  `priority_done`, `priority_withdraw`. The fourth open priority is refused by name under
+  an advisory lock. Same-day clash tells both askers. Each step writes one notification
+  through `priority_notify` (EXECUTE revoked; listed in the audit's EXEMPT map).
+- `src/lib/home/priorities.ts` (+ tests), `HomeContext` loads them,
+  `src/components/home/Priorities.tsx`: `DoFirst` (amber border, once), `PinButton` with
+  the pin form, `PrioritiesAsked` (accept or keep a new date, withdraw).
+- All six role screens show Do first. Head, Director and scientist have Pin a priority
+  and Priorities I asked. While a priority is open it holds the screen's one strong
+  button; the other Open buttons become plain.
+- The pin form lists every staff member with a login that the asker can see; the
+  database decides who may be pinned and says so in plain words.
+
+Not built from the plan: pin from a task row or a profile page (only from the home
+page); a link field on the pin form (the column exists).
+
+## Dev login
+
+The owner agreed (2026-11-14) to add roles to the dev login for browser checks. It now
+holds: `MasterAdmin`, `DefaultUser`, `Scientist`, `HOD`, `Director`, `Student`,
+`ProjectStaff`, `Technician`, and `PME`. **`PME` was not asked for**: it appeared while
+the owner and the agent were both clicking in the same tab. Remove the roles in
+Master Admin → Users & Roles when the checks are done.
+
+## CD0 — what was built
+
+- `src/components/home/CommonDesk.tsx`: Raise a request, My day, My requests, Notices,
+  People, and My committees (only when the person has a meeting coming).
+- `src/lib/home/desk.ts`: `myDay`, `myRequests`, `currentNotices`, `withoutClaimed`,
+  `deskKey` (tests in `desk.test.ts`).
+- `HomeContext`: `claimed` / `claim` and the `useClaim` hook. `ScientistView` and
+  `MyActions` claim the rows they show, so the desk does not repeat them.
+- `Dashboard.tsx`: every working role renders role half + desk
+  (`xl:grid-cols-[minmax(0,1fr)_320px]`). `Guest` and `DefaultUser` have no desk.
+
+Left for later, on purpose:
+
+- Collapse the right column to icons (plan rule 7) — not built; add when someone asks.
+- Phone order "first three role blocks, then the desk" — today the whole role half comes
+  first. For roles still on the old dashboards that is a long scroll; it shortens as each
+  role view is rebuilt in wave 2.
+- The breakpoint is `xl` (1280 px), not 1100 px: with the sidebar open, 1100 px leaves the
+  role half too narrow.
+- Search and the bell stay in the existing top bar; they were already common.
+- My requests reads helpdesk tickets only; Notices reads calendar announcements only
+  (`CD2`, `CD4` widen them).
+
+## Defaults used
+
+- Time estimates: fixed table per kind in `classify.ts` (plan question 5).
+- "Done today" is a view convenience kept in `localStorage` per user per day: items seen
+  open earlier today that are closed now. It is not a record.
+
+## Blocks marked "not connected yet"
+
+| Block | Waits on |
+|---|---|
+| Scientist · Waiting in offices | `SH6` (CPS / AMS / eHRMS files) |
+| Common desk · People (who is away today) | `CD5` (eHRMS leave file) |
+| Head · Reports that go up from you | `HH4` |
+| Head · Technologies | `HH5` |
+| Head · Outside | `HH6` |
+| Director · Briefing and watch list | `DH13` |
+| Director · How much reaches me (delegation) | `DH2` |
+| Director · From CSIR Headquarters | `DH5` |
+| Director · Fund status by head | `DH10` |
+| Director · The next 12 months | `DH9` |
+| Director · Purchase plan and stuck in offices | `DH11`, `DH6` |
+| Director · Infrastructure | `DH12` |
+| Student · Supervisor meetings | `ST3` |
+| Student · Fellowship clock | `ST2` |
+| Project staff · My pay | `SH6` (AMS file) |
+| Project staff · What next for me | `PJ4` |
+| Technician · Today's queue | `TS2` |
+| Technician · Quick entry | `TS3` |
+| Technician · My year | `TS4` |
+
+## Known limits carried forward
+
+- Committee action items and `project_staff` rows hold a **name**, not a staff ID. Until
+  `CM0` (action items) and the project-staff link are by ID, "Committee tasks on me",
+  team rows and project membership (non-PI) still match by name. PI projects, committees
+  and the staff row itself are matched by ID.
+- Do-first (priorities) is `SH3`; report timers are `SH2`; neither block is on the screen yet.
+- Old content removed from the scientist page (own proposals, publications, IRINS panel)
+  is reachable from "My profile"; the page links to it.

@@ -39,7 +39,7 @@ export default function ActingCharges() {
   return (
     <div className="space-y-6 pb-12">
       <div>
-        <h1 className="text-3xl font-[500] text-text uppercase tracking-tight font-serif flex items-center gap-3">
+        <h1 className="page-title flex items-center gap-3">
           <UserCog size={26} className="text-terracotta" /> Acting Charges
         </h1>
         <p className="text-text-muted mt-1 text-sm">
@@ -82,7 +82,7 @@ export default function ActingCharges() {
       </Card>
 
       <Card className="p-0 overflow-hidden">
-        <table className="w-full text-sm">
+        <table className="ledger w-full text-sm">
           <thead className="text-xs text-text-muted"><tr>
             <th className="text-left px-5 py-2">Charge</th><th className="text-left">Acting officer</th><th className="text-left">In place of</th>
             <th className="text-left">Dates</th><th className="text-left">Order</th><th className="px-5" />

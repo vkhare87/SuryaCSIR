@@ -5,6 +5,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { Card, Badge } from '../../components/ui/Cards';
 import { Button } from '../../components/ui/Button';
 import { friendlyError } from '../../lib/errors';
+import { Section } from '../../components/ui/Section';
 import type { CsirRule } from '../../types';
 
 const input = 'w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text focus:outline-none focus:ring-2 focus:ring-terracotta/40';
@@ -46,7 +47,7 @@ export default function CsirRules() {
   return (
     <div className="space-y-8 pb-12">
       <div>
-        <h1 className="text-3xl font-[500] text-text uppercase tracking-tight font-serif flex items-center gap-3">
+        <h1 className="page-title flex items-center gap-3">
           <Scale size={26} className="text-terracotta" /> CSIR Rules
         </h1>
         <p className="text-text-muted mt-1 text-sm font-medium">
@@ -54,8 +55,7 @@ export default function CsirRules() {
         </p>
       </div>
 
-      <Card className="p-6">
-        <h2 className="text-base font-semibold text-text-muted uppercase tracking-wide mb-4">Add a dated value</h2>
+      <Section id="csirrules-add-a-dated-value" title="Add a dated value" className="p-6">
         <form onSubmit={e => void submit(e)} className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <label className="text-xs text-text-muted md:col-span-2">Rule
             <input className={input} list="rule-keys" required value={form.key} onChange={e => setForm({ ...form, key: e.target.value })} />
@@ -79,10 +79,10 @@ export default function CsirRules() {
           </label>
           <div className="md:text-right"><Button type="submit" disabled={saving}>{saving ? 'Saving…' : 'Add value'}</Button></div>
         </form>
-      </Card>
+      </Section>
 
       <Card className="p-0 overflow-hidden">
-        <table className="w-full text-sm">
+        <table className="ledger w-full text-sm">
           <thead className="text-xs text-text-muted uppercase tracking-wide border-b border-border">
             <tr><th className="text-left px-6 py-3">Rule</th><th className="text-left px-3 py-3">Value</th><th className="text-left px-3 py-3">In force</th><th className="text-left px-3 py-3">Source</th><th className="px-6 py-3" /></tr>
           </thead>

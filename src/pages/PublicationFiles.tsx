@@ -61,7 +61,7 @@ export default function PublicationFiles() {
   return (
     <div className="space-y-6 pb-12">
       <div>
-        <h1 className="text-3xl font-[500] text-text uppercase tracking-tight font-serif flex items-center gap-3">
+        <h1 className="page-title flex items-center gap-3">
           <FileText size={26} className="text-terracotta" /> Publication Files
         </h1>
         <p className="text-text-muted mt-1 text-sm">

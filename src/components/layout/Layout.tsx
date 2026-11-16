@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, useLocation, useNavigate, useOutlet } from 'react-router-dom';
-import { Search, Menu, AlertCircle, ChevronDown, ChevronRight, LayoutDashboard, Sparkles, Calendar as CalendarIcon } from 'lucide-react';
+import { Search, Menu, AlertCircle, ChevronDown, ChevronRight, LayoutDashboard, Sparkles, Calendar as CalendarIcon, Sun, Moon, LogOut, Settings as SettingsIcon } from 'lucide-react';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
 import CommandPalette from '../CommandPalette';
@@ -15,8 +15,13 @@ import { useFeatureControls } from '../../contexts/FeatureControlContext';
 import { ROLE_ROUTES } from '../../constants/roleRoutes';
 import { ROLE_LABELS } from '../../constants/access';
 import { pageTrail } from '../../utils/pageTrail';
-import { useDialog } from '../../utils/useDialog';
+import type { Crumb } from '../../utils/pageTrail';
+import { useTheme } from '../../contexts/ThemeContext';
+import { Popover } from '../ui/Popover';
 import { ErrorBoundary, PageErrorCard } from '../ErrorBoundary';
+
+const MENU_ITEM = 'w-full text-left px-3 py-2 text-xs font-medium rounded-lg transition-colors';
+const DENSITIES = ['compact', 'medium', 'relaxed'] as const;
 
 // UserAccount carries no display name, so derive from the email local part:
 // "khare.vivek87@…" → "KV", "vkhare@…" → "VK".
@@ -30,13 +35,16 @@ export function Layout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [roleSwitcherOpen, setRoleSwitcherOpen] = useState(false);
-  const roleMenuRef = useDialog<HTMLDivElement>(roleSwitcherOpen, () => setRoleSwitcherOpen(false));
 
-  const { user, role, roles, setActiveRole } = useAuth();
+  const { user, role, roles, setActiveRole, logout } = useAuth();
+  const { theme, setTheme, density, setDensity } = useTheme();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const trail = pageTrail(pathname);
+  // A long trail keeps its first and last two crumbs; the middle folds into "…".
+  const crumbs: (Crumb | { folded: Crumb[] })[] = trail.length > 3
+    ? [trail[0], { folded: trail.slice(1, -2) }, ...trail.slice(-2)]
+    : trail;
   const { isMobile, deviceType } = useUI();
   const { error } = useData();
   const toast = useToast();
@@ -75,11 +83,11 @@ export function Layout() {
         onOpenSettings={() => setSettingsOpen(true)}
       />
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0">
+      {/* Main Content Area: one scroller, so the page slides under the glass top bar */}
+      <div className="flex-1 min-w-0 overflow-auto bg-background relative">
 
         {/* TopBar */}
-        <header className="h-16 bg-surface border-b border-border flex items-center justify-between px-4 md:px-6 z-10">
+        <header className="sticky top-0 h-16 bg-surface/80 backdrop-blur-md border-b border-border flex items-center justify-between px-4 md:px-6 z-20">
           <div className="flex items-center gap-3 min-w-0">
             {isMobile && (
               <button
@@ -92,11 +100,17 @@ export function Layout() {
             )}
             <nav aria-label="Breadcrumb" className="min-w-0">
               <ol className="flex items-center gap-1.5 min-w-0">
-                {trail.map((c, i) => {
-                  const last = i === trail.length - 1;
+                {crumbs.map((c, i) => {
+                  const last = i === crumbs.length - 1;
                   return (
                     <li key={i} className={clsx('flex items-center gap-1.5 min-w-0', !last && 'hidden md:flex')}>
-                      {c.to ? (
+                      {'folded' in c ? (
+                        <Popover label="Show hidden path" align="left" trigger="…" triggerClassName="px-1.5 rounded text-sm text-text-muted hover:text-text hover:bg-surface-hover">
+                          {(close) => c.folded.map(f => (
+                            <Link key={f.to} to={f.to ?? '/'} onClick={close} className={clsx(MENU_ITEM, 'block text-text-muted hover:text-text hover:bg-surface-hover')}>{f.label}</Link>
+                          ))}
+                        </Popover>
+                      ) : c.to ? (
                         <Link to={c.to} className="text-sm text-text-muted hover:text-text truncate">{c.label}</Link>
                       ) : (
                         <span aria-current="page" className="text-base md:text-xl text-text font-serif truncate">{c.label}</span>
@@ -127,51 +141,84 @@ export function Layout() {
                 <span className="hidden sm:inline px-2.5 py-1.5 text-xs font-semibold text-text-muted">{ROLE_LABELS[role]}</span>
               )}
               {roles.length > 1 && (
-                <div
-                  className="relative"
-                  onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setRoleSwitcherOpen(false); }}
-                >
-                  <button
-                    onClick={() => setRoleSwitcherOpen(v => !v)}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 bg-surface-hover border border-border rounded-[8px] text-xs font-semibold text-text-muted hover:border-terracotta hover:text-text transition-colors"
-                    aria-label={role ? `Acting as ${ROLE_LABELS[role]}. Switch role` : 'Switch role'}
-                    aria-expanded={roleSwitcherOpen}
-                  >
+                <Popover
+                  label={role ? `Acting as ${ROLE_LABELS[role]}. Switch role` : 'Switch role'}
+                  triggerClassName="flex items-center gap-1.5 px-2.5 py-1.5 bg-surface-hover border border-border rounded-[8px] text-xs font-semibold text-text-muted hover:border-terracotta hover:text-text transition-colors"
+                  trigger={<>
                     <span className="hidden sm:inline">{role && ROLE_LABELS[role]}</span>
-                    <ChevronDown size={13} className={`transition-transform ${roleSwitcherOpen ? 'rotate-180' : ''}`} />
-                  </button>
-                  {roleSwitcherOpen && (
-                    <div ref={roleMenuRef} tabIndex={-1} className="absolute right-0 top-full mt-1 bg-surface border border-border rounded-[10px] shadow-lg z-50 py-1 min-w-[160px] outline-none">
-                      {roles.map(r => (
-                        <button
-                          key={r}
-                          onClick={() => {
-                            void setActiveRole(r);
-                            navigate(ROLE_ROUTES[r]);
-                            setRoleSwitcherOpen(false);
-                          }}
-                          className={`w-full text-left px-4 py-2 text-xs font-medium transition-colors ${
-                            r === role
-                              ? 'text-terracotta bg-terracotta/10'
-                              : 'text-text-muted hover:text-text hover:bg-surface-hover'
-                          }`}
-                        >
-                          {ROLE_LABELS[r]}
-                          {r === role && <span className="ml-2 text-[10px] opacity-60">active</span>}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                    <ChevronDown size={13} />
+                  </>}
+                >
+                  {(close) => roles.map(r => (
+                    <button
+                      key={r}
+                      onClick={() => {
+                        void setActiveRole(r);
+                        navigate(ROLE_ROUTES[r]);
+                        close();
+                      }}
+                      className={clsx(MENU_ITEM, r === role
+                        ? 'text-terracotta bg-terracotta/10'
+                        : 'text-text-muted hover:text-text hover:bg-surface-hover')}
+                    >
+                      {ROLE_LABELS[r]}
+                      {r === role && <span className="ml-2 text-[10px] opacity-60">active</span>}
+                    </button>
+                  ))}
+                </Popover>
               )}
 
-              {/* User Avatar */}
-              <div
-                className="h-8 w-8 rounded-full bg-terracotta text-ivory flex items-center justify-center font-bold text-xs ring-1 ring-terracotta-hover shrink-0"
-                title={user?.email}
+              {/* User menu */}
+              <Popover
+                label="Your account"
+                className="w-72"
+                triggerClassName="h-8 w-8 rounded-full bg-terracotta text-ivory flex items-center justify-center font-bold text-xs ring-1 ring-terracotta-hover shrink-0"
+                trigger={emailInitials(user?.email)}
               >
-                {emailInitials(user?.email)}
-              </div>
+                {(close) => (
+                  <>
+                    <div className="px-3 py-2 border-b border-border mb-1">
+                      <p className="text-sm text-text truncate" title={user?.email}>{user?.email}</p>
+                      {role && <p className="text-xs text-text-muted">{ROLE_LABELS[role]}</p>}
+                    </div>
+                    <button
+                      onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                      className={clsx(MENU_ITEM, 'flex items-center gap-2 text-text-muted hover:text-text hover:bg-surface-hover')}
+                    >
+                      {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+                      {theme === 'dark' ? 'Light theme' : 'Dark theme'}
+                    </button>
+                    <div className="px-3 py-2 flex items-center justify-between gap-2">
+                      <span className="text-xs font-medium text-text-muted">Density</span>
+                      <div className="inline-flex rounded-lg border border-border p-0.5">
+                        {DENSITIES.map(d => (
+                          <button
+                            key={d}
+                            onClick={() => setDensity(d)}
+                            aria-pressed={density === d}
+                            className={clsx('px-2 py-1 text-[11px] font-medium rounded-md capitalize transition-colors',
+                              density === d ? 'bg-surface-hover text-text' : 'text-text-muted hover:text-text')}
+                          >
+                            {d}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => { close(); setSettingsOpen(true); }}
+                      className={clsx(MENU_ITEM, 'flex items-center gap-2 text-text-muted hover:text-text hover:bg-surface-hover')}
+                    >
+                      <SettingsIcon size={14} />Settings
+                    </button>
+                    <button
+                      onClick={() => { close(); void logout(); }}
+                      className={clsx(MENU_ITEM, 'flex items-center gap-2 text-danger hover:bg-surface-hover')}
+                    >
+                      <LogOut size={14} />Logout
+                    </button>
+                  </>
+                )}
+              </Popover>
           </div>
         </header>
 
@@ -190,8 +237,7 @@ export function Layout() {
           </div>
         )}
 
-        {/* Scrollable Content Viewport */}
-        <main className={clsx('flex-1 overflow-auto p-4 md:p-8 bg-background relative', isMobile && 'pb-24')}>
+        <main className={clsx('p-4 md:p-8', isMobile && 'pb-24')}>
            <div className="mx-auto max-w-7xl w-full">
              <AnimatePresence mode="wait">
                {/* Keyed on the path, not the hash: the hash carries ?tab= and
@@ -199,6 +245,7 @@ export function Layout() {
                    anything typed — every time a tab or filter changed. */}
                <motion.div
                  key={pathname}
+                 className="page-slot"
                  initial={{ opacity: 0, y: 10 }}
                  animate={{ opacity: 1, y: 0 }}
                  exit={{ opacity: 0, y: -10 }}

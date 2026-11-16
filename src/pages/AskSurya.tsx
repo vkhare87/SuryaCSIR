@@ -103,7 +103,7 @@ export default function AskSurya() {
   return (
     <div className="p-6 max-w-3xl mx-auto space-y-6">
       <div>
-        <h1 className="flex items-center gap-2 text-2xl font-semibold text-text">
+        <h1 className="page-title flex items-center gap-2">
           <Sparkles className="h-6 w-6 text-text-muted" /> Ask SURYA
         </h1>
         <p className="text-sm text-text-muted">

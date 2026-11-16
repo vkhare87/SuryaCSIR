@@ -126,13 +126,13 @@ export default function TicketList() {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-[500] text-text font-serif">Helpdesk</h1>
+          <h1 className="page-title">Helpdesk</h1>
           <p className="text-text-muted mt-1">Support tickets and grievance tracking</p>
         </div>
         {user && (
           <button
             onClick={() => navigate('/helpdesk/new')}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-[#c96442] text-[#faf9f5] rounded-lg text-sm font-medium hover:bg-[#b5593b] transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-terracotta text-ivory rounded-lg text-sm font-medium hover:bg-terracotta-hover transition-colors"
           >
             <Plus size={16} />
             New Ticket
@@ -188,7 +188,7 @@ export default function TicketList() {
             placeholder="Search by token, subject, description..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-9 pr-4 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm w-full sm:w-72"
+            className="pl-9 pr-4 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-focus-blue outline-none text-sm w-full sm:w-72"
           />
         </div>
         <div className="relative">
@@ -196,7 +196,7 @@ export default function TicketList() {
           <select aria-label="Filter by status"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as TicketStatus | 'All')}
-            className="w-full sm:w-auto sm:max-w-xs max-w-full pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm appearance-none cursor-pointer"
+            className="w-full sm:w-auto sm:max-w-xs max-w-full pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-focus-blue outline-none text-sm appearance-none cursor-pointer"
           >
             <option value="All">All Status</option>
             {STATUS_SORT_ORDER.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -207,7 +207,7 @@ export default function TicketList() {
           <select aria-label="Filter by urgency"
             value={urgencyFilter}
             onChange={(e) => setUrgencyFilter(e.target.value as TicketUrgency | 'All')}
-            className="w-full sm:w-auto sm:max-w-xs max-w-full pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm appearance-none cursor-pointer"
+            className="w-full sm:w-auto sm:max-w-xs max-w-full pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-focus-blue outline-none text-sm appearance-none cursor-pointer"
           >
             <option value="All">All Urgency</option>
             {URGENCY_SORT_ORDER.map((u) => <option key={u} value={u}>{u}</option>)}
@@ -218,7 +218,7 @@ export default function TicketList() {
           <select aria-label="Filter by category"
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value as TicketCategory | 'All')}
-            className="w-full sm:w-auto sm:max-w-xs max-w-full pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm appearance-none cursor-pointer"
+            className="w-full sm:w-auto sm:max-w-xs max-w-full pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-focus-blue outline-none text-sm appearance-none cursor-pointer"
           >
             <option value="All">All Categories</option>
             {CATEGORY_CONFIG.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
@@ -272,7 +272,7 @@ export default function TicketList() {
         <div className="flex flex-col items-center justify-center min-h-[40vh] text-center space-y-2">
           <Search size={48} className="text-text-muted" />
           <p className="text-text-muted">No tickets match your filters.</p>
-          <button onClick={clearFilters} className="text-sm text-[#c96442] hover:underline inline-flex items-center gap-1">
+          <button onClick={clearFilters} className="text-sm text-terracotta hover:underline inline-flex items-center gap-1">
             <RotateCcw size={12} /> Clear all filters
           </button>
         </div>

@@ -43,7 +43,7 @@ export default function ProjectReports() {
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-text">Progress Reports</h1>
+          <h1 className="page-title">Progress Reports</h1>
           <p className="text-text-muted text-sm">Periodic project progress reports and reviews.</p>
         </div>
         {showCreate && (
