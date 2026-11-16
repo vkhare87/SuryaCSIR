@@ -47,10 +47,10 @@ describe('DelegationDial safety', () => {
   });
 
   it('carries division-specific lines over when the order is reissued', async () => {
-    const override = { kind: 'INDENT', mode: 'SELF' as const, limit: null, division: 'D1' };
+    const override = { kind: 'LEAVE_TOUR', mode: 'HEAD_FLAGS' as const, limit: null, division: 'D1', sample: 25 };
     vi.mocked(loadOrderInForce).mockResolvedValue({
       id: 'o', orderNo: 'DO/2026/01', preset: null, effectiveFrom: '2026-11-14',
-      lines: [{ kind: 'INDENT', mode: 'HEAD_TELL', limit: 500000, division: '*' }, override],
+      lines: [{ kind: 'INDENT', mode: 'HEAD_TELL', limit: 500000, division: '*', sample: 0 }, override],
     });
     render(<DelegationDial />);
     fireEvent.click(await screen.findByRole('button', { name: 'Change' }));
@@ -66,7 +66,7 @@ describe('HeadPowers', () => {
   it('lists what the head decides with the limit', async () => {
     vi.mocked(loadOrderInForce).mockResolvedValue({
       id: 'o', orderNo: 'DO/2026/01', preset: 'BALANCED', effectiveFrom: '2026-11-14',
-      lines: [{ kind: 'INDENT', mode: 'HEAD_TELL', limit: 500000, division: '*' }, { kind: 'PROPOSAL', mode: 'SELF', limit: null, division: '*' }],
+      lines: [{ kind: 'INDENT', mode: 'HEAD_TELL', limit: 500000, division: '*', sample: 0 }, { kind: 'PROPOSAL', mode: 'SELF', limit: null, division: '*', sample: 0 }],
     });
     render(<HeadPowers division="D1" />);
     expect(await screen.findByText(/You decide these under order/)).toBeTruthy();
