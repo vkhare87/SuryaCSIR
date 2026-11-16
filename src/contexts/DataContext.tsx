@@ -349,10 +349,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
       const skipped = Promise.resolve({ data: [], error: null });
       const [
-        divRes, staffRes, projRes, psRes, phdRes, equipRes, labsRes, soRes, ipRes, csRes,
-        vaRes, vpRes, vappRes,
-        cmtRes, cmmRes, mtgRes, agiRes, actRes, mdcRes, tktRes, trsRes, tevRes, hrtRes,
-        ceRes, holRes, mouRes, ttRes, phmRes, ieRes, crRes, dsRes, strengthRes,
+        divRes, staffRes, projRes, psRes, csRes, strengthRes,
       ] = await Promise.all([
         // Every read is paged (fetchAll) — an unbounded select is capped at
         // db-max-rows silently, with no error and no flag, so the aggregates
@@ -364,6 +361,29 @@ export function DataProvider({ children }: { children: ReactNode }) {
         fetchAll(supabase.from('staff').select('*').order('ID')),
         fetchAll(supabase.from('projects').select('*').order('ProjectNo')),
         fetchAll(supabase.from('project_staff').select('*').order('ProjectNo').order('StaffName')),
+        loadContracts ? fetchAll(supabase.from('contract_staff').select('*').order('Name')) : skipped,
+        // Strength comes from the post register (division_strength, 20261113000001),
+        // never the two integers kept on divisions: every page reads these fields.
+        supabase.from('division_strength').select('division_code, sanctioned, filled'),
+      ]);
+      if (!isCurrentLoad()) return;
+
+      if (isSliceCurrent('hr')) {
+        setDivisions(divRes.data ? withStrength(divRes.data.map(mapDivisionRow), strengthRes.data) : []);
+        setRawStaff(staffRes.data ? staffRes.data.map(mapStaffRow) : []);
+        setContractStaff(csRes.data ? csRes.data.map(mapContractStaffRow) : []);
+      }
+      if (isSliceCurrent('projects')) {
+        setRawProjects(projRes.data ? projRes.data.map(mapProjectRow) : []);
+        setProjectStaff(psRes.data ? psRes.data.map(mapProjectStaffRow) : []);
+      }
+
+      const [
+        phdRes, equipRes, labsRes, soRes, ipRes,
+        vaRes, vpRes, vappRes,
+        cmtRes, cmmRes, mtgRes, agiRes, actRes, mdcRes, tktRes, trsRes, tevRes, hrtRes,
+        ceRes, holRes, mouRes, ttRes, phmRes, ieRes, crRes, dsRes,
+      ] = await Promise.all([
         fetchAll(supabase.from('phd_students').select('*').order('EnrollmentNo')),
         // equipment's PK is "UInsID", not id — ordering by a column that does
         // not exist is a 400, not a silent no-op.
@@ -371,7 +391,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
         fetchAll(supabase.from('labs').select('*').order('id')),
         fetchAll(supabase.from('scientific_outputs').select('*').order('id')),
         fetchAll(supabase.from('ip_intelligence').select('*').order('id')),
-        loadContracts ? fetchAll(supabase.from('contract_staff').select('*').order('Name')) : skipped,
         loadRecruitment ? fetchAll(supabase.from('vacancy_advertisements').select('*').order('created_at', { ascending: false }).order('id')) : skipped,
         loadRecruitment ? fetchAll(supabase.from('vacancy_posts').select('*').order('id')) : skipped,
         loadRecruitment ? fetchAll(supabase.from('vacancy_applications').select('*').order('applied_on', { ascending: false }).order('id')) : skipped,
@@ -393,9 +412,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
         loadDataOps ? fetchAll(supabase.from('import_events').select('*').order('uploaded_at', { ascending: false }).order('id')) : skipped,
         fetchAll(supabase.from('contribution_requests').select('*').order('created_at', { ascending: false }).order('id')),
         fetchAll(supabase.from('data_stewards').select('*').order('id')),
-        // Strength comes from the post register (division_strength, 20261113000001),
-        // never the two integers kept on divisions: every page reads these fields.
-        supabase.from('division_strength').select('division_code, sanctioned, filled'),
       ]);
       if (!isCurrentLoad()) return;
 
@@ -445,15 +461,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
         pushToast(`${summary} Some figures may be incomplete.`, 'warning');
       }
 
-      if (isSliceCurrent('hr')) {
-        setDivisions(divRes.data ? withStrength(divRes.data.map(mapDivisionRow), strengthRes.data) : []);
-        setRawStaff(staffRes.data ? staffRes.data.map(mapStaffRow) : []);
-        setContractStaff(csRes.data ? csRes.data.map(mapContractStaffRow) : []);
-      }
-      if (isSliceCurrent('projects')) {
-        setRawProjects(projRes.data ? projRes.data.map(mapProjectRow) : []);
-        setProjectStaff(psRes.data ? psRes.data.map(mapProjectStaffRow) : []);
-      }
       if (isSliceCurrent('phd')) {
         setPhDStudents(phdRes.data ? phdRes.data.map(mapPhDStudentRow) : []);
         setPhdMilestones(phmRes.data ? phmRes.data.map(mapPhDMilestoneRow) : []);
