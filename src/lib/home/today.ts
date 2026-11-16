@@ -6,6 +6,11 @@ export function localIso(d: Date): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
+/** YYYY-MM-DD in India (UTC+5:30, no daylight saving): the date the database's ist_today() uses. */
+export function istIso(now: Date = new Date()): string {
+  return new Date(now.getTime() + 330 * 60000).toISOString().slice(0, 10);
+}
+
 /** Whole days from today to an ISO date. Negative when the date is past. */
 export function daysUntil(iso: string, now: Date = new Date()): number {
   return Math.round((Date.parse(`${iso}T00:00:00`) - Date.parse(`${localIso(now)}T00:00:00`)) / MS_PER_DAY);

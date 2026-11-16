@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { MyAction } from '../dashboard/myActions';
 import { classify, countByGroup } from './classify';
 import { doNext, quickWins, rankActions } from './doNext';
-import { daysUntil, doneToday, localIso, mergeSeen, weekStrip } from './today';
+import { daysUntil, doneToday, istIso, localIso, mergeSeen, weekStrip } from './today';
 import { countWord, greeting } from './greeting';
 
 const NOW = new Date(2026, 10, 13, 9, 0); // Fri 13 Nov 2026, local
@@ -95,5 +95,13 @@ describe('greeting', () => {
   });
   it('has a plain sentence for an empty day and for no linked staff row', () => {
     expect(greeting({ name: '', hour: 19, left: 0, overdue: 0 })).toBe('Good evening. Nothing is waiting on you.');
+  });
+});
+
+describe('istIso', () => {
+  it('gives the India date whatever the browser time zone', () => {
+    // 20:00 UTC on 15 Nov is 01:30 on 16 Nov in India; a browser in London or New York still says 15 Nov.
+    expect(istIso(new Date('2026-11-15T20:00:00Z'))).toBe('2026-11-16');
+    expect(istIso(new Date('2026-11-15T18:29:00Z'))).toBe('2026-11-15');
   });
 });
