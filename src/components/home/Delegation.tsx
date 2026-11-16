@@ -16,16 +16,22 @@ const CONNECTED_NOTE = 'Modules follow this order as each one is connected to it
 
 function useOrder() {
   const [order, setOrder] = useState<DelegationOrder | null | undefined>(undefined);
-  const reload = useCallback(() => { loadOrderInForce().then(setOrder); }, []);
+  const [loadError, setLoadError] = useState(false);
+  const reload = useCallback(() => {
+    loadOrderInForce()
+      .then((o) => { setLoadError(false); setOrder(o); })
+      .catch((err) => { console.error('[home] delegation order load failed', err); setLoadError(true); setOrder(null); });
+  }, []);
   useEffect(() => { reload(); }, [reload]);
-  return { order, reload };
+  return { order, reload, loadError };
 }
 
 /** The Director's dial: how much reaches me. Closed to one line once an order is in force. */
 export function DelegationDial() {
   const { rules } = useRules();
-  const { order, reload } = useOrder();
+  const { order, reload, loadError } = useOrder();
   const floor = useMemo(() => floorKinds(rules), [rules]);
+  const kept = useMemo(() => order?.lines.filter(l => l.division !== '*') ?? [], [order]);
   const [open, setOpen] = useState(false);
   const [lines, setLines] = useState<Line[]>(PRESETS.BALANCED);
   const [confirm, setConfirm] = useState(false);
@@ -45,11 +51,20 @@ export function DelegationDial() {
 
   const issue = async () => {
     setBusy(true); setError('');
-    try { await issueOrder(preset, lines); setConfirm(false); setOpen(false); reload(); }
+    try { await issueOrder(preset, lines, kept); setConfirm(false); setOpen(false); reload(); }
     catch (err) { setError((err as Error).message); } finally { setBusy(false); }
   };
 
   if (order === undefined) return null;
+  if (loadError) {
+    return (
+      <Card className="p-5">
+        <p className={BLOCK_TITLE}><span className="flex items-center gap-1.5"><SlidersHorizontal size={14} aria-hidden="true" />How much reaches me</span></p>
+        <p role="alert" className="text-sm text-danger">The order in force could not be loaded. Changing it is blocked until it loads, so its provisions are not replaced by mistake.</p>
+        <Button type="button" variant="ghost" size="sm" className="mt-2" onClick={reload}>Try again</Button>
+      </Card>
+    );
+  }
   const summary = order
     ? <>{order.preset ? PRESET_LABEL[order.preset] : 'Custom'} · <span className="font-mono">{order.lines.filter(l => l.mode !== 'SELF').length}</span> kinds with heads · order <span className="font-mono">{order.orderNo}</span> since <span className="font-mono">{order.effectiveFrom}</span></>
     : 'No delegation order yet. Every decision reaches you as today.';
@@ -98,6 +113,12 @@ export function DelegationDial() {
                 {floor.some(f => !f.verified) && ' This list is the plan’s default until the CSIR Delegation of Powers text is entered.'}
               </p>
             </div>
+          )}
+          {kept.length > 0 && (
+            <p className="text-xs text-text-muted mt-3">
+              {kept.length} division-specific {kept.length === 1 ? 'provision carries' : 'provisions carry'} over unchanged:{' '}
+              {kept.map(l => `${DELEGABLE.find(k => k.kind === l.kind)?.label ?? l.kind} (${l.division}): ${MODE_LABEL[l.mode]}`).join('; ')}.
+            </p>
           )}
           <p className="text-xs text-text-muted mt-3">{CONNECTED_NOTE}</p>
           {error && <p role="alert" className="text-xs text-danger mt-2">{error}</p>}

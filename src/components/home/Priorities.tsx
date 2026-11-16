@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Pin } from 'lucide-react';
@@ -11,9 +11,9 @@ import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
 import { BLOCK_TITLE, ROW, dueText } from './parts';
 import {
-  answerPushBack, askerState, markDone, markSeen, pinPriority, pushBack, withdraw,
+  answerPushBack, askerState, loadProjectStaffCandidates, markDone, markSeen, pinPriority, pushBack, withdraw,
 } from '../../lib/home/priorities';
-import type { WorkPriority } from '../../lib/home/priorities';
+import type { PinCandidate, WorkPriority } from '../../lib/home/priorities';
 import { localIso } from '../../lib/home/today';
 
 const INPUT = 'w-full h-9 px-3 rounded-lg border border-border bg-surface-raised text-sm text-text focus:outline-none focus-visible:ring-2 focus-visible:ring-terracotta/60';
@@ -95,10 +95,22 @@ function PinForm({ onClose }: { onClose: () => void }) {
   const { user } = useAuth();
   const { staff } = useData();
   const { refreshPriorities } = useHome();
-  const people = useMemo(
-    () => staff.filter(s => s.user_id && s.user_id !== user?.id).sort((a, b) => a.Name.localeCompare(b.Name)),
-    [staff, user],
-  );
+  const [projectStaff, setProjectStaff] = useState<PinCandidate[]>([]);
+  const myStaffId = useMemo(() => staff.find(s => s.user_id === user?.id)?.ID ?? null, [staff, user]);
+  useEffect(() => {
+    if (!myStaffId) return;
+    let cancelled = false;
+    loadProjectStaffCandidates(myStaffId, localIso(new Date())).then((c) => { if (!cancelled) setProjectStaff(c); });
+    return () => { cancelled = true; };
+  }, [myStaffId]);
+  const people = useMemo(() => {
+    const fromStaff = staff.filter(s => s.user_id && s.user_id !== user?.id)
+      .map(s => ({ value: s.user_id as string, label: `${s.Name}${s.Designation ? ` · ${s.Designation}` : ''}`, sort: s.Name }));
+    const known = new Set(fromStaff.map(p => p.value));
+    const fromProjects = projectStaff.filter(c => !known.has(c.userId) && c.userId !== user?.id)
+      .map(c => ({ value: c.userId, label: `${c.name} · ${c.note}`, sort: c.name }));
+    return [...fromStaff, ...fromProjects].sort((a, b) => a.sort.localeCompare(b.sort));
+  }, [staff, user, projectStaff]);
   const [who, setWho] = useState('');
   const [title, setTitle] = useState('');
   const [reason, setReason] = useState('');
@@ -124,7 +136,7 @@ function PinForm({ onClose }: { onClose: () => void }) {
       <label className="block text-xs text-text-muted">Person
         <select aria-label="Person" value={who} onChange={e => setWho(e.target.value)} className={clsx(INPUT, 'mt-1')}>
           <option value="">Pick a person</option>
-          {people.map(s => <option key={s.ID} value={s.user_id as string}>{s.Name}{s.Designation ? ` · ${s.Designation}` : ''}</option>)}
+          {people.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
         </select>
       </label>
       <label className="block text-xs text-text-muted">What to do first
@@ -186,8 +198,8 @@ export function PrioritiesAsked() {
             </div>
             <Badge variant={answer ? 'warning' : state === 'done' ? 'success' : 'neutral'} className="normal-case shrink-0">{state}</Badge>
             {answer && <>
-              <Button type="button" size="sm" variant="secondary" onClick={act(() => answerPushBack(p.id, true))}>Accept new date</Button>
-              <Button type="button" size="sm" variant="ghost" onClick={act(() => answerPushBack(p.id, false))}>Keep date</Button>
+              <Button type="button" size="sm" variant="secondary" onClick={act(() => answerPushBack(p.id, true, p.pushbackDate as string))}>Accept new date</Button>
+              <Button type="button" size="sm" variant="ghost" onClick={act(() => answerPushBack(p.id, false, p.pushbackDate as string))}>Keep date</Button>
             </>}
             {p.status === 'OPEN' && <Button type="button" size="sm" variant="ghost" onClick={act(() => withdraw(p.id))}>Withdraw</Button>}
           </div>

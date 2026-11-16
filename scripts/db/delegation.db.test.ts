@@ -65,6 +65,23 @@ describe('delegation_issue', () => {
     expect(notice[0]).toEqual({ kind: 'OFFICE_ORDER', title: `Delegation of decisions ${rows[1].order_no}` });
     expect((await q<{ s: number }>(db, `SELECT sample_rate s FROM delegation_lines WHERE order_id = $1 AND kind = 'LEAVE_TOUR'`, [second]))[0].s).toBe(10);
   });
+
+  it('the 100th order of a year keeps all three digits', async () => {
+    const year = (await q<{ y: string }>(db, `SELECT to_char(public.ist_today(), 'YYYY') y`))[0].y;
+    // Two orders exist from the test before; 97 more make the next one the 100th.
+    let no = '';
+    await db.transaction(async tx => {
+      await tx.query(`INSERT INTO delegation_orders (order_no, director_user_id, effective_from, ended_at)
+        SELECT 'DO/${year}/x' || g, $1, public.ist_today(), now() FROM generate_series(1, 97) g`, [U.dir]);
+      await tx.exec(`SET LOCAL ROLE authenticated`);
+      await tx.query(`SELECT set_config('request.jwt.claims', $1, true)`, [JSON.stringify({ sub: U.dir, role: 'authenticated' })]);
+      const id = (await tx.query<{ id: string }>(`SELECT delegation_issue(NULL, '[{"kind":"LEAVE_TOUR","mode":"SELF"}]'::jsonb) id`)).rows[0].id;
+      await tx.exec(`RESET ROLE`);
+      no = (await tx.query<{ n: string }>(`SELECT order_no n FROM delegation_orders WHERE id = $1`, [id])).rows[0].n;
+      await tx.rollback();
+    });
+    expect(no).toBe(`DO/${year}/100`);
+  });
 });
 
 describe('decision_authority', () => {

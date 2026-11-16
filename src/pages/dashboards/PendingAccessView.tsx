@@ -124,7 +124,7 @@ export function PendingAccessView() {
                 className="mt-2 w-full bg-surface border border-border rounded-lg px-3 py-2 text-sm" />
             </div>
             <button onClick={submit} disabled={submitting}
-              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-terracotta text-white rounded-lg text-sm font-medium hover:bg-terracotta-hover transition-colors disabled:opacity-60">
+              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-terracotta text-ivory rounded-lg text-sm font-medium hover:bg-terracotta-hover transition-colors disabled:opacity-60">
               {submitting ? 'Submitting…' : <><Send size={14} /> Submit request</>}
             </button>
           </div>

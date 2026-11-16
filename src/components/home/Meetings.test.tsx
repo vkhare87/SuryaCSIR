@@ -27,6 +27,29 @@ describe('toInstants', () => {
   });
 });
 
+describe('MyMeetings reach', () => {
+  it('shows the join link and agenda to an invitee, never a non-web link', async () => {
+    vi.mocked(loadMyMeetings).mockResolvedValue([
+      meeting({ place: '', link: 'https://meet.example/x', agenda: '1. Budget' }),
+      meeting({ id: 'g2', title: 'Odd', link: 'javascript:alert(1)' }),
+    ]);
+    render(<MyMeetings />);
+    const join = await screen.findByRole('link', { name: 'Join online' });
+    expect(join.getAttribute('href')).toBe('https://meet.example/x');
+    expect(screen.getAllByRole('link')).toHaveLength(1);
+    expect(screen.getByText('1. Budget')).toBeTruthy();
+  });
+
+  it('shows every meeting on request after the fifth', async () => {
+    vi.mocked(loadMyMeetings).mockResolvedValue(Array.from({ length: 6 }, (_, i) => meeting({ id: `g${i}`, title: `M${i}` })));
+    render(<MyMeetings />);
+    expect(await screen.findByText('M4')).toBeTruthy();
+    expect(screen.queryByText('M5')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Show all 6 meetings' }));
+    expect(screen.getByText('M5')).toBeTruthy();
+  });
+});
+
 describe('MyMeetings', () => {
   it('lets an invitee reply in place', async () => {
     vi.mocked(loadMyMeetings).mockResolvedValue([meeting()]);

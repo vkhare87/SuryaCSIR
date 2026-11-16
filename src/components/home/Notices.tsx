@@ -96,6 +96,7 @@ export function NoticesBlock() {
   const { user } = useAuth();
   const [notices, setNotices] = useState<Notice[] | null>(null);
   const [open, setOpen] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
   const [issuing, setIssuing] = useState(false);
   const [error, setError] = useState('');
   const today = localIso(new Date());
@@ -103,6 +104,13 @@ export function NoticesBlock() {
   useEffect(() => { reload(); }, [reload]);
 
   const ordered = useMemo(() => (notices && user ? orderNotices(notices, user.id) : []), [notices, user]);
+  // The opened notice stays in view after reading it moves it down the order.
+  const shown = useMemo(() => {
+    if (showAll) return ordered;
+    const top = ordered.slice(0, MAX_ROWS);
+    const opened = ordered.find(n => n.id === open);
+    return opened && !top.includes(opened) ? [...top, opened] : top;
+  }, [ordered, showAll, open]);
   const canIssue = Boolean(user?.roles.some(r => ISSUERS.includes(r)));
 
   const read = async (n: Notice, ack: boolean) => {
@@ -123,7 +131,7 @@ export function NoticesBlock() {
         </div>
       )}
       {notices !== null && ordered.length === 0 && <p className="text-sm text-text-muted">No notice is in force.</p>}
-      {ordered.slice(0, MAX_ROWS).map((n) => {
+      {shown.map((n) => {
         const mine = n.issuedBy === user?.id;
         const needsAck = n.mustAck && !n.ackedAt && !mine;
         return (
@@ -147,6 +155,12 @@ export function NoticesBlock() {
           </div>
         );
       })}
+      {ordered.length > MAX_ROWS && (
+        <button type="button" onClick={() => setShowAll(v => !v)} aria-expanded={showAll}
+          className="text-xs text-text-muted inline-block py-1.5 mt-1 hover:underline">
+          {showAll ? 'Show fewer' : `Show all ${ordered.length} notices`}
+        </button>
+      )}
       {error && <p role="alert" className="text-xs text-danger mt-2">{error}</p>}
       <Modal isOpen={issuing} onClose={() => setIssuing(false)} title="Issue a notice">
         {issuing && <IssueForm onDone={() => { setIssuing(false); reload(); }} />}

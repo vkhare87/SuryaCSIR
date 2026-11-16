@@ -255,7 +255,7 @@ export function ScientistView() {
       )}
 
       {/* --- 6. Everything else that is open --- */}
-      {actions.length > 1 && (
+      {alsoOpen.length > 0 && (
         <Section id="scientist-also-open" title="Also open" right={<Link to="/work" className="inline-block py-1.5 -my-1.5 hover:underline">See all <span className="font-mono">{actions.length}</span></Link>}>
           {alsoOpen.map(actionRow)}
         </Section>

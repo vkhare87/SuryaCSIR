@@ -279,7 +279,7 @@ export default function ProjectDetail() {
                   </div>
                   <div className="w-full bg-border rounded-full h-2">
                     <div
-                      className={`h-2 rounded-full transition-all ${percentUtilized > 85 ? 'bg-rose-500' : 'bg-terracotta'}`}
+                      className={`h-2 rounded-full transition-all ${percentUtilized > 85 ? 'bg-danger' : 'bg-terracotta'}`}
                       style={{ width: `${percentUtilized}%` }}
                     />
                   </div>

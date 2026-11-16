@@ -41,7 +41,8 @@ export function Section({ id, title, right, className, children }: SectionProps)
       <summary className="flex items-center justify-between gap-2 text-xs font-medium text-text-muted cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden rounded">
         <span className="flex items-center gap-1.5 min-w-0">
           <ChevronRight size={14} className="shrink-0 transition-transform group-open:rotate-90" aria-hidden="true" />
-          <span className="truncate">{title}</span>
+          {/* A heading, so screen-reader heading navigation finds the block. */}
+          <h2 className="truncate text-xs font-medium">{title}</h2>
         </span>
         {right}
       </summary>

@@ -84,11 +84,15 @@ describe('the person and the asker', () => {
     await expect(call(U.sci, `SELECT priority_push_back($1, 'Tests not done yet', '2099-01-05')`, [id])).rejects.toThrow(/must be after/);
     await call(U.sci, `SELECT priority_push_back($1, 'Tests not done yet', '2099-01-20')`, [id]);
     expect((await q<{ w: string }>(db, `SELECT wanted_by::text w FROM work_priorities WHERE id = $1`, [id]))[0].w).toBe('2099-01-11');
-    await expect(call(U.sci, `SELECT priority_answer($1, true)`, [id])).rejects.toThrow(/Not an open priority you asked/);
-    await call(U.ro, `SELECT priority_answer($1, true)`, [id]);
+    await expect(call(U.sci, `SELECT priority_answer($1, true, '2099-01-20')`, [id])).rejects.toThrow(/Not an open priority you asked/);
+    // A second push-back replaced the date the asker saw: the stale answer is refused.
+    await call(U.sci, `SELECT priority_push_back($1, 'Tests still not done', '2099-01-25')`, [id]);
+    await expect(call(U.ro, `SELECT priority_answer($1, true, '2099-01-20')`, [id])).rejects.toThrow(/has changed to 2099-01-25/);
+    await call(U.sci, `SELECT priority_push_back($1, 'Tests not done yet', '2099-01-20')`, [id]);
+    await call(U.ro, `SELECT priority_answer($1, true, '2099-01-20')`, [id]);
     expect((await q<{ w: string; a: string }>(db, `SELECT wanted_by::text w, pushback_answer a FROM work_priorities WHERE id = $1`, [id]))[0])
       .toEqual({ w: '2099-01-20', a: 'ACCEPTED' });
-    await expect(call(U.ro, `SELECT priority_answer($1, false)`, [id])).rejects.toThrow(/No new date is waiting/);
+    await expect(call(U.ro, `SELECT priority_answer($1, false, '2099-01-20')`, [id])).rejects.toThrow(/No new date is waiting/);
   });
 
   it('only the person marks seen or done; only the asker withdraws; then a slot is free', async () => {

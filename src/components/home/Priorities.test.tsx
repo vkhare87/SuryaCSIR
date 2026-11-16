@@ -1,17 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { DoFirst, PrioritiesAsked } from './Priorities';
-import { answerPushBack, markSeen, pushBack } from '../../lib/home/priorities';
+import { DoFirst, PinButton, PrioritiesAsked } from './Priorities';
+import { answerPushBack, loadProjectStaffCandidates, markSeen, pushBack } from '../../lib/home/priorities';
 import type { WorkPriority } from '../../lib/home/priorities';
 
 vi.mock('../../lib/home/priorities', async (orig) => ({
   ...(await orig<typeof import('../../lib/home/priorities')>()),
   markSeen: vi.fn(async () => {}), markDone: vi.fn(async () => {}), pushBack: vi.fn(async () => {}),
   answerPushBack: vi.fn(async () => {}), withdraw: vi.fn(async () => {}), pinPriority: vi.fn(async () => {}),
+  loadProjectStaffCandidates: vi.fn(async () => []),
 }));
 vi.mock('../../contexts/AuthContext', () => ({ useAuth: () => ({ user: { id: 'me' } }) }));
-vi.mock('../../contexts/DataContext', () => ({ useData: () => ({ staff: [{ ID: 'S1', Name: 'Dr. Mehta', user_id: 'boss' }] }) }));
+vi.mock('../../contexts/DataContext', () => ({ useData: () => ({ staff: [{ ID: 'S1', Name: 'Dr. Mehta', user_id: 'boss' }, { ID: 'S0', Name: 'Me', user_id: 'me' }] }) }));
 const refreshPriorities = vi.fn();
 let home: Record<string, unknown>;
 vi.mock('../../contexts/HomeContext', () => ({ useHome: () => home }));
@@ -66,7 +67,22 @@ describe('PrioritiesAsked', () => {
     view(<PrioritiesAsked />);
     expect(screen.getByText('asks for 2026-11-25')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Accept new date' }));
-    await waitFor(() => expect(answerPushBack).toHaveBeenCalledWith('a', true));
+    await waitFor(() => expect(answerPushBack).toHaveBeenCalledWith('a', true, '2026-11-25'));
     expect(refreshPriorities).toHaveBeenCalled();
+  });
+});
+
+describe('PinButton', () => {
+  it('offers engaged project staff of my projects, beside staff, once each', async () => {
+    vi.mocked(loadProjectStaffCandidates).mockResolvedValue([
+      { userId: 'ps1', name: 'Ravi Kumar', note: 'project staff, HCP0054' },
+      { userId: 'boss', name: 'Dr. Mehta dup', note: 'project staff, HCP0054' },
+    ]);
+    view(<PinButton />);
+    fireEvent.click(screen.getByRole('button', { name: 'Pin a priority' }));
+    await waitFor(() => expect(loadProjectStaffCandidates).toHaveBeenCalledWith('S0', expect.any(String)));
+    expect(await screen.findByRole('option', { name: 'Ravi Kumar · project staff, HCP0054' })).toBeTruthy();
+    expect(screen.queryByRole('option', { name: /Dr. Mehta dup/ })).toBeNull();
+    expect(screen.queryByRole('option', { name: /^Me/ })).toBeNull();
   });
 });

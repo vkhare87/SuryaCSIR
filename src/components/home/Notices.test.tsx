@@ -55,4 +55,17 @@ describe('NoticesBlock', () => {
     expect(await screen.findByText('No notice is in force.')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Issue a notice' })).toBeTruthy();
   });
+
+  it('shows all notices on request, and keeps an opened notice in view after it is read', async () => {
+    const list = Array.from({ length: 7 }, (_, i) => n(String(i + 1), { issuedOn: `2026-11-1${i}` }));
+    vi.mocked(loadNotices).mockResolvedValueOnce(list)
+      // Notice 1 is the oldest; once read it ranks last, out of the top five.
+      .mockResolvedValue(list.map(x => (x.id === '1' ? { ...x, readAt: 'now' } : x)));
+    render(<NoticesBlock />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Show all 7 notices' }));
+    fireEvent.click(screen.getByRole('button', { name: /title 1 / }));
+    await waitFor(() => expect(markNoticeRead).toHaveBeenCalledWith('1', false));
+    fireEvent.click(screen.getByRole('button', { name: 'Show fewer' }));
+    expect(screen.getByText('body 1')).toBeTruthy();
+  });
 });
