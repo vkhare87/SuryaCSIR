@@ -91,10 +91,19 @@ export function HomeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
-    callerStaffId().then((id) => { if (!cancelled) { setStaffId(id); setStaffResolved(true); } });
-    myDueSlots().then((s) => { if (!cancelled) setDueSlots(s); }, () => {});
-    myChangeSteps().then((s) => { if (!cancelled) setChangeSteps(s); }, () => {});
-    myClosureItems().then((s) => { if (!cancelled) setClosureItems(s); }, () => {});
+    void Promise.all([
+      callerStaffId().catch(() => null),
+      myDueSlots().catch(() => [] as DueSlot[]),
+      myChangeSteps().catch(() => [] as MyChangeStep[]),
+      myClosureItems().catch(() => [] as ClosureItem[]),
+    ]).then(([id, slots, steps, closures]) => {
+      if (cancelled) return;
+      setStaffId(id);
+      setStaffResolved(true);
+      setDueSlots(slots);
+      setChangeSteps(steps);
+      setClosureItems(closures);
+    });
     return () => { cancelled = true; };
   }, [userId]);
 

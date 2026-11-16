@@ -74,6 +74,8 @@ import { logger } from '../utils/logger';
 import { fetchAll, isMissingTable } from '../lib/data/fetchAll';
 import { withPostTotals } from '../lib/recruitment/posts';
 import { friendlyError } from '../lib/errors';
+import { primeDivisionStrength } from '../lib/people/useDivisionStrength';
+import type { DivisionStrength } from '../lib/people/api';
 
 // ---------------------------------------------------------------------------
 // Client-side division scoping helpers (applied after data load)
@@ -298,6 +300,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setImportEvents([]);
     setContributionRequests([]);
     setDataStewards([]);
+    primeDivisionStrength(null, null);
   }, []);
 
   useEffect(() => {
@@ -348,6 +351,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }
 
       const skipped = Promise.resolve({ data: [], error: null });
+      const strengthCall = supabase.from('division_strength').select('*').order('division_code');
+      primeDivisionStrength(
+        null,
+        Promise.resolve(strengthCall).then(r => ((r?.data ?? []) as DivisionStrength[]), () => []),
+      );
       const [
         divRes, staffRes, projRes, psRes, csRes, strengthRes,
       ] = await Promise.all([
@@ -364,11 +372,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
         loadContracts ? fetchAll(supabase.from('contract_staff').select('*').order('Name')) : skipped,
         // Strength comes from the post register (division_strength, 20261113000001),
         // never the two integers kept on divisions: every page reads these fields.
-        supabase.from('division_strength').select('division_code, sanctioned, filled'),
+        strengthCall,
       ]);
       if (!isCurrentLoad()) return;
 
       if (isSliceCurrent('hr')) {
+        primeDivisionStrength((strengthRes.data as DivisionStrength[] | null) ?? []);
         setDivisions(divRes.data ? withStrength(divRes.data.map(mapDivisionRow), strengthRes.data) : []);
         setRawStaff(staffRes.data ? staffRes.data.map(mapStaffRow) : []);
         setContractStaff(csRes.data ? csRes.data.map(mapContractStaffRow) : []);
@@ -617,12 +626,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
           fetchAll(supabase.from('divisions').select('*').order('divCode')),
           fetchAll(supabase.from('staff').select('*').order('ID')),
           loadContracts ? fetchAll(supabase.from('contract_staff').select('*').order('Name')) : Promise.resolve({ data: null, error: null }),
-          supabase.from('division_strength').select('division_code, sanctioned, filled'),
+          supabase.from('division_strength').select('*').order('division_code'),
         ]);
         if (!isCurrent()) return;
         if (divRes.error) throw divRes.error;
         if (staffRes.error) throw staffRes.error;
         if (csRes.error) throw csRes.error;
+        primeDivisionStrength((strengthRes.data as DivisionStrength[] | null) ?? []);
         if (divRes.data) setDivisions(withStrength(divRes.data.map(mapDivisionRow), strengthRes.data));
         if (staffRes.data) setRawStaff(staffRes.data.map(mapStaffRow));
         if (csRes.data) setContractStaff(csRes.data.map(mapContractStaffRow));

@@ -37,6 +37,16 @@ function sanitize(raw: unknown): DirectorThresholds | null {
   };
 }
 
+let primedUserId: string | null = null;
+
+export function primeDirectorThresholds(userId: string, preferences: unknown): void {
+  primedUserId = userId;
+  const remote = sanitize((preferences as Record<string, unknown> | null)?.directorThresholds);
+  if (remote && typeof localStorage !== 'undefined') {
+    saveLocal(remote);
+  }
+}
+
 /** Director dashboard thresholds backed by user_profiles.preferences (D5) —
  * organizational calibration survives browser changes. localStorage stays as
  * an instant-paint cache and offline fallback. */
@@ -49,6 +59,10 @@ export function useDirectorThresholds() {
   useEffect(() => {
     if (hydrated.current || !supabase || !user?.id || user.id === 'dev-admin') return;
     hydrated.current = true;
+    if (primedUserId === user.id) {
+      setThresholds(loadLocal());
+      return;
+    }
     let cancelled = false;
     void supabase
       .from('user_profiles')

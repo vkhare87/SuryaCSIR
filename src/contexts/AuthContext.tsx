@@ -4,6 +4,7 @@ import type { User as SupabaseUser } from '@supabase/supabase-js';
 import type { UserAccount, Role } from '../types';
 import { supabase } from '../utils/supabaseClient';
 import { isDevLogin } from '../lib/auth/devLogin';
+import { primeDirectorThresholds } from '../hooks/useDirectorThresholds';
 
 interface AuthContextType {
   user: UserAccount | null;
@@ -44,7 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .order('role'),
       supabase
         .from('user_profiles')
-        .select('must_change_password, active_role, last_seen_at')
+        .select('must_change_password, active_role, last_seen_at, preferences')
         .eq('user_id', authUser.id)
         .single(),
     ]);
@@ -72,6 +73,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // app shows a signed-in user with no session behind it.
     const { data: { session: current } } = await supabase.auth.getSession();
     if (current?.user.id !== authUser.id) return false;
+
+    primeDirectorThresholds(authUser.id, (profile as { preferences?: unknown } | null)?.preferences);
 
     const email = authUser.email ?? '';
     setUser(prev => (

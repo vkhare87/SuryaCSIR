@@ -24,24 +24,23 @@ export interface Notice {
 
 const RECENT_NOTICES = 30;
 
-/** Notices in force for me (not replaced, not expired), newest first, with my own read state.
- * Orders that need "I have read it" are read on their own, outside the recent
- * limit, so an old one still waiting for me is never cut off by newer notices. */
+/** Notices in force for me (not replaced, not expired), orders needing
+ * "I have read it" first, then newest first, with my own read state. */
 export async function loadNotices(today: string): Promise<Notice[]> {
   const db = supabase;
   if (!db) return [];
-  const inForce = () => db.from('notices').select('*').is('superseded_by', null)
-    .or(`valid_to.is.null,valid_to.gte.${today}`);
-  const [n, ack, r] = await Promise.all([
-    inForce().order('issued_on', { ascending: false }).order('created_at', { ascending: false }).limit(RECENT_NOTICES),
-    inForce().eq('must_ack', true),
+  const [n, r] = await Promise.all([
+    db.from('notices').select('*').is('superseded_by', null)
+      .or(`valid_to.is.null,valid_to.gte.${today}`)
+      .order('must_ack', { ascending: false })
+      .order('issued_on', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(RECENT_NOTICES),
     db.from('notice_reads').select('notice_id, read_at, acked_at'),
   ]);
   if (n.error) { console.error('[home] notices load failed', n.error); return []; }
-  if (ack.error) console.error('[home] notices to acknowledge load failed', ack.error);
   const reads = new Map((r.data ?? []).map(x => [x.notice_id as string, x]));
-  const rows = new Map([...(n.data ?? []), ...(ack.data ?? [])].map(x => [x.id as string, x]));
-  return [...rows.values()].map((x) => {
+  return (n.data ?? []).map((x) => {
     const read = reads.get(x.id as string);
     return {
       id: x.id as string, noticeNo: x.notice_no as string, kind: x.kind as NoticeKind, title: x.title as string,
