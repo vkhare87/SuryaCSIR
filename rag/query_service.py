@@ -260,6 +260,10 @@ def _scope_gate(decision, client, question):
     current question), so an asker who named themself earlier keeps that on a
     follow-up such as "and for 2024?"."""
     scope = scope_of(client)
+    if scope.get("lookup_failed") and not scope["roles"]:
+        # The roles could not be read, so no scope can be checked: refuse
+        # everything, never as a strike. (A failed name read alone does not.)
+        return _refused(decision, "scope_unavailable")
     v = verdict(scope, decision.get("topic", "unknown"), decision.get("subject", "unknown"),
                 decision.get("subject_division"), question)
     if v == "full":

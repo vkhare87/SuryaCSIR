@@ -41,6 +41,10 @@ class _FakeClient:
     def table(self, name):
         return _FakeQuery(self._tables.get(name, []), self._raise)
 
+    def rpc(self, name, _params):
+        # A Director by default: tests not about scope see the old behaviour.
+        return _FakeQuery([{"role": "Director", "division_code": None}] if name == "caller_roles" else None)
+
 
 def _tree(title):
     return {"root": {"title": title, "summary": "s", "nodes": [
@@ -746,6 +750,25 @@ def test_role_lookup_failure_refuses_without_a_strike():
             return _FakeQuery(None, raise_on_execute=True)
     a = handle_query("SCOPE:pms_scores:other_person score of Dr X", Broken({}), FakeLLM())
     assert a.text == SCOPE_REFUSAL_TEXT and a.trace["refusal"] == "scope_unavailable"
+
+
+def test_role_lookup_failure_refuses_even_open_questions_in_both_paths():
+    class Broken(_NoReadClient):
+        def rpc(self, name, _p):
+            return _FakeQuery(None, raise_on_execute=True)
+    for q in ("SCOPE:pms_scores:self my score", "SCOPE:bogus:bogus anything", "plain question"):
+        a = handle_query(q, Broken({}), FakeLLM())
+        assert a.text == SCOPE_REFUSAL_TEXT and a.trace["refusal"] == "scope_unavailable"
+        ev = list(stream_query(q, Broken({}), FakeLLM()))
+        assert ev[-1][1].trace["refusal"] == "scope_unavailable"
+
+
+def test_name_lookup_failure_alone_does_not_block_open_questions():
+    c = _as("Scientist", **_DOCS)
+    rpc = c.rpc
+    c.rpc = lambda n, p: _FakeQuery(None, raise_on_execute=True) if n == "caller_staff_id" else rpc(n, p)
+    a = handle_query("what is in the intro", c, FakeLLM())
+    assert a.text != SCOPE_REFUSAL_TEXT
 
 
 def test_refused_question_from_a_record_page_reads_no_documents():
