@@ -100,11 +100,12 @@ function CallForm({ onDone }: { onDone: () => void }) {
 /** Meetings I called or was invited to, in the next days; reply in place. Absent when there are none. */
 export function MyMeetings() {
   const { user } = useAuth();
+  const userId = user?.id;
   const [list, setList] = useState<GeneralMeeting[]>([]);
   const [error, setError] = useState('');
   const [cancelling, setCancelling] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
-  const reload = useCallback(() => { if (user) loadMyMeetings(user.id).then(setList); }, [user]);
+  const reload = useCallback(() => { if (userId) loadMyMeetings(userId).then(setList); }, [userId]);
   useEffect(() => { reload(); }, [reload]);
 
   const act = (fn: () => Promise<void>) => async () => {

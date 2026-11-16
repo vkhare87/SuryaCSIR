@@ -3,9 +3,6 @@ import { lazy, Suspense } from 'react';
 import { Routes, Route, HashRouter, Navigate, Outlet } from 'react-router-dom';
 import { Layout } from './components/layout/Layout';
 import Dashboard from './pages/Dashboard';
-import Login from './pages/Login';
-import SetupWizard from './pages/SetupWizard';
-import ChangePassword from './pages/ChangePassword';
 import { useAuth } from './contexts/AuthContext';
 import { useFeatureControls } from './contexts/FeatureControlContext';
 import { useUI } from './contexts/UIContext';
@@ -20,6 +17,9 @@ import { VERIFIED } from './constants/access';
 // Lazy-loaded routes — split into per-chunk bundles to keep the initial
 // payload manageable. Heavy deps (@react-pdf, xlsx, recharts) live behind
 // these boundaries.
+const Login             = lazy(() => import('./pages/Login'));
+const SetupWizard       = lazy(() => import('./pages/SetupWizard'));
+const ChangePassword    = lazy(() => import('./pages/ChangePassword'));
 const HumanCapital      = lazy(() => import('./pages/HumanCapital'));
 const ProjectStaffRoster = lazy(() => import('./pages/ProjectStaffRoster'));
 const PostRegister      = lazy(() => import('./pages/PostRegister'));
@@ -158,9 +158,9 @@ function App() {
   return (
     <HashRouter>
       <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/setup" element={<SetupWizard />} />
-        <Route path="/change-password" element={<ChangePassword />} />
+        <Route path="/login" element={<Suspense fallback={<RouteFallback />}><Login /></Suspense>} />
+        <Route path="/setup" element={<Suspense fallback={<RouteFallback />}><SetupWizard /></Suspense>} />
+        <Route path="/change-password" element={<Suspense fallback={<RouteFallback />}><ChangePassword /></Suspense>} />
         
         {/* Protected Application Routes */}
         <Route element={<ProtectedRoute />}>

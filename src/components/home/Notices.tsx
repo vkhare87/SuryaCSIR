@@ -94,6 +94,7 @@ function Counts({ id }: { id: string }) {
 /** The Notices block of the common desk: orders that need "I have read it" first, then unread, then the rest. */
 export function NoticesBlock() {
   const { user } = useAuth();
+  const userId = user?.id;
   const [notices, setNotices] = useState<Notice[] | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
@@ -103,7 +104,7 @@ export function NoticesBlock() {
   const reload = useCallback(() => { loadNotices(today).then(setNotices); }, [today]);
   useEffect(() => { reload(); }, [reload]);
 
-  const ordered = useMemo(() => (notices && user ? orderNotices(notices, user.id) : []), [notices, user]);
+  const ordered = useMemo(() => (notices && userId ? orderNotices(notices, userId) : []), [notices, userId]);
   // The opened notice stays in view after reading it moves it down the order.
   const shown = useMemo(() => {
     if (showAll) return ordered;

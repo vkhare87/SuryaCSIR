@@ -174,6 +174,11 @@ EXEMPT: dict[str, str] = {
     "coi_caller_chairs": "caller-identity resolver: is the caller chair or convener of this meeting's committee. Keyed on caller_staff_id(); answers only about the caller (20261112000013)",
     "profile_consistency_sweep": "weekly cron job; reads every profile to raise requests. EXECUTE revoked from client roles (20261112000012)",
     "contribution_target_can_see": "internal scope check called only by a trigger; EXECUTE revoked from client roles",
+    "caller_consents_to_file": (
+        "RLS predicate helper for publication_files_select; checks only whether "
+        "caller_staff_id() has a row in publication_author_consents for p_file_id "
+        "without recursing into publication_author_consents RLS."
+    ),
 }
 
 

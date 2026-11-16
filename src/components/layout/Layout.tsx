@@ -1,10 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Link, NavLink, useLocation, useNavigate, useOutlet } from 'react-router-dom';
 import { Search, Menu, AlertCircle, ChevronDown, ChevronRight, LayoutDashboard, Sparkles, Calendar as CalendarIcon, Sun, Moon, LogOut, Settings as SettingsIcon } from 'lucide-react';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
-import CommandPalette from '../CommandPalette';
-import SettingsModal from '../SettingsModal';
 import { Sidebar } from './Sidebar';
 import { useAuth } from '../../contexts/AuthContext';
 import { NotificationBell } from '../layout/NotificationBell';
@@ -22,6 +20,8 @@ import { ErrorBoundary, PageErrorCard } from '../ErrorBoundary';
 
 const MENU_ITEM = 'w-full text-left px-3 py-2 text-xs font-medium rounded-lg transition-colors';
 const DENSITIES = ['compact', 'medium', 'relaxed'] as const;
+const CommandPalette = lazy(() => import('../CommandPalette'));
+const SettingsModal = lazy(() => import('../SettingsModal'));
 
 // UserAccount carries no display name, so derive from the email local part:
 // "khare.vivek87@…" → "KV", "vkhare@…" → "VK".
@@ -295,15 +295,23 @@ export function Layout() {
         )}
       </div>
 
-      <CommandPalette
-        isOpen={commandPaletteOpen}
-        onClose={() => setCommandPaletteOpen(false)}
-      />
+      {commandPaletteOpen && (
+        <Suspense fallback={null}>
+          <CommandPalette
+            isOpen={commandPaletteOpen}
+            onClose={() => setCommandPaletteOpen(false)}
+          />
+        </Suspense>
+      )}
 
-      <SettingsModal
-        isOpen={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-      />
+      {settingsOpen && (
+        <Suspense fallback={null}>
+          <SettingsModal
+            isOpen={settingsOpen}
+            onClose={() => setSettingsOpen(false)}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

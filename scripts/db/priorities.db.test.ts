@@ -14,6 +14,15 @@ const call = <T,>(uid: string, sql: string, args: unknown[] = []) => as(db, uid,
 const pin = (asker: string, assignee: string, title: string, day = LATER, reason = 'Monitoring committee meets Monday') =>
   call<{ id: string }>(asker, `SELECT priority_pin($1, $2, $3, $4::date) id`, [assignee, title, reason, day]).then(r => r[0].id);
 
+async function ensureThreePriorities() {
+  const existing = await q<{ title: string; id: string }>(db, `SELECT title, id FROM work_priorities WHERE status = 'OPEN'`);
+  const byTitle = new Map(existing.map(r => [r.title, r.id]));
+  if (!byTitle.has('One')) byTitle.set('One', await pin(U.hod, U.sci, 'One', '2099-01-10'));
+  if (!byTitle.has('Two')) byTitle.set('Two', await pin(U.ro, U.sci, 'Two', '2099-01-11'));
+  if (!byTitle.has('Three')) byTitle.set('Three', await pin(U.dir, U.sci, 'Three', '2099-01-10'));
+  return byTitle;
+}
+
 beforeAll(async () => {
   db = await migratedDb();
   const users = Object.values(U).map(id => `('${id}', '${id.slice(-2)}@w.local')`).join(', ');
@@ -65,6 +74,7 @@ describe('the three-priority limit and the clash', () => {
   });
 
   it('two askers wanting the same day are both told', async () => {
+    await ensureThreePriorities();
     const n = await q<{ user_id: string }>(db,
       `SELECT user_id FROM notifications WHERE kind = 'work_priority' AND dedupe_key LIKE '%:clash:%' ORDER BY user_id`);
     expect(n.map(r => r.user_id)).toEqual([U.dir, U.hod].sort());
@@ -73,6 +83,7 @@ describe('the three-priority limit and the clash', () => {
 
 describe('the person and the asker', () => {
   it('each sees only their own rows; nobody writes the table directly', async () => {
+    await ensureThreePriorities();
     expect((await call(U.sci, `SELECT id FROM work_priorities`)).length).toBe(3);
     expect((await call(U.hod, `SELECT id FROM work_priorities`)).length).toBe(1);
     expect(await call(U.other, `SELECT id FROM work_priorities`)).toEqual([]);
@@ -80,7 +91,8 @@ describe('the person and the asker', () => {
   });
 
   it('a new date counts only when the asker accepts it', async () => {
-    const id = (await q<{ id: string }>(db, `SELECT id FROM work_priorities WHERE title = 'Two'`))[0].id;
+    const byTitle = await ensureThreePriorities();
+    const id = byTitle.get('Two')!;
     await expect(call(U.sci, `SELECT priority_push_back($1, 'Tests not done yet', '2099-01-05')`, [id])).rejects.toThrow(/must be after/);
     await call(U.sci, `SELECT priority_push_back($1, 'Tests not done yet', '2099-01-20')`, [id]);
     expect((await q<{ w: string }>(db, `SELECT wanted_by::text w FROM work_priorities WHERE id = $1`, [id]))[0].w).toBe('2099-01-11');
@@ -96,11 +108,12 @@ describe('the person and the asker', () => {
   });
 
   it('only the person marks seen or done; only the asker withdraws; then a slot is free', async () => {
-    const id = (await q<{ id: string }>(db, `SELECT id FROM work_priorities WHERE title = 'One'`))[0].id;
+    const byTitle = await ensureThreePriorities();
+    const id = byTitle.get('One')!;
     await expect(call(U.hod, `SELECT priority_done($1)`, [id])).rejects.toThrow(/Not an open priority of yours/);
     await call(U.sci, `SELECT priority_seen($1)`, [id]);
     await call(U.sci, `SELECT priority_done($1)`, [id]);
-    const three = (await q<{ id: string }>(db, `SELECT id FROM work_priorities WHERE title = 'Three'`))[0].id;
+    const three = byTitle.get('Three')!;
     await expect(call(U.sci, `SELECT priority_withdraw($1)`, [three])).rejects.toThrow(/Not an open priority you asked/);
     await call(U.dir, `SELECT priority_withdraw($1)`, [three]);
     await pin(U.pi, U.sci, 'Four');
