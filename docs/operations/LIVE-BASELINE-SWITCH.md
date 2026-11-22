@@ -147,15 +147,17 @@ supabase migration list --linked
 ```
 
 Remote must show `20261121000001`–`08` only. Local must also show `09`–`15`
-and `20261122000001`–`05` as not applied yet.
+and `20261122000001`–`07` as not applied yet.
 
 ```powershell
 supabase db push --linked --dry-run
 ```
 
-It must list exactly these 12 files, in this order: `20261121000009` …
-`20261121000015`, then `20261122000001` … `20261122000005`. The last one restores the
-`priority_answer` check that the asker answers the date they saw.
+It must list exactly these 14 files, in this order: `20261121000009` …
+`20261121000015`, then `20261122000001` … `20261122000007`. `05` restores the
+`priority_answer` check that the asker answers the date they saw; `06` restores
+`project_staff_link_user`; `07` adds the patent-renewal and fellowship-end
+alerts and the leaver list.
 
 ### 5. Push
 
@@ -169,7 +171,7 @@ the files before it stay applied. Fix the cause, then push again.
 ### 6. Check
 
 - `supabase migration list --linked`: local and remote match.
-- In the SQL editor: `SELECT jobname FROM cron.job ORDER BY 1;` must also list `amc-expiry-sweep`.
+- In the SQL editor: `SELECT jobname FROM cron.job ORDER BY 1;` must also list `amc-expiry-sweep` and `renewal-watch-sweep`.
 - Ask Claude to compare live with the repo again (read only). Only the
   "Not fixed by the switch" items below should remain.
 - Open the app. Sign in, open Home, Ask SURYA and a project page.
