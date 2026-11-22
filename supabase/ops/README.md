@@ -2,10 +2,10 @@
 
 ```
 supabase/
-├── migrations/         schema — 8-file domain baseline. Append new
-│                        timestamped files. Never edit shipped ones.
-├── migrations_archive/ pre-2026-07-12 migration history. Reference only,
-│                        not applied anywhere. See its own README.
+├── migrations/         schema — 8-file domain baseline (2026-11-21 checkpoint).
+│                        Append new timestamped files. Never edit shipped ones.
+├── migrations_archive/ historical migrations (pre-2026-07-12 at root;
+│                        2026-07-12..2026-11-14 under 2026-11-21/). Reference only.
 ├── seed/                bootstrap data the app needs to function (run on every env).
 ├── mock/                 CSIR-AMPRI demo fixture for dev only. NEVER run in prod.
 ├── ops/                  operational scripts (wipe, etc.) + this README.
@@ -16,14 +16,14 @@ supabase/
 
 | File | Stage | Contains |
 |---|---|---|
-| `20260712000001_extensions_helpers.sql` | 01 | Postgres extensions, generic `updated_at` trigger functions |
-| `20260712000002_auth_rbac.sql` | 02 | `user_roles`, `user_profiles`, auth auto-registration, `pms_audit_logs`, `access_requests` + approve/reject RPCs, `admin_set_user_roles` |
-| `20260712000003_hr_core.sql` | 03 | divisions, staff, projects, phd_students (+milestones), equipment, labs, project_staff, contract_staff, scientific_outputs, ip_intelligence, vacancy tables, IRINS sync, MOUs, tech transfers |
-| `20260712000004_pms.sql` | 04 | Full PMS 2026-guidelines schema: reports, evaluation/empowered/grievance committees, AWP, representations, RPCs, storage buckets |
-| `20260712000005_committees_helpdesk.sql` | 05 | committees, meetings (+ 7-day minutes lock), agenda/action items, tickets + routing, shared `audit_log` |
-| `20260712000006_proposals_reports.sql` | 06 | Role/division helper functions, proposals workflow, project progress reports |
-| `20260712000007_calendar_recruitment.sql` | 07 | calendar_events, holidays |
-| `20260712000008_rag_documents.sql` | 08 | Unified documents registry, RAG ingestion index, query log, Ask SURYA support tables |
+| `20261121000001_extensions_helpers.sql` | 01 | Extensions, default ACLs (no anon), shared helpers, `csir_rules` (+ 17 rules) |
+| `20261121000002_auth_rbac.sql` | 02 | `user_roles`, `user_profiles`, `acting_assignments`, `access_requests`, `feature_controls`, `feature_grants`, `notifications`, `audit_log` |
+| `20261121000003_hr_workforce.sql` | 03 | Divisions, staff, sanctioned posts, expertise, project/contract staff, PhD, labs/equipment, outputs, IP, IRINS, MOUs, tech transfers, publication files |
+| `20261121000004_pms_awp.sql` | 04 | Full PMS 2026 + senior tracks + Part V AWP tables, `pms_pen_picture_items` (15 rows), `signatures`/`annexures`/`awp-pdfs` buckets |
+| `20261121000005_committees_helpdesk.sql` | 05 | Committees, meetings, agenda/action items, COI declarations, helpdesk tickets + routing, `committee-docs` bucket |
+| `20261121000006_projects_proposals_lifecycle.sql` | 06 | `project_schemes`, projects + PL0–PL7 Project File tables, `project_stage_items`, proposals + review chains, progress reports, `proposal-documents` & `project-documents` buckets |
+| `20261121000007_calendar_recruitment_ops.sql` | 07 | Calendar, holidays, recruitment, contribution requests, data stewards, import/harvested queues, `metrics` & snapshots, `ai_action_log` |
+| `20261121000008_rag_documents_views_rpcs_policies.sql` | 08 | Documents/RAG tables + `documents` bucket, cross-table FKs, all 310 functions/RPCs, 12 `metrics` rows, 8 views, 77 triggers, RLS + 301 policies, exact grants, 7 `pg_cron` jobs |
 
 Each file states its stage number and dependencies in a header comment.
 Ordering rule: a file depends only on files with a *lower* stage number.
@@ -48,26 +48,25 @@ psql ... -f supabase/seed/02_appraisal_cycle.sql
 #      UPDATE user_profiles SET active_role = 'MasterAdmin' WHERE user_id = '<uuid>';
 ```
 
-## Adopting the Supabase CLI on an existing (already-live) project
+## Adopting the consolidated baseline on an existing (already-live) project
 
-This repo's live project already has the baseline's schema applied by hand
-(direct SQL, not the CLI). To start tracking future changes with
-`supabase db push` without re-running DDL that already exists:
+If a live Supabase project already ran the previous 93 migrations (now under
+`supabase/migrations_archive/2026-11-21/`), its schema matches the 8-file
+checkpoint baseline. Mark the old timestamps as reverted in the CLI tracking table
+and mark the 8 new checkpoint timestamps as applied without re-executing DDL:
 
 ```sh
 supabase link --project-ref <your-project-ref>
 supabase migration repair --status applied \
-  20260712000001 20260712000002 20260712000003 20260712000004 \
-  20260712000005 20260712000006 20260712000007 20260712000008
+  20261121000001 20261121000002 20261121000003 20261121000004 \
+  20261121000005 20261121000006 20261121000007 20261121000008
 ```
 
-`migration repair` marks these as applied in the CLI's tracking table
-without executing them. From this point on, every schema change is a new
-timestamped file applied via `supabase db push` — **no more pasting SQL
-into the Dashboard SQL Editor**. That drift (repo migrations silently never
-applied to the live project) is exactly what caused a multi-week outage of
-RAG/MOU/tech-transfer/progress-report features — see
-`docs/superpowers/specs/2026-07-11-db-file-restructure-design.md`.
+(If upgrading an older DB that had earlier timestamps tracked in
+`supabase_migrations.schema_migrations`, mark the superseded timestamps `--status reverted`
+first, or start fresh on a clean database with `supabase db reset` / `supabase db push`.)
+From this point on, every schema change is a new timestamped file applied via
+`supabase db push` — **no more pasting SQL into the Dashboard SQL Editor**.
 
 ## Auth settings live in `config.toml`, not the Dashboard
 

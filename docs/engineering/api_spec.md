@@ -1,14 +1,13 @@
 # SURYA — API Specification
 
-_Complete interface reference. Current as of 2026-08-08._
+_Complete interface reference. Current as of 2026-11-21 (8-file consolidated DB baseline `20261121000001`–`20261121000008`)._
 
-SURYA exposes **three API surfaces**. There is no bespoke Node/REST tier — that is
-deliberate ([app.md §8](app.md#8-non-goals)).
+SURYA exposes **three API surfaces**. There is no bespoke Node/REST tier — that is deliberate ([app.md §8](app.md#8-non-goals)).
 
 | # | Surface | Base | Consumer | Auth |
 |---|---|---|---|---|
-| **A** | Supabase **PostgREST** — table reads/writes | `${VITE_SUPABASE_URL}/rest/v1` | SPA (via `@supabase/supabase-js`) | anon key + user JWT; **RLS is the gate** |
-| **B** | Supabase **RPC** — the mutation/workflow API | `${VITE_SUPABASE_URL}/rest/v1/rpc/<fn>` | SPA | Same JWT; each function authorizes itself |
+| **A** | Supabase **PostgREST** — table & view reads/writes | `${VITE_SUPABASE_URL}/rest/v1` | SPA (via `@supabase/supabase-js`) | Anon key + user JWT; **RLS + column/table ACLs are the gate** |
+| **B** | Supabase **RPC** — the mutation/workflow API | `${VITE_SUPABASE_URL}/rest/v1/rpc/<fn>` | SPA / `rag` worker | Same JWT (or `service_role` for internal/cron RPCs); each function authorizes itself |
 | **C** | **Ask SURYA HTTP API** — the AI service | `${VITE_RAG_URL}` (prod: `/rag`, proxied by nginx) | SPA (`src/lib/ask/client.ts`) | `Authorization: Bearer <user JWT>` |
 
 ---
@@ -17,64 +16,47 @@ deliberate ([app.md §8](app.md#8-non-goals)).
 
 ## 0.1 Authentication
 
-Every surface authenticates with the **same Supabase-issued user JWT**. There is no API
-key, no service account, and no second identity system.
+Every surface authenticates with the **same Supabase-issued user JWT**. There is no API key, no service account, and no second identity system for end users.
 
 ```http
 apikey: <VITE_SUPABASE_ANON_KEY>
 Authorization: Bearer <session.access_token>
 ```
 
-Obtained via `supabase.auth.signInWithPassword()`; refreshed by the client library. The
-SPA reads it with `supabase.auth.getSession()` — never from `localStorage`.
+Obtained via `supabase.auth.signInWithPassword()`; refreshed by the client library. The SPA reads it with `supabase.auth.getSession()` — never from `localStorage`.
 
-Surface C forwards the same token. `rag-api` verifies it (`auth.verify_token`) and builds
-a client whose PostgREST calls carry it (`auth.scoped_client`). **The AI service can never
-read anything the asking user could not read directly.**
+Surface C forwards the same token. `rag-api` verifies it (`auth.verify_token`), builds a client whose PostgREST calls carry it (`auth.scoped_client`), and enforces the database gate function (`can_use_ask_surya()` for Ask SURYA endpoints, `caller_is_admin()` for `/map-columns`). **The AI service can never read anything the asking user could not read directly.**
 
 ## 0.2 Authorization
 
 Authorization is not expressed in the API shape. It is expressed in:
 
-- **RLS policies** — a read you are not entitled to returns `[]`, not `403`. A write you
-  are not entitled to returns a policy violation.
-- **RPC authorization blocks** — every `SECURITY DEFINER` function opens with an explicit
-  check; failure raises a Postgres exception surfaced as `400` with the message.
-- **Actor assertions** — any parameter named `p_actor_id` / `p_author_id` /
-  `p_submitted_by` must equal `auth.uid()`. Client-supplied identity is never trusted.
+- **RLS policies** — a read you are not entitled to returns `[]`, not `403`. A write you are not entitled to returns a policy violation (`403` / Postgres `42501`).
+- **Least-privilege table & column ACLs** — workflow/audit tables revoke direct `INSERT`/`UPDATE`/`DELETE` from `authenticated`, and `user_profiles`, `notifications`, and `proposal_review_comments` narrow `UPDATE` to whitelisted columns.
+- **RPC authorization blocks** — every `SECURITY DEFINER` function opens with an explicit check and pins `search_path`; failure raises a Postgres exception surfaced as `400` with the message.
+- **Actor assertions** — any parameter named `p_actor_id` / `p_author_id` / `p_submitted_by` must equal `auth.uid()`. Client-supplied identity is never trusted.
 
 ## 0.3 Versioning
 
-**Unversioned, by design.** The SPA and the schema deploy together; there is no third-party
-consumer to hold compatible. Compatibility is preserved by convention instead:
+**Unversioned, by design.** The SPA and the schema deploy together; there is no third-party consumer to hold compatible. Compatibility is preserved by convention instead:
 
-- Migrations are append-only; shipped baseline files are never edited.
-- RPC signatures are extended with `DEFAULT`-valued trailing parameters, never reordered.
-  Where a parameter type had to change (`helpdesk_*` actor ids went `text` → `uuid` in
-  `20260725000004`), the change shipped as a new migration replacing the function whole.
-- Answers from surface C are stamped with `catalog_version` so a logged answer traces to
-  the code that produced it.
+- Migrations are append-only; the shipped 8-file 2026-11-21 baseline (`20261121000001`–`20261121000008`) is never edited once applied.
+- RPC signatures are extended with `DEFAULT`-valued trailing parameters, never reordered. Replacing a signature ships as a new timestamped migration.
+- Answers from surface C are stamped with `catalog_version` so a logged answer traces to the code that produced it.
 
-If an external consumer ever appears, version surface C by path prefix (`/v1/query`); do
-not version B — the client is in-repo.
+If an external consumer ever appears, version surface C by path prefix (`/v1/query`); do not version B — the client is in-repo.
 
 ## 0.4 Pagination
 
-**Surface A/B.** PostgREST caps responses at `max_rows = 1000`, declared in
-`supabase/config.toml`. The SPA pages with `fetchAll` (`src/lib/data/fetchAll.ts`) at
-`PAGE_SIZE = 1000`.
+**Surface A/B.** PostgREST caps responses at `max_rows = 1000`, declared in `supabase/config.toml`. The SPA pages with `fetchAll` (`src/lib/data/fetchAll.ts`) at `PAGE_SIZE = 1000`.
 
-> The two numbers must stay equal. A page size **above** the cap makes a capped response
-> indistinguishable from a final short one, so paging stops early and truncates silently.
-> If you raise `max_rows`, raise `PAGE_SIZE` with it — never past it.
+> The two numbers must stay equal. A page size **above** the cap makes a capped response indistinguishable from a final short one, so paging stops early and truncates silently. If you raise `max_rows`, raise `PAGE_SIZE` with it — never past it.
 
 ```ts
 supabase.from('staff').select('*').order('ID').range(offset, offset + 999)
 ```
 
-**Surface C** does not paginate: `/query` returns one answer, `/similar` returns at most
-`MAX_SIMILAR_MATCHES = 6`. Internally, `read_docs` pages `doc_indexes` at 200 rows, so
-corpus size is not capped.
+**Surface C** does not paginate: `/query` returns one answer, `/similar` returns at most `MAX_SIMILAR_MATCHES = 6`. Internally, `read_docs` pages `doc_indexes` at 200 rows, so corpus size is not capped.
 
 ## 0.5 Errors
 
@@ -89,12 +71,11 @@ corpus size is not capped.
 |---|---|
 | `400` | Constraint violation, or a `RAISE EXCEPTION` from an RPC authorization block |
 | `401` | Missing/expired JWT |
-| `403` | RLS policy violation on write |
+| `403` | RLS policy or grant violation on write |
 | `404` | Unknown table or function |
 | `409` | Unique constraint conflict (e.g. a second report for the same cycle+scientist) |
 
-A read blocked by RLS is **not** an error — it is an empty array. Do not treat `[]` as
-"no data"; it may mean "not yours".
+A read blocked by RLS is **not** an error — it is an empty array. Do not treat `[]` as "no data"; it may mean "not yours".
 
 **Surface C** — FastAPI `{"detail": "..."}`:
 
@@ -103,29 +84,29 @@ A read blocked by RLS is **not** an error — it is an empty array. Do not treat
 | `400` | `empty question` / `empty text` | Blank body field |
 | `400` | `raw_headers and target_fields required` | `/map-columns` missing input |
 | `400` | `too many headers/fields (max 400)` | `/map-columns` over the cap |
+| `400` | `header too long (max 256 chars)` | `/map-columns` header over limit |
 | `401` | `missing bearer token` | No/malformed `Authorization` header |
 | `401` | `invalid token` | JWT rejected by GoTrue |
+| `403` | `forbidden` | Caller blocked by `can_use_ask_surya` feature gate (or not `caller_is_admin` on `/map-columns`) |
+| `404` | `record not found` | Supplied `context_entity` does not exist or is unreadable under caller's RLS |
 | `504` | `model timeout` | LLM host exceeded `RAG_*_TIMEOUT_S` |
 
-On `/query/stream` a mid-stream failure arrives as an SSE frame, not an HTTP status:
-`data: {"error": "model timeout"}`.
+On `/query/stream` a mid-stream failure arrives as an SSE frame, not an HTTP status: `data: {"error": "model timeout"}`.
 
 ## 0.6 Idempotency and side effects
 
-- All `pms_*`, `proposal_*`, `project_report_*` transition RPCs assert the current state
-  before writing, so a duplicate call raises rather than double-applying.
+- All `pms_*`, `proposal_*`, `project_report_*`, `project_change_*`, `project_completion_*`, and `publication_*` transition RPCs assert the current state before writing, so a duplicate call raises rather than double-applying.
 - `helpdesk_create_ticket` is **not** idempotent — it mints a new token per call.
-- `contribution_request_create` is **not** idempotent; `contribution_request_act` asserts the
-  current status, and the sweep dedupes on `dedupe_key`, so a re-run raises nothing new.
+- `contribution_request_create` is **not** idempotent; `contribution_request_act` asserts the current status, and `contribution_requests_sweep` / `notifications_sweep` / `metric_snapshot_run` dedupe by key (`dedupe_key` or primary key `ON CONFLICT DO NOTHING`).
+- `project_reverse_entry` inserts a negating compensating row; each entry can be reversed once (`reverses_id UNIQUE`).
 - Imports upsert on primary key, so re-importing the same file is safe.
-- Document capture dedupes on SHA-256 content hash.
+- Document capture dedupes on SHA-256 `content_hash`.
 
 ---
 
 # Part A — Data API (PostgREST)
 
-Accessed exclusively through `@supabase/supabase-js`. Raw HTTP is documented only so the
-shape is legible.
+Accessed exclusively through `@supabase/supabase-js`. Raw HTTP is documented only so the shape is legible.
 
 ## A.1 Reading
 
@@ -151,68 +132,77 @@ supabase.from('doc_indexes')
 
 ## A.2 Entity endpoints
 
-Full column-level definitions are in [database_design.md](database_design.md). Read scope
-is the RLS policy, not a query parameter.
+Full column-level definitions are in [database_design.md](database_design.md). Read scope is enforced by RLS policies and least-privilege grants, not query parameters.
 
-| Table | Read scope | Direct client write |
+| Table / View Group | Read scope | Direct client write |
 |---|---|---|
-| `divisions`, `staff`, `projects`, `project_staff`, `phd_students`, `phd_milestones`, `equipment`, `labs`, `contract_staff`, `scientific_outputs`, `ip_intelligence`, `mous`, `tech_transfers` | Role-scoped: Director/admins see all; DivisionHead/HOD/Technician scoped to their `division_code`; others narrower | HRAdmin + SystemAdmin only |
-| `vacancy_advertisements`, `vacancy_posts` | All authenticated | Data admins |
+| `divisions` | All authenticated (`SELECT true`) | HRAdmin · SystemAdmin · MasterAdmin |
+| `staff`, `project_staff`, `contract_staff`, `phd_students`, `phd_milestones`, `scientific_outputs`, `ip_intelligence`, `mous`, `tech_transfers`, `labs` | Role- & division-scoped (`caller_sees_all_personnel()` / division / self / supervisor) | HRAdmin · SystemAdmin · MasterAdmin (data admins) |
+| `equipment` | Division/all-personnel + Technician in division + `owner_user_id` | HRAdmin · SystemAdmin · MasterAdmin |
+| `projects` | All-personnel · Finance · PME · division managers · PI (`pi_staff_id`) · team · proposal co-PIs/PI (`projects_select_parties`) | **MasterAdmin + PME only** (`projects_write_master`, `projects_write_pme`); frozen once `stage = 'ARCHIVED'` |
+| `vacancy_advertisements`, `vacancy_posts` | All authenticated | Data admins (`drive_stage` trigger-locked; advance via `recruitment_advance`) |
 | `committees`, `committee_members`, `meetings`, `agenda_items`, `action_items`, `meeting_documents` | All authenticated | Chair/secretary + admins; minutes lock after finalization (`unlock_meeting_minutes` to reopen) |
-| `tickets`, `ticket_responses`, `ticket_events` | Submitter + assignee + admins | **RPC only** |
+| `tickets`, `ticket_responses`, `ticket_events`, `coi_declarations` | Submitter/member + assignee/chair/convener + admins | **RPC only** (`SELECT` grant only) |
 | `calendar_events`, `holidays` | By `visibility` (`OrgWide` / `Division` / `Personal`) | Creator + admins |
-| `proposals`, `proposal_copis`, `proposal_documents`, `proposal_status_history` | `proposals_can_read` — a `DRAFT`: PI, creator and named co-PIs only. From submission: also the division's managers, Director, admins, PME and the track's scheme leader | Editable statuses only; transitions via RPC |
+| `proposals`, `proposal_copis`, `proposal_documents`, `proposal_budget_lines`, `proposal_notes`, `proposal_review_comments`, `proposal_review_steps`, `proposal_versions`, `proposal_status_history` | `proposals_can_read` (`DRAFT`: PI, creator, named co-PIs; submitted: division managers, Director, admins, PME, scheme leader). `proposal_notes` strictly creator-only | Author direct UPDATE on `proposals` / `proposal_budget_lines` in editable statuses; `proposal_notes` owner CRUD; `proposal_review_comments.resolved_at` column-narrowed to PI; review steps & versions **RPC only** |
 | `project_reports`, `project_report_history` | `project_reports_can_read` | Editable statuses only; transitions via RPC |
-| `pms_reports` and children | Owner + admins + assigned evaluators + committee + grievance members | Owner in `DRAFT` only; transitions via RPC |
-| `documents` | `documents_can_read` — four-tier ladder | Insert: `owner_id = auth.uid()`. Update: admins only |
-| `doc_indexes`, `doc_pages`, `collection_indexes` | Follows the parent document's readability | Worker (service role) only |
-| `query_log` | Own rows | Insert by the API as the caller; `feedback` update by owner |
-| `route_labels` | Admins | Admins |
-| `user_roles`, `user_profiles` | Own rows + admins | **Column-narrowed grants.** Role changes via RPC only |
-| `feature_controls` | All authenticated (read) | MasterAdmin |
+| `project_labs`, `project_budget_lines`, `project_fund_receipts`, `project_expenditure`, `project_milestones`, `project_review_slots`, `project_change_requests`, `project_change_steps`, `project_completion_reports`, `project_completion_steps`, `project_documents`, `project_events`, `project_ip_agreements`, `project_stage_items`, `project_stage_deliverables` | Follows parent `projects` RLS (`project_stage_items` open to verified users) | **RPC only** (`SELECT` only), except `project_documents` INSERT (`arm`) by office/PI per `doc_type` |
+| `sanctioned_posts`, `sanctioned_post_events`, `staff_career_events`, `staff_profile_changes`, `output_authors`, `ip_inventors`, `project_staff_persons`, `project_selections`, `project_engagements`, `project_staff_leave`, `publication_files`, `publication_author_consents`, `recruitment_events` | Verified / role- / division- / author-scoped RLS | **RPC / trigger only** (`SELECT` grant only; `staff_expertise` allows owner insert/update/delete + curator suggestion insert) |
+| `pms_reports`, `pms_report_sections`, `pms_annexures`, `pms_evaluations`, `pms_panel_scores`, `pms_part1`, `pms_report_items`, `pms_committee_decisions`, `pms_representations`, `pms_condonations`, `pms_awps`, `pms_awp_revisions`, `pms_pen_picture_items` | Owner + admins + assigned evaluators/panel + Empowered/Grievance committees (`pms_awp_can_read` for AWPs) | Owner in `DRAFT` on report/sections/annexures; panel scores, decisions, representations, Part I, items & AWPs **RPC only** |
+| `documents`, `doc_indexes`, `doc_pages`, `collection_indexes` | `documents_can_read` — four-tier ladder (`institute`, `division`, `owner`, `confidential`) | `documents` INSERT by owner (`owner`/`confidential`, or any tier for admin/Director); UPDATE by SystemAdmin/MasterAdmin; indexes/pages worker (`service_role`) only |
+| `query_log`, `scheduled_queries`, `route_labels` | `query_log`/`scheduled_queries`: own rows (+ admin reads on `query_log`); `route_labels`: admins | `query_log`: caller INSERT + owner UPDATE of `feedback` and `pinned` only; `scheduled_queries`: owner INSERT/DELETE (`ard`); `route_labels`: admins |
+| `user_roles`, `user_profiles`, `acting_assignments`, `access_requests` | Own rows + admins (`acting_assignments` verified users) | **Column-narrowed grants** (`user_profiles`: `active_role`, `last_seen_at` only); `user_roles` & `acting_assignments` **RPC only** |
+| `feature_controls`, `feature_grants`, `notifications`, `ai_action_log`, `csir_rules`, `metrics`, `metric_snapshots` | Verified/all authenticated (`feature_grants` & `notifications` & `ai_action_log` own/admin) | `feature_controls` & `feature_grants`: MasterAdmin; `notifications`: column `UPDATE (status, updated_at)` by owner; rest **RPC / cron / trigger only** |
+| `data_stewards`, `contribution_requests`, `contribution_request_events` | Operational / reviewer / requester / assignee / delegate | **RPC only** (`SELECT` only) |
 | `harvested_imports`, `ingest_sender_map`, `import_events`, `import_field_mappings` | Data admins | Data admins |
 | `audit_log`, `pms_audit_logs` | Admins | Triggers / RPCs only |
+| **Views (8):** `division_strength`, `entity_timeline`, `project_portfolio`, `staff_link_gaps`, `staff_project_links`, `staff_research_summary`, `unique_staff_names`, `project_lessons` | First 7 run `security_invoker` (inherit underlying RLS); `project_lessons` runs definer-style explicitly gated to `status = 'APPROVED' AND caller_is_verified()` | Read-only |
 
 ## A.3 Storage
 
-Four buckets, all private: `documents` (shared, new modules), `annexures` (PMS),
-`proposal-documents`, `committee-docs`.
+**Seven private buckets** (`public = false`, 18 `storage.objects` policies):
+
+| Bucket | Module / Consumer | Read & Write Policy Summary |
+|---|---|---|
+| **`documents`** | Central registry, harvested captures, publication similarity reports, recruitment orders | Upload under `{auth.uid()}/%`; readable only when an owning `documents` row passes `documents_can_read()` — stray uploads leak nothing; delete by owner or SystemAdmin/MasterAdmin |
+| **`annexures`** | PMS self-appraisal attachments | Read via `pms_can_read_report_path(name)`; upload by report owner or PMS admin; delete blocked once `finalized_*` |
+| **`signatures`** | PMS digital/scanned signatures | Read via `pms_can_read_report_path(name)`; insert/update by report owner or PMS admin |
+| **`proposal-documents`** | Proposals & review scans (`{proposal_id}/{doc_type}/...`) | Read via `proposals_can_read`; upload gated by role & proposal status (`signed_proposal`/`quotation` by creator in editable state; `step_scan`/`sanction_order` by active reviewers; `om_document` by admin) |
+| **`project-documents`** | Execution receipts, expenditure statements, milestone evidence, minutes, change/closure scans, stage deliverables | Read iff caller can see the owning `projects` row; upload gated by `project_caller_may_file(project_id, doc_type)` |
+| **`committee-docs`** | Committee & meeting documents/minutes | Read iff referenced in `meeting_documents`; upload by Director, SystemAdmin, or MasterAdmin |
+| **`awp-pdfs`** | Imported / scanned Annual Work Plan PDFs | Admin upload/delete; read by PMS admin or when linked from `pms_awps.source_pdf_path` |
 
 ```ts
 await supabase.storage.from('documents').upload(path, file);
 const { data } = await supabase.storage.from('documents').createSignedUrl(path, 60);
 ```
 
-`storage.objects` policies mirror the registry: an object in `documents` is readable only
-when a `documents` row with the same `(storage_bucket, storage_path)` passes
-`documents_can_read`. Uploading is permitted to any authenticated user, but the object stays
-unreadable until the uploader creates the owning registry row — so a stray upload leaks
-nothing.
-
-Citation deep-links are built by `citationHref` (`src/lib/ask/citations.ts`) from the
-`storage_path` returned in each citation.
+Citation deep-links are built by `citationHref` (`src/lib/ask/citations.ts`) from the `storage_path` returned in each citation.
 
 ---
 
 # Part B — RPC API
 
-Called as `supabase.rpc('<name>', { ...params })`. Every function listed as `SECURITY
-DEFINER` runs as the owner, bypasses RLS, and therefore **is** the authorization boundary —
-each opens with an explicit check, enforced in CI by `scripts/check_security_definer.py`.
+Called as `supabase.rpc('<name>', { ...params })`. Every `SECURITY DEFINER` function runs as the owner, bypasses RLS, pins `search_path`, and opens with an explicit authorization check (statically verified by `scripts/check_security_definer.py`).
 
-## B.1 Authentication and users
+## B.1 Authentication, Users & RBAC
 
-| Function | Parameters | Returns | Authorization |
+| Function | Parameters | Returns | Authorization + effect |
 |---|---|---|---|
-| `approve_access_request` | `p_request_id uuid, p_roles text[], p_division text` | `void` | SystemAdmin / MasterAdmin. Writes `user_roles`, marks the request `APPROVED` |
+| `approve_access_request` | `p_request_id uuid, p_roles text[], p_division text` | `void` | SystemAdmin / MasterAdmin. Writes `user_roles`, marks request `APPROVED` |
 | `reject_access_request` | `p_request_id uuid, p_note text` | `void` | SystemAdmin / MasterAdmin |
-| `admin_set_user_roles` | `p_user_id uuid, p_roles text[], p_active_role text, p_division text` | `void` | MasterAdmin. The only path that changes a user's roles |
-| `admin_list_users` | — | `TABLE(...)` | Admins. Joins `auth.users` with roles/profiles |
-| `admin_force_password_reset` | `p_user_id uuid` | `void` | Admins. Sets `must_change_password` |
-| `admin_staff_link_gaps` | — | `TABLE(...)` | Admins. Users with no matching `staff."ID"` — a data-quality report |
-| `clear_must_change_password` | — | `void` | Self. **Refuses if the new password hash cannot be verified** — it will not clear the flag on an unchanged password |
-| `user_directory` | — | `TABLE(user_id, name, email, ...)` | Roles permitted to see the directory (`caller_sees_directory`). Powers `UserPicker` / `StaffPicker` without exposing `auth.users` |
-| `merge_user_preferences` | `p_patch jsonb` | `void` | Self. Shallow-merges into own preferences |
+| `admin_set_user_roles` | `p_user_id uuid, p_roles text[], p_active_role text, p_division text` | `void` | MasterAdmin. Only path that changes a user's assigned roles |
+| `admin_list_users` | — | `TABLE(user_id, email, active_role, roles, division_code, must_change_password, last_seen_at)` | Admins. Joins `auth.users` with roles and profiles |
+| `admin_force_password_reset` | `p_user_id uuid` | `void` | Admins. Sets `must_change_password = true` |
+| `admin_staff_link_gaps` | — | `TABLE(table_name, row_key, name_column, unresolved_name)` | Admins. Unlinked staff/user rows (data-quality report) |
+| `clear_must_change_password` | — | `void` | Self. Refuses unless the password hash actually changed (`password_fingerprint`) |
+| `user_directory` | — | `TABLE(user_id uuid, email text, roles text[])` | `caller_sees_directory()`. Powers user pickers without exposing `auth.users` |
+| `merge_user_preferences` | `p_patch jsonb` | `void` | Self. Shallow-merges into own `user_profiles.preferences` |
+| `acting_assign` | `p_role text, p_division text, p_principal uuid, p_acting uuid, p_from date, p_to date, p_order_ref text` | `uuid` | Director (HoD charges), HRAdmin, MasterAdmin. Refuses self-assignment; honoured by `caller_has_role()` and `caller_in_division()` |
+| `acting_end` | `p_id uuid, p_last_day date` | `void` | Director (HoD), HRAdmin, MasterAdmin |
+| `acting_capacity` | `p_user uuid, p_on date` | `text` | Returns acting capacity label for `entity_timeline` |
+| `caller_staff_id` | — | `text` | Resolves signed-in user's `staff."ID"` |
+| `list_combined_audit_logs` | `p_source text = 'all', p_limit integer = 25, p_offset integer = 0` | `TABLE(...)` | Admins. Paged unified audit feed across `pms_audit_logs` and `audit_log` |
 
 ```ts
 const { error } = await supabase.rpc('admin_set_user_roles', {
@@ -223,407 +213,287 @@ const { error } = await supabase.rpc('admin_set_user_roles', {
 });
 ```
 
-## B.2 PMS
+## B.2 PMS & Annual Work Plans (AWP)
+
+### Legacy & core PMS actions (`src/contexts/PMSContext.tsx`)
 
 | Function | Parameters | Returns | Authorization + effect |
 |---|---|---|---|
-| `pms_submit_report` | `p_report_id uuid` | `void` | Owner, status `DRAFT`, cycle unlocked, before the `SELF_APPRAISAL` deadline. → `SUBMITTED`, sets `submitted_at` |
-| `pms_assign_evaluators` | `p_report_id uuid, p_committee_id uuid` | `void` | Admin. Panel must satisfy `pms_committee_panel_valid`. Creates one `pms_evaluations` row per member → `UNDER_EVALUATION_COMMITTEE_REVIEW` |
-| `pms_finalize_report` | `p_report_id uuid, p_final_score integer, p_justification text, p_reasons_outstanding text = NULL, p_reasons_below text = NULL, p_suggestions text = NULL` | `void` | Empowered committee member. Standard track. → `FINALIZED`, sets `score_communicated_at` |
-| `pms_finalize_senior_report` | `p_report_id uuid, p_remarks text` | `void` | Empowered committee. Annexure-I/II — pen picture, no numeric score |
-| `pms_set_duty_days` | `p_report_id uuid, p_duty_days integer` | `void` | Admin |
-| `pms_mark_not_assessed` | `p_report_id uuid, p_remark text = NULL` | `void` | Admin. Terminal state for `duty_days < 90` |
-| `pms_record_non_submission` | `p_report_id uuid, p_cert_path text` | `void` | Admin. Records the non-submission certificate |
-| `pms_submit_representation` | `p_report_id uuid, p_grounds text` | `void` | Owner, report `FINALIZED`, within 15 days of `score_communicated_at`. `grounds` ≥ 20 chars. → `UNDER_GRIEVANCE_REVIEW` |
-| `pms_resolve_representation` | `p_report_id uuid, p_resolution text, p_revised_score integer = NULL, p_reasons_outstanding text = NULL, p_reasons_below text = NULL, p_suggestions text = NULL` | `void` | Grievance committee member for that cycle. → `FINALIZED` |
-| `pms_condone_delay` | `p_report_id uuid, p_condoned_until date, p_reason text` | `void` | Director or admin. `DRAFT` only, date ≤ June 30, reason ≥ 20 chars. Lets `pms_submit_report` accept after May 15 |
+| `pms_submit_report` | `p_report_id uuid` | `void` | Owner, status `DRAFT`, cycle unlocked, before `SELF_APPRAISAL` (or condoned date). → `SUBMITTED`, sets `submitted_at` |
+| `pms_assign_evaluators` | `p_report_id uuid, p_committee_id uuid` | `void` | PMS admin. Panel must satisfy `pms_committee_panel_valid` and 2026 tier check (`proforma_version = '2026'`). Creates `pms_evaluations` rows on legacy track → `UNDER_EVALUATION_COMMITTEE_REVIEW` |
+| `pms_finalize_report` | `p_report_id uuid, p_final_score integer, p_justification text, p_reasons_outstanding text = NULL, p_reasons_below text = NULL, p_suggestions text = NULL` | `void` | Empowered committee member. Standard legacy track → `FINALIZED`, sets `score_communicated_at` |
+| `pms_finalize_senior_report` | `p_report_id uuid, p_remarks text` | `void` | Empowered committee. Annexure-I/II pen picture, no numeric score |
+| `pms_set_duty_days` | `p_report_id uuid, p_duty_days integer` | `void` | PMS admin |
+| `pms_mark_not_assessed` | `p_report_id uuid, p_remark text = NULL` | `void` | PMS admin. Terminal state for `duty_days < 90` |
+| `pms_record_non_submission` | `p_report_id uuid, p_cert_path text` | `void` | PMS admin. Records non-submission certificate |
+| `pms_submit_representation` | `p_report_id uuid, p_grounds text` | `void` | Owner, report `FINALIZED`, within 15 days of `score_communicated_at`, `grounds` ≥ 20 chars → `UNDER_GRIEVANCE_REVIEW` |
+| `pms_resolve_representation` | `p_report_id uuid, p_resolution text, p_revised_score integer = NULL, p_reasons_outstanding text = NULL, p_reasons_below text = NULL, p_suggestions text = NULL` | `void` | Grievance committee member for that cycle → `FINALIZED` |
+| `pms_condone_delay` | `p_report_id uuid, p_condoned_until date, p_reason text` | `void` | Director or admin. `DRAFT` only, date ≤ June 30, reason ≥ 20 chars |
+| `pms_save_awp_activities` | `p_report_id uuid, p_activities jsonb` | `void` | Owner (`DRAFT`). Replaces legacy `pms_awp_activities` rows |
 
-### Annual Work Plan (`20261021000002_pms_awp.sql`)
+### PMS 2026 Assessment (`src/lib/pms/assessment2026Api.ts`)
 
 | Function | Parameters | Returns | Authorization + effect |
 |---|---|---|---|
-| `pms_awp_save_draft` | `p_staff_id text, p_year text, p_payload jsonb` | `uuid` | Owner (`staff.user_id = auth.uid()`), status `DRAFT`/`RETURNED`. Creates or updates content |
-| `pms_awp_submit` | `p_awp_id uuid` | `void` | Owner, by 15 May (IST) of the plan's first year. Activity total must be 100; a Reporting Officer must be on record. → `WITH_RO`, or `WITH_DIRECTOR` when the RO is the Director |
-| `pms_awp_ro_review` | `p_awp_id uuid, p_verdict text, p_reasons text, p_payload jsonb = NULL` | `void` | Reporting Officer. `NOT_REASONABLE` needs reasons ≥ 20. `p_payload` only for a `BLANK_FORWARDED` AWP (RO fills it in, total 100). → `WITH_RVO`, or `WITH_DIRECTOR` when the RvO is the Director |
-| `pms_awp_rvo_review` | `p_awp_id uuid, p_remarks text` | `void` | Reviewing Officer. → `WITH_DIRECTOR` |
-| `pms_awp_director_decide` | `p_awp_id uuid, p_decision text, p_remarks text, p_payload jsonb = NULL` | `void` | Director only (§5.E.a.iv); a modified plan must total 100. `ACCEPTED`, or `MODIFIED` with payload + remarks ≥ 20. → `APPROVED`, sets `communicated_at` |
-| `pms_awp_return` | `p_awp_id uuid, p_reasons text` | `void` | The current reviewer (admins too, except at the Director stage). → `RETURNED` |
-| `pms_awp_forward_blank` | `p_staff_id text, p_year text` | `uuid` | Admin. §5.E.a.iii — late or missing AWP to the RO (keeps any draft; records the current RO), `source='BLANK_FORWARDED'` |
-| `pms_awp_import` | `p_staff_id text, p_year text, p_payload jsonb, p_status text, p_pdf_path text, p_ro_verdict text, p_ro_date date, p_approved_date date` | `uuid` | Admin. Status `APPROVED`/`WITH_DIRECTOR`/`WITH_RO`; plan must total 100; rejects a duplicate staff+year |
-| `pms_awp_request_revision` | `p_awp_id uuid, p_reasons text, p_after jsonb` | `uuid` | Owner, RO, RvO, Director or admin. `APPROVED` only, until 30 Sep (IST) of the first year; revised plan must total 100 |
-| `pms_awp_decide_revision` | `p_revision_id uuid, p_approve boolean, p_remarks text` | `void` | Director only. Approve replaces the content |
-| `pms_awp_set_reviewing_officer` | `p_awp_id uuid, p_staff_id text` | `void` | Admin. Before the RO review (`DRAFT`/`RETURNED`/`WITH_RO`) |
-| `pms_awp_for_report` | `p_report_id uuid` | `SETOF pms_awps` | Anyone who may read the report (committees included). The report-year AWP with confidential projects emptied server-side |
+| `pms_timeline_status` | `p_cycle_id uuid` | `TABLE(step, label, due, done, pending, overdue)` | PMS admins, Director. Annexure-B 9-step schedule counts |
+| `pms_delay_report` | `p_cycle_id uuid` | `TABLE(report_id, scientist, status, step, due, days_late)` | PMS admins, Director. Late reports across steps |
+| `pms_timeline_sweep` | — | `integer` | Cron (`service_role`) only. Deemed acceptance after 15 days + overdue reminders |
+| `pms_part1_prefill` | `p_cycle_id uuid` | `integer` | PMS admins. Populates unverified Part I snapshots from `staff` |
+| `pms_part1_report_discrepancy` | `p_report_id uuid, p_text text` | `void` | Owner. Records Part I discrepancy and clears verification |
+| `pms_part1_verify` | `p_report_id uuid, p_data jsonb = NULL` | `void` | PMS admins. Verifies Part I, optionally applying corrections |
+| `pms_prefill_from_profile` | `p_report_id uuid` | `integer` | Owner (`DRAFT`). Pulls `staff_profile_facts` lines; never overwrites touched rows |
+| `pms_report_item_set` | `p_item_id uuid, p_state text, p_text text = NULL` | `void` | Owner (`DRAFT`). Confirm / edit / remove an item |
+| `pms_report_item_add` | `p_report_id uuid, p_section text, p_text text` | `uuid` | Owner (`DRAFT`). Adds a manual `ADDED` line item |
+| `pms_record_panel_score` | `p_report_id uuid, p_score integer, p_reasons_outstanding text, p_reasons_below text, p_suggestions text, p_pen_picture jsonb, p_integrity text, p_adverse_remarks text, p_critical_assessment text, p_remarks text, p_quorum_present integer, p_signed_scan_path text = NULL` | `void` | Reporting Officer or PMS admin. Records 2026 panel score + all 15 `pms_pen_picture_items` ratings (quorum ≥ half panel) → `EMPOWERED_COMMITTEE_REVIEW` |
+| `pms_finalize_report_2026` | `p_report_id uuid, p_action text, p_final_score integer, p_reasons text, p_suggestions text, p_general_comments text, p_critical_assessment text, p_quorum_present integer` | `void` | Empowered Committee member or PMS admin. `CONCUR \| UPGRADE \| DOWNGRADE` (quorum = chair + half ordinary members) → `FINALIZED` |
+| `pms_score_history` | `p_staff_id text` | `TABLE(cycle_id, cycle, score, grade, lab_average, normalised, remarks)` | Person, Director, open-cycle Empowered Committee, current RO/RvO |
 
-**Read-only helpers** (usable from the client for UI state, and used inside RLS policies):
-`pms_is_admin()`, `pms_is_evaluation_committee_member(p_cycle_id)`,
-`pms_is_grievance_member(p_cycle_id)`, `pms_committee_panel_valid(p_committee_id)`,
-`pms_empowered_committee_valid(p_cycle_id)`, `pms_deadline(p_cycle_id, p_kind)`,
-`pms_cycle_locked(p_cycle_id)`, `pms_caller_track()`.
+### Annual Work Plan (`pms_awps` / `pms_awp_revisions`)
 
-`p_kind` ∈ `SELF_APPRAISAL` (May 15) · `EC_COMPLETION` (Jun 30) ·
-`EMPOWERED_COMPLETION` (Jul 31) · `SYSTEM_LOCK` (Nov 30), all of the cycle's end year.
-
-**Validation enforced by the database, not the form:**
-
-| Rule | Mechanism |
-|---|---|
-| `self_score`, `total_score`, `final_score` ∈ [0, 100] | `CHECK` |
-| `justification` ≥ 50 characters (trimmed) | `CHECK` |
-| `grounds` ≥ 20 characters (trimmed) | `CHECK` |
-| `time_committed_percentage` ∈ [0, 100] | `CHECK` |
-| One report per `(cycle_id, scientist_id)` | `UNIQUE` |
-| One evaluation per `(report_id, evaluator_id)` | `UNIQUE` |
-| One decision and one representation per report | `UNIQUE` |
-| Score ≥ 90 → `reasons_for_outstanding` required; ≤ 75 → `reasons_below_threshold` + `suggestions_for_improvement` required | RPC guard |
-| No writes after `SYSTEM_LOCK` | `pms_block_locked_cycle_reports` / `..._children` triggers |
-
-```ts
-await supabase.rpc('pms_finalize_report', {
-  p_report_id: reportId,
-  p_final_score: 92,
-  p_justification: 'Sustained outstanding contribution across three sponsored projects…',
-  p_reasons_outstanding: 'Two granted patents and a technology transferred to industry.',
-});
-```
-
-## B.3 Proposals
-
-| Function | Parameters | From → To |
-|---|---|---|
-| `proposal_submit` | `p_id uuid` | `DRAFT` \| `REVISION_REQUESTED` → `SUBMITTED` |
-| `proposal_set_under_review` | `p_id uuid, p_body text, p_sent_date date` | `SUBMITTED` → `UNDER_REVIEW` |
-| `proposal_request_revision` | `p_id uuid, p_notes text` | `UNDER_REVIEW` → `REVISION_REQUESTED` |
-| `proposal_reject` | `p_id uuid, p_reason text` | `UNDER_REVIEW` → `REJECTED` |
-| `proposal_recommend` | `p_id uuid` | `UNDER_REVIEW` → `RECOMMENDED` |
-| `proposal_approve` | `p_id uuid, p_amount numeric, p_date date` | `RECOMMENDED` → `APPROVED` |
-| `proposal_issue_om` | `p_id uuid, p_om_no text, p_om_date date, p_doc_id uuid` | `APPROVED` → `OM_ISSUED` |
-| `proposal_link_project` | `p_id uuid, p_project_no text` | `OM_ISSUED` → `LINKED` |
-| `proposal_archive` | `p_id uuid` | `OM_ISSUED` → `ARCHIVED` |
-
-`proposal_submit` is PI-only and checks completeness (below); the rest are admin/review-body actions. All append
-`proposal_status_history`.
-
-### Proposal readiness (`src/lib/proposals/readiness.ts` ↔ `proposal_missing_fields()`)
-
-A draft needs a title and nothing else: every other column is nullable, and autosave
-writes whatever is there. Completeness is checked once, at submit, **in the database**:
-`proposal_submit` raises `Not ready to submit. Still needed: …` listing what
-`proposal_missing_fields(proposals)` returns, then requires a `signed_proposal` document.
-
-The browser shows the same list as the readiness meter. `readiness.ts` and the SQL
-function carry the same rules in the same order, and `scripts/db/proposals.db.test.ts`
-fails if the two lists differ. Required: `title`, `track`, `abstract`, `problem_statement`,
-`domain_theme`, `objectives`, `expected_outcomes`, `project_category`,
-`proposed_start_date`, `proposed_duration_months`, `pi_name`, `division_code`,
-`requested_budget > 0`, `fund_type`, `sponsor_type`, `sponsor_name`.
-
-### Workspace RPCs and direct writes (`src/lib/proposals/workspaceApi.ts`)
-
-| Call | Arguments | Who | Effect |
+| Function | Parameters | Returns | Authorization + effect |
 |---|---|---|---|
-| `proposal_save_version` | `p_id uuid, p_label text` | creator, while `DRAFT` \| `REVISION_REQUESTED` | Snapshots the row and co-PIs as the next `proposal_versions` row (`kind = 'manual'`) |
-| `proposal_restore_version` | `p_version_id uuid` | same | Versions the present state first, then puts the content columns and co-PIs back. Never touches status, review or sanction columns |
-| `proposals` UPDATE | changed columns only | creator, editable statuses (RLS) | Autosave (`ProposalsContext.saveFields`) |
-| `proposal_notes` INSERT / UPDATE / DELETE | — | author only (RLS) | Private notes; `used_in` records the field a note was moved into |
+| `pms_awp_save_draft` | `p_staff_id text, p_year text, p_payload jsonb` | `uuid` | Owner (`staff.user_id = auth.uid()`), status `DRAFT` / `RETURNED` |
+| `pms_awp_submit` | `p_awp_id uuid` | `void` | Owner, by May 15 IST of year 1; split must total 100%; RO required → `WITH_RO` (or `WITH_DIRECTOR` if RO is Director) |
+| `pms_awp_ro_review` | `p_awp_id uuid, p_verdict text, p_reasons text, p_payload jsonb = NULL` | `void` | Reporting Officer. `NOT_REASONABLE` requires reasons ≥ 20 chars; `p_payload` allowed only for `BLANK_FORWARDED` → `WITH_RVO` / `WITH_DIRECTOR` |
+| `pms_awp_rvo_review` | `p_awp_id uuid, p_remarks text` | `void` | Reviewing Officer → `WITH_DIRECTOR` |
+| `pms_awp_director_decide` | `p_awp_id uuid, p_decision text, p_remarks text, p_payload jsonb = NULL` | `void` | Director only (§5.E.a.iv). `ACCEPTED` or `MODIFIED` (total 100%, remarks ≥ 20 chars) → `APPROVED`, sets `communicated_at` |
+| `pms_awp_return` | `p_awp_id uuid, p_reasons text` | `void` | Current reviewer or admin (except Director stage) → `RETURNED` |
+| `pms_awp_forward_blank` | `p_staff_id text, p_year text` | `uuid` | Admin. §5.E.a.iii — forwards missing/late AWP to RO (`source = 'BLANK_FORWARDED'`) |
+| `pms_awp_import` | `p_staff_id text, p_year text, p_payload jsonb, p_status text, p_pdf_path text, p_ro_verdict text, p_ro_date date, p_approved_date date` | `uuid` | Admin. Imports `APPROVED` / `WITH_DIRECTOR` / `WITH_RO` AWP (split = 100%) |
+| `pms_awp_request_revision` | `p_awp_id uuid, p_reasons text, p_after jsonb` | `uuid` | Owner, RO, RvO, Director, or admin. `APPROVED` only, until Sep 30 IST of year 1 (total 100%) |
+| `pms_awp_decide_revision` | `p_revision_id uuid, p_approve boolean, p_remarks text` | `void` | Director only. Approved revision replaces AWP content |
+| `pms_awp_set_reviewing_officer` | `p_awp_id uuid, p_staff_id text` | `void` | Admin. Allowed while `DRAFT` / `RETURNED` / `WITH_RO` |
+| `pms_awp_for_report` | `p_report_id uuid` | `SETOF pms_awps` | Any authorized report reader; redacts confidential projects server-side via `pms_awp_redact_projects` |
 
-`proposal_submit` also snapshots a `kind = 'submitted'` version, stores its id in
-`proposals.submitted_version_id`, and opens a round of review steps. Its readiness check is
-`proposal_readiness(id)`: the fields above plus `equipment_quotation` (an EQUIPMENT line of
-₹5 lakh or more needs a `quotation` document) and `works_not_allowed` (HQ track: WORKS lines
-only in MMP or FCP).
+**Read-only PMS helpers:** `pms_is_admin()`, `pms_is_evaluation_committee_member(p_cycle_id)`, `pms_is_grievance_member(p_cycle_id)`, `pms_committee_panel_valid(p_committee_id)`, `pms_empowered_committee_valid(p_cycle_id)`, `pms_deadline(p_cycle_id, p_kind)`, `pms_cycle_locked(p_cycle_id)`, `pms_caller_track()`, `pms_grade(p_score)`, `pms_annexure_b_due(p_cycle_id, p_step)`.
 
-### Review chain and sanction (`src/lib/proposals/api.ts`, `20261111000001`)
+## B.3 Proposals & Sanction Chain
 
-| RPC | Arguments | Who | Effect |
+### Submission & workspace (`src/lib/proposals/workspaceApi.ts`, `ProposalsContext.tsx`)
+
+| Function / Call | Parameters | Authorization + effect |
+|---|---|---|
+| `proposal_submit(p_id uuid)` | `p_id uuid` | Creator/PI only, `DRAFT` \| `REVISION_REQUESTED`. Validates `proposal_readiness(p_id)`, requires a `signed_proposal` doc, snapshots a `submitted` version into `submitted_version_id`, opens a round of `proposal_review_steps`, transitions → `SUBMITTED` |
+| `proposal_save_copis(p_proposal_id uuid, p_copis jsonb)` | `p_proposal_id, p_copis` | Creator in editable status. Replaces `proposal_copis` rows |
+| `proposal_save_version(p_id uuid, p_label text) → uuid` | `p_id, p_label` | Creator while `DRAFT` \| `REVISION_REQUESTED`. Saves a `manual` `proposal_versions` snapshot |
+| `proposal_restore_version(p_version_id uuid)` | `p_version_id` | Creator while `DRAFT` \| `REVISION_REQUESTED`. Snapshots current state, then restores content + co-PIs |
+| `proposal_missing_fields(p proposals) → text[]` | row | Read-only check matching `src/lib/proposals/readiness.ts` field-for-field |
+| `proposal_readiness(p_id uuid) → text[]` | `p_id uuid` | Full submission gate: `proposal_missing_fields` + `equipment_quotation` (≥ ₹5L per `csir_rule`) + `works_not_allowed` (HQ non-MMP/FCP) |
+| Direct RLS writes | `proposals` / `proposal_budget_lines` / `proposal_notes` / `proposal_review_comments` | Creator autosave, author-private notes, and reviewer comments / PI `resolved_at` |
+
+### Review chain & sanction (`src/lib/proposals/api.ts`)
+
+| Function | Parameters | Returns | Authorization + effect |
 |---|---|---|---|
-| `proposal_record_step` | `p_step_id uuid, p_decision text, p_notes text, p_document_id uuid, p_meeting_id uuid = NULL` | `proposal_caller_may_act(p, step.kind)` — never a party to the proposal | `APPROVE` needs a `step_scan` document; status → `proposal_status_after(kind)`. `RETURN` needs a note or an open comment; → `REVISION_REQUESTED`. `REJECT` needs a reason; → `REJECTED`. Steps go in order |
-| `proposal_set_track` | `p_id uuid, p_track text` | PME, on a proposal in review | Classifies a pre-PL2 proposal and opens its steps; steps already passed are `SKIPPED` |
-| `proposal_sanction` | `p_id, p_project_no, p_sanction_ref, p_sanction_date, p_amount, p_document_id, p_project_id = NULL` | PME, not a party | From `APPROVED` \| `OM_ISSUED`, needs a `sanction_order` document; HQ numbers must match guidelines §2.2. Creates the `projects` row (stage `SANCTIONED`, dates, PI, cost in ₹), copies the budget lines, sets the proposal `LINKED`. Returns the ProjectID |
+| `proposal_record_step` | `p_step_id uuid, p_decision text, p_notes text, p_document_id uuid, p_meeting_id uuid = NULL` | `void` | `proposal_caller_may_act(p, step.kind)` — never PI/author/co-PI. `APPROVE` needs `step_scan` → `proposal_status_after(kind)`; `RETURN` needs note or open comment → `REVISION_REQUESTED`; `REJECT` needs reason → `REJECTED` |
+| `proposal_set_track` | `p_id uuid, p_track text` | `void` | PME on a proposal in review; accepts any `project_schemes` code and opens/reconciles review steps |
+| `proposal_sanction` | `p_id uuid, p_project_no text, p_sanction_ref text, p_sanction_date date, p_amount numeric, p_document_id uuid, p_project_id text = NULL` | `text` (`ProjectID`) | PME (not a party), from `APPROVED` \| `OM_ISSUED`, requires `sanction_order` document; validates HQ project code format; creates `projects` row (`SANCTIONED`), copies `project_budget_lines`, transitions proposal → `LINKED` |
+| `proposal_link_project` | `p_id uuid, p_project_no text` | `void` | Admin / PME (`OM_ISSUED` → `LINKED`) |
+| `proposal_archive` | `p_id uuid` | `void` | Admin / PME (`OM_ISSUED` → `ARCHIVED`) |
 
-### Project execution (`src/lib/projects/projectFileApi.ts`, `20261111000002`)
+> **Retired (`EXECUTE` revoked from `authenticated`):** `proposal_set_under_review(uuid, text, date)`, `proposal_request_revision(uuid, text)`, `proposal_reject(uuid, text)`, `proposal_recommend(uuid)`, `proposal_approve(uuid, numeric, date)`, `proposal_issue_om(uuid, text, date, uuid)`. All transitions after submission go through `proposal_record_step` and `proposal_sanction`.
 
-"The office" is `project_caller_is_office(project)`: PME or MasterAdmin, and not the
-project's PI, author or a co-PI (`project_caller_is_party`).
+## B.4 Project Execution, Progress Reports, Compliance & Multi-Lab
 
-| RPC | Who | Effect |
-|---|---|---|
-| `project_record_receipt(p_project_id, p_received_on, p_amount, p_head, p_source, p_order_no, p_order_date, p_ifd_file_no, p_ifd_date, p_document_id, p_notes)` | the office | Needs a `receipt_order` document. HQ track: IFD file number and date required. A project created by sanction cannot receive more than `sanctioned_cost`. Financial year from the date. The first receipt moves stage `SANCTIONED → ACTIVE` |
-| `project_record_expenditure(p_project_id, p_fiscal_year, p_period, p_head, p_amount, p_document_id, p_notes)` | the office | Needs an `expenditure_statement` document; running projects only. Spending above a head's sanction is recorded, and flagged in the UI |
-| `project_reverse_entry(p_kind, p_entry_id, p_reason)` | the office | Inserts the opposite entry; once per entry |
-| `project_milestone_add(p_project_id, p_title, p_target_date)` | the office (→ `PLANNED`) or the PI (→ `PROPOSED`) | |
-| `project_milestone_report(p_id, p_achieved_on, p_note, p_document_id)` | the PI or a co-PI | `PLANNED → REPORTED`, with `milestone_evidence` |
-| `project_milestone_decide(p_id, p_decision, p_note)` | the office | `ACCEPT` (proposed → planned), `CONFIRM` (reported → achieved), `RETURN` (→ planned, reason required), `DROP` (reason required) |
-| `project_link_output(p_kind, p_output_id, p_project_id)` | PME, MasterAdmin or the project's PI | Links (or, with NULL, unlinks) a publication, patent or instrument |
+"The office" is `project_caller_is_office(p_project_id)`: PME or MasterAdmin, and never a party to the project (`project_caller_is_party(p_project_id)`). Read-only role predicates `project_caller_is_pi(p_project_id)`, `project_caller_is_party(p_project_id)`, and `project_caller_is_office(p_project_id)` are also client-callable for UI action gating.
 
-### Project monitoring (`src/lib/projects/projectFileApi.ts`, `20261111000003`)
+### Execution & financial ledger (`src/lib/projects/projectFileApi.ts`)
 
-| RPC / view | Who | Effect |
-|---|---|---|
-| `project_slot_schedule(p_slot_id, p_meeting_id)` | the office | Puts a pending review (not a progress report) on a meeting; adds an agenda item linked by `subject_type = 'project_review'`, replacing any earlier one |
-| `project_slot_record(p_slot_id, p_held_on, p_decision, p_outcome, p_minutes_document_id)` | the office | Marks the review `DONE`. Stage gate: `GO · CONDITIONAL_GO · HOLD · KILL · RECYCLE`; other reviews: `CONTINUE · CONTINUE_WITH_CHANGES · HOLD · FORECLOSURE_RECOMMENDED`. `HOLD` moves the project to `ON_HOLD`; a go-ahead on an `ON_HOLD` project moves it back to `ACTIVE`. Without minutes, `minutes_due = held_on + minutes_days` |
-| `project_slot_add_minutes(p_slot_id, p_document_id)` | the office | Files a `minutes` document on a held review; clears `minutes_due` |
-| `project_call_review(p_project_id, p_due_date, p_reason) → uuid` | Director, PME or MasterAdmin, not a party to the project | Adds a `CALLED_REVIEW` slot to a running project and notifies the PI (`project_review_called`, link `/projects/<id>?tab=monitoring`) |
-| `my_due_project_slots()` | any signed-in user | Pending progress reports and called reviews due within 30 days on projects where the caller is PI, author or co-PI |
-| `project_portfolio` (view) | read through projects RLS | One health row per running project (Portfolio page, PME desk) |
+| Function | Parameters | Returns | Who & effect |
+|---|---|---|---|
+| `project_record_receipt` | `p_project_id text, p_received_on date, p_amount numeric, p_head text, p_source text, p_order_no text, p_order_date date, p_ifd_file_no text, p_ifd_date date, p_document_id uuid, p_notes text = NULL` | `uuid` | Office. Needs `receipt_order`; HQ track requires IFD no./date; sanctioned project cannot exceed `sanctioned_cost`; first receipt moves `SANCTIONED → ACTIVE` |
+| `project_record_expenditure` | `p_project_id text, p_fiscal_year text, p_period text, p_head text, p_amount numeric, p_document_id uuid, p_notes text = NULL` | `uuid` | Office. Needs `expenditure_statement`; running projects only; updates `"UtilizedAmount"` on sanctioned projects |
+| `project_reverse_entry` | `p_kind text, p_entry_id uuid, p_reason text` | `uuid` | Office. Inserts opposite-sign entry referencing `reverses_id`; once per entry (`receipt \| expenditure`) |
+| `project_milestone_add` | `p_project_id text, p_title text, p_target_date date` | `uuid` | Office (`→ PLANNED`) or PI (`→ PROPOSED`) |
+| `project_milestone_report` | `p_id uuid, p_achieved_on date, p_note text, p_document_id uuid` | `void` | PI or co-PI. `PLANNED → REPORTED`, requires `milestone_evidence` |
+| `project_milestone_decide` | `p_id uuid, p_decision text, p_note text` | `void` | Office. `ACCEPT` (`→ PLANNED`), `CONFIRM` (`→ ACHIEVED`), `RETURN` (`→ PLANNED`), `DROP` |
+| `project_link_output` | `p_kind text, p_output_id text, p_project_id text` | `void` | PME, MasterAdmin, or PI. Links/unlinks `publication` (`scientific_outputs`), `patent` (`ip_intelligence`), or `instrument` (`equipment`) |
+| `project_set_lens` | `p_project_id text, p_theme_code text, p_trl_target integer, p_trl_reached integer` | `void` | PME, MasterAdmin, or PI. Updates domain theme (`01`–`09`) & TRL (`1`–`9`) |
 
-### Project change requests (`src/lib/projects/projectFileApi.ts`, `20261112000001`)
-
-| RPC | Who | Effect |
-|---|---|---|
-| `project_change_save(p_id, p_project_id, p_kind, p_justification, p_payload) → uuid` | the PI (not a co-PI) or the office; then only the author | Creates (`p_id` NULL) or updates a `DRAFT` / `RETURNED` request on a running project |
-| `project_change_submit(p_id, p_document_id)` | the author | Needs a `change_request` scan and a justification; runs every prohibition; opens the route for the track and kind (an HQ RCE above 20% adds the Monitoring and Revised Cost Committees). One open request per project |
-| `project_change_withdraw(p_id)` | the author | Before any step of the round is recorded |
-| `project_change_record_step(p_step_id, p_decision, p_notes, p_document_id, p_meeting_id, p_order_no, p_order_date, p_ifd_file_no, p_ifd_date)` | the step's owner (`project_change_caller_may_act`: PME; FinanceAdmin for `FINANCE`; Director or PME for `DIRECTOR_*`; PME or scheme leader for `REVIEW_COMMITTEE`), never a party | `APPROVE` needs a `change_order` scan; the last HQ step (except foreclosure) needs order no. and date **and** IFD file no. and date. The last approval re-runs the prohibitions and applies the effect. `RETURN` / `REJECT` need a note. The author is notified (`project_change_decided`) |
-| `my_change_steps()` | any signed-in user | The current pending step of each request the caller may record (My Actions, PME desk) |
-| `project_change_deltas(project, kind, payload)` · `project_head_position(project)` | signed-in | Validation and the per-year, per-head position; read-only |
-
-Routes: ULIP — PME vetting → review committee → Director approves. HQ — time overrun: PME
-→ Research Council → Monitoring Committee → competent authority; RCE ≤ 20%: PME → Finance
-→ Director forwards → competent authority; RCE > 20%: adds Monitoring Committee and Revised
-Cost Committee; rephasing / re-appropriation / reallocation: PME → Finance → Director
-forwards → Monitoring Committee → competent authority; foreclosure: PME → Monitoring
-Committee → Research Council.
-
-### Project closure (`src/lib/projects/projectFileApi.ts`, `20261112000002`)
-
-| RPC / view | Who | Effect |
-|---|---|---|
-| `project_completion_save(p_project_id, p_fields jsonb) → uuid` | the PI | Creates or updates the report while `DRAFT` / `RETURNED`; the first save moves a running project to `CLOSING` |
-| `project_completion_submit(p_project_id, p_document_id)` | the PI | Needs the lessons, the signed report and no change in review; compiles the financial statement and annexures; opens the route |
-| `project_completion_record_step(p_step_id, p_decision, p_notes, p_document_id)` | the step owner (as for change requests), never a party | `APPROVE` (with a `closure_order` scan) or `RETURN` (with a note); the last approval closes the project; the author is notified (`project_completion_decided`) |
-| `project_archive(p_project_id, p_document_id)` | PME / MasterAdmin, not a party | Archives a closed or foreclosed project with its published report (promoted to the institute tier); read-only afterwards |
-| `my_closure_items()` | any signed-in user | Steps waiting on the caller (`item = 'step'`) and reports the caller owes as PI (`'due'`) |
-| `project_financial_statement(project)` · `project_completion_annexures(project)` | signed-in | What submission will compile; read-only |
-| `project_lessons` (view) | every signed-in user | Approved lessons, institute-wide |
-
-### Legacy projects (`src/lib/projects/projectFileApi.ts`, `20261112000003`)
-
-| RPC | Who | Effect |
-|---|---|---|
-| `project_legacy_complete(p_project_id, p_track, p_category, p_start, p_end, p_sanction_ref, p_sanction_date, p_document_id, p_lines, p_received, p_spent, p_as_of)` | PME / MasterAdmin, not a party | Brings a running pre-SURYA project in once: sanction by head, money to date as opening balances (needs a `sanction_order` scan); earlier reviews are not overdue |
-| `project_legacy_lessons(p_project_id, p_fields)` | the PI or PME | Lessons for a project closed before SURYA; approved directly |
-| `project_legacy_pending()` | signed-in | Running legacy projects not yet brought in |
-| `project_infer_track(no, category, fund_type)` | — | Pure; used by the migration |
-
-### Rules and people links (`src/contexts/RulesContext.tsx`, `DataContext`, `20261112000004`–`05`)
-
-| RPC | Who | Effect |
-|---|---|---|
-| `csir_rule(p_key, p_on DEFAULT ist_today())` → `jsonb` | verified users (invoker) | The rule value in force on a date; raises `no CSIR rule % on %` when none |
-| `csir_rule_set(p_key, p_value, p_unit, p_effective_from, p_source_ref, p_verified)` → `uuid` | MasterAdmin | Appends a value from a date; closes the earlier row; refuses a date at or before the latest |
-| `identity_link_authors()` → `integer` | HRAdmin / SystemAdmin / MasterAdmin | Re-runs the one-match auto-link over every author and inventor |
-| `identity_link_gaps()` → `(kind, record_id, name, candidates, pos)` | admins, Director | Names a person must decide: unlinked authors/inventors with a likely staff match, plus `staff_link_gaps` |
-| `identity_set_link(p_kind 'OUTPUT'\|'IP', p_record_id, p_position, p_staff_id)` | admins any; a staff member claims an unlinked name as self or releases their own | Records a manual link (never overwritten by the auto pass) |
-
-### Research profile (`src/contexts/ProfileContext.tsx`, `20261112000010`–`12`)
-
-| RPC / view | Who | Effect |
-|---|---|---|
-| `staff_profile_facts(p_staff_id, p_from DEFAULT NULL, p_to DEFAULT NULL)` | anyone who may read the staff row (invoker) | The person's records by key, each with a link |
-| `update_own_profile(p_fields jsonb)` | the staff member whose row has `user_id = auth.uid()` | Changes only `Expertise`, `CoreArea`, `Ext`, `orcid`, `VidwanID`; logs to `staff_profile_changes`; any other key is refused |
-| `profile_consistency_issues(p_staff_id DEFAULT NULL)` | invoker | Where the profile and the records disagree |
-| `profile_consistency_sweep()` | cron (`service_role`) only | One open request per person with issues |
-| `entity_timeline` (view) | invoker | Now also `entity_type = 'staff'` profile changes |
-
-### Project compliance (`projectFileApi.ts`, `src/lib/compliance/api.ts`, `20261112000013`–`17`)
-
-| RPC | Who | Effect |
-|---|---|---|
-| `coi_declare(p_meeting_id, p_format 'F1'\|'F2', p_note)` | a member, chair or convener of the meeting's committee | Records or changes the caller's declaration until the chair decides |
-| `coi_chair_decide(p_id, p_decision 'CONTINUE'\|'RECUSE')` | the committee's chair, not on their own | Decides on a Format 2 |
-| `project_pack(p_project_id, p_kind, p_change_request_id DEFAULT NULL)` → `jsonb` | whoever may read the project | `FIRST_RELEASE` · `NEXT_YEAR_RELEASE` · `REPHASING` · `REAPPROPRIATION`: project, head- and year-wise statement, orders, demand or change + Checklist B, four signatories |
-| `project_checklist_b(p_change_request_id)` → `(item, ok, detail)` | invoker | `kind`, `project_running`, `travel_manpower`, `within_unspent`, `rules`, `signed_request`, `justification` — never raises on a failed item |
-| `project_cpd_halfyearly(p_period_end)` | invoker | One row per HQ project for the half-year |
-| `project_stage_deliverable_record(p_project_id, p_item_key, p_document_id)` | PI or PME | Puts a stage deliverable on file; logs a `stage_gate` timeline event |
-| `project_transfer_gaps()` | invoker | Transfers on FTT/FTC/MMP projects missing stage VI papers |
-| `equipment_log_usage(p_equipment_id, p_used_on, p_hours, p_user_staff_id, p_purpose)` | scientist-in-charge, the project's PI, PME | Adds a logbook entry |
-| `pme_compliance_counts()` | PME, admins, Director | `declarations_missing`, `transfers_missing_docs`, `logbooks_idle` |
-
-### PMS 2026 assessment (`src/lib/pms/assessment2026Api.ts`, `20261112000018`–`22`)
-
-| RPC | Who | Effect |
-|---|---|---|
-| `pms_timeline_status(p_cycle_id)` · `pms_delay_report(p_cycle_id)` | PMS admins, Director | Annexure-B counts; every late report |
-| `pms_timeline_sweep()` | cron only | Deemed acceptance; overdue reminders |
-| `pms_part1_prefill(p_cycle_id)` | PMS admins (Establishment) | Fills Part I of every unverified report from the staff record |
-| `pms_part1_report_discrepancy(p_report_id, p_text)` | the scientist | Says what is wrong; clears verification |
-| `pms_part1_verify(p_report_id, p_data DEFAULT NULL)` | PMS admins | Verifies, optionally with corrections |
-| `pms_prefill_from_profile(p_report_id)` | the scientist, DRAFT | Lines from `staff_profile_facts` for the period; never changes a touched line |
-| `pms_report_item_set(p_item_id, p_state, p_text)` · `pms_report_item_add(p_report_id, p_section, p_text)` | the scientist, DRAFT | Confirm / edit / remove; add |
-| `pms_record_panel_score(p_report_id, p_score, …, p_quorum_present, p_signed_scan_path)` | the report's Reporting Officer, PMS admins | One panel score (2026); quorum ≥ half the panel; moves the report to the Empowered Committee |
-| `pms_finalize_report_2026(p_report_id, p_action, p_final_score, p_reasons, p_suggestions, p_general_comments, p_critical_assessment, p_quorum_present)` | Empowered Committee members, PMS admins | Concur / upgrade / downgrade; quorum = chair + half the members |
-| `pms_score_history(p_staff_id)` | the person, Director, open-cycle Empowered Committee, RO / RvO of the current panel | Score, grade, lab average, % of average per cycle; no rows for anyone else |
-
-### Posts and people (`src/lib/people/api.ts`, `20261113000001`–`04`)
-
-| RPC | Who | Effect |
-|---|---|---|
-| `post_create(code, group, level, designation, discipline, division, category, sanction_ref)` | HRAdmin, MasterAdmin | Adds a VACANT post |
-| `post_fill(post, staff_id, on, order_ref)` · `post_vacate(post, on, reason, order_ref)` · `post_set_state(post, state, order_ref)` | HRAdmin, MasterAdmin | Moves a post; each move is an event |
-| `staff_workload(staff DEFAULT NULL)` · `workforce_outlook(years)` | invoker | Workload with overload (> 4 running projects); retirements + vacancies by year |
-| view `staff_project_links` · view `staff_research_summary` | invoker (RLS of the tables under them) | Who is on which project and as what; one row of counts per staff member (`20261113000011`) |
-| `career_events_import(rows jsonb)` | HRAdmin, MasterAdmin | Loads establishment events; unknown staff IDs refused |
-| `project_staff_person_save(id, p)` · `project_selection_create(…)` · `project_engage(selection, person, from, to, emoluments)` · `project_staff_leave_add(engagement, kind, from, to)` | PME, HRAdmin, MasterAdmin | Engagement under §3.3; `project_engage` refuses any failed rule |
-| `project_engagement_check(person, project, position, from, to, selection)` → `(rule, ok, detail)` | invoker | age, tenure, selection, quorum, ncs_posting / waitlist / direct, antecedents; `ok` NULL = not checkable (catalogue missing) |
-| `project_staff_backfill()` · `project_staff_legacy_pending()` · `project_staff_link_legacy(ids, person)` | PME, HRAdmin, MasterAdmin | Bring legacy rows in |
-| `recruitment_advance(advt_id, stage, document_id, note)` | HRAdmin, MasterAdmin | One stage forward, or Closed |
-| `acting_assign(role, division, principal, acting, from, to, order_ref)` · `acting_end(id, last_day)` | Director (HoD charges), HRAdmin, MasterAdmin | Acting charge; never one's own |
-
-### Expertise (`src/lib/expertise/api.ts`, `20261113000006`)
-
-| RPC | Who | Effect |
-|---|---|---|
-| `expertise_suggest(staff_id)` → `(term_id, label, kind, evidence_count)` | invoker | Terms whose label is a whole word in the titles of the person's projects, papers, IP; not already tagged |
-| `expertise_find(term_ids uuid[], text)` → `(staff_id, name, division, designation, confirmed_terms, evidence jsonb, evidence_count, active_projects, overload, retires_on)` | invoker | Ranked by confirmed terms, then evidence. Text also matches term labels and the `Expertise` note. Ask SURYA `expertise_search` calls this |
-| `expertise_merge(from, into)` | HR, MasterAdmin, staff steward | Marks `from` MERGED and moves its tags |
-
-### Metrics (`src/lib/metrics/api.ts`, `20261113000007`)
-
-| RPC | Who | Effect |
-|---|---|---|
-| `metric_value(key, scope jsonb)` → numeric | invoker | Dispatches to the registered function only; unknown key raises. Ask SURYA `metric` calls it |
-| `metric_table()` → `(metric_key, division, value)` | invoker | Every metric for the institute (division NULL) and each division |
-| `metric_snapshot_run(as_on DEFAULT ist_today()-1)` | cron, MasterAdmin | Freezes metric_table for that day; never overwrites |
-| `metric_digest_run()` | cron (service_role) | Weekly `metric-digest` notification per Director / HoD / Division Head / HR / PME / MasterAdmin |
-| `project_set_lens(project, theme, trl_target, trl_reached)` | PME, MasterAdmin, the PI | Theme and TRL |
-
-### AI actions (`20261113000008`; Ask SURYA `context_entity`)
-
-| RPC / endpoint | Who | Effect |
-|---|---|---|
-| `notification_accept(id)` → link | the notification's owner | Marks accepted, runs the whitelisted action (`identity_link` → `identity_set_link`; `expertise_confirm` → own `staff_expertise`; `open`), logs to `ai_action_log`; any other kind raises; failure rolls back |
-| `ai_suggest_sweep()` | cron, MasterAdmin | Daily: "is this paper / patent yours?" for unlinked names matching a staff login; "confirm expertise" for terms in 2+ of a person's records |
-| `POST /query`, `/query/stream` `context_entity: {type: project\|staff\|division\|instrument, id}` | Ask SURYA users | Names the record in the question and searches its documents first (project: also its progress reports); a record the caller cannot read → 404 |
-
-### Project breadth (`src/lib/projects/labs.ts`, `src/lib/publications/api.ts`, `20261113000009`)
-
-| RPC | Who | Effect |
-|---|---|---|
-| `project_lab_set(project, lab, role, rc_document)` · `project_entry_set_lab(kind receipt\|expenditure\|budget, id, lab)` · `project_ip_agreement_add(project, document, signed_on)` | PME (office, not a party) | Labs on a project; book an entry to a lab (its reversal moves with it) |
-| `project_lab_money(project)` · `project_ip_agreement_missing(project)` | invoker | Sanctioned · received · spent · balance per lab; §6.2 flag |
-| `publication_file_create(title, division, authors jsonb)` | staff who is one of the authors | Opens a DRAFT file |
-| `publication_consent(file, contribution)` | that in-house author | Consent, until submission |
-| `publication_move(file, to, details jsonb)` | corresponding author; ETHICS_CHECK → CLEARED / DRAFT by the division's HoD / Division Head, Director, MasterAdmin (not their own) | One step; SUBMITTED needs the number and every in-house consent; PUBLISHED creates `scientific_outputs` with the authors linked |
-
-`proposal_set_track` and `project_legacy_complete` accept any `project_schemes` code.
-
-**Retired:** `proposal_set_under_review`, `proposal_request_revision`, `proposal_reject`,
-`proposal_recommend`, `proposal_approve`, `proposal_issue_om` — EXECUTE revoked; each let an
-admin move a proposal past the chain.
-
-## B.4 Project progress reports
+### Progress reports (`src/contexts/ProjectReportsContext.tsx`)
 
 | Function | Parameters | Effect |
 |---|---|---|
-| `project_report_submit` | `p_id uuid` | `DRAFT` \| `REVISION_REQUESTED` → `SUBMITTED` |
-| `project_report_review` | `p_id uuid, p_decision text, p_notes text` | `SUBMITTED`/`UNDER_REVIEW` → `UNDER_REVIEW` \| `REVISION_REQUESTED` \| `REVIEWED`. Authorized by `project_reports_can_review` |
+| `project_report_submit(p_id uuid)` | `p_id` | `DRAFT` \| `REVISION_REQUESTED` → `SUBMITTED`; trigger binds/closes matching review slot |
+| `project_report_review(p_id uuid, p_decision text, p_notes text)` | `p_id, p_decision, p_notes` | Authorized by `project_reports_can_review`. → `UNDER_REVIEW` \| `REVISION_REQUESTED` \| `REVIEWED` |
 
-`period_type` ∈ `Q` \| `H` \| `Y`; `period_label` is free text (e.g. `"Q2 2026-27"`).
+### Monitoring (`src/lib/projects/projectFileApi.ts`)
 
-## B.5 Helpdesk
+| RPC / View | Parameters | Returns | Effect |
+|---|---|---|---|
+| `project_slot_schedule` | `p_slot_id uuid, p_meeting_id uuid` | `void` | Office. Links pending non-report review slot onto meeting agenda (`subject_type = 'project_review'`) |
+| `project_slot_record` | `p_slot_id uuid, p_held_on date, p_decision text, p_outcome text, p_minutes_document_id uuid` | `void` | Office. Marks review `DONE`. `HOLD` moves project → `ON_HOLD`; go-ahead returns `ON_HOLD → ACTIVE`; sets `minutes_due` if minutes omitted |
+| `project_slot_add_minutes` | `p_slot_id uuid, p_document_id uuid` | `void` | Office. Attaches `minutes` doc and clears `minutes_due` |
+| `project_call_review` | `p_project_id text, p_due_date date, p_reason text` | `uuid` | Director, PME, MasterAdmin (non-party). Creates `CALLED_REVIEW` slot & notifies PI |
+| `my_due_project_slots` | — | `TABLE(slot_id, project_id, project_no, kind, body, period_label, due_date)` | Pending progress reports & called reviews due within 30 days for caller's projects |
+| `project_portfolio` *(view)* | — | Portfolio health columns | `security_invoker` view over running projects |
+
+### Change requests (`src/lib/projects/projectFileApi.ts`)
+
+| RPC | Parameters | Returns | Effect |
+|---|---|---|---|
+| `project_change_save` | `p_id uuid, p_project_id text, p_kind text, p_justification text, p_payload jsonb` | `uuid` | PI or office (then author only). Saves `DRAFT` / `RETURNED` change on a running project |
+| `project_change_submit` | `p_id uuid, p_document_id uuid` | `void` | Author. Requires `change_request` doc, checks all prohibitions (`project_change_deltas`), opens approval route (`csir_rules` RCE threshold) |
+| `project_change_withdraw` | `p_id uuid` | `void` | Author, before any review step is recorded |
+| `project_change_record_step` | `p_step_id uuid, p_decision text, p_notes text, p_document_id uuid, p_meeting_id uuid = NULL, p_order_no text = NULL, p_order_date date = NULL, p_ifd_file_no text = NULL, p_ifd_date date = NULL` | `void` | Step owner (`project_change_caller_may_act`: PME, FinanceAdmin, Director/PME, scheme leader), never a party. Final `APPROVE` re-runs checks & applies effect |
+| `my_change_steps` | — | `TABLE(step_id, change_id, project_id, project_no, change_kind, step_kind, submitted_at)` | Pending steps awaiting the caller |
+| `project_change_deltas` / `project_head_position` | `(p_project_id, p_kind, p_payload)` / `(p_project_id)` | `TABLE(...)` | Read-only validation & per-year, per-head financial position |
+
+### Project closure & legacy rollout
+
+| RPC / View | Parameters | Returns | Effect |
+|---|---|---|---|
+| `project_completion_save` | `p_project_id text, p_fields jsonb` | `uuid` | PI. Creates/updates report (`DRAFT`/`RETURNED`); first save moves project → `CLOSING` |
+| `project_completion_submit` | `p_project_id text, p_document_id uuid` | `void` | PI. Validates §5.4 fields (`project_completion_missing`), snapshots `project_financial_statement` & `project_completion_annexures`, opens route |
+| `project_completion_record_step` | `p_step_id uuid, p_decision text, p_notes text, p_document_id uuid` | `void` | Step owner (non-party). `APPROVE` (with `closure_order`) or `RETURN` (note); final approval closes project |
+| `project_archive` | `p_project_id text, p_document_id uuid` | `void` | PME / MasterAdmin (non-party). Archives `CLOSED`/`FORECLOSED` project → `ARCHIVED` (read-only trigger), promotes report to `institute` tier |
+| `my_closure_items` | — | `TABLE(item, project_id, project_no, step_id, step_kind, end_date)` | Pending closure steps (`step`) and due reports (`due`) |
+| `project_financial_statement` / `project_completion_annexures` | `p_project_id text` | `jsonb` | Read-only compiled closure pack previews |
+| `project_lessons` *(view)* | — | Approved lessons rows | Signed-in verified users (`caller_is_verified()`) |
+| `project_legacy_complete` | `p_project_id text, p_track text, p_category text, p_start date, p_end date, p_sanction_ref text, p_sanction_date date, p_document_id uuid, p_lines jsonb, p_received jsonb, p_spent jsonb, p_as_of date` | `void` | PME / MasterAdmin (non-party). Once-only onboarding for pre-SURYA running projects with opening balances |
+| `project_legacy_lessons` | `p_project_id text, p_fields jsonb` | `uuid` | PI or PME. Records approved lessons on pre-SURYA closed projects |
+| `project_legacy_pending` | — | `TABLE(project_id, project_no, project_name, stage, track)` | Running legacy projects not yet brought into ledger |
+
+### Compliance, packs, multi-lab & IP (`src/lib/compliance/api.ts`, `src/lib/projects/labs.ts`)
+
+| RPC | Parameters | Returns | Effect |
+|---|---|---|---|
+| `project_pack` | `p_project_id text, p_kind text, p_change_request_id uuid = NULL` | `jsonb` | Project readers. Builds `FIRST_RELEASE` · `NEXT_YEAR_RELEASE` · `REPHASING` · `REAPPROPRIATION` pack + Checklist B |
+| `project_checklist_b` | `p_change_request_id uuid` | `TABLE(item, ok, detail)` | Non-throwing Checklist B verification items |
+| `project_cpd_halfyearly` | `p_period_end date` | `TABLE(...)` | Half-yearly CPD monitoring metrics across HQ projects |
+| `project_stage_deliverable_record` | `p_project_id text, p_item_key text, p_document_id uuid` | `void` | PI or PME. Records stage I–VI deliverable (`FTT`/`FTC`/`MMP`) & logs `stage_gate` event |
+| `project_transfer_gaps` | — | `TABLE(project_id, project_no, transfer_title, missing)` | FTT/FTC/MMP transfers lacking Stage VI deliverables |
+| `equipment_log_usage` | `p_equipment_id text, p_used_on date, p_hours numeric, p_user_staff_id text, p_purpose text` | `uuid` | Equipment owner, project PI, or PME. Appends `equipment_usage_log` |
+| `equipment_logbook_required` | `p_equipment_id text` | `boolean` | True when linked to a project and cost ≥ `project.major_equipment_threshold_inr` |
+| `pme_compliance_counts` | — | `TABLE(declarations_missing, transfers_missing_docs, logbooks_idle)` | PME, admins, Director |
+| `project_lab_set` | `p_project_id text, p_lab_code text, p_role text, p_rc_document_id uuid` | `void` | Office. Sets nodal/participating lab (`NODAL \| PARTICIPATING`) |
+| `project_entry_set_lab` | `p_kind text, p_id uuid, p_lab_code text` | `void` | Office. Assigns `receipt \| expenditure \| budget` entry (and reversal) to a lab |
+| `project_ip_agreement_add` | `p_project_id text, p_document_id uuid, p_signed_on date` | `uuid` | Office. Records multi-lab CSIR §6.2 IP sharing agreement |
+| `project_lab_money` | `p_project_id text` | `TABLE(lab_code, role, sanctioned, received, spent, balance)` | Read-only lab-wise budget/balance summary |
+| `project_ip_agreement_missing` | `p_project_id text` | `boolean` | True for multi-lab projects missing an IP agreement |
+
+## B.5 Posts, People & Recruitment
+
+Client wrappers in `src/lib/people/api.ts` and `src/lib/recruitment/drives.ts`:
+
+| RPC / View | Parameters | Returns | Who & effect |
+|---|---|---|---|
+| `post_create` | `p_post_code, p_group, p_level, p_designation, p_discipline, p_division, p_category, p_sanction_ref` | `uuid` | HRAdmin, MasterAdmin. Adds `VACANT` sanctioned post |
+| `post_fill` / `post_vacate` / `post_set_state` | `p_post_id, p_staff_id/p_state, p_on, p_reason, p_order_ref` | `void` | HRAdmin, MasterAdmin. Moves post state & writes `sanctioned_post_events` |
+| `staff_workload` | `p_staff_id text = NULL` | `TABLE(staff_id, name, division, active_projects, as_pi, sanctioned_value, awp_year, awp_time_pct, overload)` | Invoker. Highlights overload (`> 4` running projects) |
+| `workforce_outlook` | `p_years integer = 5` | `TABLE(kind, year, discipline, division, ref, label, single_holder)` | Invoker. Retirements + vacancies forecast |
+| `career_events_import` | `p_rows jsonb` | `integer` | HRAdmin, MasterAdmin. Upserts `staff_career_events`; rejects unknown staff IDs |
+| `project_staff_person_save` | `p_id uuid, p jsonb` | `uuid` | PME, HRAdmin, MasterAdmin |
+| `project_selection_create` | `p_project_id, p_position_code, p_mode, p_advert_ncs_ref, p_advert_on, p_committee, p_exigency_note, p_waitlist_valid_until, p_minutes_document_id` | `uuid` | PME, HRAdmin, MasterAdmin |
+| `project_engage` | `p_selection_id uuid, p_person_id uuid, p_from date, p_to date, p_emoluments numeric = NULL` | `uuid` | PME, HRAdmin, MasterAdmin. Enforces every CSIR §3.3 rule (`project_engagement_check`) |
+| `project_engagement_check` | `p_person_id uuid, p_project_id text, p_position_code text, p_from date, p_to date, p_selection_id uuid = NULL` | `TABLE(rule, ok, detail)` | Evaluates age, tenure cap, selection quorum, NCS/waitlist/direct path, antecedents (`ok` NULL = missing catalogue) |
+| `project_staff_tenure_days` | `p_person_id uuid, p_on date, p_extra_from date = NULL, p_extra_to date = NULL` | `integer` | Counts deduplicated days excluding PhD research window |
+| `project_staff_leave_add` | `p_engagement_id uuid, p_kind text, p_from date, p_to date` | `uuid` | PME, HRAdmin, MasterAdmin |
+| `project_staff_backfill` / `_legacy_pending` / `_link_legacy` | `(none)` / `(p_legacy_ids text[], p_person_id uuid = NULL)` | `integer` / `TABLE(...)` / `uuid` | PME, HRAdmin, MasterAdmin. Links legacy `project_staff` rows cleanly into engagements |
+| `recruitment_advance` | `p_advt_id text, p_stage text, p_document_id uuid = NULL, p_note text = NULL` | `void` | HRAdmin, MasterAdmin. Advances `drive_stage` (one step or `Closed`) + appends `recruitment_events` |
+| `staff_project_links` · `staff_research_summary` *(views)* | — | Project-role & summary counts | `security_invoker` views powering workload & profile screens |
+
+## B.6 Research Profile, Publications, Identity Links & Expertise
+
+| RPC / View | Parameters | Returns | Authorization + effect |
+|---|---|---|---|
+| `staff_profile_facts` | `p_staff_id text, p_from date = NULL, p_to date = NULL` | `TABLE(section, record_type, record_id, title, role, date_from, date_to, amount, link)` | Invoker (respects `staff` RLS). Unified key-linked profile across projects, outputs, IP, transfers, students, committees, AWP, lessons, and equipment |
+| `update_own_profile` | `p_fields jsonb` | `void` | Staff owner (`user_id = auth.uid()`). Whitelisted strictly to `Expertise`, `CoreArea`, `Ext`, `orcid`, `VidwanID`; writes `staff_profile_changes` |
+| `profile_consistency_issues` | `p_staff_id text = NULL` | `TABLE(staff_id, kind, record_ref, detail)` | Invoker. Detects IRINS/output/PI/supervisor/AWP discrepancies |
+| `profile_consistency_sweep` | — | `integer` | Cron (`service_role`) only. Raises Monday consistency `contribution_requests` rows |
+| `publication_file_create` | `p_title text, p_division text, p_authors jsonb` | `uuid` | Staff author. Opens manuscript clearance dossier (`DRAFT`) |
+| `publication_consent` | `p_file_id uuid, p_contribution text` | `void` | Listed in-house author while `DRAFT` |
+| `publication_move` | `p_file_id uuid, p_to text, p_details jsonb = '{}'` | `text` | Corresponding author (`DRAFT → ETHICS_CHECK → SUBMITTED → ACCEPTED → PUBLISHED`) or HoD / DivisionHead / Director / MasterAdmin (`ETHICS_CHECK → CLEARED / DRAFT`, non-author). Mints `communication_no` at clearance; creates `scientific_outputs` at `PUBLISHED` |
+| `identity_link_authors` | — | `integer` | HRAdmin / SystemAdmin / MasterAdmin. Re-runs unambiguous auto-linking on `output_authors`, `ip_inventors`, `projects.pi_staff_id`, `phd_students.{supervisor,cosupervisor}_staff_id`, `project_staff.staff_id`, and unique-email `staff.user_id` |
+| `identity_link_gaps` | — | `TABLE(kind, record_id, name, candidates, pos)` | Admins, Director. Ambiguous unlinked names |
+| `identity_set_link` | `p_kind text, p_record_id text, p_position integer, p_staff_id text` | `void` | Admins (for `OUTPUT`, `IP`, `projects.PrincipalInvestigator`, `phd_students.SupervisorName`, `phd_students.CoSupervisorName`, `project_staff.StaffName`) or staff claiming/releasing self on `OUTPUT`/`IP`. Locks `link_source = 'manual'` on author/inventor rows |
+| `expertise_suggest` | `p_staff_id text` | `TABLE(term_id, label, kind, evidence_count)` | Suggests active taxonomy terms found as whole words in the person's titles |
+| `expertise_find` | `p_term_ids uuid[] = NULL, p_text text = NULL` | `TABLE(staff_id, name, division, designation, confirmed_terms, evidence, evidence_count, active_projects, overload, retires_on)` | Ranked capability search (called by UI & Ask SURYA `expertise_search`) |
+| `expertise_merge` | `p_from uuid, p_into uuid` | `void` | `caller_is_expertise_curator()`. Marks `p_from` as `MERGED` and transfers tags |
+| `entity_timeline` *(view)* | — | Chronological event feed | Unifies 7 audit/event sources with acting capacity |
+
+## B.7 Rules & Metrics
+
+| RPC | Parameters | Returns | Authorization + effect |
+|---|---|---|---|
+| `csir_rule` | `p_key text, p_on date = ist_today()` | `jsonb` | Verified users (`INVOKER`). Returns effective rule JSONB; raises if unconfigured |
+| `csir_rule_set` | `p_key text, p_value jsonb, p_unit text, p_effective_from date, p_source_ref text, p_verified boolean` | `uuid` | MasterAdmin. Appends a newer effective-dated rule and closes the prior row |
+| `metric_value` | `p_key text, p_scope jsonb = '{}'` | `numeric` | Invoker. Dispatches strictly via `metrics.fn` registry (called by scorecard & Ask SURYA `metric`) |
+| `metric_table` | — | `TABLE(metric_key, division, value)` | Invoker. Returns all 12 metrics institute-wide (`division NULL`) and per division |
+| `metric_snapshot_run` | `p_as_on date = NULL` | `integer` | Cron (`service_role`) or MasterAdmin. Freezes daily `metric_snapshots` with `ON CONFLICT DO NOTHING` |
+| `metric_digest_run` | — | `integer` | Cron (`service_role`) / authorized caller. Sends weekly `metric-digest` notifications |
+
+## B.8 Helpdesk
 
 | Function | Parameters | Returns | Notes |
 |---|---|---|---|
-| `helpdesk_create_ticket` | `p_subject text, p_category text, p_urgency text, p_description text, p_submitted_by uuid` | `uuid` | `p_submitted_by` must equal `auth.uid()`. Mints a token, calls `route_ticket`, writes a `Created` event |
+| `helpdesk_create_ticket` | `p_subject text, p_category text, p_urgency text, p_description text, p_submitted_by uuid` | `uuid` | `p_submitted_by` must equal `auth.uid()`. Mints a token, calls `route_ticket`, writes `Created` event |
 | `helpdesk_assign_ticket` | `p_ticket_id uuid, p_new_handler_id uuid, p_actor_id uuid` | `void` | Assignee or admin; `p_actor_id` must equal `auth.uid()` |
 | `helpdesk_update_status` | `p_ticket_id uuid, p_new_status text, p_actor_id uuid` | `void` | Sets `resolved_at` on `Resolved` |
 | `helpdesk_add_response` | `p_ticket_id uuid, p_author_id uuid, p_message text` | `uuid` | Submitter, assignee, or admin |
-| `route_ticket` | `p_category text, p_submitter_id text` | `text` | Internal. `helpdesk_routing` override → submitter's DivisionHead → HRAdmin → SystemAdmin |
+| `route_ticket` | `p_category text, p_submitter_id uuid` | `uuid` | Internal (`service_role` only). `helpdesk_routing` override → submitter's DivisionHead → HRAdmin → SystemAdmin |
 
-`category` ∈ `Infrastructure` \| `EquipmentIT` \| `Administrative` \| `HRGrievance` \|
-`Finance` \| `LabResearch` \| `Library` \| `Transport`.
-`urgency` ∈ `Low` \| `Medium` \| `High` \| `Critical`.
-`status` ∈ `Open` \| `InProgress` \| `Resolved` \| `Closed`.
+`category` ∈ `Infrastructure \| EquipmentIT \| Administrative \| HRGrievance \| Finance \| LabResearch \| Library \| Transport`.
+`urgency` ∈ `Low \| Medium \| High \| Critical`. `status` ∈ `Open \| InProgress \| Resolved \| Closed`.
+Client-side validation (`missingTicketFields`) requires non-empty `category`, `subject`, and `description`.
 
-Client-side draft validation (`missingTicketFields`) requires non-empty `category`,
-`subject`, and `description`.
+> **Nullable guard pattern:** `helpdesk_add_response` guards `IF NOT COALESCE(submitter OR assigned_to = auth.uid() OR admin, false)` because an unassigned ticket makes `assigned_to = auth.uid()` evaluate to `NULL`, collapsing an unwrapped `OR` chain. Apply `COALESCE(..., false)` in all plpgsql guards touching nullable columns.
 
-> `helpdesk_add_response` carries a scar worth knowing: its guard originally read
-> `IF NOT (submitter OR assigned_to = auth.uid() OR admin)`. On an unassigned ticket
-> `assigned_to` is NULL, the OR-chain collapses to NULL, `NOT NULL` is NULL, and the `IF`
-> never fired — authorizing everyone. The fix is `COALESCE(..., false)`. Apply the same
-> pattern to any new plpgsql guard touching a nullable column.
-
-## B.6 Committees and calendar
-
-| Function | Parameters | Notes |
-|---|---|---|
-| `unlock_meeting_minutes` | `p_meeting_id uuid` | Chair/secretary/admin. Reopens finalized minutes for editing |
-
-## B.7 Documents and RAG administration
-
-| Function | Parameters | Returns | Authorization |
-|---|---|---|---|
-| `documents_set_access_tier` | `p_document_id uuid, p_tier text` | `void` | Owner or admin. `p_tier` ∈ `institute` \| `division` \| `owner` \| `confidential` |
-| `rag_requeue_document` | `p_doc_id uuid` | `void` | Admin. `failed` → `pending`, resets `ingest_attempts` |
-| `rag_requeue_all` | — | `int` (rows requeued) | Admin. Bulk re-index |
-
-## B.8 Data operations — contribution requests
-
-`20261101000001_contribution_requests.sql`. Client wrappers in
-`src/lib/contributions/api.ts`; the tables are SELECT-only to clients
-([database_design.md §3.9](database_design.md#39-data-operations--20261101000001_contribution_requestssql)).
-"Admin" below is `caller_is_admin()` (HRAdmin · SystemAdmin · MasterAdmin); "steward" is a
-`data_stewards` row for the caller covering the request's domain and division (a domain-wide
-row covers every division).
+## B.9 Committees, COI & Calendar
 
 | Function | Parameters | Returns | Authorization + effect |
 |---|---|---|---|
-| `contribution_request_create` | `p_domain text, p_record_ref text, p_division text, p_title text, p_reason text, p_link text, p_due date, p_prefill jsonb, p_assignee uuid` | `uuid` | Admin, Director, the division's manager (`p_division`), or a steward. Assignee = `p_assignee`, else the routed steward, else NULL (unowned). Writes a `created` event (payload = prefill) and notifies the assignee (`/work?r=<id>`) |
-| `contribution_request_act` | `p_id uuid, p_action text, p_note text, p_target uuid, p_response jsonb` | `text` (new status) | Caller must be the assignee, the delegate, or a reviewer (requester, admin, or steward); each action then narrows further — see the table in [system_design.md §4.8](system_design.md#48-contribution-request--contribution_requestsstatus). Row-locked (`FOR UPDATE`); writes one event and notifies the next person, never the actor |
-| `data_steward_set` | `p_domain text, p_division text, p_user uuid, p_kind text, p_cadence int` | `uuid` | Admin. Upsert on `(domain, division_code, user_id)`; `p_kind` defaults `steward`, `p_cadence` 90 |
-| `data_steward_remove` | `p_id uuid` | `void` | Admin. Deletes the row |
+| `unlock_meeting_minutes` | `p_meeting_id uuid` | `void` | Chair/secretary/admin. Reopens finalized minutes for editing |
+| `coi_declare` | `p_meeting_id uuid, p_format text, p_note text` | `uuid` | Committee member, chair, or convener. Records `F1` or `F2` (note required on `F2`) until chair decides |
+| `coi_chair_decide` | `p_id uuid, p_decision text` | `void` | Committee chair (not on own declaration). Decides `F2`: `CONTINUE` \| `RECUSE` |
+| `committee_seat` / `committee_can_read` / `committee_can_run` | `p_committee_id uuid` | `text` / `boolean` | RLS & permission helpers (`20261121000010_committee_foundations.sql`). Resolves caller seat from active `committee_memberships`, `external_members`, and active `acting_assignments`; enforces `confidentiality` (`institute \| members \| confidential`) |
+| `room_book` / `room_booking_decide` / `meeting_schedule` / `meeting_postpone` / `hospitality_request_create` / `hospitality_request_decide` | `(room/meeting/hospitality args)` | `uuid` / `void` | Stage 2 `CM1` RPCs (`20261121000011_stage2_homes_desk_rooms.sql`). Advisory-lock clash protection on `room_bookings`, booking move on meeting postpone, hospitality desk approvals |
+| `my_day` / `my_requests` / `my_report_timers` / `my_engagement` / `division_rollup` / `caller_division_codes` / `calendar_token_rotate` | `(optional date window)` | `TABLE(...)` / `text[]` / `text` | Stage 2 `SH2`, `HH1`, `DH1`, `PJ1`, `CD1–CD3` invoker feeds & helpers honoring RLS and active `acting_assignments` |
 
-`p_action` ∈ `delegate` · `submit` · `confirm` · `confirm_unchanged` · `clarify` · `answer` ·
-`not_mine` · `cannot_provide` · `accept` · `return` · `withdraw` · `claim`. `p_target` is
-read only by `delegate` (required) and `claim` (optional; defaults to the caller).
-`p_response` is read only by `submit` (required JSON object of changed fields). `p_note` is
-required by `clarify`, `answer`, `cannot_provide`, `return`, `withdraw`.
+## B.10 Data Operations — Contribution Requests & AI Notifications
 
-**Errors** (`RAISE EXCEPTION` → HTTP 400; the message is the code):
+Client wrappers in `src/lib/contributions/api.ts` and `src/lib/notifications/notifications.ts`. Both `contribution_requests` and `data_stewards` are `SELECT`-only to clients.
 
-| Code | Raised by | When |
-|---|---|---|
-| `not_authorized` | all four | Not signed in, request not found, or the caller's role on the request does not allow the action |
-| `invalid_domain: <d>` | create | `p_domain` not one of the seven `FileType` keys |
-| `title_required` | create | Blank title |
-| `invalid_link` | create | `p_link` not a relative app path (`^/([^/\]|$)`), or contains a control character. The table `CHECK` enforces the same rule |
-| `invalid_prefill` | create | `p_prefill` is not a JSON object |
-| `invalid_target` | create, act | `p_assignee` / `p_target` is not a real login; `delegate` with no target or to the current assignee |
-| `invalid_action: <a> from <s>` | act | Unknown action, or not allowed from the current status |
-| `response_required` | act | `submit` without a JSON-object response |
-| `note_required` | act | A note-requiring action with a blank note |
+| Function | Parameters | Returns | Authorization + effect |
+|---|---|---|---|
+| `contribution_request_create` | `p_domain text, p_record_ref text, p_division text, p_title text, p_reason text, p_link text, p_due date, p_prefill jsonb, p_assignee uuid` | `uuid` | Admin, Director, division manager (`p_division`), or covering steward. Resolves assignee → steward → NULL (unowned); logs `created` event & notifies assignee |
+| `contribution_request_act` | `p_id uuid, p_action text, p_note text, p_target uuid, p_response jsonb` | `text` (new status) | Assignee, delegate, or reviewer (`contribution_is_reviewer`); row-locked `FOR UPDATE`; validates state transition ([system_design.md §4.8](system_design.md#48-contribution-request--contribution_requestsstatus)) |
+| `data_steward_set` | `p_domain text, p_division text, p_user uuid, p_kind text, p_cadence integer` | `uuid` | Admin. Upserts `(domain, division_code, user_id)` (`p_kind` defaults `steward`, `p_cadence` 90) |
+| `data_steward_remove` | `p_id uuid` | `void` | Admin |
+| `notification_accept` | `p_id uuid` | `text` (link) | Notification owner. Marks `accepted`, executes whitelisted action (`identity_link` → `identity_set_link`, `expertise_confirm` → `staff_expertise`, `open`), logs to `ai_action_log` |
+| `ai_suggest_sweep` | — | `integer` | Cron (`service_role`) or MasterAdmin. Emits daily identity-link and expertise confirmation suggestions (`notifications`) |
 
-`data_steward_set` with a bad `domain`, `kind` or `cadence_days ≤ 0` fails the table `CHECK`
-(400, constraint violation).
+Internal helpers (`EXECUTE` revoked from `authenticated`, `service_role` only): `contribution_steward_for(p_domain, p_division)`, `contribution_requests_sweep()` (evaluates division-scoped `import_events`), `notifications_sweep()`, `resolve_unique_staff_id(p_name)`. Client-callable `INVOKER` predicate: `contribution_is_reviewer(r)`.
 
-**Accepting an update** is two calls, by design — the request never writes the HR table:
+**Contribution request error codes** (`RAISE EXCEPTION` → HTTP `400`): `not_authorized` · `invalid_domain: <d>` · `title_required` · `invalid_link` · `invalid_prefill` · `invalid_target` · `invalid_action: <a> from <s>` · `response_required` · `note_required`. Accepting a contribution update is intentionally two steps so RLS on the canonical table stays enforced:
 
 ```ts
-await updateEntityRecord(r.domain, r.recordRef, patch);   // RLS-gated, same path as the edit modal
+await updateEntityRecord(r.domain, r.recordRef, patch);   // RLS-gated write
 await actOnContributionRequest(r.id, 'accept');           // → 'done'
 ```
 
-`contribution_steward_for(p_domain, p_division)` and `contribution_requests_sweep()` are
-internal (`EXECUTE` revoked from client roles; `EXEMPT` in `check_security_definer.py`).
-`contribution_is_reviewer(r)` is a client-callable `INVOKER` helper used by RLS.
+## B.11 Documents & RAG Administration
+
+| Function | Parameters | Returns | Authorization + effect |
+|---|---|---|---|
+| `documents_set_access_tier` | `p_document_id uuid, p_tier text` | `void` | **Admins or Director** (`caller_is_admin() OR caller_has_role('Director')`). Sets `p_tier` ∈ `owner \| confidential \| division \| institute` & writes `pms_audit_logs` (`DOCUMENT_TIER_CHANGED`) |
+| `rag_requeue_document` | `p_doc_id uuid` | `void` | SystemAdmin / MasterAdmin. Resets `ingest_status = 'pending'`, clears `ingest_error`, `ingest_attempts`, `processing_started_at` |
+| `rag_requeue_all` | — | `integer` (rows requeued) | SystemAdmin / MasterAdmin. Resets `indexed`/`failed` rows back to `pending` |
+| `rag_monitor_summary` | — | `TABLE(status_counts jsonb, traceability_cited bigint, traceability_total bigint)` | Verified caller (`INVOKER`, `STABLE`). Powers admin RAG health & citation traceability summary (`src/lib/rag/monitor.ts`) |
+| `rag_replace_doc_pages` | `p_document_id uuid, p_pages jsonb` | `void` | **Worker (`service_role`) only** (`EXECUTE` revoked from `authenticated`). Atomically replaces `doc_pages` rows for a document |
 
 ---
 
 # Part C — Ask SURYA HTTP API
 
-FastAPI application `rag/api.py`, served by uvicorn on `127.0.0.1:8000`, reverse-proxied by
-nginx at `/rag/`. Same-origin in production; `CORS_ORIGINS` exists only for split-port
-development.
+FastAPI application `rag/api.py`, served by uvicorn on `127.0.0.1:8000`, reverse-proxied by nginx at `/rag/`. Same-origin in production; `CORS_ORIGINS` exists only for split-port development.
 
-All four endpoints require `Authorization: Bearer <supabase user JWT>` and
-`Content-Type: application/json`.
+All four endpoints require `Authorization: Bearer <supabase user JWT>` and `Content-Type: application/json`, and enforce database feature/role gates via the caller's JWT.
 
 ## C.1 Shared DTOs
 
 ```ts
-interface Citation {
+interface AskCitation {
   document_id: string;   // documents.id
   title: string;         // document title
   node_title: string;    // PageIndex section title
@@ -631,6 +501,9 @@ interface Citation {
   page_end: number;      // inclusive
   storage_path: string;  // for building a signed URL
 }
+
+type AskEntityType = 'project' | 'staff' | 'division' | 'instrument';
+interface AskEntity { type: AskEntityType; id: string; }
 ```
 
 ```python
@@ -643,12 +516,11 @@ class Answer:
     data: dict | None          # typed structured payload, when mode != 'document'
 ```
 
-The refusal string is exactly `"Not found in institute documents."` — a caller may test for
-it, and the invariant is that `citations` is empty whenever it appears.
+The refusal string is exactly `"Not found in institute documents."` — a caller may test for it, and the invariant is that `citations` is empty whenever it appears.
 
 ## C.2 `POST /query`
 
-Answer a question over institute documents and data.
+Answer a question over institute documents and structured data. Requires `can_use_ask_surya` gate.
 
 **Request**
 
@@ -657,14 +529,16 @@ Answer a question over institute documents and data.
   "question": "How many active projects does the CMPD division run?",
   "history": [
     { "question": "Which divisions exist?", "answer": "CMPD, LWMD, MMD…" }
-  ]
+  ],
+  "context_entity": { "type": "division", "id": "CMPD" }
 }
 ```
 
 | Field | Type | Required | Rules |
 |---|---|---|---|
-| `question` | string | yes | Non-blank after trim, else `400 empty question` |
+| `question` | `string` | yes | Non-blank after trim (max length `MAX_QUESTION_CHARS`), else `400 empty question` |
 | `history` | `{question, answer}[]` | no | Last **3** turns used; each answer truncated to **300** chars and prepended as context |
+| `context_entity` | `{type, id}` (`project \| staff \| division \| instrument`) | no | Grounds the query to the named record and searches its documents first (projects: also progress reports). If missing or unreadable under the caller's RLS, returns **`404 record not found`** |
 
 **Response `200`**
 
@@ -701,16 +575,24 @@ Document-mode response:
 }
 ```
 
+**Scope refusal.** Before answer retrieval and analytics, the route call also labels `topic` and `subject`,
+and `rag/scope.py` checks them against the caller's held roles. An out-of-scope question
+returns `200` with `text` = `This information cannot be retrieved for you.`, `mode`
+`document`, no citations, and `trace.refusal` = `out_of_scope` or `totals_only` (also written
+to `query_log.refusal_reason`; `scope_unavailable` when the caller's roles or name could not be read, `self_unsure` when a
+refused question names the asker or says "my", "I" or "myself" — neither is a strike; "me" alone does not count). The router sees earlier `history` questions but not their answers.
+Exception: with `context_entity`, the record itself is read under RLS before the gate,
+because routing needs its name; its documents are read only after the gate allows it.
+
 `query_id` is `null` if logging failed — logging is best-effort and never breaks an answer.
 Use it with `sendFeedback(queryId, 1 | -1)`, which updates `query_log.feedback` directly
 under RLS.
 
-**Errors:** `400 empty question` · `401 missing bearer token` · `401 invalid token` ·
-`504 model timeout`.
+**Errors:** `400 empty question` · `401 missing bearer token` · `401 invalid token` · `403 forbidden` · `404 record not found` · `504 model timeout`.
 
 ## C.3 `POST /query/stream`
 
-Identical request body. Returns `text/event-stream`.
+Identical request body (including optional `context_entity` and its `404 record not found` check). Returns `text/event-stream`.
 
 ```
 data: {"token": "CMPD has "}
@@ -720,18 +602,14 @@ data: {"token": "14 ongoing projects."}
 data: {"done": { …same payload as /query… }}
 ```
 
-- Only the **document** route truly streams. Structured and hybrid answers arrive as a
-  single `token` frame followed by `done`.
-- Tokens are withheld while the accumulated text could still be the `NOT_FOUND` sentinel,
-  then flushed — so a refusal never leaks a partial ungrounded sentence.
+- Only the **document** route truly streams. Structured and hybrid answers arrive as a single `token` frame followed by `done`.
+- Tokens are withheld while the accumulated text could still be the `NOT_FOUND` sentinel, then flushed — so a refusal never leaks a partial ungrounded sentence.
 - Errors mid-stream: `data: {"error": "model timeout"}`.
-- `404`/`405` (endpoint absent on an older server) makes `askSuryaStream` fall back to
-  `/query` automatically.
+- `405` (or `404` when **no** `context_entity` was supplied — older server) makes `askSuryaStream` fall back to `/query` automatically; `404` **with** `context_entity` throws `"That record is not available to you."`.
 
 ## C.4 `POST /similar`
 
-Duplication / prior-work check. Returns ranked corpus sections, **no generated prose** —
-matches only, so the result is inherently grounded.
+Duplication / prior-work check. Requires `can_use_ask_surya`. Returns ranked corpus sections, **no generated prose** — matches only, so the result is inherently grounded.
 
 **Request** `{ "text": "Development of magnesium-based biodegradable implants" }`
 
@@ -745,15 +623,13 @@ matches only, so the result is inherently grounded.
 ] }
 ```
 
-At most `MAX_SIMILAR_MATCHES = 6`, ordered by the model's own pick order. Empty array when
-nothing is relevant. Consumed by `SimilarWorkPanel` on the proposal form.
+At most `MAX_SIMILAR_MATCHES = 6`, ordered by the model's own pick order. Empty array when nothing is relevant. Consumed by `SimilarWorkPanel` on the proposal form.
 
-**Errors:** `400 empty text` · `401` · `504`.
+**Errors:** `400 empty text` · `401` · `403 forbidden` · `504`.
 
 ## C.5 `POST /map-columns`
 
-Propose mappings from an uploaded file's raw headers to canonical database columns.
-**Advisory only** — `ImportFlow` still requires a human to confirm before any write.
+Propose mappings from an uploaded file's raw headers to canonical database columns. Requires **`caller_is_admin()`** (gated like `/data`, not by `can_use_ask_surya`). **Advisory only** — `ImportFlow` still requires a human to confirm before any write.
 
 **Request**
 
@@ -770,8 +646,8 @@ Propose mappings from an uploaded file's raw headers to canonical database colum
 
 | Field | Rules |
 |---|---|
-| `raw_headers` | non-empty, ≤ 400 items |
-| `target_fields` | non-empty, ≤ 400 items; each `{column, label}` |
+| `raw_headers` | non-empty, ≤ 400 items, each ≤ 256 chars |
+| `target_fields` | non-empty, ≤ 400 items; each `{column, label}` (≤ 256 chars) |
 
 **Response `200`**
 
@@ -779,19 +655,13 @@ Propose mappings from an uploaded file's raw headers to canonical database colum
 { "mapping": { "Emp Name": "Name", "Date of Joining": "DOJ", "Divn": "Division" } }
 ```
 
-Unmappable headers are omitted. A confirmed mapping is persisted to
-`import_field_mappings` keyed by a SHA-256 fingerprint of the sorted, normalized headers,
-so the same file layout is recognized without a model call next time.
+Unmappable headers are omitted. A confirmed mapping is persisted to `import_field_mappings` keyed by a SHA-256 fingerprint of the sorted, normalized headers, so the same file layout is recognized without a model call next time.
 
-**Errors:** `400 raw_headers and target_fields required` ·
-`400 too many headers/fields (max 400)` · `401`.
+**Errors:** `400 raw_headers and target_fields required` · `400 too many headers/fields (max 400)` · `400 header too long (max 256 chars)` · `401` · `403 forbidden`.
 
-## C.6 Structured analytics catalog
+## C.6 Structured analytics catalog (18 functions)
 
-The router may only invoke a function present in `analytics.CATALOG`. That membership check
-is the no-free-form-SQL guarantee; a name outside the catalog falls back to the document
-route. Each description below is the routing prompt the model sees — it is written as the
-question a user would ask, and changing it changes routing behaviour.
+The router may only invoke a function present in `analytics.CATALOG` (`rag/analytics.py`). That membership check is the no-free-form-SQL guarantee; a name outside the catalog falls back to the document route.
 
 | Function | Params | Answers |
 |---|---|---|
@@ -805,7 +675,8 @@ question a user would ask, and changing it changes routing behaviour.
 | `overdue_phd_milestones` | — | Milestones past due and incomplete, by type |
 | `mou_status_summary` | — | MoUs by status + active ones expiring within 90 days |
 | `tech_transfer_summary` | — | Tech transfers by status + total value in lakhs |
-| `expertise_search` | `topic` **(required)** | "Who has worked on X" |
+| `expertise_search` | `topic` **(required)** | "Who has worked on X" (`expertise_find`) |
+| `metric` | `key?, division?, year?, stage?` | One KPI from the `metrics` registry (`metric_value`), or lists available keys when `key` is absent/unknown |
 | `project_budget_variance` | `threshold_pp?` | Active projects deviating from expected burn |
 | `expertise_succession_risk` | `years?` | Staff retiring within N years whose expertise nobody covers |
 | `staff_profile` | `name` **(required)** | "Who is X" — plus counts from `staff_profile_facts`; two matches → lists both, never picks |
@@ -813,21 +684,39 @@ question a user would ask, and changing it changes routing behaviour.
 | `division_summary` | `division_code` **(required)** | One division's head, strength, staff, project counts |
 | `project_team` | `project_no` \| `project_name` | "Who works on project X" |
 
-All catalog functions read through the caller's RLS-scoped client, so a structured answer is
-scoped exactly like the equivalent hand-written query would be. A function that raises for
-any reason returns `None`, and the request falls through to the document path rather than
-surfacing a `500`.
+All catalog functions read through the caller's RLS-scoped client, so a structured answer is scoped identically to an equivalent direct query. A function that raises returns `None`, falling through to the document path rather than surfacing a `500`.
 
-## C.7 Client reference
+## C.7 Client reference (`src/lib/ask/client.ts`)
 
-`src/lib/ask/client.ts` is the only SPA code that talks to surface C:
+`src/lib/ask/client.ts` holds all SPA integration with Surface C, plus query-side helpers (`AskCitation`, `AskAnswer`, `AskEntityType`, `AskEntity`, `AskHistoryTurn`):
 
-| Export | Endpoint |
+| Export | Mechanism |
 |---|---|
-| `askSurya(question, history?)` | `POST /query` |
-| `askSuryaStream(question, history, onToken)` | `POST /query/stream`, falls back to `/query` on 404/405 |
+| `askSurya(question, history?, entity?)` | `POST /query` (includes optional `context_entity`) |
+| `askSuryaStream(question, history, onToken, entity?)` | `POST /query/stream`; falls back to `/query` on `405` or `404` when `!entity`; throws `"That record is not available to you."` on `404` with `entity` |
 | `findSimilar(text)` | `POST /similar` |
-| `sendFeedback(queryId, 1 \| -1)` | **Not** an HTTP call — a direct `query_log` update under RLS |
+| `scheduleBrief(ownerId, question, cadence = 'weekly')` | Direct `scheduled_queries` insert under RLS (`owner = ownerId`) for daily/weekly worker digests (`rag/briefs.py`) |
+| `sendFeedback(queryId, 1 \| -1)` | Direct `query_log.feedback` update under RLS |
+| `parseAskEntity(value)` / `askAboutHref(entity)` | Parse `?entity=project:P-1` URL parameters and construct entity-scoped `/ask` links |
 
-Note the field rename at the boundary: the service returns `text`, the client exposes
-`answer`. Keep that normalization in `client.ts`; do not let `text` leak into components.
+Note the field rename at the boundary: the HTTP service returns `text`, while `AskAnswer` exposes `answer`. Keep that normalization inside `client.ts`.
+
+### Stage 3 RPCs (`20261121000012_stage3_priorities_decisions_notices_meetings.sql`)
+- **Priorities:** `can_pin_priority`, `priority_pin`, `priority_seen`, `priority_push_back`, `priority_answer`, `priority_done`, `priority_withdraw`
+- **Decisions & Clarification:** `my_decisions()`, `my_answer_time()`, `decision_ask`, `decision_answer`
+- **Nudges & Snooze:** `home_snooze_tomorrow`, `report_nudge_sweep`, `my_on_time_record`
+- **Notices:** `notice_matches_caller`, `notice_issue`, `notice_mark_read`
+- **Committee Agenda & Attendance:** `agenda_circulate`, `agenda_receipt_ack`, `meeting_attendance_set`, `meeting_quorum_status`, `meeting_mark_held`, `meeting_adjourn`
+
+### Stage 4 RPCs (`20261121000013_stage4_signatures_delegation_meetings.sql`)
+- **Minutes & Signatures:** `meeting_proceeding_upsert`, `minutes_draft_create`, `minutes_circulate`, `minutes_comment_add`, `minutes_approve`, `signature_attest`, `signature_verify`
+- **Delegation Dial & Flags:** `delegation_rule_set`, `decision_authority`, `decision_record`, `director_flag_set`, `director_flag_resolve`
+- **General Meetings:** `general_meeting_schedule`
+
+### Stage 5 RPCs (`20261121000014_stage5_desk_leave_letters_reports.sql`)
+- **Bookings, Leave & Letters:** `instrument_book`, `instrument_booking_decide`, `project_leave_apply`, `project_leave_decide`, `letter_request`, `letter_issue`
+- **Dak, Safety & Reports:** `dak_letter_log`, `dak_letter_update_status`, `safety_incident_report`, `division_report_assemble`, `division_report_send`, `director_watch_pin`, `action_item_verify`
+
+### Stage 6 RPCs (`20261121000015_stage6_depth_polishes.sql`)
+- **Tech, Outside, Mentoring & Grievances:** `technology_log_step`, `outside_contact_log`, `supervisor_meeting_log`, `private_grievance_submit`
+- **Faults, Transcripts, Clearances & Rubric:** `equipment_fault_report`, `equipment_fault_resolve`, `meeting_transcript_save`, `no_dues_request`, `no_dues_signoff`, `campus_request_create`, `proposal_rubric_score`

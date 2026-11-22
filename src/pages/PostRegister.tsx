@@ -10,7 +10,6 @@ import {
   type DivisionStrength, type PostState, type SanctionedPost,
 } from '../lib/people/api';
 import { careerRowsFromSheet } from '../lib/people/careers';
-import { parseFileRaw } from '../utils/dataMigration';
 import { friendlyError } from '../lib/errors';
 
 const input = 'rounded-lg border border-border bg-surface px-2 py-1.5 text-sm text-text focus:outline-none focus:ring-2 focus:ring-terracotta/40';
@@ -65,6 +64,7 @@ export default function PostRegister() {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
+    const { parseFileRaw } = await import('../utils/dataMigration');
     const parsed = await parseFileRaw(file);
     if (!parsed.success) { push(parsed.error ?? 'Could not read the file', 'error'); return; }
     const { events, bad } = careerRowsFromSheet(parsed.data ?? []);

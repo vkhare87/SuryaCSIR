@@ -37,7 +37,7 @@ export function EmptyState({ icon: Icon, title, description, action, className, 
       {action ? (
         <Link
           to={action.to}
-          className="mt-2 inline-flex items-center rounded-md bg-brand-blue px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition-opacity"
+          className="mt-2 inline-flex items-center rounded-md bg-brand-blue px-4 py-2 text-sm font-medium text-ivory hover:opacity-90 transition-opacity"
         >
           {action.label}
         </Link>

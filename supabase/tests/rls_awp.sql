@@ -45,6 +45,9 @@ CREATE OR REPLACE FUNCTION pg_temp.ny() RETURNS text LANGUAGE sql AS $$
 $$;
 
 -- B has a report under evaluation by e1 (for T8).
+-- Close any seeded OPEN cycle inside this rolled-back transaction so
+-- appraisal_cycles_one_open stays satisfied when run after `supabase db reset`.
+UPDATE public.appraisal_cycles SET status = 'CLOSED' WHERE status = 'OPEN';
 INSERT INTO public.appraisal_cycles (id, name, start_date, end_date, status)
 VALUES ('99999999-0000-0000-0000-000000000001', 'Test cycle', make_date(pg_temp.ny_start(), 4, 1),
         make_date(pg_temp.ny_start() + 1, 3, 31), 'OPEN');

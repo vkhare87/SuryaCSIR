@@ -1,128 +1,130 @@
-import { useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Wrench, CheckCircle, AlertTriangle, CalendarClock } from 'lucide-react';
-import { useData } from '../../contexts/DataContext';
+import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { AlertTriangle, ArrowRight, Microscope, Wrench } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useData } from '../../contexts/DataContext';
+import { useHome } from '../../contexts/HomeContext';
+import { supabase } from '../../utils/supabaseClient';
 import { Card } from '../../components/ui/Cards';
-import { KpiCard } from '../../components/ui/KpiCard';
-import { formatDate, parseDate } from '../../utils/dateUtils';
-import { getAmcExpiryList } from '../../utils/directorMetrics';
-import { equipmentStatusClass, isEquipmentDown } from '../../utils/equipmentStatus';
+import { DoFirstStrip } from '../../components/home/common/DoFirstStrip';
 
 export function TechnicianView() {
+  const { user } = useAuth();
   const { equipment } = useData();
-  const { divisionCode } = useAuth();
-  const navigate = useNavigate();
+  const { ownStaffId, greeting, doNext, todayIso, registerClaimedKeys } = useHome();
+  const [inChargeIds, setInChargeIds] = useState<Set<string>>(new Set());
 
-  const working = equipment.filter(e => equipmentStatusClass(e.WorkingStatus) === 'Working').length;
-  const nonWorking = equipment.filter(e => isEquipmentDown(e.WorkingStatus)).length;
-  const amcExpiring = useMemo(() => getAmcExpiryList(equipment, 6), [equipment]);
+  useEffect(() => {
+    registerClaimedKeys(doNext ? [doNext.id] : []);
+  }, [doNext, registerClaimedKeys]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!supabase || !ownStaffId) return;
+    supabase
+      .from('equipment_in_charge')
+      .select('equipment_id')
+      .eq('staff_id', ownStaffId)
+      .then(({ data, error }) => {
+        if (cancelled || error || !Array.isArray(data)) return;
+        setInChargeIds(new Set(data.map((r) => String(r.equipment_id))));
+      });
+    return () => { cancelled = true; };
+  }, [ownStaffId]);
+
+  const myInstruments = useMemo(() => {
+    if (inChargeIds.size > 0) {
+      return equipment.filter((e) => inChargeIds.has(e.UInsID));
+    }
+    return user?.divisionCode ? equipment.filter((e) => e.Division === user.divisionCode) : equipment;
+  }, [equipment, inChargeIds, user?.divisionCode]);
+
+  const downList = useMemo(
+    () => myInstruments.filter((e) => /down|fault|non/i.test(e.WorkingStatus)),
+    [myInstruments],
+  );
+  const amcSoon = useMemo(() => {
+    const [y, m, d] = todayIso.split('-').map(Number);
+    const horizon = new Date(Date.UTC(y, m - 1, d + 60)).toISOString().slice(0, 10);
+    return myInstruments.filter((e) => e.amc_end_date && e.amc_end_date >= todayIso && e.amc_end_date <= horizon);
+  }, [myInstruments, todayIso]);
 
   return (
-    <div className="space-y-8 pb-12">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-[500] text-[#141413] uppercase tracking-tight font-serif">
-          Equipment Dashboard
-        </h1>
-        <p className="text-[#87867f] mt-1 text-sm font-medium">
-          Division: <span className="text-[#c96442] font-semibold">{divisionCode ?? 'All Divisions'}</span>
+    <div className="space-y-6 pb-12">
+      <section aria-label="Technician greeting" className="space-y-1">
+        <h1 className="text-xl sm:text-2xl font-[500] font-serif text-text leading-snug">{greeting}</h1>
+        <p className="text-xs text-text-muted font-mono tabular-nums">
+          {myInstruments.length} instruments · {downList.length} down · {amcSoon.length} AMC due within 60d
         </p>
-      </div>
+      </section>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <KpiCard
-          to="/facilities"
-          label="Total Equipment"
-          value={equipment.length}
-          icon={<Wrench size={18} />}
-          sublabel="Instruments & machines"
-        />
-        <KpiCard
-          label="Working"
-          value={working}
-          icon={<CheckCircle size={18} />}
-          sublabel="Operational units"
-        />
-        <KpiCard
-          label="Not Working / Maintenance"
-          value={nonWorking}
-          icon={<AlertTriangle size={18} />}
-          sublabel="Requires attention"
-        />
-      </div>
+      <DoFirstStrip />
 
-      {/* AMC Expiry Watchlist */}
-      <Card className="p-0 overflow-hidden">
-        <div className="px-6 py-4 border-b border-[#f0eee6] flex items-center gap-2">
-          <CalendarClock size={16} className="text-[#c96442]" />
-          <h2 className="text-base font-semibold text-[#4d4c48] uppercase tracking-wide">AMC Expiring (next 6 months)</h2>
+      {doNext && (
+        <Card className="p-5 flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-xs uppercase tracking-wider text-text-muted font-semibold">Do this next</p>
+            <p className="text-base font-medium text-text truncate">{doNext.label}</p>
+            <p className="text-xs text-text-muted truncate">{doNext.detail}</p>
+          </div>
+          <Link
+            to={doNext.link}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-terracotta hover:bg-terracotta-hover text-ivory text-sm font-semibold shrink-0"
+          >
+            Open <ArrowRight size={15} />
+          </Link>
+        </Card>
+      )}
+
+      {/* Phone-first quick actions */}
+      <Card className="p-4 space-y-3">
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+          <Wrench size={13} /> Quick entry
+        </h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          <Link to="/facilities" className="px-3 py-2.5 rounded-lg border border-border text-xs font-medium text-text hover:bg-surface-hover text-center">
+            Log instrument use
+          </Link>
+          <Link to="/helpdesk/new?key=repair" className="px-3 py-2.5 rounded-lg border border-border text-xs font-medium text-text hover:bg-surface-hover text-center">
+            Report a fault
+          </Link>
+          <Link to="/helpdesk/new?key=safety" className="px-3 py-2.5 rounded-lg border border-border text-xs font-medium text-text hover:bg-surface-hover text-center">
+            Safety / calibration note
+          </Link>
         </div>
-        {amcExpiring.length === 0 ? (
-          <p className="text-xs text-[#87867f] italic py-8 text-center">No AMC contracts expiring.</p>
-        ) : (
-          <ul className="divide-y divide-[#f0eee6] text-sm">
-            {amcExpiring.map(e => (
-              <li
-                key={e.UInsID}
-                className="flex justify-between items-center px-6 py-3 cursor-pointer hover:bg-background transition-colors"
-                onClick={() => navigate(`/facilities/${e.UInsID}`)}
-              >
-                <span className="truncate text-[#4d4c48] font-medium">{e.Name}</span>
-                <span className="text-[#87867f] tabular-nums text-xs">{formatDate(parseDate(e.amc_end_date))}</span>
-              </li>
-            ))}
-          </ul>
-        )}
       </Card>
 
-      {/* Equipment Table */}
-      <Card className="p-0 overflow-hidden">
-        <div className="px-6 py-4 border-b border-[#f0eee6]">
-          <h2 className="text-base font-semibold text-[#4d4c48] uppercase tracking-wide">Equipment Inventory</h2>
+      {/* My instruments */}
+      <Card className="p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+            <Microscope size={13} /> My instruments
+          </h2>
+          <Link to="/facilities" className="text-xs text-text-muted hover:text-text hover:underline">
+            See all ({myInstruments.length})
+          </Link>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-background">
-                <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-[#87867f]">Name</th>
-                <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-[#87867f]">Status</th>
-                <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-[#87867f]">Operator</th>
-                <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-[#87867f]">Location</th>
-                <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-[#87867f]">Movable</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#f0eee6]">
-              {equipment.map(e => (
-                <tr key={e.UInsID} className="hover:bg-background transition-colors">
-                  <td className="px-6 py-3 text-[#4d4c48] font-medium">{e.Name}</td>
-                  <td className="px-6 py-3">
-                    <span
-                      className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
-                        equipmentStatusClass(e.WorkingStatus) === 'Working'
-                          ? 'bg-[#f0f8f0] text-[#3a7a3a]'
-                          : 'bg-[#fdf5e8] text-[#a06020]'
-                      }`}
-                    >
-                      {e.WorkingStatus}
-                    </span>
-                  </td>
-                  <td className="px-6 py-3 text-[#87867f]">{e.OperatorName || '—'}</td>
-                  <td className="px-6 py-3 text-[#87867f]">{e.Location || '—'}</td>
-                  <td className="px-6 py-3 text-[#87867f]">{e.Movable || '—'}</td>
-                </tr>
-              ))}
-              {equipment.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-[#87867f] text-xs italic">
-                    No equipment records found.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        {myInstruments.length === 0 ? (
+          <p className="text-xs text-text-muted">No instruments assigned to you or your division yet.</p>
+        ) : (
+          <ul className="divide-y divide-border">
+            {myInstruments.slice(0, 6).map((inst) => {
+              const isDown = /down|fault|non/i.test(inst.WorkingStatus);
+              return (
+                <li key={inst.UInsID} className="py-2 first:pt-0 last:pb-0 flex items-center justify-between gap-2 text-xs">
+                  <Link to={`/facilities/${encodeURIComponent(inst.UInsID)}`} className="font-medium text-text hover:underline truncate">
+                    <span className="font-mono text-text-muted mr-1.5">{inst.UInsID}</span>
+                    {inst.Name}
+                  </Link>
+                  <span className={`font-mono shrink-0 inline-flex items-center gap-1 ${isDown ? 'text-danger' : 'text-archive-green'}`}>
+                    {isDown && <AlertTriangle size={12} />}
+                    {inst.WorkingStatus || 'Operational'}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </Card>
     </div>
   );

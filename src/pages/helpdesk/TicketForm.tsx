@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Building2, Monitor, FileText, Users, DollarSign,
   FlaskConical, Library, Car,
@@ -9,6 +9,7 @@ import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Cards';
+import { ResolvedFaqPanel } from '../../components/helpdesk/ResolvedFaqPanel';
 import { createTicket } from '../../lib/helpdesk/ticketRPCs';
 import { CATEGORY_CONFIG, URGENCY_COLORS } from '../../lib/helpdesk/constants';
 import { resolveRoutingPreview } from '../../lib/helpdesk/routing';
@@ -34,8 +35,33 @@ export default function TicketForm() {
   const { staff, divisions, helpdeskRouting, refreshSlice } = useData();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const initialKey = searchParams.get('key');
 
-  const [category, setCategory] = useState<TicketCategory | null>(null);
+  const ONE_DOOR_PRESETS: Array<{ key: string; label: string; category: TicketCategory; desk: string }> = useMemo(() => [
+    { key: 'leave',     label: 'Leave / tour query',               category: 'HRGrievance',    desk: 'HR Section' },
+    { key: 'letter',    label: 'Certificate or official letter',   category: 'Administrative', desk: 'Administration' },
+    { key: 'repair',    label: 'Lab / facility repair',            category: 'Infrastructure', desk: 'Engineering' },
+    { key: 'it',        label: 'IT, network or portal help',       category: 'EquipmentIT',    desk: 'IT Cell' },
+    { key: 'room',      label: 'Room, vehicle or guest house',     category: 'Administrative', desk: 'Room Desk' },
+    { key: 'complaint', label: 'Confidential grievance / complaint', category: 'HRGrievance',  desk: 'Grievance Cell' },
+    { key: 'safety',    label: 'Safety hazard or incident',        category: 'LabResearch',    desk: 'Safety Officer' },
+    { key: 'other',     label: 'Something else',                   category: 'Administrative', desk: 'Helpdesk' },
+  ], []);
+
+  const [selectedDoorKey, setSelectedDoorKey] = useState<string | null>(initialKey);
+  const [category, setCategory] = useState<TicketCategory | null>(() => {
+    const match = ONE_DOOR_PRESETS.find((p) => p.key === initialKey);
+    return match ? match.category : null;
+  });
+  useEffect(() => {
+    if (!initialKey) return;
+    const match = ONE_DOOR_PRESETS.find((p) => p.key === initialKey);
+    if (match) {
+      setSelectedDoorKey(match.key);
+      setCategory(match.category);
+    }
+  }, [initialKey, ONE_DOOR_PRESETS]);
   const [urgency, setUrgency] = useState<TicketUrgency>('Medium');
   const [subject, setSubject] = useState('');
   const [description, setDescription] = useState('');
@@ -158,6 +184,33 @@ export default function TicketForm() {
         </div>
       </div>
 
+      {/* One Door quick request catalogue (CD3) */}
+      <Card>
+        <p className="text-xs font-semibold uppercase tracking-wider text-text-muted mb-2">
+          One Door — what do you need?
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {ONE_DOOR_PRESETS.map((preset) => (
+            <button
+              key={preset.key}
+              type="button"
+              onClick={() => {
+                setSelectedDoorKey(preset.key);
+                setCategory(preset.category);
+                setFieldErrors((f) => f.filter((e) => e !== 'category'));
+              }}
+              className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
+                selectedDoorKey === preset.key
+                  ? 'border-terracotta bg-terracotta/10 text-text'
+                  : 'border-border bg-surface text-text-muted hover:text-text hover:bg-surface-hover'
+              }`}
+            >
+              {preset.label} <span className="text-[10px] font-mono opacity-75">· {preset.desk}</span>
+            </button>
+          ))}
+        </div>
+      </Card>
+
       <section>
         <p className="text-sm font-[500] text-text font-serif mb-3">
           What best describes your issue?
@@ -228,6 +281,8 @@ export default function TicketForm() {
             <p className="text-xs text-danger mt-1">Subject is required.</p>
           )}
         </div>
+
+        <ResolvedFaqPanel query={subject} />
 
         <div>
           <label className="block text-xs font-semibold text-text-muted mb-2">

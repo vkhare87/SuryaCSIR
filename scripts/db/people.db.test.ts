@@ -72,7 +72,7 @@ describe('post register', () => {
 
 describe('workload, outlook, careers', () => {
   it('workload counts running projects and flags more than four', async () => {
-    const w = (await call(U.hr, `SELECT active_projects, as_pi, overload FROM staff_workload('P-A')`))[0];
+    const w = (await asOn(U.hr, T, tx => q(tx, `SELECT active_projects, as_pi, overload FROM staff_workload('P-A')`)))[0];
     expect(w).toEqual({ active_projects: 2, as_pi: 2, overload: false });
   });
 
@@ -206,14 +206,19 @@ describe('acting charge', () => {
   });
 
   it('an acting Director calls a review within the dates and is refused the day after; the record says in what capacity', async () => {
-    await call(U.hr, `SELECT acting_assign('Director', NULL, $1, $2, '2026-12-01', '2026-12-10', 'DG Order 3/2026')`, [U.dir, U.acting]);
+    // ponytail: the timeline stamps events with the real now(), so the charge must cover the real IST today.
+    const ist = (offset: number) => new Date(Date.now() + 5.5 * 3600e3 + offset * 86400e3).toISOString().slice(0, 10);
+    const [from, today, tomorrow] = [ist(-9), ist(0), ist(1)];
+    await call(U.hr, `SELECT acting_assign('Director', NULL, $1, $2, $3, $4, 'DG Order 3/2026')`, [U.dir, U.acting, from, today]);
     const call_ = (day: string) => asOn(U.acting, day, async tx => {
       await tx.query(`SELECT project_call_review('PS-RUN', $1::date + 30, 'Mid-term check')`, [day]);
       return (await q<{ acted_as: string | null }>(tx,
         `SELECT acted_as FROM entity_timeline WHERE entity_type = 'project' AND entity_id = 'PS-RUN' AND kind <> 'created' ORDER BY at DESC LIMIT 1`))[0];
     });
-    await expect(call_('2026-12-10')).resolves.toBeDefined();
-    await expect(call_('2026-12-11')).rejects.toThrow(/Only the Director or PME/);
+    const cap = (await call<{ c: string | null }>(U.acting, `SELECT acting_capacity($1, $2::date) c`, [U.acting, today]))[0].c;
+    expect(cap).toBe('Acting Director (DG Order 3/2026)');
+    await expect(call_(today)).resolves.toEqual({ acted_as: expect.stringMatching(/^Acting /) });
+    await expect(call_(tomorrow)).rejects.toThrow(/Only the Director or PME/);
   });
 
   it('only the Director or HR records it, never for oneself', async () => {

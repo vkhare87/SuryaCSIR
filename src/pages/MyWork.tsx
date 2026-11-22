@@ -15,7 +15,7 @@ import { availableActions, changedFields, inboxBucket, isReviewer } from '../lib
 import { actOnContributionRequest, listRequestEvents } from '../lib/contributions/api';
 import { PK_FIELD, updateEntityRecord } from '../lib/data/entityWrite';
 import type { WriteResult } from '../lib/data/entityWrite';
-import { FIELD_META } from '../utils/dataMigration';
+import { FIELD_META } from '../utils/fileTypes';
 import { DATA_ADMINS } from '../constants/access';
 import type { DirectoryUser } from '../hooks/useUserDirectory';
 import type { ContributionAction, ContributionEvent, ContributionRequest, ContributionStatus } from '../types';

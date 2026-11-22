@@ -74,6 +74,8 @@ import { logger } from '../utils/logger';
 import { fetchAll, isMissingTable } from '../lib/data/fetchAll';
 import { withPostTotals } from '../lib/recruitment/posts';
 import { friendlyError } from '../lib/errors';
+import { primeDivisionStrength } from '../lib/people/useDivisionStrength';
+import type { DivisionStrength } from '../lib/people/api';
 
 // ---------------------------------------------------------------------------
 // Client-side division scoping helpers (applied after data load)
@@ -182,8 +184,8 @@ interface DataContextType {
   saveEquipment: (payload: Record<string, unknown>) => Promise<void>;
   /** Names a person must link to a staff record (admins, Director). */
   identityLinkGaps: () => Promise<IdentityLinkGap[]>;
-  /** Link (or, with null, unlink) the name at a position of an output or IP record. */
-  setIdentityLink: (kind: 'OUTPUT' | 'IP', recordId: string, pos: number, staffId: string | null) => Promise<void>;
+  /** Link (or, with null, unlink) a name on an output, IP, or staff-keyed table record. */
+  setIdentityLink: (kind: string, recordId: string, pos: number | null, staffId: string | null) => Promise<void>;
   /** Re-run the automatic one-match linking; returns the number of names linked. */
   runIdentityAutolink: () => Promise<number>;
   error: string | null;
@@ -298,6 +300,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setImportEvents([]);
     setContributionRequests([]);
     setDataStewards([]);
+    primeDivisionStrength(null, null);
   }, []);
 
   useEffect(() => {
@@ -348,11 +351,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }
 
       const skipped = Promise.resolve({ data: [], error: null });
+      const strengthCall = Promise.resolve(
+        supabase.from('division_strength').select('*').order('division_code'),
+      );
+      primeDivisionStrength(
+        null,
+        strengthCall.then(r => ((r?.data ?? []) as DivisionStrength[]), () => []),
+      );
       const [
-        divRes, staffRes, projRes, psRes, phdRes, equipRes, labsRes, soRes, ipRes, csRes,
-        vaRes, vpRes, vappRes,
-        cmtRes, cmmRes, mtgRes, agiRes, actRes, mdcRes, tktRes, trsRes, tevRes, hrtRes,
-        ceRes, holRes, mouRes, ttRes, phmRes, ieRes, crRes, dsRes, strengthRes,
+        divRes, staffRes, projRes, psRes, csRes, strengthRes,
       ] = await Promise.all([
         // Every read is paged (fetchAll) — an unbounded select is capped at
         // db-max-rows silently, with no error and no flag, so the aggregates
@@ -364,6 +371,30 @@ export function DataProvider({ children }: { children: ReactNode }) {
         fetchAll(supabase.from('staff').select('*').order('ID')),
         fetchAll(supabase.from('projects').select('*').order('ProjectNo')),
         fetchAll(supabase.from('project_staff').select('*').order('ProjectNo').order('StaffName')),
+        loadContracts ? fetchAll(supabase.from('contract_staff').select('*').order('Name')) : skipped,
+        // Strength comes from the post register (division_strength, 20261113000001),
+        // never the two integers kept on divisions: every page reads these fields.
+        strengthCall,
+      ]);
+      if (!isCurrentLoad()) return;
+
+      if (isSliceCurrent('hr')) {
+        primeDivisionStrength((strengthRes.data as DivisionStrength[] | null) ?? []);
+        setDivisions(divRes.data ? withStrength(divRes.data.map(mapDivisionRow), strengthRes.data) : []);
+        setRawStaff(staffRes.data ? staffRes.data.map(mapStaffRow) : []);
+        setContractStaff(csRes.data ? csRes.data.map(mapContractStaffRow) : []);
+      }
+      if (isSliceCurrent('projects')) {
+        setRawProjects(projRes.data ? projRes.data.map(mapProjectRow) : []);
+        setProjectStaff(psRes.data ? psRes.data.map(mapProjectStaffRow) : []);
+      }
+
+      const [
+        phdRes, equipRes, labsRes, soRes, ipRes,
+        vaRes, vpRes, vappRes,
+        cmtRes, cmmRes, mtgRes, agiRes, actRes, mdcRes, tktRes, trsRes, tevRes, hrtRes,
+        ceRes, holRes, mouRes, ttRes, phmRes, ieRes, crRes, dsRes,
+      ] = await Promise.all([
         fetchAll(supabase.from('phd_students').select('*').order('EnrollmentNo')),
         // equipment's PK is "UInsID", not id — ordering by a column that does
         // not exist is a 400, not a silent no-op.
@@ -371,7 +402,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
         fetchAll(supabase.from('labs').select('*').order('id')),
         fetchAll(supabase.from('scientific_outputs').select('*').order('id')),
         fetchAll(supabase.from('ip_intelligence').select('*').order('id')),
-        loadContracts ? fetchAll(supabase.from('contract_staff').select('*').order('Name')) : skipped,
         loadRecruitment ? fetchAll(supabase.from('vacancy_advertisements').select('*').order('created_at', { ascending: false }).order('id')) : skipped,
         loadRecruitment ? fetchAll(supabase.from('vacancy_posts').select('*').order('id')) : skipped,
         loadRecruitment ? fetchAll(supabase.from('vacancy_applications').select('*').order('applied_on', { ascending: false }).order('id')) : skipped,
@@ -393,9 +423,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
         loadDataOps ? fetchAll(supabase.from('import_events').select('*').order('uploaded_at', { ascending: false }).order('id')) : skipped,
         fetchAll(supabase.from('contribution_requests').select('*').order('created_at', { ascending: false }).order('id')),
         fetchAll(supabase.from('data_stewards').select('*').order('id')),
-        // Strength comes from the post register (division_strength, 20261113000001),
-        // never the two integers kept on divisions: every page reads these fields.
-        supabase.from('division_strength').select('division_code, sanctioned, filled'),
       ]);
       if (!isCurrentLoad()) return;
 
@@ -445,15 +472,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
         pushToast(`${summary} Some figures may be incomplete.`, 'warning');
       }
 
-      if (isSliceCurrent('hr')) {
-        setDivisions(divRes.data ? withStrength(divRes.data.map(mapDivisionRow), strengthRes.data) : []);
-        setRawStaff(staffRes.data ? staffRes.data.map(mapStaffRow) : []);
-        setContractStaff(csRes.data ? csRes.data.map(mapContractStaffRow) : []);
-      }
-      if (isSliceCurrent('projects')) {
-        setRawProjects(projRes.data ? projRes.data.map(mapProjectRow) : []);
-        setProjectStaff(psRes.data ? psRes.data.map(mapProjectStaffRow) : []);
-      }
       if (isSliceCurrent('phd')) {
         setPhDStudents(phdRes.data ? phdRes.data.map(mapPhDStudentRow) : []);
         setPhdMilestones(phmRes.data ? phmRes.data.map(mapPhDMilestoneRow) : []);
@@ -610,12 +628,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
           fetchAll(supabase.from('divisions').select('*').order('divCode')),
           fetchAll(supabase.from('staff').select('*').order('ID')),
           loadContracts ? fetchAll(supabase.from('contract_staff').select('*').order('Name')) : Promise.resolve({ data: null, error: null }),
-          supabase.from('division_strength').select('division_code, sanctioned, filled'),
+          supabase.from('division_strength').select('*').order('division_code'),
         ]);
         if (!isCurrent()) return;
         if (divRes.error) throw divRes.error;
         if (staffRes.error) throw staffRes.error;
         if (csRes.error) throw csRes.error;
+        primeDivisionStrength((strengthRes.data as DivisionStrength[] | null) ?? []);
         if (divRes.data) setDivisions(withStrength(divRes.data.map(mapDivisionRow), strengthRes.data));
         if (staffRes.data) setRawStaff(staffRes.data.map(mapStaffRow));
         if (csRes.data) setContractStaff(csRes.data.map(mapContractStaffRow));
@@ -760,10 +779,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
-  const setIdentityLink = useCallback(async (kind: 'OUTPUT' | 'IP', recordId: string, pos: number, staffId: string | null) => {
+  const setIdentityLink = useCallback(async (kind: string, recordId: string, pos: number | null, staffId: string | null) => {
     if (!supabase) throw new Error('Supabase not configured');
     const { error: err } = await supabase.rpc('identity_set_link', {
-      p_kind: kind, p_record_id: recordId, p_position: pos, p_staff_id: staffId,
+      p_kind: kind, p_record_id: recordId, p_position: pos ?? 0, p_staff_id: staffId,
     });
     if (err) throw err;
   }, []);

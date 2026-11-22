@@ -1,7 +1,7 @@
 # SURYA — Engineering Architecture
 
 _Canonical architecture reference. Supersedes the former `docs/ARCHITECTURE.md` and
-`docs/STRUCTURE.md`, which now point here. Current as of 2026-08-08._
+`docs/STRUCTURE.md`, which now point here. Current as of 2026-11-21._
 
 Companion documents: [system_design.md](system_design.md) (flows, state machines,
 deployment), [database_design.md](database_design.md) (schema), [api_spec.md](api_spec.md)
@@ -24,7 +24,7 @@ These are load-bearing. Violating one is a defect, not a style preference.
 | **P6** | **Fail closed on grounding.** | No retrieval → refusal string, zero citations. No ungrounded generation path exists |
 | **P7** | **The service key never touches user input.** | `rag-api` holds the anon key and reads with the caller's JWT; only `rag-worker` holds `SUPABASE_SERVICE_KEY`, and they run as separate processes with separate env files |
 | **P8** | **Schema changes are append-only and CLI-applied.** | `supabase db push`. Shipped baseline files are never edited. Dashboard SQL Editor is banned — that is how the live project drifted before the 2026-07-12 restructure |
-| **P9** | **The app must run without a backend.** | `isProvisioned()` false → mock data. UI development needs no Supabase project |
+| **P9** | **The app can boot without a live backend.** | `isProvisioned()` false → Setup Wizard / empty context fallbacks (plus optional `VITE_DEV_LOGIN=1` offline dev login); demo rows live in `supabase/mock/` |
 | **P10** | **Adapters at the edges.** | OCR and LLM are factory-selected (`make_ocr`, `make_llm`); tests run against `NullOCR` + `FakeLLM` + `FakeDB` with no network |
 
 ---
@@ -46,9 +46,9 @@ graph TB
     OLL["Ollama :11434<br/>LLM + vision OCR"]
   end
   subgraph "Supabase (hosted)"
-    PG[("PostgreSQL 17<br/>65 tables · RLS · RPCs")]
+    PG[("PostgreSQL 17<br/>121 tables · 8 views · RLS · 310 RPCs")]
     AUTH["GoTrue Auth"]
-    ST["Storage buckets"]
+    ST["Storage (7 buckets)"]
   end
 
   SPA -->|"PostgREST + RPC, anon key + user JWT"| PG
@@ -114,8 +114,8 @@ nothing above it and performs no I/O. A page never imports `supabaseClient` — 
 ├── eslint.config.js     ESLint 9 flat config
 ├── src/                 SPA source — see §4.2
 ├── supabase/
-│   ├── migrations/      31 files: 8-file domain baseline + append-only additions
-│   ├── migrations_archive/  Pre-2026-07-12 history; reference only, applied nowhere
+│   ├── migrations/      8 files: consolidated 2026-11-21 domain baseline (20261121000001–08) + future append-only additions
+│   ├── migrations_archive/  Pre-2026-07-12 history + 2026-11-21/ archive (93 consolidated migrations); reference only, applied nowhere
 │   ├── seed/            Bootstrap data every environment needs
 │   ├── mock/            CSIR-AMPRI demo fixture — dev only, never production
 │   ├── ops/             wipe_data.sql + apply-order runbook
@@ -126,15 +126,17 @@ nothing above it and performs no I/O. A page never imports `supabaseClient` — 
 │   ├── query_service.py Query composition (fastapi-free, testable)
 │   ├── router.py        LLM route decision + catalog membership check
 │   ├── retrieval.py     Tree descent, context budgeting, citations
-│   ├── analytics.py     17 whitelisted structured functions + CATALOG
-│   ├── worker.py        Ingestion queue drainer
+│   ├── analytics.py     18 whitelisted structured functions + CATALOG
+│   ├── worker.py        Ingestion queue drainer (+ `--briefs` via `briefs.py`)
 │   ├── parse.py pageindex.py ocr.py llm.py db.py auth.py config.py corpus.py
 │   ├── preflight.py     Pre-deploy environment + schema validation
 │   ├── eval/            Gold sets, harness, local benchmark
-│   └── tests/           18 offline test modules
+│   └── tests/           19 offline test modules
 ├── ingest/              Optional capture worker (folder + IMAP), pure stdlib
-├── scripts/             check_security_definer.py, IRINS sync, data importers
-├── deploy/              Windows Server runbook, nginx.conf, env examples
+├── scripts/             scripts/db/ (PGlite harness + 29 test files), check_security_definer.py,
+│                        update-design-debt.mjs, access_matrix.mts, copy-ocr-assets.mjs,
+│                        IRINS sync, data importers
+├── deploy/              Windows Server runbook, nginx.conf, env examples, profiles/ (3)
 ├── docs/                This suite + roadmaps + academic artifacts
 └── .claude/             Project agents, slash commands, skills
 ```
@@ -177,14 +179,14 @@ root-level `document.md` on 2026-08-08 and corrected.
 | `pages/dashboards/` | One view per role | Selected by `active_role` |
 | `pages/pms/`, `pages/committees/`, `pages/helpdesk/`, `pages/proposals/`, `pages/reports/`, `pages/admin/` | Module-scoped pages | |
 | `components/ui/` | Shared primitives — `Button`, `Cards`, `DataTable<T>`, `Modal`, `Sheet`, `Tabs`, `Timeline`, `EmptyState`, `Skeleton`, pickers | Named exports, generic where reusable |
-| `components/viz/` | Chart primitives over Recharts + palette | Raw hex allowed only in chart `fill` props |
+| `components/viz/` | Chart primitives over Recharts + palette | Raw hex allowed only here (`eslint.design-debt.json` ratchet enforced in CI) |
 | `components/layout/` | `Layout`, `Sidebar`, `NotificationBell` | `Sidebar` filters nav by `ACCESS_MAP` |
-| `components/<module>/` | Feature components (pms, committees, calendar, dashboard, admin, proposals) | |
-| `contexts/` | Nine providers; each file exports provider + `use<Name>()` hook | Throwing hook pattern, no default value |
+| `components/<module>/` | Feature components (pms, projects, committees, calendar, dashboard, admin, proposals) | |
+| `contexts/` | Twelve providers; each file exports provider + `use<Name>()` hook | Throwing hook pattern, no default value |
 | `hooks/` | Cross-page reusable hooks | |
 | `lib/<domain>/` | Pure domain logic, one folder per domain | **No React, no Supabase imports.** Co-located `*.test.ts` |
 | `utils/` | Non-React helpers, mappers, the Supabase client | camelCase filenames |
-| `types/` | `index.ts` barrel + `pms.ts`, `proposal.ts`, `projectReport.ts` | |
+| `types/` | `index.ts` barrel + `pms.ts`, `proposal.ts`, `projectReport.ts`, `projectFile.ts` | |
 | `constants/` | `access.ts` (`ACCESS_MAP`), `roleRoutes.ts` | Single source for page access |
 
 ---
@@ -195,46 +197,53 @@ root-level `document.md` on 2026-08-08 and corrected.
 
 ```
 StrictMode
-└ ErrorBoundary            catches render errors app-wide
-  └ ThemeProvider          class + data-density on <html>; localStorage
-    └ UIProvider           DeviceType from innerWidth (<768 / 768–1023 / ≥1024)
-      └ ToastProvider      transient notifications
-        └ AuthProvider     Supabase session, composite roles, activeRole
-          └ FeatureControlProvider   MasterAdmin runtime kill-switches
-            └ DataProvider           all HR/committee/helpdesk/calendar entities
-              └ PMSProvider          appraisal cycles, reports, evaluations
-                └ ProposalsProvider
-                  └ ProjectReportsProvider
-                    └ App
+└ ErrorBoundary                  catches render errors app-wide
+  └ MotionConfig (reducedMotion="user")
+    └ ThemeProvider              class + data-density on <html>; localStorage
+      └ UIProvider               DeviceType from innerWidth (<768 / 768–1023 / ≥1024)
+        └ ToastProvider          transient notifications
+          └ AuthProvider         Supabase session, composite roles, activeRole
+            └ FeatureControlProvider   MasterAdmin runtime switches & per-user feature_grants
+              └ RulesProvider          effective-dated CSIR institutional rules
+                └ ProfileProvider      staff self-service profile & consistency issues
+                  └ DataProvider       HR/committee/helpdesk/calendar/contribution entities
+                    └ PMSProvider      appraisal cycles, reports, evaluations
+                      └ AWPProvider    Part V Annual Work Plans & revisions
+                        └ ProposalsProvider
+                          └ ProjectReportsProvider
+                            └ App
 ```
 
 Ordering is meaningful: `DataProvider` sits inside `AuthProvider` because its reads are
 scoped by the session's active role and division; `FeatureControlProvider` sits above
 `DataProvider` because `ProtectedRoute` consults it before rendering any data page.
+`ThemeProvider` also loads bundled `@fontsource/*` font faces (zero external font CDN).
 
 ### 5.2 Routing and access control
 
 Three independent gates, applied in order:
 
-1. **Navigation** — `Sidebar` renders only entries whose `ACCESS_MAP` list contains the
-   active role. Cosmetic.
+1. **Navigation** — `Sidebar` renders only entries whose `ACCESS_MAP` + per-user
+   `feature_grants` + `feature_controls` check (`canAccess`) passes for the active role. Cosmetic.
 2. **Route guard** — `ProtectedRoute` in `App.tsx` checks, in order: loading → provisioned
-   → authenticated → `mustChangePassword` → `allowedRoles` → `accessPath` feature control.
+   → authenticated → `mustChangePassword` → `allowedRoles` → `accessPath` (`canAccess`)
+   → `desktopOnly` (renders an "Open this page on a computer" card on mobile).
    Failures redirect to `ROLE_ROUTES[activeRole]`. Client-side, therefore advisory.
 3. **RLS** — the actual gate. A user who forges their way past 1 and 2 receives an empty
    result set.
 
-Detail routes (`/staff/:id`, `/projects/:id`, `/facilities/:uInsID`,
-`/committees/:id/meetings/:meetId`) are intentionally **ungated** — they are linked from
-pages open to all roles, and RLS scopes what the page can load. This is a deliberate design
-decision, not an oversight.
+Detail routes (`/staff/:id`, `/projects/:id`, `/facilities/:uInsID`) require a verified
+role (`allowedRoles={VERIFIED}`, excluding `Guest` and `DefaultUser`) and RLS scopes
+what the page can load; `/committees/:id/meetings/:meetId` is gated by
+`accessPath="/committees"`. Only `/login`, `/setup`, and `/change-password` are
+unauthenticated (enforced by `src/constants/access.test.ts`).
 
 Route ordering matters: specific paths (`/helpdesk/new`, `/proposals/new`) are declared
 before parameterized siblings (`/helpdesk/:id`, `/proposals/:id`).
 
-All non-critical routes are `React.lazy()`-loaded behind a `Suspense` skeleton, keeping the
-heavy dependencies (`@react-pdf/renderer`, `xlsx`, `recharts`, force-graph) out of the
-initial chunk.
+All non-critical routes are `React.lazy()`-loaded behind a `Suspense` skeleton, keeping
+heavy dependencies (`@react-pdf/renderer`, `xlsx`, `recharts`, `react-force-graph-2d`,
+`pdfjs-dist`, `tesseract.js`) out of the initial chunk.
 
 ### 5.3 Data access
 
@@ -331,19 +340,23 @@ anything was processed.
 
 | Worker | Trigger | Identity | Isolation |
 |---|---|---|---|
-| `rag/worker.py` | Poll `documents.ingest_status='pending'` every `POLL_INTERVAL_S` | Service key | Per-document try/except; stale-claim reclamation |
+| `rag/worker.py` | Poll `documents.ingest_status='pending'` every `POLL_INTERVAL_S`; `--briefs` answers due `scheduled_queries` into `notifications` | Service key | Per-document try/except; stale-claim reclamation (`processing_started_at`) |
 | `ingest/worker.py` | Poll `WATCH_ROOT` and/or IMAP mailbox | Service key | SHA-256 content-hash dedupe; either source disabled by unsetting its env |
+| `pg_cron` jobs | Scheduled SQL sweeps (`notifications-sweep`, `contribution-requests-sweep`, `profile-consistency-sweep`, `pms-timeline-sweep`, `metric-snapshot`, `metric-digest`, `ai-suggest-sweep`) | Postgres | Idempotent dedupe keys on generated notifications/requests |
 
 **There is no message bus.** "Events" in SURYA are database facts, and the event layer is
 the set of append-only tables plus the triggers that write them:
 
 | Table | Written by | Purpose |
 |---|---|---|
-| `pms_audit_logs` | PMS RPCs | Every appraisal action, actor, and payload |
+| `pms_audit_logs` | PMS / AWP RPCs | Every appraisal & AWP action, actor, and payload |
 | `audit_log` | `audit_row_change` trigger | Committees, meetings, action items, tickets, calendar, holidays |
 | `ticket_events` | Helpdesk RPCs | Ticket lifecycle |
 | `proposal_status_history`, `project_report_history` | Workflow RPCs | Status transitions with payload |
-| `query_log` (+ `route_labels`) | RAG API | Every question, route, latency, citations, feedback |
+| `contribution_request_events` | `contribution_request_act` | Owned data-update workflow audit |
+| `project_events` | Project triggers/RPCs | Receipts, expenditures, reversals, milestones, stage changes, docs |
+| `sanctioned_post_events`, `staff_career_events`, `recruitment_events` | People/HR RPCs | Post state, career milestones, recruitment funnel |
+| `query_log` (+ `route_labels`), `ai_action_log` | RAG API / Bell actions | Questions, routes, latencies, citations, feedback, AI suggestion outcomes |
 | `import_events` | Import flow | Who imported what, when |
 | `irins_sync_log` | Sync script | External profile sync outcomes |
 
@@ -380,12 +393,13 @@ the retrieval tests pure.
 
 | Surface | Source | Validation |
 |---|---|---|
-| SPA | `.env` → `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_RAG_URL` | Absent URL/key → mock mode. Absent `VITE_RAG_URL` → Ask SURYA throws a clear error |
+| SPA | `.env` → `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_RAG_URL`, `VITE_DEV_LOGIN` (local dev only) | Absent URL/key → mock mode. Absent `VITE_RAG_URL` → Ask SURYA throws a clear error |
 | SPA fallback | `localStorage` `surya_supabase_url` / `surya_supabase_anon_key` via the Setup Wizard | Dev convenience; deprecated for production |
 | RAG worker | `C:\surya\env\rag-worker.env` — includes `SUPABASE_SERVICE_KEY` | `config.load_config` fails fast on any missing `REQUIRED` key |
 | RAG API | `C:\surya\env\rag-api.env` — anon key only | Same, plus `preflight.py --api` |
 | Supabase project | `supabase/config.toml` — auth policy, `max_rows`, PG major version | `supabase config push`; versioned so dashboard clicks cannot drift |
-| Feature flags | `feature_controls` table, edited at `/admin/features` | Runtime, per-feature and per-role, no redeploy |
+| Feature flags & grants | `feature_controls` & `feature_grants` tables, edited at `/admin/features` | Runtime, per-feature, per-role, and per-user, no redeploy |
+| Policy constants | `csir_rules` table, edited at `/admin/rules` | Effective-dated institutional rules with OM references |
 
 Runtime tunables worth knowing: `RAG_ROUTE_TIMEOUT_S` / `RAG_PICK_TIMEOUT_S` /
 `RAG_ANSWER_TIMEOUT_S` (defaults 10/20/60 s assume a GPU; a CPU-only host must raise them
@@ -414,9 +428,10 @@ refuses when the password hash cannot be verified.
 
 **Grants are part of the schema.** RLS is consulted only after a role holds table
 privileges, so a policy without a `GRANT` is dead code — a defect this project shipped and
-caught. `20260726000004_baseline_grants.sql` owns grants and asserts its own outcome. Never
-add a blanket `GRANT ALL` elsewhere; it silently undoes the column-level narrowings on
-`user_roles` / `user_profiles`.
+caught. `20261121000001` (default ACLs) and `20261121000008` (explicit table, column, and
+function grants) own grants. Never add a blanket `GRANT ALL` elsewhere; it silently undoes
+the column-level narrowings on `user_roles`, `user_profiles`, `notifications`, and
+`proposal_review_comments`.
 
 **Two SQL hazards this codebase has been bitten by, documented so they are not repeated:**
 - Wrap `IF NOT (...)` authorization guards in `COALESCE(..., false)` when any operand is
@@ -425,16 +440,20 @@ add a blanket `GRANT ALL` elsewhere; it silently undoes the column-level narrowi
   correctly and authorizes everyone. RLS `USING` clauses are safe (NULL is false there); it
   is plpgsql `IF` that bites.
 - `anon` must stay out of default ACLs, and RPC `EXECUTE` must stay explicitly locked
-  (`20260726000005`, `20260726000006`).
+  (enforced in `20261121000001` and `20261121000008`).
 
 **Document confidentiality** is a four-tier ladder (`institute` / `division` / `owner` /
 `confidential`) evaluated by `documents_can_read`, mirrored onto `storage.objects` policies
 so a Storage URL is unreadable without a corresponding readable registry row.
 
 **CI as the enforcement mechanism.** The `db` job boots a real Supabase stack (Postgres +
-GoTrue + Storage), applies all migrations and seeds, and runs `supabase/tests/rls_*.sql`.
-This exists because the 2026-07-25 audit found a full privilege-escalation path in three
-lines of SQL that a 652-test TypeScript suite could never have caught.
+GoTrue + Storage), applies all migrations and seeds, executes `supabase/tests/rls_*.sql`,
+and runs `scripts/check_security_definer.py`. In parallel, the `spa` job runs **148
+Vitest test files** (**117** UI/unit + **31** scripts including **28** PGlite in-process
+Postgres DB/RLS test files in `scripts/db/*.db.test.ts`), ESLint + design-debt ratchet,
+and `tsc -b`, while `secrets` runs `gitleaks` across git history. This exists because the
+2026-07-25 audit found a full privilege-escalation path in three lines of SQL that a
+TypeScript-only suite could never have caught.
 
 ---
 
@@ -463,10 +482,10 @@ scaling.
 
 | To add… | Do this |
 |---|---|
-| A page/route | `src/pages/<Page>.tsx` → lazy import + `<Route>` in `App.tsx` → `ACCESS_MAP` + `FEATURE_LABELS` entry in `src/constants/access.ts` → nav entry in `Sidebar` |
-| A domain entity | The five-file dance: type in `src/types/index.ts` → mock in `mockData.ts` → mapper in `dataMapper.ts` → load in `DataContext.tsx` → import mapping in `dataMigration.ts`; plus a migration with RLS |
+| A page/route | `src/pages/<Page>.tsx` → lazy import + `<Route>` in `App.tsx` → `ACCESS_MAP` + `FEATURE_LABELS` entry in `src/constants/access.ts` → nav entry in `Sidebar` → regenerate `role_features.md` (`npx vitest run src/lib/access/roleFeatures.test.ts -u`) & `access_matrix.md` (`node --experimental-strip-types scripts/access_matrix.mts`) |
+| A domain entity | The five-file dance: type in `src/types/index.ts` → mapper in `dataMapper.ts` → load in `DataContext.tsx` → import mapping in `dataMigration.ts` → demo fixtures in `supabase/mock/`; plus a migration with RLS |
 | A workflow transition | New `SECURITY DEFINER` RPC in a new timestamped migration, opening with an authorization block; call it from `src/lib/<domain>/write.ts` — never `UPDATE` the status column |
-| A structured AI question | One function in `rag/analytics.py` + one line in `_FUNCTIONS` + one description in `CATALOG`. The description is the routing prompt — write it as the question a user would ask |
+| A structured AI question | One function in `rag/analytics.py` + entry in `ANALYTICS` + one description in `CATALOG`. The description is the routing prompt — write it as the question a user would ask |
 | An OCR or LLM backend | New class in `rag/ocr.py` / `rag/llm.py` + a branch in `make_ocr` / `make_llm`; keep the existing method signature |
 | A document source | New source module in `ingest/` yielding `(name, bytes, tag)`; `sink.land_file` handles dedupe and routing |
 | A UI primitive | `src/components/ui/<Name>.tsx`, named export, semantic tokens only — read [DESIGN.md](../../DESIGN.md) first |
@@ -479,7 +498,7 @@ scaling.
 | Item | Impact | Why it stands |
 |---|---|---|
 | HR column casing (`"divCode"`, `"DOJ"`, `"CompletioDate"`) | Quoted CamelCase everywhere; mapper layer required | Renaming is a coordinated DB + code migration; the schema deliberately mirrors source Excel headers |
-| Name-string joins (`projects."PrincipalInvestigator"`, `phd_students."SupervisorName"`) | Fuzzy-matched in code (`staffNameMatchesAuthor`, `relations.ts`) rather than FK-enforced | Source data has no staff IDs in those columns |
+| Legacy name-string columns (`projects."PrincipalInvestigator"`, `phd_students."SupervisorName"`) | Identity Links (`/data/links`, `pi_staff_id`, `output_authors`, `ip_inventors`, `supervisor_staff_id`) provide key-based joins once linked; unlinked legacy rows still fall back to fuzzy name match (`staffNameMatchesAuthor`, `relations.ts`) | Source spreadsheets omitted staff IDs; historical gaps resolve incrementally via People Links & `identity_autolink` |
 | `EmptyState` `error` variant only on Projects / HumanCapital / PhDTracker | Other pages fail silently to an empty list | Rolled out per page as touched |
 | Admin-only routes not code-split separately | Non-admin sessions still ship those chunks | Deferred; measured impact small |
 | One-level PageIndex trees | Section pick is flatter than the design allows | Tracked as P1 in [IMPROVEMENT-PROPOSALS.md](../roadmap/sources/IMPROVEMENT-PROPOSALS.md) |

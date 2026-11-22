@@ -689,3 +689,60 @@ def test_projects_for_staff_counts_linked_records_only_not_name_matches():
     ans = run_analytics("projects_for_staff", {"name": "S001"}, client)
     assert "GAP(001)" in ans.text
     assert "GAP-009" not in ans.text
+
+
+def test_aggregate_is_a_subset_of_the_catalog_and_names_no_person_function():
+    from analytics import AGGREGATE, CATALOG
+    assert AGGREGATE <= set(CATALOG)
+    assert not AGGREGATE & {"staff_profile", "projects_for_staff", "project_team", "expertise_search",
+                            "expertise_succession_risk", "project_budget_variance", "division_summary"}
+
+
+def test_expertise_succession_risk_excludes_already_retired_staff():
+    from datetime import timedelta
+    today = date.today()
+    retired_dob = date(today.year - 65, today.month, min(today.day, 28)).isoformat()
+    retiring_soon_dob = date(today.year - 59, today.month, min(today.day, 28)).isoformat()
+    client = _PostgrestSimClient({
+        "staff": [
+            {"ID": "S-RET", "Name": "Already Retired", "Division": "CMD", "DOB": retired_dob, "CoreArea": "Hydrogen", "Expertise": ""},
+            {"ID": "S-SOON", "Name": "Retiring Soon", "Division": "CMD", "DOB": retiring_soon_dob, "CoreArea": "Hydrogen", "Expertise": ""},
+        ],
+        "staff_expertise": [],
+        "expertise_terms": [],
+    })
+    ans = run_analytics("expertise_succession_risk", {"years": 3}, client)
+    assert "Retiring Soon" in ans.text
+    assert "hydrogen" in ans.text.lower()
+
+
+def test_staff_expertise_uses_composite_order_key_when_paginating():
+    orders = []
+
+    class _PagedTable:
+        def __init__(self, rows):
+            self._rows = rows
+
+        def select(self, *_):
+            return self
+
+        def eq(self, *_):
+            return self
+
+        def order(self, col):
+            orders.append(col)
+            return self
+
+        def range(self, *_):
+            return self
+
+        def execute(self):
+            return type("R", (), {"data": self._rows})()
+
+    class _PagedClient:
+        def table(self, _name):
+            return _PagedTable([])
+
+    from analytics import _rows
+    _rows(_PagedClient(), "staff_expertise", "staff_id, term_id")
+    assert orders == ["staff_id", "term_id"]

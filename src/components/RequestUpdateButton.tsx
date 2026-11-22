@@ -9,11 +9,10 @@ import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
 import { UserPicker } from './ui/UserPicker';
 import { createContributionRequest } from '../lib/contributions/api';
-import { FIELD_META } from '../utils/dataMigration';
+import { FIELD_META, type FileType } from '../utils/fileTypes';
 import { PK_FIELD } from '../lib/data/entityWrite';
 import { DATA_ADMINS } from '../constants/access';
 import type { DirectoryUser } from '../hooks/useUserDirectory';
-import type { FileType } from '../utils/fileTypes';
 import type { Role } from '../types';
 
 interface RequestUpdateButtonProps {

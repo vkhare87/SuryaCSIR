@@ -1,7 +1,7 @@
 # Folder & Source Structure Guide → moved
 
 This guide's content now lives in
-**[docs/architecture_addendum.md §4](docs/engineering/architecture_addendum.md#4-folder-structure)**.
+**[docs/engineering/architecture_addendum.md §4](docs/engineering/architecture_addendum.md#4-folder-structure)**.
 
 It was last accurate on 2026-05-16 and had since drifted — it listed a `DatabaseWizard.tsx`
 page that does not exist, a `supabase/seed.sql` that was replaced by `supabase/seed/`, and

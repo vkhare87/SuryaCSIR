@@ -107,6 +107,16 @@ jobs:
           DB_URL="$(supabase status -o json | jq -r '.DB_URL')"
           psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/tests/rls_positive.sql
 
+      - name: Feature grants RLS tests
+        run: |
+          DB_URL="$(supabase status -o json | jq -r '.DB_URL')"
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/tests/rls_feature_grants.sql
+
+      - name: AWP RLS tests
+        run: |
+          DB_URL="$(supabase status -o json | jq -r '.DB_URL')"
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/tests/rls_awp.sql
+
       # Every SECURITY DEFINER function bypasses RLS by definition, so each one
       # is an authorization boundary. Three helpdesk RPCs shipped with no check
       # at all while a fourth in the same file had the right one.

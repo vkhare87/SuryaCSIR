@@ -1,248 +1,252 @@
-import { useMemo } from 'react';
-import { Users, Briefcase, BookOpen, Wrench, Microscope } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ArrowRight, Building2, CheckCircle2, Search } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
+import { useHome } from '../../contexts/HomeContext';
+import { supabase } from '../../utils/supabaseClient';
 import { Card } from '../../components/ui/Cards';
-import { KpiCard } from '../../components/ui/KpiCard';
-import { EntityLink } from '../../components/EntityLink';
-import { LivingBriefHeader, timeOfDayGreeting } from '../../components/dashboard/LivingBriefHeader';
-import { Sparkline } from '../../components/viz/Sparkline';
-import { fadeUp, staggerChildren } from '../../utils/motion';
-import { useCountUp } from '../../utils/useCountUp';
-import { ThresholdControls } from '../../components/dashboard/ThresholdControls';
-import { AttentionStrip } from '../../components/dashboard/AttentionStrip';
-import { ProjectFinanceSection } from '../../components/dashboard/ProjectFinanceSection';
-import { ResearchSection } from '../../components/dashboard/ResearchSection';
-import { EquipmentOpsSection } from '../../components/dashboard/EquipmentOpsSection';
-import { DEFAULT_THRESHOLDS } from '../../utils/directorMetrics';
-import { useDirectorThresholds } from '../../hooks/useDirectorThresholds';
-import { instituteFreshness, type DivisionFreshness } from '../../lib/divisions/freshness';
-import { isActiveProject } from '../../lib/projects/stage';
+import { DoFirstStrip } from '../../components/home/common/DoFirstStrip';
+import { DelegationDialCard } from '../../components/home/director/DelegationDialCard';
+import { DirectorWatchCard } from '../../components/home/stage5/Stage5Cards';
+import { directorGreeting, needsAttention } from '../../lib/home/division';
 
-const FRESHNESS_BADGE: Record<DivisionFreshness['staleness'], string> = {
-  fresh: 'bg-surface-hover text-archive-green border border-archive-green/30',
-  aging: 'bg-badge-warning-bg text-badge-warning-fg border border-badge-warning-fg/25',
-  stale: 'bg-badge-danger-bg text-badge-danger-fg border border-badge-danger-fg/25',
-  empty: 'bg-surface-hover text-text-muted border border-border',
-};
-
-function yearlySeries(years: number[], count = 6): number[] {
-  const valid = years.filter(y => y >= 2000 && y <= 2100);
-  if (valid.length === 0) return [];
-  const maxYear = Math.max(...valid);
-  const buckets: number[] = [];
-  for (let y = maxYear - count + 1; y <= maxYear; y++) {
-    buckets.push(valid.filter(v => v === y).length);
-  }
-  return buckets;
+interface DivisionRollupRow {
+  div_code: string;
+  div_name: string;
+  staff_count: number;
+  active_projects: number;
+  late_projects: number;
+  vacant_posts: number;
 }
 
 export function DirectorView() {
-  const { staff, projects, phDStudents, equipment, scientificOutputs, divisions, ipIntelligence, mous, techTransfers } = useData();
-  const { thresholds, setThresholds } = useDirectorThresholds();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { divisions, staff, projects, equipment, meetings } = useData();
+  const { ownStaff, todayIso, rankedActions, registerClaimedKeys } = useHome();
+  const [query, setQuery] = useState('');
+  const [rollup, setRollup] = useState<DivisionRollupRow[] | null>(null);
 
-  const freshnessList = useMemo(
-    () => instituteFreshness(divisions, {
-      staff, projects, scientificOutputs, ipIntelligence, mous, techTransfers, phDStudents,
-    }),
-    [divisions, staff, projects, scientificOutputs, ipIntelligence, mous, techTransfers, phDStudents],
+  useEffect(() => {
+    let cancelled = false;
+    if (!supabase) return;
+    supabase.rpc('division_rollup').then(({ data, error }) => {
+      if (cancelled || error || !Array.isArray(data)) return;
+      setRollup(
+        (data as Record<string, unknown>[]).map((r) => ({
+          div_code: String(r.div_code ?? ''),
+          div_name: String(r.div_name ?? ''),
+          staff_count: Number(r.staff_count ?? 0),
+          active_projects: Number(r.active_projects ?? 0),
+          late_projects: Number(r.late_projects ?? 0),
+          vacant_posts: Number(r.vacant_posts ?? 0),
+        })),
+      );
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  const computedRollup = useMemo<DivisionRollupRow[]>(() => {
+    if (rollup && rollup.length > 0) return rollup;
+    return divisions.map((d) => {
+      const divProj = projects.filter((p) => p.DivisionCode === d.divCode);
+      return {
+        div_code: d.divCode,
+        div_name: d.divName,
+        staff_count: staff.filter((s) => s.Division === d.divCode).length,
+        active_projects: divProj.filter((p) => p.ProjectStatus === 'Active').length,
+        late_projects: divProj.filter((p) => needsAttention(p, todayIso).reasons.includes('Behind schedule')).length,
+        vacant_posts: 0,
+      };
+    });
+  }, [rollup, divisions, projects, staff, todayIso]);
+
+  const exceptionDivisions = useMemo(
+    () => computedRollup.filter((d) => d.late_projects > 0 || d.vacant_posts > 0),
+    [computedRollup],
   );
 
-  const freshnessByDiv = useMemo(
-    () => new Map(freshnessList.map((f) => [f.divCode, f])),
-    [freshnessList],
+  const topDecision = rankedActions[0] ?? null;
+  useEffect(() => {
+    registerClaimedKeys(topDecision ? [topDecision.id] : []);
+  }, [topDecision, registerClaimedKeys]);
+
+  const activeProjects = useMemo(() => projects.filter((p) => p.ProjectStatus === 'Active'), [projects]);
+  const sanctionedCrore = useMemo(
+    () => (activeProjects.reduce((sum, p) => sum + Number(p.SanctionedCost || 0), 0) / 1e7).toFixed(2),
+    [activeProjects],
+  );
+  const operationalEquipment = useMemo(
+    () => equipment.filter((e) => !/down|fault|non/i.test(e.WorkingStatus)).length,
+    [equipment],
+  );
+  const upcomingMeetings = useMemo(
+    () => meetings.filter((m) => m.meeting_date >= todayIso && m.status === 'Scheduled').slice(0, 5),
+    [meetings, todayIso],
   );
 
-  const activeProjects = useMemo(() => projects.filter(isActiveProject).length, [projects]);
-
-  const avgFreshness = useMemo(() => {
-    if (freshnessList.length === 0) return null;
-    const total = freshnessList.reduce((acc, f) => acc + f.completeness, 0);
-    return Math.round(total / freshnessList.length);
-  }, [freshnessList]);
-
-  const outputSeries = useMemo(
-    () => yearlySeries(scientificOutputs.map(o => o.year)),
-    [scientificOutputs],
+  const greeting = directorGreeting(
+    ownStaff?.Name ?? user?.email,
+    exceptionDivisions.length,
+    rankedActions.length,
   );
 
-  const outputDelta = useMemo(() => {
-    if (outputSeries.length < 2) return undefined;
-    const prev = outputSeries[outputSeries.length - 2];
-    const curr = outputSeries[outputSeries.length - 1];
-    if (prev === 0) return undefined;
-    return Math.round(((curr - prev) / prev) * 100);
-  }, [outputSeries]);
-
-  const projectSeries = useMemo(
-    () => yearlySeries(projects.map(p => Number(p.StartDate?.slice(0, 4))).filter(Number.isFinite)),
-    [projects],
-  );
+  const onSearchSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    const q = query.trim();
+    if (q) navigate(`/ask?q=${encodeURIComponent(q)}`);
+  };
 
   return (
-    <div className="space-y-8 pb-12">
-      {/* Living Editorial Brief (DESIGN.md R5) */}
-      <LivingBriefHeader
-        kicker="CSIR-AMPRI · Director's Cockpit"
-        sentence={
-          <>
-            {timeOfDayGreeting()} —{' '}
-            <span className="text-terracotta font-mono tabular-nums">{activeProjects}</span> active projects across{' '}
-            <span className="font-mono tabular-nums">{divisions.length}</span> divisions,{' '}
-            <span className="font-mono tabular-nums">{staff.length}</span> personnel, and{' '}
-            <span className="font-mono tabular-nums">{scientificOutputs.length}</span> recorded scientific outputs.
-          </>
-        }
-        pills={[
-          ...(avgFreshness !== null
-            ? [{ label: `${avgFreshness}% register completeness`, tone: (avgFreshness >= 80 ? 'positive' : 'warning') as 'positive' | 'warning', to: '/divisions' }]
-            : []),
-          { label: 'Explore Institute Graph', tone: 'accent', to: '/explore' },
-          { label: 'Project Portfolio', tone: 'neutral', to: '/portfolio' },
-        ]}
-      />
+    <div className="space-y-6 pb-12">
+      <section aria-label="Director greeting" className="space-y-1">
+        <h1 className="text-xl sm:text-2xl font-[500] font-serif text-text leading-snug">{greeting}</h1>
+        <p className="text-xs text-text-muted font-mono tabular-nums">
+          {computedRollup.length} divisions · {activeProjects.length} active projects
+        </p>
+      </section>
 
-      {/* Bento KPI grid — hero tile + telemetry tiles, staggered entry */}
-      <motion.div
-        variants={staggerChildren}
-        initial="hidden"
-        animate="show"
-        className="grid grid-cols-2 lg:grid-cols-4 gap-4 auto-rows-[minmax(0,1fr)]"
-      >
-        <motion.div variants={fadeUp} className="col-span-2 lg:row-span-2">
-          <HeroTile
-            label="Active Projects"
-            value={activeProjects}
-            total={projects.length}
-            sparkline={projectSeries}
-          />
-        </motion.div>
-        <motion.div variants={fadeUp}>
-          <KpiCard to="/staff" label="Total Staff" value={staff.length} icon={<Users size={18} />} sublabel="Permanent personnel" />
-        </motion.div>
-        <motion.div variants={fadeUp}>
-          <KpiCard to="/phd" label="PhD Students" value={phDStudents.length} icon={<BookOpen size={18} />} sublabel="Enrolled scholars" />
-        </motion.div>
-        <motion.div variants={fadeUp}>
-          <KpiCard to="/facilities" label="Equipment" value={equipment.length} icon={<Wrench size={18} />} sublabel="Instruments & facilities" />
-        </motion.div>
-        <motion.div variants={fadeUp}>
-          <KpiCard
-            to="/intelligence"
-            label="Scientific Outputs"
-            value={scientificOutputs.length}
-            icon={<Microscope size={18} />}
-            sublabel="Publications & IP"
-            delta={outputDelta}
-            sparkline={outputSeries.length >= 2 ? <Sparkline data={outputSeries} /> : undefined}
-          />
-        </motion.div>
-      </motion.div>
+      <form onSubmit={onSearchSubmit} className="relative">
+        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Ask SURYA institute-wide…"
+          aria-label="Ask SURYA institute-wide"
+          className="w-full pl-9 pr-3 py-2 rounded-lg border border-border bg-surface text-sm text-text placeholder:text-text-muted outline-none focus:ring-2 focus:ring-focus-blue"
+        />
+      </form>
 
-      <ThresholdControls
-        thresholds={thresholds}
-        onChange={setThresholds}
-        onReset={() => setThresholds(DEFAULT_THRESHOLDS)}
-      />
+      {/* Do first (if any priority pinned) */}
+      <DoFirstStrip />
 
-      <AttentionStrip thresholds={thresholds} />
-      <ProjectFinanceSection />
-      <ResearchSection />
-      <EquipmentOpsSection />
+      {/* DH2 / DH4: Delegation dial & Director flags */}
+      <DelegationDialCard />
 
-      {/* Division breakdown ledger table (DESIGN.md R6) */}
-      <Card variant="raised" className="p-0 overflow-hidden">
-        <div className="px-6 py-4 border-b border-border flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-text uppercase tracking-widest">Division Register</h2>
-          <span className="text-xs font-mono tabular-nums text-text-muted">{divisions.length} divisions</span>
+      {/* DH13: Director critical briefing & watch list */}
+      <DirectorWatchCard />
+
+      {/* Waiting on your decision */}
+      <Card className="p-5 space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-text-muted">
+            Waiting on your decision
+          </h2>
+          <span className="font-mono tabular-nums text-xs text-text-muted">{rankedActions.length}</span>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-surface-hover/60 border-b border-border">
-                <th className="pl-6 pr-3 py-3 text-left text-[10px] font-mono uppercase tracking-widest text-terracotta/70 w-10">#</th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-text-muted">Division</th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-text-muted">Name</th>
-                <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-widest text-text-muted">Strength</th>
-                <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-widest text-text-muted">Sanctioned</th>
-                <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-widest text-text-muted">Head of Division</th>
-                <th className="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-widest text-text-muted">Freshness</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/70">
-              {divisions.map((div, idx) => (
-                <tr
-                  key={div.divCode}
-                  className="hover:bg-surface-hover/60 hover:shadow-[inset_3px_0_0_var(--color-terracotta)] transition-all"
+        {rankedActions.length === 0 ? (
+          <div className="flex items-center gap-2 text-xs text-text-muted">
+            <CheckCircle2 size={16} className="text-archive-green shrink-0" />
+            <span>No decisions awaiting Director sign-off right now.</span>
+          </div>
+        ) : (
+          <ul className="divide-y divide-border">
+            {rankedActions.slice(0, 6).map((item, idx) => (
+              <li key={item.id} className="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-text truncate">{item.label}</p>
+                  <p className="text-xs text-text-muted truncate">
+                    {item.detail}{item.due ? ` · due ${item.due}` : ''}
+                  </p>
+                </div>
+                <Link
+                  to={item.link}
+                  className={
+                    idx === 0
+                      ? 'inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-terracotta hover:bg-terracotta-hover text-ivory text-xs font-semibold shrink-0'
+                      : 'inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border text-xs font-medium text-text hover:bg-surface-hover shrink-0'
+                  }
                 >
-                  <td className="pl-6 pr-3 py-3.5 font-mono tabular-nums text-xs text-terracotta/75">
-                    {String(idx + 1).padStart(2, '0')}
-                  </td>
-                  <td className="px-4 py-3.5 font-semibold font-mono text-xs">
-                    <EntityLink kind="division" id={div.divCode} label={div.divCode} />
-                  </td>
-                  <td className="px-4 py-3.5 text-text font-medium">{div.divName}</td>
-                  <td className="px-4 py-3.5 text-right text-text font-mono tabular-nums font-semibold">{div.divCurrentStrength}</td>
-                  <td className="px-4 py-3.5 text-right text-text-muted font-mono tabular-nums">{div.divSanctionedstrength}</td>
-                  <td className="px-4 py-3.5 text-right text-text-muted">{div.divHoD}</td>
-                  <td className="px-6 py-3.5 text-right">
-                    {(() => {
-                      const f = freshnessByDiv.get(div.divCode);
-                      if (!f) return <span className="text-text-muted">—</span>;
-                      return (
-                        <span
-                          className={`inline-flex font-mono tabular-nums text-xs font-medium px-2 py-0.5 rounded-full ${FRESHNESS_BADGE[f.staleness]}`}
-                          title={f.gaps.join('; ') || 'No gaps'}
-                        >
-                          {f.completeness}% · {f.staleness}
-                        </span>
-                      );
-                    })()}
-                  </td>
-                </tr>
+                  Open <ArrowRight size={13} />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+
+      {/* Divisions by exception + My week */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card className="p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-text-muted">
+              Divisions by exception
+            </h2>
+            <Link to="/divisions" className="text-xs text-text-muted hover:text-text hover:underline">
+              All ({computedRollup.length})
+            </Link>
+          </div>
+          {exceptionDivisions.length === 0 ? (
+            <p className="text-xs text-text-muted">
+              All {computedRollup.length} divisions are on track with no late projects.
+            </p>
+          ) : (
+            <ul className="divide-y divide-border">
+              {exceptionDivisions.slice(0, 6).map((d) => (
+                <li key={d.div_code} className="py-2 first:pt-0 last:pb-0 flex items-center justify-between gap-2 text-xs">
+                  <Link to={`/divisions?div=${encodeURIComponent(d.div_code)}`} className="font-medium text-text hover:underline truncate">
+                    <span className="font-mono text-text-muted mr-1.5">{d.div_code}</span>
+                    {d.div_name}
+                  </Link>
+                  <span className="font-mono tabular-nums text-danger shrink-0">
+                    {d.late_projects} late{d.vacant_posts > 0 ? ` · ${d.vacant_posts} vacant` : ''}
+                  </span>
+                </li>
               ))}
-              {divisions.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-text-muted text-xs italic">
-                    No division data available.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+            </ul>
+          )}
+        </Card>
+
+        <Card className="p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+              <Building2 size={13} /> My week · chair &amp; committees
+            </h2>
+            <Link to="/committees" className="text-xs text-text-muted hover:text-text hover:underline">All</Link>
+          </div>
+          {upcomingMeetings.length === 0 ? (
+            <p className="text-xs text-text-muted">No scheduled meetings this week.</p>
+          ) : (
+            <ul className="space-y-2">
+              {upcomingMeetings.map((m) => (
+                <li key={m.id} className="flex items-baseline justify-between gap-2 text-xs">
+                  <Link to={`/committees/${m.committee_id}/meetings/${m.id}`} className="text-text hover:underline truncate">
+                    {m.title}
+                  </Link>
+                  <span className="font-mono tabular-nums text-text-muted shrink-0">{m.meeting_date}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      </div>
+
+      {/* Institute at a glance — four drillable numbers last per DH1 */}
+      <Card className="p-4 space-y-3">
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-text-muted">
+          Institute at a glance
+        </h2>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <Link to="/projects" className="rounded-lg border border-border p-3 hover:bg-surface-hover transition-colors">
+            <div className="text-[11px] text-text-muted">Active projects</div>
+            <div className="text-xl font-mono tabular-nums text-text mt-0.5">{activeProjects.length}</div>
+          </Link>
+          <Link to="/portfolio" className="rounded-lg border border-border p-3 hover:bg-surface-hover transition-colors">
+            <div className="text-[11px] text-text-muted">Sanctioned outlay</div>
+            <div className="text-xl font-mono tabular-nums text-text mt-0.5">₹{sanctionedCrore} Cr</div>
+          </Link>
+          <Link to="/staff" className="rounded-lg border border-border p-3 hover:bg-surface-hover transition-colors">
+            <div className="text-[11px] text-text-muted">Verified staff</div>
+            <div className="text-xl font-mono tabular-nums text-text mt-0.5">{staff.length}</div>
+          </Link>
+          <Link to="/facilities" className="rounded-lg border border-border p-3 hover:bg-surface-hover transition-colors">
+            <div className="text-[11px] text-text-muted">Equipment operational</div>
+            <div className="text-xl font-mono tabular-nums text-text mt-0.5">{operationalEquipment}/{equipment.length}</div>
+          </Link>
         </div>
       </Card>
     </div>
-  );
-}
-
-function HeroTile({ label, value, total, sparkline }: { label: string; value: number; total: number; sparkline: number[] }) {
-  const counted = useCountUp(value, 1200);
-  const pct = total > 0 ? Math.round((value / total) * 100) : 0;
-  return (
-    <Card variant="interactive" sheen className="relative h-full overflow-hidden flex flex-col justify-between bg-grain">
-      <div className="pointer-events-none absolute inset-0" style={{ background: 'var(--gradient-glow)' }} />
-      <div className="relative flex items-center justify-between gap-2 text-terracotta">
-        <div className="flex items-center gap-2">
-          <Briefcase size={18} />
-          <span className="text-xs font-semibold uppercase tracking-widest">{label}</span>
-        </div>
-        {sparkline.length >= 2 && (
-          <div className="h-9 w-24 shrink-0">
-            <Sparkline data={sparkline} />
-          </div>
-        )}
-      </div>
-      <div className="relative">
-        <div className="font-serif text-6xl lg:text-7xl text-text tabular-nums leading-none">{counted.toLocaleString()}</div>
-        <div className="mt-3 flex items-center gap-3">
-          <div className="flex-1 h-2 rounded-full bg-surface-hover overflow-hidden">
-            <div className="h-full rounded-full [background:var(--gradient-brand)]" style={{ width: `${pct}%` }} />
-          </div>
-          <span className="text-sm font-mono font-semibold text-text-muted tabular-nums">{pct}%</span>
-        </div>
-        <div className="mt-1 text-xs text-text-muted">{value} active of {total} total projects</div>
-      </div>
-    </Card>
   );
 }

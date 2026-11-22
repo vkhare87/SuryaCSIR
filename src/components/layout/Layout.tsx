@@ -6,8 +6,6 @@ import {
 } from 'lucide-react';
 import clsx from 'clsx';
 import { motion } from 'framer-motion';
-import CommandPalette from '../CommandPalette';
-import SettingsModal from '../SettingsModal';
 import { Sidebar } from './Sidebar';
 import { WorkspaceMenu } from './WorkspaceMenu';
 import { NotificationBell } from './NotificationBell';
@@ -26,8 +24,11 @@ import { useNavBadges } from '../../hooks/useNavBadges';
 import { useRecentRoutes } from '../../hooks/useRecentRoutes';
 import { useFocusMode } from '../../hooks/useFocusMode';
 import { ErrorBoundary, PageErrorCard } from '../ErrorBoundary';
+import { OfflineServiceBanner } from '../ui/OfflineServiceBanner';
 
-// Lazy-loaded ambient copilot drawer — zero bundle/mount cost until opened.
+// Lazy-loaded overlays — zero bundle/mount cost until opened.
+const CommandPalette = lazy(() => import('../CommandPalette'));
+const SettingsModal = lazy(() => import('../SettingsModal'));
 const AskSuryaDrawer = lazy(() => import('../AskSuryaDrawer'));
 
 function isEditableTarget(target: EventTarget | null): boolean {
@@ -206,6 +207,8 @@ export function Layout() {
           </header>
         )}
 
+        <OfflineServiceBanner />
+
         {/* Error Banner */}
         {error && (
           <div role="alert" className="px-4 py-2 bg-danger/10 border-b border-danger/30 text-text text-sm flex items-center gap-2 shrink-0">
@@ -279,17 +282,25 @@ export function Layout() {
         )}
       </div>
 
-      <CommandPalette
-        isOpen={commandPaletteOpen}
-        onClose={() => setCommandPaletteOpen(false)}
-        recentRoutes={recentRoutes}
-        onToggleFocusMode={toggleFocusMode}
-      />
+      {commandPaletteOpen && (
+        <Suspense fallback={null}>
+          <CommandPalette
+            isOpen={commandPaletteOpen}
+            onClose={() => setCommandPaletteOpen(false)}
+            recentRoutes={recentRoutes}
+            onToggleFocusMode={toggleFocusMode}
+          />
+        </Suspense>
+      )}
 
-      <SettingsModal
-        isOpen={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-      />
+      {settingsOpen && (
+        <Suspense fallback={null}>
+          <SettingsModal
+            isOpen={settingsOpen}
+            onClose={() => setSettingsOpen(false)}
+          />
+        </Suspense>
+      )}
 
       {/* Lazy-mounted ambient AI Copilot drawer */}
       {canAsk && copilot?.isOpen && (

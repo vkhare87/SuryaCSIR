@@ -66,3 +66,16 @@ def test_fake_llm_map_columns_matches_column_or_label():
     fields = [{"column": "DOJ", "label": "Date of Joining"}]
     reply = json.loads(FakeLLM().map_columns(["doj", "Date of Joining", "Unrelated"], fields))
     assert reply == {"mapping": {"doj": "DOJ", "Date of Joining": "DOJ", "Unrelated": None}}
+
+
+def test_route_system_prompt_lists_every_topic_and_subject():
+    from llm import _ROUTE_SYSTEM
+    from scope import TOPICS, SUBJECTS
+    for word in TOPICS + SUBJECTS:
+        assert word in _ROUTE_SYSTEM
+
+
+def test_fake_llm_classifies_marked_questions():
+    import json as _json
+    out = _json.loads(FakeLLM().route("SCOPE:pms_scores:other_person whose score", {}))
+    assert (out["topic"], out["subject"]) == ("pms_scores", "other_person")

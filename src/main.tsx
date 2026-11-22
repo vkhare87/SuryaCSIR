@@ -27,6 +27,7 @@ import { FeatureControlProvider } from './contexts/FeatureControlContext.tsx'
 import { RulesProvider } from './contexts/RulesContext.tsx'
 import { ProfileProvider } from './contexts/ProfileContext.tsx'
 import { CopilotProvider } from './contexts/CopilotContext.tsx'
+import { HomeProvider } from './contexts/HomeContext.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -46,7 +47,9 @@ createRoot(document.getElementById('root')!).render(
                       <ProposalsProvider>
                         <ProjectReportsProvider>
                           <CopilotProvider>
-                            <App />
+                            <HomeProvider>
+                              <App />
+                            </HomeProvider>
                           </CopilotProvider>
                         </ProjectReportsProvider>
                       </ProposalsProvider>
