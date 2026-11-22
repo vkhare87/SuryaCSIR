@@ -1,122 +1,170 @@
 import { useEffect, useState } from 'react';
-import { NavLink } from 'react-router-dom';
-import {Users, Briefcase, BookOpen, LogOut, PanelLeftClose, PanelLeftOpen, Settings as SettingsIcon, LayoutDashboard, Calendar as CalendarIcon, Building2, Handshake, Activity, FileText, Database, Network, Cloud, X, ClipboardCheck, Ticket as TicketIcon, CalendarDays, UserCog, UserCheck, ScanText, Sparkles, Share2, Microscope, SlidersHorizontal, ChevronDown, MoreHorizontal, Inbox, Gauge, Lightbulb, Link2, Scale, ClipboardList, TrendingUp, GraduationCap} from 'lucide-react';
+import { NavLink, useLocation } from 'react-router-dom';
+import {
+  LogOut, PanelLeftClose, PanelLeftOpen, Settings as SettingsIcon,
+  X, ChevronDown,
+} from 'lucide-react';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { LucideIcon } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useFeatureControls } from '../../contexts/FeatureControlContext';
 import { ROLE_ROUTES } from '../../constants/roleRoutes';
 import { PRIMARY_NAV } from '../../constants/access';
+import { ALL_NAV_ITEMS, NAV_SECTIONS, type NavItem, type NavSection } from '../../constants/navigation';
 import { useDialog } from '../../utils/useDialog';
+import { navSpring } from '../../utils/motion';
 
-interface NavItem {
-  path: string;
-  label: string;
-  icon: LucideIcon;
-}
-
-interface NavSection {
-  label: string;
-  items: NavItem[];
-}
-
-const NAV_SECTIONS: NavSection[] = [
-  {
-    label: 'Overview',
-    items: [
-      { path: '/',             label: 'Dashboard',       icon: LayoutDashboard },
-      { path: '/work',         label: 'My Work',         icon: Inbox },
-      { path: '/me',           label: 'My Profile',      icon: UserCog },
-      { path: '/ask',          label: 'Ask SURYA',       icon: Sparkles },
-      { path: '/intelligence', label: 'Intelligence',    icon: Microscope },
-      { path: '/publication-files', label: 'Publication Files', icon: FileText },
-      { path: '/explore',      label: 'Explore Graph',   icon: Share2 },
-      { path: '/calendar',     label: 'Calendar',        icon: CalendarIcon },
-    ],
-  },
-  {
-    label: 'Unified Human Resource',
-    items: [
-      { path: '/staff',        label: 'Human Capital',   icon: Users },
-      { path: '/staff/project', label: 'Project Staff',   icon: UserCog },
-      { path: '/staff/posts',  label: 'Sanctioned Posts', icon: ClipboardList },
-      { path: '/staff/planning', label: 'Workforce Planning', icon: TrendingUp },
-      { path: '/expertise', label: 'Expertise Finder', icon: GraduationCap },
-      { path: '/admin/acting', label: 'Acting Charges',  icon: UserCheck },
-      { path: '/phd',          label: 'PhD Tracker',     icon: BookOpen },
-      { path: '/divisions',    label: 'Divisions',       icon: Network },
-      { path: '/recruitment',  label: 'Recruitment',     icon: FileText },
-    ],
-  },
-  {
-    label: 'Research Ops',
-    items: [
-      { path: '/projects',     label: 'Projects',        icon: Briefcase },
-      { path: '/proposals',    label: 'Proposals',       icon: FileText },
-      { path: '/reports',      label: 'Progress Reports',icon: ClipboardCheck },
-      { path: '/facilities',   label: 'Instruments',     icon: Building2 },
-      { path: '/partnerships', label: 'Partnerships',    icon: Handshake },
-      { path: '/rnd-monitor',  label: 'R&D Monitor',     icon: Activity },
-      { path: '/portfolio',    label: 'Project Portfolio', icon: Gauge },
-      { path: '/lessons',      label: 'Lessons Learned', icon: Lightbulb },
-    ],
-  },
-  {
-    label: 'Governance',
-    items: [
-      { path: '/committees',   label: 'Committees',      icon: Building2 },
-      { path: '/helpdesk',     label: 'Helpdesk',        icon: TicketIcon },
-      { path: '/pms',          label: 'Performance Mgmt',icon: ClipboardCheck },
-    ],
-  },
-  {
-    label: 'Admin',
-    items: [
-      { path: '/admin/access-requests', label: 'Access Requests', icon: UserCheck },
-      { path: '/admin/features', label: 'Feature Controls', icon: SlidersHorizontal },
-      { path: '/data',         label: 'Data Management', icon: Database },
-      { path: '/data/links',   label: 'People Links',    icon: Link2 },
-      { path: '/admin/rules',  label: 'CSIR Rules',      icon: Scale },
-      { path: '/irins-sync',   label: 'IRINS Sync',      icon: Cloud },
-      { path: '/admin/rag',    label: 'RAG Ingestion',   icon: ScanText },
-      { path: '/admin/holidays', label: 'Holidays',        icon: CalendarDays },
-    ],
-  },
-];
-
-const MORE_OPEN_KEY = 'surya_sidebar_more_open';
+const OPEN_DOMAIN_KEY = 'surya_sidebar_open_domain';
 
 interface SidebarLinkProps {
   item: NavItem;
   expanded: boolean;
   dashboardPath: string;
+  badgeCount?: number;
   onNavigate: () => void;
 }
 
-function SidebarLink({ item, expanded, dashboardPath, onNavigate }: SidebarLinkProps) {
+function SidebarLink({ item, expanded, dashboardPath, badgeCount, onNavigate }: SidebarLinkProps) {
   return (
     <NavLink
       to={item.path}
       end={item.path === dashboardPath}
-      title={expanded ? undefined : item.label}
       aria-label={expanded ? undefined : item.label}
       onClick={onNavigate}
       className={({ isActive }) => clsx(
-        'relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all group',
+        'relative flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors group',
         isActive
-          ? 'bg-dark-surface text-ivory font-medium shadow-[inset_2px_0_0_var(--color-terracotta),0_0_18px_-6px_color-mix(in_srgb,var(--color-coral)_70%,transparent)]'
-          : 'text-warm-silver hover:text-ivory hover:bg-dark-surface/60'
+          ? 'text-ivory font-medium'
+          : 'text-warm-silver hover:text-ivory hover:bg-dark-surface/60',
       )}
     >
       {({ isActive }) => (
         <>
-          {isActive && <span className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-[3px] rounded-r bg-terracotta" />}
-          <item.icon size={20} className={clsx(expanded ? 'shrink-0' : 'mx-auto shrink-0', isActive && 'text-terracotta')} />
-          {expanded && <span className="truncate">{item.label}</span>}
+          {isActive && (
+            <motion.span
+              layoutId="sidebar-active-pill"
+              transition={navSpring}
+              aria-hidden="true"
+              className="absolute inset-0 rounded-lg bg-dark-surface shadow-[inset_2px_0_0_var(--color-terracotta),0_0_18px_-6px_color-mix(in_srgb,var(--color-coral)_70%,transparent)]"
+            />
+          )}
+          <item.icon
+            size={18}
+            className={clsx(
+              'relative z-10 shrink-0 transition-colors',
+              !expanded && 'mx-auto',
+              isActive ? 'text-terracotta' : 'group-hover:text-ivory',
+            )}
+          />
+          {expanded && (
+            <span className="relative z-10 truncate flex-1">{item.label}</span>
+          )}
+          {expanded && badgeCount != null && badgeCount > 0 && (
+            <span className="relative z-10 ml-auto px-1.5 py-0.5 min-w-[20px] text-center rounded-full bg-terracotta/25 text-coral font-mono tabular-nums text-[10px] font-semibold leading-none">
+              {badgeCount > 99 ? '99+' : badgeCount}
+            </span>
+          )}
+          {!expanded && badgeCount != null && badgeCount > 0 && (
+            <span
+              aria-hidden="true"
+              className="absolute top-1.5 right-2 z-10 h-2 w-2 rounded-full bg-terracotta ring-2 ring-near-black"
+            />
+          )}
+          {/* Crisp custom tooltip when collapsed */}
+          {!expanded && (
+            <span
+              role="tooltip"
+              className="pointer-events-none absolute left-full ml-3 z-50 whitespace-nowrap rounded-lg bg-dark-surface border border-warm-silver/20 px-2.5 py-1.5 text-xs font-medium text-ivory shadow-[var(--shadow-e3)] opacity-0 translate-x-[-4px] group-hover:opacity-100 group-hover:translate-x-0 group-focus-visible:opacity-100 group-focus-visible:translate-x-0 transition-all"
+            >
+              {item.label}
+              {badgeCount != null && badgeCount > 0 && (
+                <span className="ml-1.5 text-coral font-mono tabular-nums">({badgeCount})</span>
+              )}
+            </span>
+          )}
         </>
       )}
     </NavLink>
+  );
+}
+
+interface CollapsedDomainFlyoutProps {
+  section: NavSection;
+  hasActiveChild: boolean;
+  dashboardPath: string;
+  badges: Record<string, number>;
+  onNavigate: () => void;
+}
+
+/** Floating domain flyout for collapsed desktop/tablet rail — replaces the 30-icon vertical dump. */
+function CollapsedDomainFlyout({
+  section, hasActiveChild, dashboardPath, badges, onNavigate,
+}: CollapsedDomainFlyoutProps) {
+  const [open, setOpen] = useState(false);
+  const sectionBadge = section.items.reduce((sum, item) => sum + (badges[item.path] ?? 0), 0);
+
+  return (
+    <div
+      className="relative"
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget)) setOpen(false);
+      }}
+    >
+      <button
+        type="button"
+        aria-label={section.label}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        onClick={() => setOpen(v => !v)}
+        className={clsx(
+          'relative w-full flex items-center justify-center py-2.5 rounded-lg transition-colors',
+          hasActiveChild
+            ? 'bg-dark-surface text-terracotta'
+            : 'text-warm-silver hover:text-ivory hover:bg-dark-surface/60',
+        )}
+      >
+        <section.icon size={18} />
+        {(hasActiveChild || sectionBadge > 0) && (
+          <span
+            aria-hidden="true"
+            className="absolute top-1.5 right-2 h-1.5 w-1.5 rounded-full bg-terracotta"
+          />
+        )}
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, x: -6 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -6 }}
+            transition={{ duration: 0.14 }}
+            className="absolute left-full top-0 pl-2 z-50"
+          >
+            <div className="w-56 rounded-xl bg-near-black border border-warm-silver/20 p-2 shadow-[var(--shadow-e4)] space-y-1">
+              <div className="px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-warm-silver/65">
+                {section.label}
+              </div>
+              {section.items.map(item => (
+                <SidebarLink
+                  key={item.path}
+                  item={item}
+                  expanded
+                  dashboardPath={dashboardPath}
+                  badgeCount={badges[item.path]}
+                  onNavigate={() => {
+                    setOpen(false);
+                    onNavigate();
+                  }}
+                />
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }
 
@@ -125,10 +173,12 @@ interface SidebarBodyProps {
   sidebarOpen: boolean;
   onToggleCollapse: () => void;
   primaryItems: NavItem[];
-  moreSections: NavSection[];
-  moreOpen: boolean;
-  onToggleMore: () => void;
+  domainSections: NavSection[];
+  openDomainId: string | null;
+  onToggleDomain: (id: string) => void;
+  activePath: string;
   dashboardPath: string;
+  badges: Record<string, number>;
   onCloseMobile: () => void;
   onOpenSettings: () => void;
   onLogout: () => void;
@@ -137,103 +187,177 @@ interface SidebarBodyProps {
 /** The rail's inner chrome. Top-level component (never redefined per render)
  *  so navigating or collapsing never remounts it — no state reset / flicker. */
 function SidebarBody({
-  isMobileView, sidebarOpen, onToggleCollapse, primaryItems, moreSections, moreOpen,
-  onToggleMore, dashboardPath, onCloseMobile, onOpenSettings, onLogout,
+  isMobileView, sidebarOpen, onToggleCollapse, primaryItems, domainSections,
+  openDomainId, onToggleDomain, activePath, dashboardPath, badges,
+  onCloseMobile, onOpenSettings, onLogout,
 }: SidebarBodyProps) {
   const expanded = sidebarOpen || isMobileView;
-  const linkProps = { expanded, dashboardPath, onNavigate: () => { if (isMobileView) onCloseMobile(); } };
+  const onNavigate = () => { if (isMobileView) onCloseMobile(); };
+
   return (
     <div className="flex flex-col h-full">
-      {/* Logo */}
-      <div className="h-16 flex items-center justify-between px-4 border-b border-dark-surface">
+      {/* Brand header */}
+      <div className="h-16 flex items-center justify-between px-4 border-b border-dark-surface shrink-0">
         {expanded && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="h-2 w-2 rounded-full bg-terracotta shrink-0" aria-hidden="true" />
             <span className="font-bold text-lg tracking-wider text-ivory font-serif">SURYA</span>
-            <span className="text-xs text-warm-silver/70 ml-1">v1.0</span>
+            <span className="text-[10px] font-mono text-warm-silver/60">AMPRI</span>
           </div>
         )}
         {!isMobileView && (
-          <button onClick={onToggleCollapse} className="p-1 hover:bg-dark-surface rounded transition-colors" aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}>
-            {sidebarOpen ? <PanelLeftClose size={20} /> : <PanelLeftOpen size={20} className="mx-auto" />}
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            className="p-1.5 hover:bg-dark-surface rounded-lg text-warm-silver hover:text-ivory transition-colors mx-auto sm:mx-0"
+            aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+          >
+            {sidebarOpen ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
           </button>
         )}
         {isMobileView && (
-          <button onClick={onCloseMobile} className="p-1 hover:bg-dark-surface rounded transition-colors" aria-label="Close menu">
-            <X size={24} />
+          <button
+            type="button"
+            onClick={onCloseMobile}
+            className="p-1.5 hover:bg-dark-surface rounded-lg text-warm-silver hover:text-ivory transition-colors"
+            aria-label="Close menu"
+          >
+            <X size={22} />
           </button>
         )}
       </div>
 
-      {/* Nav */}
-      <nav className="flex-1 overflow-y-auto py-4 px-2">
-        <div className="space-y-1">
+      {/* Navigation */}
+      <nav aria-label="Main navigation" className={clsx('flex-1 py-4 px-2', expanded ? 'overflow-y-auto' : 'overflow-visible')}>
+        {/* Tier 1: Role-tailored pinned items */}
+        <div className="space-y-0.5">
           {expanded && (
-            <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-warm-silver/55">
+            <div className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-warm-silver/55">
               For you
             </div>
           )}
-          {primaryItems.map(item => <SidebarLink key={item.path} item={item} {...linkProps} />)}
+          {primaryItems.map(item => (
+            <SidebarLink
+              key={item.path}
+              item={item}
+              expanded={expanded}
+              dashboardPath={dashboardPath}
+              badgeCount={badges[item.path]}
+              onNavigate={onNavigate}
+            />
+          ))}
         </div>
 
-        {moreSections.length > 0 && (
-          <div className={clsx(expanded ? 'mt-5' : 'mt-3 border-t border-dark-surface/60 pt-3')}>
-            <button
-              onClick={onToggleMore}
-              aria-expanded={moreOpen}
-              title={expanded ? undefined : 'More'}
-              aria-label={expanded ? undefined : 'More'}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-warm-silver hover:text-ivory hover:bg-dark-surface/60 w-full transition-colors"
-            >
-              {expanded ? (
-                <>
-                  <span className="flex-1 text-left text-[10px] font-semibold uppercase tracking-[0.12em]">More</span>
-                  <ChevronDown size={16} className={clsx('shrink-0 transition-transform', moreOpen && 'rotate-180')} />
-                </>
-              ) : (
-                <MoreHorizontal size={20} className="mx-auto shrink-0" />
-              )}
-            </button>
-
-            {moreOpen && moreSections.map((section, sectionIdx) => (
-              <div
-                key={section.label}
-                className={clsx(
-                  'space-y-1',
-                  expanded ? 'mt-3' : sectionIdx > 0 && 'mt-3 border-t border-dark-surface/60 pt-3'
-                )}
-              >
-                {expanded && (
-                  <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-warm-silver/55">
-                    {section.label}
-                  </div>
-                )}
-                {section.items.map(item => <SidebarLink key={item.path} item={item} {...linkProps} />)}
+        {/* Tier 2: Compact collapsible domains (expanded) or floating flyouts (collapsed) */}
+        {domainSections.length > 0 && (
+          <div className="mt-5 pt-4 border-t border-dark-surface/80 space-y-1">
+            {expanded && (
+              <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-warm-silver/55">
+                Explore
               </div>
-            ))}
+            )}
+            {domainSections.map(section => {
+              const hasActiveChild = section.items.some(
+                item => activePath === item.path || (item.path !== '/' && activePath.startsWith(`${item.path}/`)),
+              );
+              const isOpen = openDomainId === section.id;
+              const sectionBadge = section.items.reduce((sum, item) => sum + (badges[item.path] ?? 0), 0);
+
+              if (!expanded) {
+                return (
+                  <CollapsedDomainFlyout
+                    key={section.id}
+                    section={section}
+                    hasActiveChild={hasActiveChild}
+                    dashboardPath={dashboardPath}
+                    badges={badges}
+                    onNavigate={onNavigate}
+                  />
+                );
+              }
+
+              return (
+                <div key={section.id}>
+                  <button
+                    type="button"
+                    onClick={() => onToggleDomain(section.id)}
+                    aria-expanded={isOpen}
+                    className={clsx(
+                      'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors',
+                      hasActiveChild && !isOpen
+                        ? 'text-ivory bg-dark-surface/50 font-medium'
+                        : 'text-warm-silver hover:text-ivory hover:bg-dark-surface/60',
+                    )}
+                  >
+                    <section.icon
+                      size={17}
+                      className={clsx('shrink-0', hasActiveChild ? 'text-terracotta' : 'text-warm-silver/75')}
+                    />
+                    <span className="flex-1 text-left truncate">{section.label}</span>
+                    {sectionBadge > 0 && !isOpen && (
+                      <span className="px-1.5 py-0.5 rounded-full bg-terracotta/25 text-coral font-mono tabular-nums text-[10px] font-semibold leading-none">
+                        {sectionBadge}
+                      </span>
+                    )}
+                    {hasActiveChild && !isOpen && sectionBadge === 0 && (
+                      <span className="h-1.5 w-1.5 rounded-full bg-terracotta shrink-0" aria-hidden="true" />
+                    )}
+                    <ChevronDown
+                      size={14}
+                      className={clsx('shrink-0 text-warm-silver/60 transition-transform duration-150', isOpen && 'rotate-180')}
+                    />
+                  </button>
+
+                  {isOpen && (
+                    <div className="mt-1 ml-3 pl-2.5 border-l border-dark-surface space-y-0.5">
+                      {section.items.map(item => (
+                        <SidebarLink
+                          key={item.path}
+                          item={item}
+                          expanded
+                          dashboardPath={dashboardPath}
+                          badgeCount={badges[item.path]}
+                          onNavigate={onNavigate}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </nav>
 
-      {/* Bottom actions */}
-      <div className="p-4 border-t border-dark-surface space-y-2">
+      {/* Bottom utility chrome (Sign Out lives in WorkspaceMenu on desktop; kept here on mobile drawer) */}
+      <div className="p-3 border-t border-dark-surface space-y-1 shrink-0">
         <button
+          type="button"
           onClick={() => { onOpenSettings(); if (isMobileView) onCloseMobile(); }}
-          title={expanded ? undefined : 'Settings'}
-              aria-label={expanded ? undefined : 'Settings'}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-warm-silver hover:bg-dark-surface/60 hover:text-ivory w-full transition-colors"
+          aria-label={expanded ? undefined : 'Settings'}
+          className="relative group flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-warm-silver hover:bg-dark-surface/60 hover:text-ivory w-full transition-colors"
         >
-          <SettingsIcon size={20} className={expanded ? 'shrink-0' : 'mx-auto shrink-0'} />
-          {expanded && <span>Settings</span>}
+          <SettingsIcon size={18} className={expanded ? 'shrink-0' : 'mx-auto shrink-0'} />
+          {expanded && <span>Preferences</span>}
+          {!expanded && (
+            <span
+              role="tooltip"
+              className="pointer-events-none absolute left-full ml-3 z-50 whitespace-nowrap rounded-lg bg-dark-surface border border-warm-silver/20 px-2.5 py-1.5 text-xs font-medium text-ivory shadow-[var(--shadow-e3)] opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              Preferences
+            </span>
+          )}
         </button>
-        <button
-          onClick={() => { onLogout(); if (isMobileView) onCloseMobile(); }}
-          title={expanded ? undefined : 'Logout'}
-              aria-label={expanded ? undefined : 'Logout'}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-coral hover:bg-dark-surface/60 w-full transition-colors"
-        >
-          <LogOut size={20} className={expanded ? 'shrink-0' : 'mx-auto shrink-0'} />
-          {expanded && <span>Logout</span>}
-        </button>
+        {isMobileView && (
+          <button
+            type="button"
+            onClick={() => { onLogout(); onCloseMobile(); }}
+            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-coral hover:bg-dark-surface/60 w-full transition-colors"
+          >
+            <LogOut size={18} className="shrink-0" />
+            <span>Sign Out</span>
+          </button>
+        )}
       </div>
     </div>
   );
@@ -243,19 +367,23 @@ interface SidebarProps {
   isMobile: boolean;
   deviceType: string;
   mobileOpen: boolean;
+  badges?: Record<string, number>;
   onCloseMobile: () => void;
   onOpenSettings: () => void;
 }
 
-/** Left navigation rail. Owns its own collapse state so it is independent of
- *  the surrounding Layout (topbar / main content) — no shared re-render path. */
-export function Sidebar({ isMobile, deviceType, mobileOpen, onCloseMobile, onOpenSettings }: SidebarProps) {
+/** Left navigation rail. Owns its own collapse + open-domain state so it is
+ *  independent of the surrounding Layout (topbar / main content). */
+export function Sidebar({
+  isMobile, deviceType, mobileOpen, badges = {}, onCloseMobile, onOpenSettings,
+}: SidebarProps) {
   const { role, logout } = useAuth();
   const { canAccess } = useFeatureControls();
+  const { pathname } = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const drawerRef = useDialog<HTMLElement>(isMobile && mobileOpen, onCloseMobile);
-  const [moreOpen, setMoreOpen] = useState(() => {
-    try { return localStorage.getItem(MORE_OPEN_KEY) === '1'; } catch { return false; }
+  const [openDomainId, setOpenDomainId] = useState<string | null>(() => {
+    try { return localStorage.getItem(OPEN_DOMAIN_KEY); } catch { return null; }
   });
 
   // Auto-collapse on tablet, expand on desktop.
@@ -267,16 +395,15 @@ export function Sidebar({ isMobile, deviceType, mobileOpen, onCloseMobile, onOpe
   const dashboardPath = role ? ROLE_ROUTES[role] : '/';
   const toRoute = (item: NavItem) => (item.path === '/' ? { ...item, path: dashboardPath } : item);
   const primaryPaths: string[] = role ? PRIMARY_NAV[role] : [];
-  const allItems = NAV_SECTIONS.flatMap(section => section.items);
 
   const primaryItems = primaryPaths
-    .map(path => allItems.find(item => item.path === path))
+    .map(path => ALL_NAV_ITEMS.find(item => item.path === path))
     .filter((item): item is NavItem => item != null && canAccess(item.path))
     .map(toRoute)
     // EmpoweredCommittee's dashboard *is* /pms — don't list it twice.
     .filter((item, i, items) => items.findIndex(x => x.path === item.path) === i);
 
-  const moreSections = NAV_SECTIONS
+  const domainSections = NAV_SECTIONS
     .map(section => ({
       ...section,
       items: section.items
@@ -285,20 +412,25 @@ export function Sidebar({ isMobile, deviceType, mobileOpen, onCloseMobile, onOpe
     }))
     .filter(section => section.items.length > 0);
 
-  const toggleMore = () => {
-    const next = !moreOpen;
-    setMoreOpen(next);
-    try { localStorage.setItem(MORE_OPEN_KEY, next ? '1' : '0'); } catch { /* storage blocked — state still works */ }
+  const toggleDomain = (id: string) => {
+    const next = openDomainId === id ? null : id;
+    setOpenDomainId(next);
+    try {
+      if (next) localStorage.setItem(OPEN_DOMAIN_KEY, next);
+      else localStorage.removeItem(OPEN_DOMAIN_KEY);
+    } catch { /* storage blocked — state still works */ }
   };
 
   const bodyProps = {
     sidebarOpen,
     onToggleCollapse: () => setSidebarOpen(v => !v),
     primaryItems,
-    moreSections,
-    moreOpen,
-    onToggleMore: toggleMore,
+    domainSections,
+    openDomainId,
+    onToggleDomain: toggleDomain,
+    activePath: pathname,
     dashboardPath,
+    badges,
     onCloseMobile,
     onOpenSettings,
     onLogout: () => { void logout(); },
@@ -321,7 +453,7 @@ export function Sidebar({ isMobile, deviceType, mobileOpen, onCloseMobile, onOpe
               aria-label="Main menu"
               tabIndex={-1}
               initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 260 }}
               className="fixed inset-y-0 left-0 w-72 bg-near-black text-ivory z-50 shadow-ring-dark outline-none"
             >
               <SidebarBody isMobileView {...bodyProps} />
@@ -335,8 +467,8 @@ export function Sidebar({ isMobile, deviceType, mobileOpen, onCloseMobile, onOpe
   return (
     <aside
       className={clsx(
-        "h-full bg-near-black text-ivory transition-all duration-300 flex flex-col z-20 shrink-0",
-        sidebarOpen ? "w-64" : "w-16"
+        'h-full bg-near-black text-ivory transition-[width] duration-200 flex flex-col z-30 shrink-0',
+        sidebarOpen ? 'w-64' : 'w-16',
       )}
     >
       <SidebarBody isMobileView={false} {...bodyProps} />

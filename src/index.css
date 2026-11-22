@@ -102,6 +102,7 @@
 
   /* Layered surfaces + gradients (light) */
   --color-surface-raised: #ffffff;
+  --shadow-dark-highlight: 0 0 0 0 transparent;
   --gradient-hero: radial-gradient(1200px 600px at 20% -10%, #faf3ea 0%, transparent 60%), radial-gradient(900px 500px at 90% 0%, #f3ede2 0%, transparent 55%), #f5f4ed;
   --gradient-brand: linear-gradient(135deg, #d97757 0%, #c96442 100%);
   --gradient-glow: radial-gradient(circle at 50% 0%, rgba(217, 119, 87, 0.18), transparent 70%);
@@ -110,9 +111,10 @@
 /* Dark Theme Variables */
 .dark {
   --color-background: #141413;      /* Near Black */
-  --color-surface: #30302e;         /* Dark Surface */
-  --color-surface-hover: #3d3d3a;   /* slightly lighter dark */
-  --color-border: #30302e;          /* Border Dark */
+  --color-surface: #1e1d1b;         /* Warm Charcoal Base */
+  --color-surface-raised: #282623;  /* Elevated Charcoal */
+  --color-surface-hover: #32302c;   /* Interactive Hover Charcoal */
+  --color-border: rgba(250, 249, 245, 0.09); /* Crisp low-alpha hairline */
   --color-text: #faf9f5;            /* Ivory */
   --color-text-muted: #b0aea5;      /* Warm Silver */
 
@@ -125,10 +127,10 @@
   --color-badge-danger-bg: #3d2424;
   --color-badge-danger-fg: #e88a8a;
 
-  /* Dark needs 2 surface levels to show elevation; glows run hotter */
-  --color-surface-raised: #3a3a37;
+  /* Subtle top-edge inner highlight for elevated dark cards */
+  --shadow-dark-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.06);
   --gradient-hero: radial-gradient(1200px 600px at 20% -10%, #211f1b 0%, transparent 60%), radial-gradient(900px 500px at 90% 0%, #2a221d 0%, transparent 55%), #141413;
-  --gradient-glow: radial-gradient(circle at 50% 0%, rgba(217, 119, 87, 0.30), transparent 70%);
+  --gradient-glow: radial-gradient(circle at 50% 0%, rgba(217, 119, 87, 0.28), transparent 70%);
 }
 
 /* Density Variants */
@@ -202,6 +204,31 @@
   }
   .glass {
     @apply bg-surface/80 backdrop-blur-md border border-border;
+  }
+  .glass-header {
+    @apply bg-surface/80 backdrop-blur-md border-b border-border;
+  }
+  .card-sheen {
+    position: relative;
+  }
+  .card-sheen::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity var(--duration-base) ease;
+    background: radial-gradient(360px circle at var(--mx, 50%) var(--my, 0%), rgba(217, 119, 87, 0.12), transparent 65%);
+  }
+  .dark .card-sheen::before {
+    background: radial-gradient(360px circle at var(--mx, 50%) var(--my, 0%), rgba(217, 119, 87, 0.18), transparent 65%);
+  }
+  .card-sheen:hover::before {
+    opacity: 1;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .card-sheen::before { display: none; }
   }
   .bg-hero {
     background: var(--gradient-hero);

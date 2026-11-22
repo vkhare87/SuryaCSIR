@@ -9,6 +9,7 @@ import { useProposals } from '../../contexts/ProposalsContext';
 import { supabase } from '../../utils/supabaseClient';
 import { Card } from '../../components/ui/Cards';
 import { KpiCard } from '../../components/ui/KpiCard';
+import { LivingBriefHeader, timeOfDayGreeting } from '../../components/dashboard/LivingBriefHeader';
 import ScientistProfile from '../../components/ScientistProfile';
 import { staffNameMatchesAuthor } from '../../utils/dateUtils';
 import {
@@ -105,15 +106,23 @@ export function ScientistView() {
 
   return (
     <div className="space-y-8 pb-12">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-[500] text-text uppercase tracking-tight font-serif">
-          My Research Portfolio
-        </h1>
-        <p className="text-text-muted mt-1 text-sm font-medium">
-          {ownStaff.Name} — {ownStaff.Designation}, Division {ownStaff.Division}
-        </p>
-      </div>
+      {/* Living Editorial Brief (DESIGN.md R5) */}
+      <LivingBriefHeader
+        kicker={`${ownStaff.Designation} · Division ${ownStaff.Division}`}
+        sentence={
+          <>
+            {timeOfDayGreeting()}, {ownStaff.Name} —{' '}
+            <span className="text-terracotta font-mono tabular-nums">{ownProjects.length}</span> linked project{ownProjects.length === 1 ? '' : 's'},{' '}
+            <span className="font-mono tabular-nums">{ownPublications.length}</span> publication{ownPublications.length === 1 ? '' : 's'}, and{' '}
+            <span className="font-mono tabular-nums">{ownActionItems.length}</span> open action item{ownActionItems.length === 1 ? '' : 's'}.
+          </>
+        }
+        pills={[
+          { label: 'Performance Mgmt', tone: 'accent', to: '/pms' },
+          { label: 'My Profile', tone: 'neutral', to: '/me' },
+          ...(ownMeetings.length > 0 ? [{ label: `${ownMeetings.length} upcoming meeting${ownMeetings.length === 1 ? '' : 's'}`, tone: 'positive' as const, to: '/committees' }] : []),
+        ]}
+      />
 
       {/* --- 1. KPI strip --- */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

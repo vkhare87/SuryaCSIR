@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useId, useMemo, useState, type ReactNode } from 'react';
 import clsx from 'clsx';
+import { motion } from 'framer-motion';
 import { ArrowLeft, History } from 'lucide-react';
 import { useProfile } from '../../contexts/ProfileContext';
 import { Card } from '../ui/Cards';
 import { useUrlTab } from '../../utils/useUrlTab';
 import { friendlyError } from '../../lib/errors';
 import { AskAboutLink } from '../AskAboutLink';
+import { navSpring } from '../../utils/motion';
 import type { AskEntity } from '../../lib/ask/client';
 import type { TimelineEntry } from '../../types';
 
@@ -68,6 +70,7 @@ function Timeline({ entityType, entityId }: { entityType: string; entityId: stri
  * `?tab=`, and the record's timeline.
  */
 export function Dossier({ kicker, title, subtitle, onBack, actions, askAbout, numbers, aside, tabs, timeline }: DossierProps) {
+  const tabId = useId();
   const all = useMemo(() => timeline
     ? [...tabs, { key: 'timeline', label: 'Timeline', content: <Timeline {...timeline} /> }]
     : tabs, [tabs, timeline]);
@@ -111,14 +114,36 @@ export function Dossier({ kicker, title, subtitle, onBack, actions, askAbout, nu
       <div className={clsx('grid grid-cols-1 gap-6', aside && 'lg:grid-cols-3')}>
         {aside && <div className="lg:col-span-1 space-y-4">{aside}</div>}
         <div className={clsx('space-y-4', aside && 'lg:col-span-2')}>
-          <div role="tablist" className="flex gap-1 border-b border-border overflow-x-auto">
-            {all.map(t => (
-              <button key={t.key} role="tab" aria-selected={t.key === current.key} onClick={() => setTab(t.key)}
-                className={clsx('px-3 py-2 text-sm whitespace-nowrap border-b-2 -mb-px transition-colors inline-flex items-center gap-1.5',
-                  t.key === current.key ? 'border-terracotta text-text font-medium' : 'border-transparent text-text-muted hover:text-text')}>
-                {t.key === 'timeline' && <History size={13} />}{t.label}
-              </button>
-            ))}
+          <div
+            role="tablist"
+            className="sticky top-0 z-10 -mx-1 px-1 flex gap-1 border-b border-border bg-background/90 backdrop-blur-sm overflow-x-auto scrollbar-hide"
+          >
+            {all.map(t => {
+              const active = t.key === current.key;
+              return (
+                <button
+                  key={t.key}
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setTab(t.key)}
+                  className={clsx(
+                    'relative px-3 py-2.5 text-sm whitespace-nowrap transition-colors inline-flex items-center gap-1.5',
+                    active ? 'text-text font-medium' : 'text-text-muted hover:text-text',
+                  )}
+                >
+                  {t.key === 'timeline' && <History size={13} />}
+                  {t.label}
+                  {active && (
+                    <motion.span
+                      layoutId={`${tabId}-underline`}
+                      transition={navSpring}
+                      aria-hidden="true"
+                      className="absolute inset-x-0 bottom-0 h-[2px] bg-terracotta rounded-full"
+                    />
+                  )}
+                </button>
+              );
+            })}
           </div>
           <div role="tabpanel" className="space-y-6">{current.content}</div>
         </div>

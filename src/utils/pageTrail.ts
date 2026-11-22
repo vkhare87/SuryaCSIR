@@ -23,10 +23,11 @@ const DASHBOARDS = new Set(['/', ...Object.values(ROLE_ROUTES)]);
 
 /**
  * Header trail for a pathname: known section prefixes become links, the last
- * crumb is the current page (no link). Record IDs collapse into "Details".
- * "/projects/AMPRI%2F…" → Projects › Details.
+ * crumb is the current page (no link). Record IDs collapse into `resolvedLeaf`
+ * when provided, or "Details" as a fallback.
+ * "/projects/AMPRI%2F…" → Projects › GAP-0421 (or Projects › Details).
  */
-export function pageTrail(pathname: string): Crumb[] {
+export function pageTrail(pathname: string, resolvedLeaf?: string): Crumb[] {
   if (DASHBOARDS.has(pathname) && pathname !== '/pms') return [{ label: 'Dashboard' }];
   const labels: Record<string, string> = { ...FEATURE_LABELS, ...EXTRA_LABELS };
   const segs = pathname.split('/').filter(Boolean);
@@ -35,7 +36,7 @@ export function pageTrail(pathname: string): Crumb[] {
   segs.forEach((seg, i) => {
     prefix += `/${seg}`;
     const last = i === segs.length - 1;
-    const label = labels[prefix] ?? (last ? LEAF_LABELS[seg] ?? 'Details' : null);
+    const label = labels[prefix] ?? (last ? LEAF_LABELS[seg] ?? resolvedLeaf ?? 'Details' : null);
     if (label) crumbs.push({ label, to: last ? undefined : prefix });
   });
   return crumbs.length > 0 ? crumbs : [{ label: 'SURYA' }];

@@ -5,6 +5,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { Card, Badge } from '../components/ui/Cards';
 import { DataTable } from '../components/ui/DataTable';
 import { InstrumentForm } from '../components/InstrumentForm';
+import { QuickInspectorSheet, type InspectTarget } from '../components/QuickInspectorSheet';
+import { EntityLink } from '../components/EntityLink';
 import { EmptyState } from '../components/ui/EmptyState';
 import { InsightsStrip } from '../components/viz/InsightsStrip';
 import { KpiTile } from '../components/viz/KpiTile';
@@ -82,6 +84,7 @@ export default function Facilities() {
   const [amcFilter, setAmcFilter] = useState('ALL');
   const [formOpen, setFormOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Equipment | null>(null);
+  const [inspected, setInspected] = useState<InspectTarget | null>(null);
   const { filter, clearFilter } = useChartFilter();
   const [tab, setTab] = useUrlTab(TABS);
 
@@ -179,16 +182,14 @@ export default function Facilities() {
         return (
           <div className="text-sm">
             {mgrId ? (
-              <button onClick={() => navigate(`/staff/${mgrId}`)} className="text-[#c96442] hover:underline font-medium text-left">
-                {e.IndenterName}
-              </button>
+              <EntityLink kind="staff" id={mgrId} label={e.IndenterName} />
             ) : (
               <div className="text-text">{e.IndenterName}</div>
             )}
             {opId ? (
-              <button onClick={() => navigate(`/staff/${opId}`)} className="text-xs text-[#c96442] hover:underline block mt-0.5">
-                Op: {e.OperatorName}
-              </button>
+              <div className="mt-0.5">
+                <EntityLink kind="staff" id={opId} label={`Op: ${e.OperatorName}`} className="text-xs text-terracotta hover:underline text-left" />
+              </div>
             ) : (
               <div className="text-xs text-text-muted mt-0.5">Op: {e.OperatorName}</div>
             )}
@@ -397,6 +398,7 @@ export default function Facilities() {
                 columns={columns}
                 keyExtractor={item => item.UInsID}
                 onRowClick={item => navigate(`/facilities/${item.UInsID}`)}
+                onPeekRow={item => setInspected({ kind: 'instrument', id: item.UInsID })}
                 renderGridItem={renderEquipmentCard}
               />
               <div className="p-4 border-t border-border bg-surface-hover text-xs text-text-muted flex justify-between items-center">
@@ -418,6 +420,8 @@ export default function Facilities() {
           </Suspense>
         </TabsContent>
       </Tabs>
+
+      <QuickInspectorSheet target={inspected} onClose={() => setInspected(null)} />
 
       {/* Add/Edit Modal */}
       {formOpen && (

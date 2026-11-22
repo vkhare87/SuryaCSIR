@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import clsx from 'clsx';
 import { cn } from '../../utils/cn';
 
@@ -7,15 +7,18 @@ interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   children?: React.ReactNode;
   isGlass?: boolean;
   variant?: 'flat' | 'raised' | 'interactive';
+  /** Subtle pointer-reactive warm spotlight sheen (pure CSS variables, zero re-renders). */
+  sheen?: boolean;
 }
 
 const cardVariants = {
   flat: "bg-surface border border-border shadow-[0px_0px_0px_1px_var(--color-border)] hover:shadow-[0px_0px_0px_1px_var(--color-ring-warm)] transition-shadow",
-  raised: "bg-surface-raised border border-border shadow-[var(--shadow-e2)] transition-shadow",
-  interactive: "bg-surface-raised border border-border shadow-[var(--shadow-e2)] hover:shadow-[var(--shadow-e3)] hover:border-terracotta/40 hover:-translate-y-0.5 transition-all cursor-pointer",
+  raised: "bg-surface-raised border border-border shadow-[var(--shadow-e2)] dark:shadow-[var(--shadow-e2),var(--shadow-dark-highlight)] transition-shadow",
+  interactive: "bg-surface-raised border border-border shadow-[var(--shadow-e2)] dark:shadow-[var(--shadow-e2),var(--shadow-dark-highlight)] hover:shadow-[var(--shadow-e3)] hover:border-terracotta/40 hover:-translate-y-0.5 transition-all cursor-pointer",
 };
 
-export function Card({ children, className, isGlass = false, variant = 'flat', ...props }: CardProps) {
+export function Card({ children, className, isGlass = false, variant = 'flat', sheen = false, onPointerMove, ...props }: CardProps) {
+  const rafRef = useRef<number | null>(null);
   // A clickable card is grid navigation: reachable by Tab, activated by Enter/Space.
   const button = props.onClick
     ? {
@@ -30,13 +33,29 @@ export function Card({ children, className, isGlass = false, variant = 'flat', .
         },
       }
     : {};
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    onPointerMove?.(e);
+    if (!sheen) return;
+    const el = e.currentTarget;
+    const clientX = e.clientX;
+    const clientY = e.clientY;
+    if (rafRef.current !== null) return;
+    rafRef.current = window.requestAnimationFrame(() => {
+      rafRef.current = null;
+      const rect = el.getBoundingClientRect();
+      el.style.setProperty('--mx', `${clientX - rect.left}px`);
+      el.style.setProperty('--my', `${clientY - rect.top}px`);
+    });
+  };
   return (
     <div
       className={cn(
         "rounded-xl p-6",
         isGlass ? "glass dark:glass-dark rounded-xl p-6" : cardVariants[variant],
+        sheen && "card-sheen overflow-hidden",
         className
       )}
+      onPointerMove={sheen || onPointerMove ? handlePointerMove : undefined}
       {...props}
       {...button}
     >
@@ -61,17 +80,17 @@ export function StatCard({ title, value, subtitle, icon, trend, valueColor, clas
     <Card className={clsx("flex flex-col gap-2 relative overflow-hidden", className)} {...props}>
       <div className="flex items-center justify-between text-text-muted">
         <span className="text-sm font-medium">{title}</span>
-        {icon && <div className="text-[#c96442] bg-[#f0eee6] p-2 rounded-[8px]">{icon}</div>}
+        {icon && <div className="text-terracotta bg-surface-hover p-2 rounded-lg">{icon}</div>}
       </div>
       
       <div className="flex flex-col gap-0.5 mt-2">
-        <span className={clsx("text-3xl font-bold font-mono tracking-tight", valueColor || "text-text")}>{value}</span>
+        <span className={clsx("text-3xl font-bold font-mono tabular-nums tracking-tight", valueColor || "text-text")}>{value}</span>
         {subtitle && <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest">{subtitle}</span>}
       </div>
 
       {trend && (
         <div className="mt-2 flex items-center gap-1 text-xs">
-          <span className={clsx("font-medium", trend.isPositive ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
+          <span className={clsx("font-medium", trend.isPositive ? "text-archive-green" : "text-danger")}>
             {trend.isPositive ? '↑' : '↓'} {Math.abs(trend.value)}%
           </span>
           <span className="text-text-muted">{trend.label}</span>

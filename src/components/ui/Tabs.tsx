@@ -1,5 +1,7 @@
-import React, { createContext, useContext, useId, useState } from 'react';
+import React, { createContext, useContext, useId, useRef, useState } from 'react';
 import clsx from 'clsx';
+import { motion } from 'framer-motion';
+import { navSpring } from '../../utils/motion';
 
 interface TabsContextType {
   value: string;
@@ -46,9 +48,31 @@ interface TabsListProps {
 }
 
 export function TabsList({ className, children }: TabsListProps) {
+  const listRef = useRef<HTMLDivElement>(null);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft' && e.key !== 'Home' && e.key !== 'End') return;
+    const tabs = Array.from(
+      listRef.current?.querySelectorAll<HTMLButtonElement>('[role="tab"]:not(:disabled)') ?? [],
+    );
+    if (tabs.length === 0) return;
+    const currentIndex = tabs.indexOf(document.activeElement as HTMLButtonElement);
+    if (currentIndex === -1) return;
+    e.preventDefault();
+    let nextIndex = currentIndex;
+    if (e.key === 'ArrowRight') nextIndex = (currentIndex + 1) % tabs.length;
+    else if (e.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+    else if (e.key === 'Home') nextIndex = 0;
+    else if (e.key === 'End') nextIndex = tabs.length - 1;
+    tabs[nextIndex]?.focus();
+    tabs[nextIndex]?.click();
+  };
+
   return (
     <div
+      ref={listRef}
       role="tablist"
+      onKeyDown={handleKeyDown}
       className={clsx(
         'inline-flex items-center gap-1 rounded-[10px] bg-surface border border-border p-1',
         className,
@@ -80,16 +104,22 @@ export function TabsTrigger({ value, className, disabled, children }: TabsTrigge
       disabled={disabled}
       onClick={() => setValue(value)}
       className={clsx(
-        'px-4 py-1.5 text-sm font-medium rounded-[8px] transition-colors',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3898ec]',
-        active
-          ? 'bg-background text-text shadow-[0px_0px_0px_1px_var(--color-border)]'
-          : 'text-text-muted hover:text-text hover:bg-surface-hover',
+        'relative px-4 py-1.5 text-sm font-medium rounded-lg transition-colors',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-blue',
+        active ? 'text-text' : 'text-text-muted hover:text-text hover:bg-surface-hover',
         disabled && 'opacity-50 cursor-not-allowed',
         className,
       )}
     >
-      {children}
+      {active && (
+        <motion.span
+          layoutId={`${baseId}-active-pill`}
+          transition={navSpring}
+          className="absolute inset-0 rounded-lg bg-surface-raised border border-border shadow-[var(--shadow-e1)] dark:shadow-[var(--shadow-e1),var(--shadow-dark-highlight)]"
+          aria-hidden="true"
+        />
+      )}
+      <span className="relative z-10 inline-flex items-center gap-1.5">{children}</span>
     </button>
   );
 }

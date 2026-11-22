@@ -12,6 +12,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { Tabs, TabsList, TabsTrigger } from '../components/ui/Tabs';
 import { LensCard } from '../components/projects/LensCard';
 import { AskAboutLink } from '../components/AskAboutLink';
+import { MiniNeighborhoodGraph, type NeighborhoodNeighbor } from '../components/viz/MiniNeighborhoodGraph';
+import { teamForProject } from '../lib/relations';
 import { FundsPanel } from '../components/projects/FundsPanel';
 import { MilestonesPanel } from '../components/projects/MilestonesPanel';
 import { OutputsPanel } from '../components/projects/OutputsPanel';
@@ -456,6 +458,20 @@ export default function ProjectDetail() {
               <div className="p-8 text-center text-text-muted text-sm">No project staff records found for this grant.</div>
             )}
           </Card>
+
+          <MiniNeighborhoodGraph
+            centerLabel={project.ProjectNo || project.ProjectName}
+            centerKind="project"
+            neighbors={[
+              ...(project.DivisionCode ? [{ id: project.DivisionCode, label: project.DivisionCode, kind: 'division' as const, relation: 'Division' }] : []),
+              ...teamForProject(project, staff, projectStaff).map<NeighborhoodNeighbor>(m => ({
+                id: m.ID,
+                label: m.Name,
+                kind: 'staff',
+                relation: m.Designation || 'Team member',
+              })),
+            ]}
+          />
 
           {/* PhD Scholars */}
           {scholars.length > 0 && (

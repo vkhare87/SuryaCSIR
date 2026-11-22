@@ -15,6 +15,7 @@ import { matchesStaffFilter, STAFF_DIM_LABELS } from '../lib/staff/staffFilter';
 import { TableSkeleton } from '../components/ui/Skeleton';
 import { useCanEdit } from '../lib/permissions/canEdit';
 import { StaffFormModal } from '../components/StaffFormModal';
+import { QuickInspectorSheet, type InspectTarget } from '../components/QuickInspectorSheet';
 import type { StaffMember } from '../types';
 
 export default function HumanCapital() {
@@ -28,6 +29,7 @@ export default function HumanCapital() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDivision, setSelectedDivision] = useState<string>('ALL');
   const [showCreate, setShowCreate] = useState(false);
+  const [inspected, setInspected] = useState<InspectTarget | null>(null);
 
 
   const filteredStaff = useMemo(() => {
@@ -217,6 +219,7 @@ export default function HumanCapital() {
               columns={columns}
               keyExtractor={(item) => item.ID}
               onRowClick={(item) => navigate(`/staff/${item.ID}`)}
+              onPeekRow={(item) => setInspected({ kind: 'staff', id: item.ID })}
               itemsPerPage={12}
               renderGridItem={renderStaffCard}
               enableColumnVisibility
@@ -227,6 +230,8 @@ export default function HumanCapital() {
           </>
         )}
       </Card>
+
+      <QuickInspectorSheet target={inspected} onClose={() => setInspected(null)} />
 
       {canEdit && (
         <StaffFormModal

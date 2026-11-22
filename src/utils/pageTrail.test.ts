@@ -13,4 +13,15 @@ describe('pageTrail', () => {
   ])('%s', (path, expected) => {
     expect(pageTrail(path)).toEqual(expected);
   });
+
+  it('replaces generic Details with a resolved entity title when provided', () => {
+    expect(pageTrail('/projects/AMPRI%2FRD%2F001', 'GAP-0421')).toEqual([
+      { label: 'Projects', to: '/projects' },
+      { label: 'GAP-0421' },
+    ]);
+    expect(pageTrail('/staff/S001', 'Dr. A. Sharma')).toEqual([
+      { label: 'Human Capital', to: '/staff' },
+      { label: 'Dr. A. Sharma' },
+    ]);
+  });
 });

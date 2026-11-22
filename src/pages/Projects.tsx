@@ -17,6 +17,7 @@ const ProjectsAnalytics = lazy(() => import('./ProjectsAnalytics'));
 
 import { useCanEdit } from '../lib/permissions/canEdit';
 import { ProjectFormModal } from '../components/ProjectFormModal';
+import { QuickInspectorSheet, type InspectTarget } from '../components/QuickInspectorSheet';
 import { ENTITY_META } from '../lib/entities';
 import type { ProjectInfo, ProjectStaff } from '../types';
 import { useUrlTab } from '../utils/useUrlTab';
@@ -35,6 +36,7 @@ export default function Projects() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [showCreate, setShowCreate] = useState(false);
+  const [inspected, setInspected] = useState<InspectTarget | null>(null);
 
   const filteredProjects = useMemo(() => {
     const base = projects.filter(p => {
@@ -413,6 +415,7 @@ export default function Projects() {
                 columns={columns}
                 keyExtractor={(item) => item.ProjectID}
                 onRowClick={(item) => navigate(ENTITY_META.project.route(item.ProjectID))}
+                onPeekRow={(item) => setInspected({ kind: 'project', id: item.ProjectID })}
                 itemsPerPage={12}
                 renderGridItem={renderProjectCard}
                 enableColumnVisibility
@@ -422,6 +425,7 @@ export default function Projects() {
               />
             </Card>
           )}
+          <QuickInspectorSheet target={inspected} onClose={() => setInspected(null)} />
         </>
       ) : (
         <>

@@ -4,7 +4,7 @@ import Papa from 'papaparse';
 import { Card } from './Cards';
 import {
   LayoutGrid, List, ChevronLeft, ChevronRight, ChevronDown, ChevronUp,
-  ChevronsUpDown, Search, Columns3, Download, Check,
+  ChevronsUpDown, Search, Columns3, Download, Check, Eye,
 } from 'lucide-react';
 import { useUI } from '../../contexts/UIContext';
 
@@ -29,6 +29,8 @@ export interface DataTableProps<T> {
   keyExtractor: (item: T) => string | number;
   className?: string;
   onRowClick?: (item: T) => void;
+  /** Non-destructive quick-peek handler (renders hover eye button + Space shortcut). */
+  onPeekRow?: (item: T) => void;
   itemsPerPage?: number;
   renderGridItem?: (item: T) => React.ReactNode;
   /** show global search box */
@@ -65,6 +67,7 @@ export function DataTable<T>({
   keyExtractor,
   className,
   onRowClick,
+  onPeekRow,
   itemsPerPage = 10,
   renderGridItem,
   searchable = false,
@@ -185,7 +188,7 @@ export function DataTable<T>({
 
   const showGenericCards = cardMode && !renderGridItem;
   const showToolbar = searchable || enableColumnVisibility || exportFileName || renderGridItem || sorted.length > itemsPerPage;
-  const colSpan = visibleColumns.length + (renderExpanded ? 1 : 0);
+  const colSpan = visibleColumns.length + (renderExpanded ? 1 : 0) + (onPeekRow ? 1 : 0);
 
   return (
     <div className="space-y-4">
@@ -245,7 +248,7 @@ export function DataTable<T>({
                               return next;
                             })}
                             className="w-full flex items-center gap-2 px-2 py-1.5 text-sm text-text hover:bg-surface-hover rounded-lg text-left">
-                            <span className={clsx("w-4 h-4 rounded border flex items-center justify-center shrink-0", !isHidden ? "bg-terracotta border-terracotta text-white" : "border-border")}>
+                            <span className={clsx("w-4 h-4 rounded border flex items-center justify-center shrink-0", !isHidden ? "bg-terracotta border-terracotta text-ivory" : "border-border")}>
                               {!isHidden && <Check size={12} />}
                             </span>
                             {col.header}
@@ -339,6 +342,7 @@ export function DataTable<T>({
                       </th>
                     );
                   })}
+                  {onPeekRow && <th className="w-12" aria-label="Quick peek" />}
                 </tr>
               </thead>
               <tbody>
@@ -354,8 +358,15 @@ export function DataTable<T>({
                       <React.Fragment key={key}>
                         <tr
                           onClick={() => onRowClick?.(row)}
+                          tabIndex={onPeekRow ? 0 : undefined}
+                          onKeyDown={onPeekRow ? (e) => {
+                            if (e.key === ' ' && e.target === e.currentTarget) {
+                              e.preventDefault();
+                              onPeekRow(row);
+                            }
+                          } : undefined}
                           className={clsx(
-                            "border-b border-border/50 transition-colors hover:bg-surface-hover hover:shadow-[inset_3px_0_0_var(--color-terracotta)]",
+                            "group border-b border-border/50 transition-colors hover:bg-surface-hover hover:shadow-[inset_3px_0_0_var(--color-terracotta)]",
                             onRowClick && "cursor-pointer",
                             rowIndex === paginatedData.length - 1 && !isOpen && "border-0"
                           )}>
@@ -374,6 +385,19 @@ export function DataTable<T>({
                               {col.cell ? col.cell(row) : (col.accessorKey ? String(row[col.accessorKey] ?? '') : null)}
                             </td>
                           ))}
+                          {onPeekRow && (
+                            <td className="pr-4 pl-1 py-(--density-row-y) text-right">
+                              <button
+                                type="button"
+                                aria-label="Quick inspect"
+                                title="Quick inspect (Space)"
+                                onClick={e => { e.stopPropagation(); onPeekRow(row); }}
+                                className="p-1.5 rounded-lg text-text-muted opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 hover:text-terracotta hover:bg-surface transition-all"
+                              >
+                                <Eye size={15} />
+                              </button>
+                            </td>
+                          )}
                         </tr>
                         {renderExpanded && isOpen && (
                           <tr className={clsx("bg-surface-hover/40", rowIndex === paginatedData.length - 1 && "border-0")}>

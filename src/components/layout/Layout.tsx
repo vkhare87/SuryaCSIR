@@ -1,51 +1,64 @@
-import { useEffect, useRef, useState } from 'react';
-import { Link, NavLink, useLocation, useNavigate, useOutlet } from 'react-router-dom';
-import { Search, Menu, AlertCircle, ChevronDown, ChevronRight, LayoutDashboard, Sparkles, Calendar as CalendarIcon } from 'lucide-react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
+import {
+  Search, Menu, AlertCircle, ChevronRight, LayoutDashboard,
+  Sparkles, Calendar as CalendarIcon, Maximize2, Minimize2,
+} from 'lucide-react';
 import clsx from 'clsx';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import CommandPalette from '../CommandPalette';
 import SettingsModal from '../SettingsModal';
 import { Sidebar } from './Sidebar';
+import { WorkspaceMenu } from './WorkspaceMenu';
+import { NotificationBell } from './NotificationBell';
 import { useAuth } from '../../contexts/AuthContext';
-import { NotificationBell } from '../layout/NotificationBell';
 import { useUI } from '../../contexts/UIContext';
 import { useData } from '../../contexts/DataContext';
 import { useToast } from '../../contexts/ToastContext';
 import { useFeatureControls } from '../../contexts/FeatureControlContext';
+import { useCopilot } from '../../contexts/CopilotContext';
 import { ROLE_ROUTES } from '../../constants/roleRoutes';
 import { ROLE_LABELS } from '../../constants/access';
 import { pageTrail } from '../../utils/pageTrail';
-import { useDialog } from '../../utils/useDialog';
+import { pageEnter } from '../../utils/motion';
+import { useEntityBreadcrumb } from '../../hooks/useEntityBreadcrumb';
+import { useNavBadges } from '../../hooks/useNavBadges';
+import { useRecentRoutes } from '../../hooks/useRecentRoutes';
+import { useFocusMode } from '../../hooks/useFocusMode';
 import { ErrorBoundary, PageErrorCard } from '../ErrorBoundary';
 
-// UserAccount carries no display name, so derive from the email local part:
-// "khare.vivek87@…" → "KV", "vkhare@…" → "VK".
-function emailInitials(email = '') {
-  const parts = email.split('@')[0].split(/[._-]+/).filter(Boolean);
-  const letters = parts.length > 1 ? parts[0][0] + parts[1][0] : (parts[0] ?? '').slice(0, 2);
-  return letters.toUpperCase() || 'U';
+// Lazy-loaded ambient copilot drawer — zero bundle/mount cost until opened.
+const AskSuryaDrawer = lazy(() => import('../AskSuryaDrawer'));
+
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  const tag = target.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable;
 }
 
 export function Layout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [roleSwitcherOpen, setRoleSwitcherOpen] = useState(false);
-  const roleMenuRef = useDialog<HTMLDivElement>(roleSwitcherOpen, () => setRoleSwitcherOpen(false));
 
-  const { user, role, roles, setActiveRole } = useAuth();
-  const navigate = useNavigate();
+  const { role } = useAuth();
   const { pathname } = useLocation();
-  const trail = pageTrail(pathname);
+  const resolvedLeaf = useEntityBreadcrumb(pathname);
+  const trail = pageTrail(pathname, resolvedLeaf);
+  const currentTitle = trail[trail.length - 1]?.label;
+  const recentRoutes = useRecentRoutes(pathname, currentTitle);
+  const navBadges = useNavBadges();
+  const { focusMode, canOfferFocusButton, toggleFocusMode, exitFocusMode } = useFocusMode(pathname);
   const { isMobile, deviceType } = useUI();
   const { error } = useData();
   const toast = useToast();
   const { canAccess, controlsDegraded } = useFeatureControls();
+  const copilot = useCopilot();
   const lastRole = useRef(role);
+  const canAsk = canAccess('/ask');
 
   // Toast on the role actually changing, not on the click: setActiveRole
-  // switches optimistically and silently rolls back if the save fails, so
-  // a failed switch shows a second toast naming the role you are still in.
+  // switches optimistically and silently rolls back if the save fails.
   useEffect(() => {
     if (lastRole.current && role && role !== lastRole.current) {
       toast.push(`Now acting as ${ROLE_LABELS[role]}`);
@@ -53,175 +66,187 @@ export function Layout() {
     lastRole.current = role;
   }, [role, toast]);
 
+  // Global keyboard shortcuts: ⌘K / "/" → Command Center, ⌘J → Ask SURYA Drawer
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setCommandPaletteOpen(v => !v);
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'j' && canAsk && copilot) {
+        e.preventDefault();
+        if (copilot.isOpen) copilot.closeCopilot();
+        else copilot.openCopilot();
+        return;
+      }
+      if (e.key === '/' && !e.metaKey && !e.ctrlKey && !e.altKey && !isEditableTarget(e.target)) {
         e.preventDefault();
         setCommandPaletteOpen(true);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [canAsk, copilot]);
 
   return (
     <div className="flex h-screen w-full bg-background overflow-hidden font-sans">
-
-      <Sidebar
-        isMobile={isMobile}
-        deviceType={deviceType}
-        mobileOpen={mobileMenuOpen}
-        onCloseMobile={() => setMobileMenuOpen(false)}
-        onOpenSettings={() => setSettingsOpen(true)}
-      />
+      {!focusMode && (
+        <Sidebar
+          isMobile={isMobile}
+          deviceType={deviceType}
+          mobileOpen={mobileMenuOpen}
+          badges={navBadges}
+          onCloseMobile={() => setMobileMenuOpen(false)}
+          onOpenSettings={() => setSettingsOpen(true)}
+        />
+      )}
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
+        {/* TopBar (collapses into compact exit strip in Focus Mode) */}
+        {focusMode ? (
+          <header className="h-11 glass-header flex items-center justify-between px-4 md:px-6 z-20 shrink-0">
+            <div className="flex items-center gap-2 min-w-0 text-xs text-text-muted">
+              <span className="h-2 w-2 rounded-full bg-terracotta shrink-0" aria-hidden="true" />
+              <span className="font-serif text-sm text-text truncate">{currentTitle}</span>
+              <span className="hidden sm:inline text-text-muted">· Focus Mode</span>
+            </div>
+            <button
+              type="button"
+              onClick={exitFocusMode}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-hover border border-border text-xs font-medium text-text hover:border-terracotta/50 transition-colors"
+            >
+              <Minimize2 size={13} className="text-terracotta" />
+              Exit Focus <kbd className="hidden sm:inline font-mono text-[10px] text-text-muted ml-1">Alt+F</kbd>
+            </button>
+          </header>
+        ) : (
+          <header className="h-16 glass-header sticky top-0 flex items-center justify-between px-4 md:px-6 z-20 shrink-0">
+            <div className="flex items-center gap-3 min-w-0">
+              {isMobile && (
+                <button
+                  type="button"
+                  onClick={() => setMobileMenuOpen(true)}
+                  className="p-2 -ml-2 hover:bg-surface-hover rounded-xl text-text transition-colors"
+                  aria-label="Open menu"
+                >
+                  <Menu size={22} />
+                </button>
+              )}
+              <nav aria-label="Breadcrumb" className="min-w-0">
+                <ol className="flex items-center gap-1.5 min-w-0">
+                  {trail.map((c, i) => {
+                    const last = i === trail.length - 1;
+                    return (
+                      <li key={i} className={clsx('flex items-center gap-1.5 min-w-0', !last && 'hidden md:flex')}>
+                        {c.to ? (
+                          <Link to={c.to} className="text-sm text-text-muted hover:text-text transition-colors truncate">
+                            {c.label}
+                          </Link>
+                        ) : (
+                          <span aria-current="page" className="text-base md:text-lg text-text font-serif truncate">
+                            {c.label}
+                          </span>
+                        )}
+                        {!last && <ChevronRight size={14} className="text-text-muted/70 shrink-0" aria-hidden="true" />}
+                      </li>
+                    );
+                  })}
+                </ol>
+              </nav>
+            </div>
 
-        {/* TopBar */}
-        <header className="h-16 bg-surface border-b border-border flex items-center justify-between px-4 md:px-6 z-10">
-          <div className="flex items-center gap-3 min-w-0">
-            {isMobile && (
+            <div className="flex items-center gap-2 md:gap-2.5 shrink-0">
+              {/* Command Center Trigger */}
               <button
-                onClick={() => setMobileMenuOpen(true)}
-                className="p-2 -ml-2 hover:bg-surface-hover rounded-xl text-text transition-colors"
-                aria-label="Open menu"
-              >
-                <Menu size={24} />
-              </button>
-            )}
-            <nav aria-label="Breadcrumb" className="min-w-0">
-              <ol className="flex items-center gap-1.5 min-w-0">
-                {trail.map((c, i) => {
-                  const last = i === trail.length - 1;
-                  return (
-                    <li key={i} className={clsx('flex items-center gap-1.5 min-w-0', !last && 'hidden md:flex')}>
-                      {c.to ? (
-                        <Link to={c.to} className="text-sm text-text-muted hover:text-text truncate">{c.label}</Link>
-                      ) : (
-                        <span aria-current="page" className="text-base md:text-xl text-text font-serif truncate">{c.label}</span>
-                      )}
-                      {!last && <ChevronRight size={14} className="text-text-muted shrink-0" aria-hidden="true" />}
-                    </li>
-                  );
-                })}
-              </ol>
-            </nav>
-          </div>
-
-          <div className="flex items-center gap-2 md:gap-4">
-              {/* Command Palette Trigger */}
-              <button
+                type="button"
                 onClick={() => setCommandPaletteOpen(true)}
-                className="flex items-center gap-2 px-2 md:px-3 py-2 bg-surface-hover text-text-muted rounded-lg border border-border text-sm hover:border-terracotta hover:shadow-[var(--shadow-e1)] transition-all group md:min-w-[240px]"
+                aria-label="Open command center"
+                className="flex items-center gap-2 px-2.5 md:px-3 py-1.5 bg-surface-hover/80 text-text-muted rounded-lg border border-border text-sm hover:border-terracotta/60 hover:text-text hover:shadow-[var(--shadow-e1)] transition-all group md:min-w-[220px]"
               >
-                <Search size={16} className="group-hover:text-terracotta transition-colors shrink-0" />
-                <span className="hidden md:inline flex-1 text-left">Search or jump to…</span>
-                <kbd className="hidden lg:inline-block bg-background border border-border rounded px-1.5 text-xs font-mono">⌘K</kbd>
+                <Search size={15} className="group-hover:text-terracotta transition-colors shrink-0" />
+                <span className="hidden md:inline flex-1 text-left text-xs">Search or jump to…</span>
+                <kbd className="hidden lg:inline-block bg-background border border-border rounded px-1.5 py-0.5 text-[10px] font-mono">⌘K</kbd>
               </button>
+
+              {/* Ambient Ask SURYA Copilot trigger */}
+              {canAsk && copilot && (
+                <button
+                  type="button"
+                  onClick={() => copilot.openCopilot()}
+                  aria-label="Open Ask SURYA Copilot"
+                  title="Ask SURYA (⌘J)"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-terracotta/10 border border-terracotta/25 text-terracotta hover:bg-terracotta/15 text-xs font-medium transition-colors"
+                >
+                  <Sparkles size={14} className="shrink-0" />
+                  <span className="hidden xl:inline">Ask</span>
+                  <kbd className="hidden xl:inline font-mono text-[10px] opacity-75">⌘J</kbd>
+                </button>
+              )}
+
+              {/* Focus Mode trigger on authoring/review routes */}
+              {canOfferFocusButton && !isMobile && (
+                <button
+                  type="button"
+                  onClick={toggleFocusMode}
+                  title="Focus Mode (Alt+F)"
+                  aria-label="Enter Focus Mode"
+                  className="p-2 rounded-lg text-text-muted hover:text-text hover:bg-surface-hover transition-colors"
+                >
+                  <Maximize2 size={16} />
+                </button>
+              )}
 
               <NotificationBell />
 
-              {/* Role: a switcher for 2+ roles, a plain label otherwise */}
-              {roles.length === 1 && role && (
-                <span className="hidden sm:inline px-2.5 py-1.5 text-xs font-semibold text-text-muted">{ROLE_LABELS[role]}</span>
-              )}
-              {roles.length > 1 && (
-                <div
-                  className="relative"
-                  onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setRoleSwitcherOpen(false); }}
-                >
-                  <button
-                    onClick={() => setRoleSwitcherOpen(v => !v)}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 bg-surface-hover border border-border rounded-[8px] text-xs font-semibold text-text-muted hover:border-terracotta hover:text-text transition-colors"
-                    aria-label={role ? `Acting as ${ROLE_LABELS[role]}. Switch role` : 'Switch role'}
-                    aria-expanded={roleSwitcherOpen}
-                  >
-                    <span className="hidden sm:inline">{role && ROLE_LABELS[role]}</span>
-                    <ChevronDown size={13} className={`transition-transform ${roleSwitcherOpen ? 'rotate-180' : ''}`} />
-                  </button>
-                  {roleSwitcherOpen && (
-                    <div ref={roleMenuRef} tabIndex={-1} className="absolute right-0 top-full mt-1 bg-surface border border-border rounded-[10px] shadow-lg z-50 py-1 min-w-[160px] outline-none">
-                      {roles.map(r => (
-                        <button
-                          key={r}
-                          onClick={() => {
-                            void setActiveRole(r);
-                            navigate(ROLE_ROUTES[r]);
-                            setRoleSwitcherOpen(false);
-                          }}
-                          className={`w-full text-left px-4 py-2 text-xs font-medium transition-colors ${
-                            r === role
-                              ? 'text-terracotta bg-terracotta/10'
-                              : 'text-text-muted hover:text-text hover:bg-surface-hover'
-                          }`}
-                        >
-                          {ROLE_LABELS[r]}
-                          {r === role && <span className="ml-2 text-[10px] opacity-60">active</span>}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* User Avatar */}
-              <div
-                className="h-8 w-8 rounded-full bg-terracotta text-ivory flex items-center justify-center font-bold text-xs ring-1 ring-terracotta-hover shrink-0"
-                title={user?.email}
-              >
-                {emailInitials(user?.email)}
-              </div>
-          </div>
-        </header>
+              {/* Unified Account, Role, Appearance & Density popover */}
+              <WorkspaceMenu onOpenSettings={() => setSettingsOpen(true)} />
+            </div>
+          </header>
+        )}
 
         {/* Error Banner */}
         {error && (
-          <div role="alert" className="px-4 py-2 bg-danger/10 border-b border-danger/30 text-text text-sm flex items-center gap-2">
+          <div role="alert" className="px-4 py-2 bg-danger/10 border-b border-danger/30 text-text text-sm flex items-center gap-2 shrink-0">
             <AlertCircle size={14} className="text-danger shrink-0" />
             <span>Data load failed: {error}</span>
           </div>
         )}
 
         {controlsDegraded && (
-          <div role="alert" className="px-4 py-2 bg-badge-warning-bg border-b border-border text-badge-warning-fg text-sm flex items-center gap-2">
+          <div role="alert" className="px-4 py-2 bg-badge-warning-bg border-b border-border text-badge-warning-fg text-sm flex items-center gap-2 shrink-0">
             <AlertCircle size={14} className="shrink-0" />
             <span>Feature controls unavailable — all features are enabled.</span>
           </div>
         )}
 
-        {/* Scrollable Content Viewport */}
-        <main className={clsx('flex-1 overflow-auto p-4 md:p-8 bg-background relative', isMobile && 'pb-24')}>
-           <div className="mx-auto max-w-7xl w-full">
-             <AnimatePresence mode="wait">
-               {/* Keyed on the path, not the hash: the hash carries ?tab= and
-                   ?filter=, and keying on it re-mounted the whole page — losing
-                   anything typed — every time a tab or filter changed. */}
-               <motion.div
-                 key={pathname}
-                 initial={{ opacity: 0, y: 10 }}
-                 animate={{ opacity: 1, y: 0 }}
-                 exit={{ opacity: 0, y: -10 }}
-                 transition={{ duration: 0.2 }}
-               >
-                 {/* Keyed on the route: leaving a crashed page clears the error. */}
-                 <ErrorBoundary key={pathname} fallback={<PageErrorCard />}>
-                   <FrozenOutlet />
-                 </ErrorBoundary>
-               </motion.div>
-             </AnimatePresence>
-           </div>
+        {/* Scrollable Content Viewport — instant non-blocking route enter (zero 400ms wait) */}
+        <main className={clsx('flex-1 overflow-auto p-4 md:p-8 bg-background relative', isMobile && !focusMode && 'pb-24')}>
+          <div className={clsx('mx-auto w-full', focusMode ? 'max-w-5xl' : 'max-w-7xl')}>
+            <motion.div
+              key={pathname}
+              initial={pageEnter.initial}
+              animate={pageEnter.animate}
+              transition={pageEnter.transition}
+            >
+              {/* Keyed on the route: leaving a crashed page clears the error. */}
+              <ErrorBoundary key={pathname} fallback={<PageErrorCard />}>
+                <Outlet />
+              </ErrorBoundary>
+            </motion.div>
+          </div>
         </main>
 
-        {/* Phone: check-and-approve bar — home inbox, Ask, calendar, full menu */}
-        {isMobile && role && (
+        {/* Phone: frosted check-and-approve bar */}
+        {isMobile && !focusMode && role && (
           <nav
             aria-label="Quick navigation"
-            className="fixed inset-x-0 bottom-0 z-30 bg-surface border-t border-border grid grid-flow-col auto-cols-fr pb-[env(safe-area-inset-bottom)]"
+            className="fixed inset-x-0 bottom-0 z-30 bg-surface/90 backdrop-blur-md border-t border-border grid grid-flow-col auto-cols-fr pb-[env(safe-area-inset-bottom)]"
           >
             {[
               { to: ROLE_ROUTES[role], label: 'Home', icon: LayoutDashboard, show: true },
-              { to: '/ask', label: 'Ask', icon: Sparkles, show: canAccess('/ask') },
+              { to: '/ask', label: 'Ask', icon: Sparkles, show: canAsk },
               { to: '/calendar', label: 'Calendar', icon: CalendarIcon, show: canAccess('/calendar') },
             ].filter(i => i.show).map(({ to, label, icon: Icon }) => (
               <NavLink
@@ -229,15 +254,21 @@ export function Layout() {
                 to={to}
                 end
                 className={({ isActive }) => clsx(
-                  'flex flex-col items-center justify-center gap-0.5 py-2 min-h-14 text-[11px] font-medium',
+                  'relative flex flex-col items-center justify-center gap-0.5 py-2 min-h-14 text-[11px] font-medium transition-colors',
                   isActive ? 'text-terracotta' : 'text-text-muted',
                 )}
               >
-                <Icon size={20} />
-                {label}
+                {({ isActive }) => (
+                  <>
+                    {isActive && <span className="absolute top-0 inset-x-4 h-[2px] rounded-full bg-terracotta" aria-hidden="true" />}
+                    <Icon size={20} />
+                    {label}
+                  </>
+                )}
               </NavLink>
             ))}
             <button
+              type="button"
               onClick={() => setMobileMenuOpen(true)}
               className="flex flex-col items-center justify-center gap-0.5 py-2 min-h-14 text-[11px] font-medium text-text-muted"
             >
@@ -251,22 +282,21 @@ export function Layout() {
       <CommandPalette
         isOpen={commandPaletteOpen}
         onClose={() => setCommandPaletteOpen(false)}
+        recentRoutes={recentRoutes}
+        onToggleFocusMode={toggleFocusMode}
       />
 
       <SettingsModal
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
       />
+
+      {/* Lazy-mounted ambient AI Copilot drawer */}
+      {canAsk && copilot?.isOpen && (
+        <Suspense fallback={null}>
+          <AskSuryaDrawer />
+        </Suspense>
+      )}
     </div>
   );
-}
-
-// The page this wrapper was created for. A plain <Outlet /> always renders
-// the current route, so while AnimatePresence keeps the outgoing wrapper on
-// screen it mounted the incoming page there too — every navigation loaded the
-// new page twice and dropped anything typed in its first moments.
-function FrozenOutlet() {
-  const outlet = useOutlet();
-  const [page] = useState(outlet);
-  return page;
 }

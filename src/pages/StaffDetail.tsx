@@ -12,6 +12,8 @@ import { Button } from '../components/ui/Button';
 import { DocumentPanel } from '../components/ui/DocumentPanel';
 import { Dossier } from '../components/layout/Dossier';
 import { RelatedRail } from '../components/RelatedRail';
+import { MiniNeighborhoodGraph, type NeighborhoodNeighbor } from '../components/viz/MiniNeighborhoodGraph';
+import { projectsForStaff } from '../lib/relations';
 import { StaffFormModal } from '../components/StaffFormModal';
 import ScientistProfile from '../components/ScientistProfile';
 import { useCanEdit } from '../lib/permissions/canEdit';
@@ -211,6 +213,13 @@ export default function StaffDetail() {
   const division = divisions.find(d => d.divCode === member.Division);
   const reportsTo = member.ReportingID ? staff.find(s => s.ID === member.ReportingID) : null;
   const directReports = staff.filter(s => s.ReportingID === member.ID && s.ID !== member.ID);
+  const linkedProjects = projectsForStaff(member, projects, projectStaff);
+  const neighbors: NeighborhoodNeighbor[] = [
+    ...(division ? [{ id: division.divCode, label: division.divCode, kind: 'division' as const, relation: 'Division' }] : []),
+    ...(reportsTo ? [{ id: reportsTo.ID, label: reportsTo.Name, kind: 'staff' as const, relation: 'Reports to' }] : []),
+    ...linkedProjects.map(p => ({ id: p.ProjectID, label: p.ProjectNo || p.ProjectName, kind: 'project' as const, relation: 'Project' })),
+    ...directReports.slice(0, 4).map(r => ({ id: r.ID, label: r.Name, kind: 'staff' as const, relation: 'Direct report' })),
+  ];
   const age = getAgeFromDOB(member.DOB);
   const serviceYears = getServiceYears(member.DOJ);
   const yearsInGrade = getYearsInGrade(member.DoAPP);
@@ -297,6 +306,12 @@ export default function StaffDetail() {
           <div className="flex justify-between"><span>Appointment</span><span className="text-text">{member.AppointmentType || 'N/A'}</span></div>
         </div>
       </Card>
+
+      <MiniNeighborhoodGraph
+        centerLabel={member.Name}
+        centerKind="staff"
+        neighbors={neighbors}
+      />
     </>
   );
 

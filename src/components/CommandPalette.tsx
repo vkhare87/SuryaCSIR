@@ -1,28 +1,37 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Search,
-  Users,
-  Briefcase,
-  BookOpen,
-  Microscope,
-  Building2,
-  Lightbulb,
-  FlaskConical,
-  FileText,
-  Network,
-  Sparkles,
-  X,
+  Search, Users, Briefcase, BookOpen, Microscope, Building2,
+  Lightbulb, FlaskConical, FileText, Network, Sparkles, X,
+  Clock, Sun, Moon, Layout as LayoutIcon, Maximize2, ArrowRight, Repeat,
 } from 'lucide-react';
+import clsx from 'clsx';
+import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { useFeatureControls } from '../contexts/FeatureControlContext';
+import { useCopilot } from '../contexts/CopilotContext';
 import { ENTITY_META } from '../lib/entities';
+import { ALL_NAV_ITEMS } from '../constants/navigation';
+import { ROLE_LABELS } from '../constants/access';
+import { ROLE_ROUTES } from '../constants/roleRoutes';
 import { searchDocuments, getDocumentUrl, openDocumentUrl, type DocumentHit } from '../lib/documents/registry';
-import type { StaffMember, Project, PhDStudent, ScientificOutput, IPIntelligence, Equipment, DivisionInfo, Meeting } from '../types';
+import type { RecentRoute } from '../hooks/useRecentRoutes';
+import type {
+  StaffMember, Project, PhDStudent, ScientificOutput,
+  IPIntelligence, Equipment, DivisionInfo, Meeting,
+} from '../types';
 
-// ---------------------------------------------------------------------------
-// Result-set type
-// ---------------------------------------------------------------------------
+interface PaletteItem {
+  id: string;
+  section: string;
+  icon: ReactNode;
+  accent?: boolean;
+  primary: string;
+  secondary?: string;
+  badge?: string;
+  run: () => void;
+}
 
 interface SearchResults {
   staff: StaffMember[];
@@ -38,7 +47,6 @@ function emptyResults(): SearchResults {
   return { staff: [], projects: [], phd: [], outputs: [], ip: [], equipment: [], divisions: [] };
 }
 
-/** Canonical page for a document's parent record; null → open the file itself. */
 function documentRoute(d: DocumentHit, meetings: Meeting[]): string | null {
   const id = encodeURIComponent(d.entity_id);
   switch (d.entity_type) {
@@ -53,11 +61,7 @@ function documentRoute(d: DocumentHit, meetings: Meeting[]): string | null {
   }
 }
 
-const RESULT_LIMIT = 3;
-
-// ---------------------------------------------------------------------------
-// Cross-table search helper — all matching done client-side over DataContext
-// ---------------------------------------------------------------------------
+const RESULT_LIMIT = 4;
 
 function searchAll(
   query: string,
@@ -69,7 +73,7 @@ function searchAll(
     ipIntelligence: IPIntelligence[];
     equipment: Equipment[];
     divisions: DivisionInfo[];
-  }
+  },
 ): SearchResults {
   const q = query.toLowerCase().trim();
   if (!q) return emptyResults();
@@ -81,55 +85,47 @@ function searchAll(
     staff: data.staff
       .filter(s => match(s.ID) || match(s.Name) || match(s.Designation) || match(s.Division) || match(s.CoreArea) || match(s.Expertise))
       .slice(0, RESULT_LIMIT),
-
     projects: data.projects
       .filter(p => match(p.ProjectID) || match(p.ProjectName) || match(p.ProjectNo) || match(p.SponsorerName) || match(p.PrincipalInvestigator))
       .slice(0, RESULT_LIMIT),
-
     phd: data.phDStudents
       .filter(p => match(p.StudentName) || match(p.Specialization) || match(p.SupervisorName) || match(p.ThesisTitle))
       .slice(0, RESULT_LIMIT),
-
     outputs: data.scientificOutputs
       .filter(o => match(o.title) || match(o.journal) || o.authors.some(a => match(a)))
       .slice(0, RESULT_LIMIT),
-
     ip: data.ipIntelligence
       .filter(i => match(i.title) || match(i.type) || match(i.status) || i.inventors.some(v => match(v)))
       .slice(0, RESULT_LIMIT),
-
     equipment: data.equipment
       .filter(e => match(e.UInsID) || match(e.instrument_code) || match(e.Name) || match(e.manufacturer) || match(e.EndUse) || match(e.Division) || match(e.IndenterName) || match(e.OperatorName))
       .slice(0, RESULT_LIMIT),
-
     divisions: data.divisions
       .filter(d => match(d.divCode) || match(d.divName))
       .slice(0, RESULT_LIMIT),
   };
 }
 
-function totalHits(results: SearchResults): number {
-  return (
-    results.staff.length +
-    results.projects.length +
-    results.phd.length +
-    results.outputs.length +
-    results.ip.length +
-    results.equipment.length +
-    results.divisions.length
-  );
+interface CommandPaletteProps {
+  isOpen: boolean;
+  onClose: () => void;
+  recentRoutes?: RecentRoute[];
+  onToggleFocusMode?: () => void;
 }
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
-export default function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+export default function CommandPalette({
+  isOpen, onClose, recentRoutes = [], onToggleFocusMode,
+}: CommandPaletteProps) {
   const [query, setQuery] = useState('');
+  const [activeIndex, setActiveIndex] = useState(0);
+  const { role, roles, setActiveRole } = useAuth();
+  const { theme, setTheme, density, setDensity } = useTheme();
   const { staff, projects, phDStudents, scientificOutputs, ipIntelligence, equipment, divisions, meetings } = useData();
   const { canAccess } = useFeatureControls();
+  const copilot = useCopilot();
   const navigate = useNavigate();
   const [docs, setDocs] = useState<{ query: string; hits: DocumentHit[] }>({ query: '', hits: [] });
+  const rowRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   // Documents live server-side; debounce, and drop responses for stale queries.
   useEffect(() => {
@@ -137,338 +133,464 @@ export default function CommandPalette({ isOpen, onClose }: { isOpen: boolean; o
     let cancelled = false;
     const t = setTimeout(() => {
       void searchDocuments(query).then(hits => { if (!cancelled) setDocs({ query, hits }); });
-    }, 250);
+    }, 220);
     return () => { cancelled = true; clearTimeout(t); };
   }, [query, isOpen]);
-  const docHits = docs.query === query ? docs.hits : [];
 
-  // Search only the record types whose feature this user may open.
-  const results = searchAll(query, {
-    staff: canAccess('/staff') ? staff : [],
-    projects: canAccess('/projects') ? projects : [],
-    phDStudents: canAccess('/phd') ? phDStudents : [],
-    scientificOutputs: canAccess('/intelligence') ? scientificOutputs : [],
-    ipIntelligence: canAccess('/intelligence') ? ipIntelligence : [],
-    equipment: canAccess('/facilities') ? equipment : [],
-    divisions: canAccess('/divisions') ? divisions : [],
-  });
-  const hasResults = totalHits(results) + docHits.length > 0;
+  const docHits = useMemo(() => (docs.query === query ? docs.hits : []), [docs, query]);
 
   const handleClose = useCallback(() => {
     setQuery('');
+    setActiveIndex(0);
     onClose();
   }, [onClose]);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') handleClose();
-    };
-    if (isOpen) {
-      window.addEventListener('keydown', handleKeyDown);
-    }
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, handleClose]);
+  const go = useCallback((path: string) => {
+    navigate(path);
+    handleClose();
+  }, [navigate, handleClose]);
 
-  // Reset query when closed externally
+  const items = useMemo<PaletteItem[]>(() => {
+    const q = query.trim().toLowerCase();
+    const list: PaletteItem[] = [];
+    const dashboardPath = role ? ROLE_ROUTES[role] : '/';
+
+    // 1. Recent visits (when query is empty)
+    if (!q && recentRoutes.length > 0) {
+      recentRoutes.slice(0, 5).forEach(r => {
+        list.push({
+          id: `recent:${r.path}`,
+          section: 'Recent',
+          icon: <Clock size={15} />,
+          primary: r.label,
+          secondary: r.path,
+          run: () => go(r.path),
+        });
+      });
+    }
+
+    // 2. Quick Actions (theme, density, copilot, focus, role switch)
+    const actions: PaletteItem[] = [
+      {
+        id: 'action:theme',
+        section: 'Quick Actions',
+        icon: theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />,
+        primary: theme === 'dark' ? 'Switch to Solar Light theme' : 'Switch to Deep Night theme',
+        secondary: 'Appearance',
+        run: () => { setTheme(theme === 'dark' ? 'light' : 'dark'); handleClose(); },
+      },
+      {
+        id: 'action:density',
+        section: 'Quick Actions',
+        icon: <LayoutIcon size={15} />,
+        primary: `Cycle density (currently ${density})`,
+        secondary: 'Compact · Balanced · Spacious',
+        run: () => {
+          const order = ['compact', 'medium', 'relaxed'] as const;
+          const next = order[(order.indexOf(density) + 1) % order.length];
+          setDensity(next);
+          handleClose();
+        },
+      },
+    ];
+    if (canAccess('/ask') && copilot) {
+      actions.push({
+        id: 'action:copilot',
+        section: 'Quick Actions',
+        icon: <Sparkles size={15} />,
+        accent: true,
+        primary: 'Open Ask SURYA Copilot',
+        secondary: 'Contextual Q&A drawer (⌘J)',
+        run: () => { handleClose(); copilot.openCopilot(); },
+      });
+    }
+    if (onToggleFocusMode) {
+      actions.push({
+        id: 'action:focus',
+        section: 'Quick Actions',
+        icon: <Maximize2 size={15} />,
+        primary: 'Toggle Focus Mode',
+        secondary: 'Hide navigation chrome (Alt+F)',
+        run: () => { onToggleFocusMode(); handleClose(); },
+      });
+    }
+    if (roles.length > 1) {
+      roles.filter(r => r !== role).forEach(r => {
+        actions.push({
+          id: `action:role:${r}`,
+          section: 'Quick Actions',
+          icon: <Repeat size={15} />,
+          primary: `Switch role to ${ROLE_LABELS[r]}`,
+          secondary: 'Workspace role',
+          run: () => {
+            void setActiveRole(r);
+            navigate(ROLE_ROUTES[r]);
+            handleClose();
+          },
+        });
+      });
+    }
+
+    const matchedActions = q
+      ? actions.filter(a => `${a.primary} ${a.secondary ?? ''}`.toLowerCase().includes(q))
+      : actions.slice(0, 3);
+
+    // 3. Permitted Pages & Navigation
+    const permittedNav = ALL_NAV_ITEMS
+      .filter(n => canAccess(n.path))
+      .map(n => ({ ...n, resolvedPath: n.path === '/' ? dashboardPath : n.path }));
+
+    const matchedNav = q
+      ? permittedNav
+          .filter(n => `${n.label} ${n.path} ${(n.keywords ?? []).join(' ')}`.toLowerCase().includes(q))
+          .slice(0, 5)
+      : [];
+
+    matchedNav.forEach(n => {
+      const Icon = n.icon;
+      list.push({
+        id: `nav:${n.resolvedPath}`,
+        section: 'Jump to Page',
+        icon: <Icon size={15} />,
+        primary: n.label,
+        secondary: n.resolvedPath,
+        badge: 'Page',
+        run: () => go(n.resolvedPath),
+      });
+    });
+
+    // 4. Records & Documents (when typing)
+    if (q) {
+      const results = searchAll(q, {
+        staff: canAccess('/staff') ? staff : [],
+        projects: canAccess('/projects') ? projects : [],
+        phDStudents: canAccess('/phd') ? phDStudents : [],
+        scientificOutputs: canAccess('/intelligence') ? scientificOutputs : [],
+        ipIntelligence: canAccess('/intelligence') ? ipIntelligence : [],
+        equipment: canAccess('/facilities') ? equipment : [],
+        divisions: canAccess('/divisions') ? divisions : [],
+      });
+
+      results.staff.forEach(s => list.push({
+        id: `staff:${s.ID}`,
+        section: 'Scientific Staff',
+        icon: <Users size={15} />,
+        accent: true,
+        primary: s.Name,
+        secondary: [s.Designation, s.Division].filter(Boolean).join(' • '),
+        run: () => go(`/staff/${encodeURIComponent(s.ID)}`),
+      }));
+
+      results.projects.forEach(p => list.push({
+        id: `project:${p.ProjectID}`,
+        section: 'Research Projects',
+        icon: <Briefcase size={15} />,
+        primary: p.ProjectName,
+        secondary: [p.ProjectNo, p.SponsorerName].filter(Boolean).join(' • '),
+        run: () => go(ENTITY_META.project.route(p.ProjectID)),
+      }));
+
+      results.phd.forEach(p => list.push({
+        id: `phd:${p.EnrollmentNo}`,
+        section: 'PhD Students',
+        icon: <BookOpen size={15} />,
+        primary: p.StudentName,
+        secondary: [p.Specialization, p.SupervisorName ? `Supervisor: ${p.SupervisorName}` : ''].filter(Boolean).join(' • '),
+        run: () => go('/phd'),
+      }));
+
+      results.outputs.forEach(o => list.push({
+        id: `output:${o.id}`,
+        section: 'Scientific Outputs',
+        icon: <Microscope size={15} />,
+        accent: true,
+        primary: o.title,
+        secondary: [o.journal, o.year ? String(o.year) : ''].filter(Boolean).join(' • '),
+        run: () => go('/intelligence'),
+      }));
+
+      results.ip.forEach(i => list.push({
+        id: `ip:${i.id}`,
+        section: 'IP & Patents',
+        icon: <Lightbulb size={15} />,
+        primary: i.title,
+        secondary: [i.type, i.status].filter(Boolean).join(' • '),
+        run: () => go('/intelligence'),
+      }));
+
+      results.equipment.forEach(e => list.push({
+        id: `equip:${e.UInsID}`,
+        section: 'Equipment & Facilities',
+        icon: <FlaskConical size={15} />,
+        primary: e.Name,
+        secondary: [e.Division, e.WorkingStatus].filter(Boolean).join(' • '),
+        run: () => go(`/facilities/${encodeURIComponent(e.UInsID)}`),
+      }));
+
+      results.divisions.forEach(d => list.push({
+        id: `div:${d.divCode}`,
+        section: 'Divisions',
+        icon: <Network size={15} />,
+        primary: d.divName,
+        secondary: d.divCode,
+        run: () => go(`/divisions?div=${encodeURIComponent(d.divCode)}`),
+      }));
+
+      docHits.forEach(d => {
+        const route = documentRoute(d, meetings);
+        list.push({
+          id: `doc:${d.id}`,
+          section: 'Documents · title match',
+          icon: <FileText size={15} />,
+          primary: d.title,
+          secondary: [d.entity_type.replace(/_/g, ' '), d.doc_type.replace(/_/g, ' '), d.created_at.slice(0, 10)].join(' • '),
+          run: () => {
+            if (route) go(route);
+            else { void openDocumentUrl(() => getDocumentUrl(d.storage_path)); handleClose(); }
+          },
+        });
+      });
+    }
+
+    // Append Quick Actions after pages/records (or under Recent when empty)
+    matchedActions.forEach(a => list.push(a));
+
+    // Full-text Ask SURYA handoff
+    if (canAccess('/ask') && q.length >= 2) {
+      list.push({
+        id: 'ask:query',
+        section: 'Ask SURYA',
+        icon: <Sparkles size={15} />,
+        accent: true,
+        primary: `Ask SURYA about “${query.trim()}”`,
+        secondary: 'Answers from indexed documents, with page citations',
+        run: () => {
+          if (copilot) {
+            const qText = query.trim();
+            handleClose();
+            copilot.openCopilot({ question: qText });
+          } else {
+            go(`/ask?q=${encodeURIComponent(query.trim())}`);
+          }
+        },
+      });
+    }
+
+    return list;
+  }, [
+    query, role, roles, recentRoutes, theme, density, canAccess, copilot, onToggleFocusMode,
+    staff, projects, phDStudents, scientificOutputs, ipIntelligence, equipment, divisions, docHits, meetings,
+    go, handleClose, navigate, setActiveRole, setDensity, setTheme,
+  ]);
+
+  // Clamp activeIndex whenever item list changes
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [query, isOpen]);
+
+  const safeIndex = items.length > 0 ? Math.min(activeIndex, items.length - 1) : -1;
+
+  // Keep active row visible when navigating with arrow keys
+  useEffect(() => {
+    if (!isOpen || safeIndex < 0) return;
+    rowRefs.current[safeIndex]?.scrollIntoView?.({ block: 'nearest' });
+  }, [safeIndex, isOpen]);
+
+  // Keyboard flow: ↑/↓/Home/End/Enter/Esc
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        handleClose();
+      } else if (e.key === 'ArrowDown') {
+        if (items.length === 0) return;
+        e.preventDefault();
+        setActiveIndex(i => (i + 1) % items.length);
+      } else if (e.key === 'ArrowUp') {
+        if (items.length === 0) return;
+        e.preventDefault();
+        setActiveIndex(i => (i - 1 + items.length) % items.length);
+      } else if (e.key === 'Home') {
+        if (items.length === 0) return;
+        e.preventDefault();
+        setActiveIndex(0);
+      } else if (e.key === 'End') {
+        if (items.length === 0) return;
+        e.preventDefault();
+        setActiveIndex(items.length - 1);
+      } else if (e.key === 'Enter') {
+        if (safeIndex >= 0 && items[safeIndex]) {
+          e.preventDefault();
+          items[safeIndex].run();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, items, safeIndex, handleClose]);
+
   useEffect(() => {
     if (!isOpen) setQuery('');
   }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const go = (path: string) => {
-    navigate(path);
-    handleClose();
-  };
+  // Group items preserving flattened order for keyboard indices
+  const grouped: { section: string; entries: { item: PaletteItem; flatIndex: number }[] }[] = [];
+  items.forEach((item, flatIndex) => {
+    const existing = grouped.find(g => g.section === item.section);
+    if (existing) existing.entries.push({ item, flatIndex });
+    else grouped.push({ section: item.section, entries: [{ item, flatIndex }] });
+  });
 
   return (
-    <div role="dialog" aria-modal="true" aria-label="Search" className="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="w-full max-w-2xl bg-surface border border-border rounded-[12px] shadow-[0px_0px_0px_1px_#f0eee6] dark:shadow-[0px_0px_0px_1px_#30302e] overflow-hidden scale-in duration-200">
-
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Command Center"
+      onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
+      className="fixed inset-0 z-50 flex items-start justify-center pt-[10vh] px-4 bg-near-black/55 backdrop-blur-sm"
+    >
+      <div className="w-full max-w-2xl bg-surface-raised border border-border rounded-2xl shadow-[var(--shadow-e4)] dark:shadow-[var(--shadow-e4),var(--shadow-dark-highlight)] overflow-hidden">
         {/* Search input */}
-        <div className="flex items-center gap-3 px-4 py-4 border-b border-border bg-surface-hover">
-          <Search className="text-text-muted w-5 h-5 shrink-0" />
+        <div className="flex items-center gap-3 px-4 py-3.5 border-b border-border bg-surface">
+          <Search className="text-terracotta w-5 h-5 shrink-0" />
           <input
             autoFocus
             type="text"
-            aria-label="Search records"
-            placeholder="Search by name or ID: staff, projects, equipment, documents… (Esc to close)"
+            aria-label="Search commands, pages, or records"
+            placeholder="Search pages, staff, projects, documents, or actions…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="flex-1 bg-transparent border-none outline-none text-text text-base placeholder:text-text-muted/50"
+            className="flex-1 bg-transparent border-none outline-none text-text text-base placeholder:text-text-muted/60"
           />
-          <button onClick={handleClose} aria-label="Close search" className="p-1 hover:bg-surface rounded-lg text-text-muted shrink-0">
-            <X size={20} />
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery('')}
+              className="text-xs text-text-muted hover:text-text px-1.5 py-0.5 rounded bg-surface-hover"
+            >
+              Clear
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={handleClose}
+            aria-label="Close command center"
+            className="p-1 hover:bg-surface-hover rounded-lg text-text-muted hover:text-text shrink-0 transition-colors"
+          >
+            <X size={18} />
           </button>
         </div>
 
-        {/* Results */}
-        <div className="max-h-[60vh] overflow-y-auto p-2 space-y-1">
-          {query ? (
-            <>
-              {/* --- Staff --- */}
-              {results.staff.length > 0 && (
-                <ResultSection label="Scientific Staff">
-                  {results.staff.map((s) => (
-                    <ResultRow
-                      key={s.ID}
-                      icon={<Users size={15} />}
-                      iconBg="#f0eee6"
-                      iconColor="#c96442"
-                      primary={s.Name}
-                      secondary={[s.Designation, s.Division].filter(Boolean).join(' • ')}
-                      onClick={() => go(`/staff/${s.ID}`)}
-                    />
-                  ))}
-                </ResultSection>
-              )}
+        {/* Quick-jump strip when empty */}
+        {!query && (
+          <div className="px-4 py-3 border-b border-border bg-background/50 flex flex-wrap gap-2">
+            {[
+              { path: '/staff',        label: 'Staff',      icon: Users },
+              { path: '/projects',     label: 'Projects',   icon: Briefcase },
+              { path: '/pms',          label: 'PMS',        icon: FileText },
+              { path: '/facilities',   label: 'Facilities', icon: Building2 },
+              { path: '/intelligence', label: 'Outputs',    icon: Microscope },
+              { path: '/explore',      label: 'Graph',      icon: Network },
+            ].filter(qLink => canAccess(qLink.path)).map(qLink => (
+              <button
+                key={qLink.path}
+                type="button"
+                onClick={() => go(qLink.path)}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-surface border border-border text-xs font-medium text-text hover:border-terracotta/50 hover:text-terracotta transition-colors"
+              >
+                <qLink.icon size={13} className="text-terracotta" />
+                {qLink.label}
+              </button>
+            ))}
+          </div>
+        )}
 
-              {/* --- Projects --- */}
-              {results.projects.length > 0 && (
-                <ResultSection label="Research Projects">
-                  {results.projects.map((p) => (
-                    <ResultRow
-                      key={p.ProjectID}
-                      icon={<Briefcase size={15} />}
-                      iconBg="#f0eee6"
-                      iconColor="#5e5d59"
-                      primary={p.ProjectName}
-                      secondary={[p.ProjectNo, p.SponsorerName].filter(Boolean).join(' • ')}
-                      onClick={() => go(ENTITY_META.project.route(p.ProjectID))}
-                    />
-                  ))}
-                </ResultSection>
-              )}
-
-              {/* --- PhD Students --- */}
-              {results.phd.length > 0 && (
-                <ResultSection label="PhD Students">
-                  {results.phd.map((p) => (
-                    <ResultRow
-                      key={p.EnrollmentNo}
-                      icon={<BookOpen size={15} />}
-                      iconBg="#f0eee6"
-                      iconColor="#7c6f5b"
-                      primary={p.StudentName}
-                      secondary={[p.Specialization, p.SupervisorName ? `Supervisor: ${p.SupervisorName}` : ''].filter(Boolean).join(' • ')}
-                      onClick={() => go('/phd')}
-                    />
-                  ))}
-                </ResultSection>
-              )}
-
-              {/* --- Scientific Outputs --- */}
-              {results.outputs.length > 0 && (
-                <ResultSection label="Scientific Outputs">
-                  {results.outputs.map((o) => (
-                    <ResultRow
-                      key={o.id}
-                      icon={<Microscope size={15} />}
-                      iconBg="#f0eee6"
-                      iconColor="#c96442"
-                      primary={o.title}
-                      secondary={[o.journal, o.year ? String(o.year) : ''].filter(Boolean).join(' • ')}
-                      onClick={() => go('/intelligence')}
-                    />
-                  ))}
-                </ResultSection>
-              )}
-
-              {/* --- IP Intelligence --- */}
-              {results.ip.length > 0 && (
-                <ResultSection label="IP & Patents">
-                  {results.ip.map((i) => (
-                    <ResultRow
-                      key={i.id}
-                      icon={<Lightbulb size={15} />}
-                      iconBg="#f0eee6"
-                      iconColor="#8b6f47"
-                      primary={i.title}
-                      secondary={[i.type, i.status].filter(Boolean).join(' • ')}
-                      onClick={() => go('/intelligence')}
-                    />
-                  ))}
-                </ResultSection>
-              )}
-
-              {/* --- Equipment --- */}
-              {results.equipment.length > 0 && (
-                <ResultSection label="Equipment & Facilities">
-                  {results.equipment.map((e) => (
-                    <ResultRow
-                      key={e.UInsID}
-                      icon={<FlaskConical size={15} />}
-                      iconBg="#f0eee6"
-                      iconColor="#5e5d59"
-                      primary={e.Name}
-                      secondary={[e.Division, e.WorkingStatus].filter(Boolean).join(' • ')}
-                      onClick={() => go(`/facilities/${encodeURIComponent(e.UInsID)}`)}
-                    />
-                  ))}
-                </ResultSection>
-              )}
-
-              {/* --- Divisions --- */}
-              {results.divisions.length > 0 && (
-                <ResultSection label="Divisions">
-                  {results.divisions.map((d) => (
-                    <ResultRow
-                      key={d.divCode}
-                      icon={<Network size={15} />}
-                      iconBg="#f0eee6"
-                      iconColor="#7a4a1e"
-                      primary={d.divName}
-                      secondary={d.divCode}
-                      onClick={() => go(`/divisions?div=${encodeURIComponent(d.divCode)}`)}
-                    />
-                  ))}
-                </ResultSection>
-              )}
-
-              {/* --- Documents (title match, RLS-scoped) --- */}
-              {docHits.length > 0 && (
-                <ResultSection label="Documents · title match">
-                  {docHits.map((d) => {
-                    const route = documentRoute(d, meetings);
+        {/* Unified keyboard-selectable list */}
+        <div role="listbox" aria-label="Results" className="max-h-[55vh] overflow-y-auto p-2 space-y-2">
+          {grouped.length > 0 ? (
+            grouped.map(group => (
+              <div key={group.section}>
+                <h3 className="px-3 py-1.5 text-[10px] font-semibold text-text-muted uppercase tracking-[0.14em]">
+                  {group.section}
+                </h3>
+                <div className="space-y-0.5">
+                  {group.entries.map(({ item, flatIndex }) => {
+                    const active = flatIndex === safeIndex;
                     return (
-                      <ResultRow
-                        key={d.id}
-                        icon={<FileText size={15} />}
-                        iconBg="#f0eee6"
-                        iconColor="#5e5d59"
-                        primary={d.title}
-                        secondary={[d.entity_type.replace(/_/g, ' '), d.doc_type.replace(/_/g, ' '), d.created_at.slice(0, 10)].join(' • ')}
-                        onClick={() => {
-                          if (route) go(route);
-                          else { void openDocumentUrl(() => getDocumentUrl(d.storage_path)); handleClose(); }
-                        }}
-                      />
+                      <button
+                        key={item.id}
+                        ref={el => { rowRefs.current[flatIndex] = el; }}
+                        type="button"
+                        role="option"
+                        aria-selected={active}
+                        onMouseEnter={() => setActiveIndex(flatIndex)}
+                        onClick={item.run}
+                        className={clsx(
+                          'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors',
+                          active ? 'bg-terracotta/12 text-text' : 'hover:bg-surface-hover text-text',
+                        )}
+                      >
+                        <div
+                          className={clsx(
+                            'w-8 h-8 rounded-lg flex items-center justify-center shrink-0',
+                            active || item.accent
+                              ? 'bg-terracotta/15 text-terracotta'
+                              : 'bg-surface-hover text-text-muted',
+                          )}
+                        >
+                          {item.icon}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-medium text-text truncate" title={item.primary}>
+                            {item.primary}
+                          </div>
+                          {item.secondary && (
+                            <div className="text-xs text-text-muted truncate" title={item.secondary}>
+                              {item.secondary}
+                            </div>
+                          )}
+                        </div>
+                        {item.badge && (
+                          <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded bg-surface-hover text-text-muted shrink-0">
+                            {item.badge}
+                          </span>
+                        )}
+                        {active && <ArrowRight size={14} className="text-terracotta shrink-0" />}
+                      </button>
                     );
                   })}
-                </ResultSection>
-              )}
-
-              {/* Empty state */}
-              {!hasResults && (
-                <div className="p-12 text-center">
-                  <p className="text-text-muted italic">No records found for &ldquo;{query}&rdquo;</p>
-                  <p className="text-xs text-text-muted/60 mt-1">Searched names and IDs you have access to, and document titles</p>
                 </div>
-              )}
-
-              {/* Full-text questions go to Ask SURYA, which cites its sources */}
-              {canAccess('/ask') && query.trim().length >= 2 && (
-                <ResultSection label="Search inside documents">
-                  <ResultRow
-                    icon={<Sparkles size={15} />}
-                    iconBg="#f0eee6"
-                    iconColor="#c96442"
-                    primary={`Ask SURYA about “${query.trim()}”`}
-                    secondary="Answers from indexed documents, with page citations"
-                    onClick={() => go(`/ask?q=${encodeURIComponent(query.trim())}`)}
-                  />
-                </ResultSection>
-              )}
-            </>
-          ) : (
-            /* Quick-navigate grid */
-            <div className="p-8 text-center text-text-muted">
-              <div className="flex flex-wrap justify-center gap-6 mb-6">
-                {canAccess('/staff') && <QuickLink icon={<Users />} label="Staff"     iconBg="#141413" iconFg="#faf9f5" onClick={() => go('/staff')} />}
-                {canAccess('/phd') && <QuickLink icon={<BookOpen />} label="PhD"     iconBg="#e8e6dc" iconFg="#4d4c48" onClick={() => go('/phd')} />}
-                {canAccess('/projects') && <QuickLink icon={<Briefcase />} label="Projects" iconBg="#c96442" iconFg="#faf9f5" onClick={() => go('/projects')} />}
-                {canAccess('/intelligence') && <QuickLink icon={<Microscope />} label="Outputs" iconBg="#f0eee6" iconFg="#5e5d59" onClick={() => go('/intelligence')} />}
-                {canAccess('/intelligence') && <QuickLink icon={<Lightbulb />} label="IP"      iconBg="#f0eee6" iconFg="#8b6f47" onClick={() => go('/intelligence')} />}
-                {canAccess('/facilities') && <QuickLink icon={<Building2 />} label="Equipment" iconBg="#f0eee6" iconFg="#5e5d59" onClick={() => go('/facilities')} />}
               </div>
-              <p className="text-sm">Type to search across all institute records...</p>
+            ))
+          ) : (
+            <div className="p-10 text-center">
+              <p className="text-sm text-text-muted italic">No matches found for &ldquo;{query}&rdquo;</p>
+              <p className="text-xs text-text-muted/70 mt-1">
+                Try a staff name, project code, page title, or command like &ldquo;dark&rdquo;
+              </p>
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="p-3 border-t border-border bg-surface-hover flex justify-between items-center text-[10px] text-text-muted font-bold tracking-tight">
+        <div className="px-4 py-2.5 border-t border-border bg-surface flex justify-between items-center text-[10px] text-text-muted font-medium">
           <div className="flex gap-4">
             <span className="flex items-center gap-1">
-              <kbd className="bg-background border border-border px-1 rounded">↑↓</kbd> navigate
+              <kbd className="bg-background border border-border px-1.5 py-0.5 rounded font-mono">↑↓</kbd> navigate
             </span>
             <span className="flex items-center gap-1">
-              <kbd className="bg-background border border-border px-1 rounded">Enter</kbd> select
+              <kbd className="bg-background border border-border px-1.5 py-0.5 rounded font-mono">↵</kbd> select
             </span>
             <span className="flex items-center gap-1">
-              <kbd className="bg-background border border-border px-1 rounded">Esc</kbd> close
+              <kbd className="bg-background border border-border px-1.5 py-0.5 rounded font-mono">Esc</kbd> close
             </span>
           </div>
-          <div>SURYA Institute Search</div>
+          <span className="font-mono uppercase tracking-wider">SURYA Command Center</span>
         </div>
       </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Sub-components
-// ---------------------------------------------------------------------------
-
-function ResultSection({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <h3 className="px-3 py-2 text-[10px] font-bold text-text-muted uppercase tracking-widest">{label}</h3>
-      {children}
-    </div>
-  );
-}
-
-interface ResultRowProps {
-  icon: React.ReactNode;
-  iconBg: string;
-  iconColor: string;
-  primary: string;
-  secondary: string;
-  onClick: () => void;
-}
-
-function ResultRow({ icon, iconBg, iconColor, primary, secondary, onClick }: ResultRowProps) {
-  return (
-    <button
-      onClick={onClick}
-      className="w-full flex items-center gap-3 p-3 hover:bg-surface-hover rounded-xl text-left transition-colors"
-    >
-      <div
-        className="w-8 h-8 rounded-[8px] flex items-center justify-center shrink-0"
-        style={{ backgroundColor: iconBg, color: iconColor }}
-      >
-        {icon}
-      </div>
-      <div className="min-w-0">
-        <div className="text-sm font-semibold text-text truncate" title={primary}>{primary}</div>
-        {secondary && <div className="text-xs text-text-muted truncate" title={secondary}>{secondary}</div>}
-      </div>
-    </button>
-  );
-}
-
-interface QuickLinkProps {
-  icon: React.ReactNode;
-  label: string;
-  iconBg: string;
-  iconFg: string;
-  onClick: () => void;
-}
-
-function QuickLink({ icon, label, iconBg, iconFg, onClick }: QuickLinkProps) {
-  return (
-    <div
-      className="flex flex-col items-center gap-2 cursor-pointer group"
-      onClick={onClick}
-    >
-      <div
-        className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform"
-        style={{ backgroundColor: iconBg, color: iconFg }}
-      >
-        {icon}
-      </div>
-      <span className="text-xs font-bold">{label}</span>
     </div>
   );
 }
