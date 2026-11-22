@@ -33,8 +33,7 @@ the switch on it. The result must match a fresh build object for object.
 
 ## Steps
 
-The person who runs these steps needs the Supabase CLI and the database password. Each step can be undone
-until step 5.
+The person who runs these steps needs the Supabase CLI and the database password. Each step can be undone; see **Undo**.
 
 ### 0. Get ready
 
@@ -54,7 +53,13 @@ Every database command below carries `--linked`. Without it, CLI v3 runs
 `db` and `migration` commands against the **local** stack, not live. `--linked`
 reaches the linked project on v2 and v3 (v3 prints a warning that suggests `--remote`; that is fine).
 
-Take a backup first. The free plan has no point-in-time restore.
+Pick a quiet time and tell users the app is down for about 30 minutes. If you
+have to restore, anything written after the backup is lost. Keep users out
+until step 6 passes or the undo is done. The pg_cron sweeps only write
+notifications, so you can leave them running.
+
+Take a backup first. The free plan has no point-in-time restore. The third file saves the
+migration history, which the first two do not include.
 
 ```powershell
 supabase db dump --linked -f backup-2026-11-22-schema.sql
@@ -63,6 +68,14 @@ supabase db dump --linked -f backup-2026-11-22-schema.sql
 ```powershell
 supabase db dump --linked --data-only -f backup-2026-11-22-data.sql
 ```
+
+```powershell
+supabase db dump --linked --data-only --schema supabase_migrations -f backup-2026-11-22-history.sql
+```
+
+Open the history file and check it lists the 102 old versions. If it is empty,
+run `SELECT version FROM supabase_migrations.schema_migrations ORDER BY 1;` in
+the SQL editor (it only reads) and save the result instead.
 
 ### 1. Check the PR #32 tables are still empty
 
@@ -129,17 +142,62 @@ the files before it stay applied. Fix the cause, then push again.
 
 ### Undo
 
-- Before step 5, use the inverse `repair` commands: mark `20261121000001`–`08` as
-  `reverted` and the old 102 versions as `applied`.
-- After step 5, the backups restore the schema and data but **not** the
-  migration history: `supabase_migrations` is not in them. After restoring, put the
-  history back by hand, or the next push skips files:
-  1. Mark every new version `reverted`. That is `20261121000001`–`15`, plus
-     `20261122000001`–`05`, plus any file pushed later:
-     `supabase migration repair --linked --status reverted <versions>`.
-  2. Mark the old 102 versions from step 2 `applied`:
-     `supabase migration repair --linked --status applied <the step 2 list>`.
-  3. `supabase migration list --linked` must show only the old 102 versions as applied on the remote.
+`repair --status applied` reads each version's file from `supabase/migrations`
+(CLI v2). The old 102 files are in `supabase/migrations_archive/2026-11-21`, so copy
+them in for the repair, then take them out again:
+
+```powershell
+Copy-Item supabase/migrations_archive/2026-11-21/*.sql supabase/migrations/
+```
+
+Run the repair commands for your case (below). Then remove the copies:
+
+```powershell
+Get-ChildItem supabase/migrations_archive/2026-11-21/*.sql | ForEach-Object { Remove-Item (Join-Path supabase/migrations $_.Name) }
+```
+
+```powershell
+git status supabase/migrations
+```
+
+`git status` must show nothing changed.
+
+**Before step 5** (nothing pushed yet): the schema is untouched, so only the history needs undoing.
+
+1. `supabase migration repair --linked --status reverted 20261121000001 20261121000002 20261121000003 20261121000004 20261121000005 20261121000006 20261121000007 20261121000008`
+2. `supabase migration repair --linked --status applied <the step 2 list>`
+3. `supabase migration list --linked` must show only the old 102 versions on the remote.
+
+**After step 5, if a file failed:** fix forward. The failed file rolled back.
+The files before it are applied, and `liveSwitch.db.test.ts` shows they leave
+the right schema. Fix the cause in a new commit, then run `supabase db push --linked` again.
+
+**After step 5, back to the old state (last resort).** This needs `psql` and the
+database connection string (Dashboard → Connect). Try it on a new project or a
+Supabase branch first; it has not been run on live.
+
+1. Keep users out.
+2. Empty the app schema and load the old schema and data:
+
+   ```powershell
+   psql "<connection string>" -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public; GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;"
+   ```
+
+   ```powershell
+   psql "<connection string>" -f backup-2026-11-22-schema.sql
+   ```
+
+   ```powershell
+   psql "<connection string>" -f backup-2026-11-22-data.sql
+   ```
+
+3. Remove the new scheduled job: `SELECT cron.unschedule('amc-expiry-sweep');`
+4. Put the history back. Mark every new version `reverted`: `20261121000001`–`15`,
+   `20261122000001`–`05`, and any file pushed later. Then mark the old 102 versions
+   `applied`, with the copy step above. You can also load `backup-2026-11-22-history.sql` after
+   `TRUNCATE supabase_migrations.schema_migrations;`.
+5. `supabase migration list --linked` must show only the old 102 versions on the remote.
+6. Ask Claude to compare live with the backup. Read only.
 
 ## Not fixed by the switch (follow-ups)
 
