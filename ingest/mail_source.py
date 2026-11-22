@@ -36,7 +36,10 @@ class Mailbox:
         if status != "OK":
             return
         for uid in data[0].split():
-            status, msg_data = self._conn.fetch(uid, "(RFC822)")
+            # BODY.PEEK[] fetches RFC822 bytes without implicitly setting \Seen
+            # on the IMAP server; mark_seen() acknowledges only after every
+            # attachment has landed cleanly in Storage/DB.
+            status, msg_data = self._conn.fetch(uid, "(BODY.PEEK[])")
             if status != "OK" or not msg_data or not msg_data[0]:
                 continue
             msg = email.message_from_bytes(msg_data[0][1])
@@ -48,7 +51,7 @@ class Mailbox:
                     continue
                 filename = part.get_filename()
                 content = part.get_payload(decode=True)
-                if filename and content:
+                if filename and content is not None:
                     attachments.append(MailAttachment(filename, content))
 
             yield MailMessage(uid=uid, sender_email=sender, attachments=attachments)

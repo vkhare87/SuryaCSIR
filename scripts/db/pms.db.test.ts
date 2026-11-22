@@ -71,10 +71,14 @@ beforeAll(async () => {
 afterAll(async () => { await db?.close(); });
 
 describe('SQL RLS suites', () => {
-  for (const file of ['rls_negative.sql', 'rls_positive.sql']) {
-    it(`runs supabase/tests/${file} green`, async () => {
+  for (const file of ['rls_negative.sql', 'rls_positive.sql', 'rls_feature_grants.sql', 'rls_awp.sql']) {
+    it(`runs supabase/tests/${file} green against baseline + seed`, async () => {
       const fresh = await migratedDb();
-      try { await expect(fresh.exec(sqlFile(`supabase/tests/${file}`))).resolves.toBeDefined(); }
+      try {
+        await fresh.exec(sqlFile('supabase/seed/01_helpdesk_routing.sql'));
+        await fresh.exec(sqlFile('supabase/seed/02_appraisal_cycle.sql'));
+        await expect(fresh.exec(sqlFile(`supabase/tests/${file}`))).resolves.toBeDefined();
+      }
       finally { await fresh.close(); }
     }, 180000);
   }

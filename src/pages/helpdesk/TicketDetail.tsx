@@ -273,7 +273,7 @@ export default function TicketDetail() {
   return (
     <div className="space-y-6">
       {/* --- 1. Back Navigation + Header --- */}
-      <div className="card-contrast border rounded-xl p-5 space-y-4">
+      <div className="space-y-4">
         <button
           onClick={goBack}
           aria-label="Back"
@@ -284,7 +284,7 @@ export default function TicketDetail() {
         </button>
 
         <div className="space-y-2">
-          <h1 className="page-title">{ticket.token}</h1>
+          <h1 className="text-xl font-[500] text-text font-mono">{ticket.token}</h1>
           <h2 className="text-lg font-[500] text-text font-serif">{ticket.subject}</h2>
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium uppercase tracking-wide ${urgencyInfo.bg} ${urgencyInfo.text}`}>
@@ -323,8 +323,8 @@ export default function TicketDetail() {
       {/* --- 3. Response Thread --- */}
 
       {/* Original Ticket */}
-      <Card className="border-l-2 border-terracotta space-y-3">
-        <p className="text-xs font-semibold text-terracotta uppercase tracking-wider">Original Ticket</p>
+      <Card className="border-l-2 border-[#c96442] space-y-3">
+        <p className="text-xs font-semibold text-[#c96442] uppercase tracking-wider">Original Ticket</p>
         <p className="text-sm text-text whitespace-pre-wrap">{ticket.description}</p>
         <div className="flex items-center gap-2 text-xs text-text-muted">
           <span className="font-medium text-text">{getAuthorName(ticket.submitted_by, staff)}</span>
@@ -362,7 +362,7 @@ export default function TicketDetail() {
 
       {/* Error display */}
       {error && (
-        <div role="alert" className="bg-[#f5e8e8] border border-[#e8c8c8] text-danger px-4 py-3 rounded-lg text-sm">
+        <div role="alert" className="bg-[#f5e8e8] border border-[#e8c8c8] text-[#b53333] px-4 py-3 rounded-lg text-sm">
           {error}
         </div>
       )}
@@ -391,7 +391,7 @@ export default function TicketDetail() {
                 onChange={e => setReplyText(e.target.value)}
                 rows={3}
                 placeholder="Type your response..."
-                className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-focus-blue outline-none resize-y"
+                className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-[#3898ec] outline-none resize-y"
               />
               <div className="flex items-center justify-end gap-2 mt-3">
                 <Button variant="ghost" size="sm" onClick={() => setReplyExpanded(false)}>

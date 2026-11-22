@@ -74,7 +74,7 @@ export default function AccessRequests() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="page-title">Access &amp; Roles</h1>
+        <h1 className="text-2xl font-[500] text-text font-serif">Access &amp; Roles</h1>
         <p className="text-text-muted mt-1">Grant access to new users and manage existing role assignments</p>
       </div>
 
@@ -149,7 +149,7 @@ export default function AccessRequests() {
                     {divisions.map((dv) => <option key={dv.divCode} value={dv.divCode}>{dv.divCode} - {dv.divName}</option>)}
                   </select>
                   <button onClick={() => approve(req)}
-                    className="px-4 py-2 bg-terracotta text-white rounded-lg text-sm font-medium hover:bg-terracotta-hover transition-colors">
+                    className="px-4 py-2 bg-[#c96442] text-white rounded-lg text-sm font-medium hover:bg-[#b5593b] transition-colors">
                     Approve &amp; grant
                   </button>
                   <button onClick={() => reject(req)}

@@ -189,7 +189,7 @@ export default function StaffAnalytics() {
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="page-title">Staff Analytics</h1>
+          <h1 className="text-2xl font-[500] text-text font-serif">Staff Analytics</h1>
           <p className="text-text-muted mt-1 text-sm">Institute-wide workforce overview</p>
         </div>
         <Link
@@ -254,7 +254,7 @@ export default function StaffAnalytics() {
             className="lg:col-span-2"
           >
             <div className="overflow-x-auto">
-            <table className="ledger w-full text-sm">
+            <table className="w-full text-sm">
               <thead className="text-left text-text-muted">
                 <tr>
                   <th className="p-2 font-medium">Name</th>

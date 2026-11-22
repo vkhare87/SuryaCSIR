@@ -28,7 +28,6 @@ const DOC_LABELS: Record<ProposalDocType, string> = {
   sanction_order: 'Sanction order',
 };
 import { friendlyError } from '../../lib/errors';
-import { Section } from '../../components/ui/Section';
 
 export default function ProposalDetail() {
   const { id } = useParams<{ id: string }>();
@@ -84,10 +83,10 @@ export default function ProposalDetail() {
 
   return (
     <div className="max-w-5xl mx-auto p-6 space-y-6">
-      <div className="card-contrast border rounded-xl p-5 flex items-start justify-between">
+      <div className="flex items-start justify-between">
         <div>
           <p className="text-xs text-text-muted">{proposal.proposalCode}</p>
-          <h1 className="page-title">{proposal.title}</h1>
+          <h1 className="text-2xl font-semibold text-text">{proposal.title}</h1>
           {proposal.acronym && <p className="text-text-muted text-sm">({proposal.acronym})</p>}
           {proposal.parentProjectId && (
             <p className="text-sm text-text-muted">
@@ -112,7 +111,8 @@ export default function ProposalDetail() {
         </div>
       </div>
 
-      <Section id="proposaldetail-summary" title="Summary" className="p-4">
+      <Card className="p-4">
+        <h2 className="text-sm font-medium text-text mb-3">Summary</h2>
         <dl className="grid grid-cols-2 gap-3 text-sm">
           <Row label="PI" value={proposal.piName} />
           <Row label="Division" value={proposal.divisionCode} />
@@ -126,14 +126,14 @@ export default function ProposalDetail() {
           <Row label="Requested Budget" value={rupees(proposal.requestedBudget)} />
           <Row label="TRL" value={`${proposal.currentTrl ?? '-'} → ${proposal.targetTrl ?? '-'}`} />
         </dl>
-      </Section>
+      </Card>
 
       {user && <ReviewPanel proposal={proposal} user={user} onChanged={reload} />}
 
       {changes.length > 0 && (
         <Card className="p-4 space-y-2">
           <h2 className="text-sm font-medium text-text">Changed since the last submission</h2>
-          <table className="ledger w-full text-sm">
+          <table className="w-full text-sm">
             <tbody>
               {changes.map(c => (
                 <tr key={c.label} className="border-t border-border align-top">
@@ -171,7 +171,7 @@ export default function ProposalDetail() {
           <p className="text-sm text-text-muted">No comparable past projects found.</p>
         ) : (
           <div className="overflow-x-auto">
-          <table className="ledger w-full text-sm">
+          <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-xs uppercase tracking-wide text-text-muted">
                 <th className="py-1 pr-2">Project</th>
@@ -210,7 +210,7 @@ export default function ProposalDetail() {
             </p>
           </div>
           <div className="overflow-x-auto">
-          <table className="ledger w-full text-sm">
+          <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-xs uppercase tracking-wide text-text-muted">
                 <th className="py-1 pr-2">Project</th>
@@ -237,14 +237,16 @@ export default function ProposalDetail() {
       )}
 
       {proposal.coPIs && proposal.coPIs.length > 0 && (
-        <Section id="proposaldetail-co-pis" title="Co-PIs" className="p-4">
+        <Card className="p-4">
+          <h2 className="text-sm font-medium text-text mb-3">Co-PIs</h2>
           <ul className="text-sm space-y-1">
             {proposal.coPIs.map((c) => <li key={c.staffId}>{c.staffName}</li>)}
           </ul>
-        </Section>
+        </Card>
       )}
 
-      <Section id="proposaldetail-documents" title="Documents" className="p-4">
+      <Card className="p-4">
+        <h2 className="text-sm font-medium text-text mb-3">Documents</h2>
         <ul className="text-sm space-y-1">
           {(proposal.documents ?? []).map((d) => (
             <li key={d.id} className="flex items-center justify-between">
@@ -261,9 +263,10 @@ export default function ProposalDetail() {
             <li className="text-text-muted">No documents uploaded.</li>
           )}
         </ul>
-      </Section>
+      </Card>
 
-      <Section id="proposaldetail-status-history" title="Status History" className="p-4">
+      <Card className="p-4">
+        <h2 className="text-sm font-medium text-text mb-3">Status History</h2>
         <ol className="text-sm space-y-2">
           {(proposal.history ?? []).map((h) => (
             <li key={h.id} className="flex items-start gap-3">
@@ -282,7 +285,7 @@ export default function ProposalDetail() {
             <li className="text-text-muted">No status changes yet.</li>
           )}
         </ol>
-      </Section>
+      </Card>
 
     </div>
   );

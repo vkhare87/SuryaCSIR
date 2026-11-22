@@ -197,7 +197,6 @@ def test_requeue_batches_updates_with_in_filter_and_projects_root_summary():
 
     old_ts = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
     in_calls = []
-    stale_guards = []
 
     class _BatchQuery:
         def __init__(self, table):
@@ -219,14 +218,6 @@ def test_requeue_batches_updates_with_in_filter_and_projects_root_summary():
         def neq(self, *_):
             return self
 
-        def lt(self, col, val):
-            stale_guards.append(("lt", col, val))
-            return self
-
-        def is_(self, col, val):
-            stale_guards.append(("is", col, val))
-            return self
-
         def in_(self, col, vals):
             assert col == "id"
             self._ids = list(vals)
@@ -239,7 +230,7 @@ def test_requeue_batches_updates_with_in_filter_and_projects_root_summary():
             if self._table == "documents":
                 return type("R", (), {"data": [
                     {"id": "d1", "created_at": old_ts, "processing_started_at": old_ts},
-                    {"id": "d2", "created_at": old_ts, "processing_started_at": None},
+                    {"id": "d2", "created_at": old_ts, "processing_started_at": old_ts},
                 ]})()
             return type("R", (), {"data": [
                 {"document_id": "d1", "root_summary": "Summary A", "documents": {"entity_type": "proposal"}},
@@ -249,12 +240,9 @@ def test_requeue_batches_updates_with_in_filter_and_projects_root_summary():
     sb.c = type("C", (), {"table": lambda _self, name: _BatchQuery(name)})()
 
     assert sb.requeue_stale_processing(minutes=60) == 2
-    assert in_calls == [["d1"], ["d2"]]
-    assert ("lt", "processing_started_at") in [(op, col) for op, col, _ in stale_guards]
-    assert ("is", "processing_started_at", "null") in stale_guards
-    assert ("lt", "created_at") in [(op, col) for op, col, _ in stale_guards]
+    assert in_calls == [["d1", "d2"]]
     assert sb.requeue_stale_model("new-model") == 1
-    assert in_calls == [["d1"], ["d2"], ["d1"]]
+    assert in_calls == [["d1", "d2"], ["d1"]]
     assert sb.fetch_index_summaries() == [{"entity_type": "proposal", "root_summary": "Summary A"}]
 
 

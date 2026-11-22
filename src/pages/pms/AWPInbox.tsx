@@ -71,7 +71,7 @@ export default function AWPInbox() {
 
   return (
     <div className="space-y-6">
-      <h1 className="page-title">Annual Work Plan Inbox</h1>
+      <h1 className="text-2xl font-serif font-medium text-text">Annual Work Plan Inbox</h1>
 
       {queue.length === 0 && pendingRevisions.length === 0 && (
         <p className="text-sm text-text-muted">Nothing is waiting for you.</p>

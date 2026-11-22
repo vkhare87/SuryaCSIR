@@ -1,17 +1,28 @@
-import React, { useState } from 'react';
+import React, { lazy, Suspense, useState } from 'react';
 import { MapPin, Tags, Database, Inbox, FileText } from 'lucide-react';
 import clsx from 'clsx';
 import { Card } from '../components/ui/Cards';
 import { DataFreshnessLedger } from '../components/DataFreshnessLedger';
-import { DatabaseBuilderPanel } from '../components/DatabaseBuilderPanel';
-import { EntityRecordsPanel } from '../components/EntityRecordsPanel';
 import { DocumentPanel } from '../components/ui/DocumentPanel';
-import { HarvestedImportsPanel } from '../components/HarvestedImportsPanel';
 import { supabase } from '../utils/supabaseClient';
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
-import { FILE_TYPE_LABELS, type FileType } from '../utils/dataMigration';
+import { FILE_TYPE_LABELS, type FileType } from '../utils/fileTypes';
 import type { DivisionInfo, ProjectStaff, PhDStudent, ContractStaff } from '../types';
+
+const DatabaseBuilderPanel = lazy(() =>
+  import('../components/DatabaseBuilderPanel').then((m) => ({ default: m.DatabaseBuilderPanel })),
+);
+const EntityRecordsPanel = lazy(() =>
+  import('../components/EntityRecordsPanel').then((m) => ({ default: m.EntityRecordsPanel })),
+);
+const HarvestedImportsPanel = lazy(() =>
+  import('../components/HarvestedImportsPanel').then((m) => ({ default: m.HarvestedImportsPanel })),
+);
+
+function PanelFallback() {
+  return <div className="p-8 text-center text-sm text-text-muted">Loading panel…</div>;
+}
 
 // ---------------------------------------------------------------------------
 // StaffMappingPanel
@@ -86,16 +97,16 @@ function StaffMappingPanel({ divisions, staff, projectStaff, phDStudents, contra
         {SUB_TABS.map(({ key, label, count }) => (
           <button key={key} onClick={() => setSubTab(key)}
             className={clsx('px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2',
-              subTab === key ? 'bg-terracotta text-white' : 'bg-surface-hover text-text-muted hover:text-text')}>
+              subTab === key ? 'bg-terracotta text-ivory' : 'bg-surface-hover text-text-muted hover:text-text')}>
             {label}
             {count > 0 && <span className={clsx('w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center',
-              subTab === key ? 'bg-white/30 text-white' : 'bg-amber-500 text-white')}>{count > 9 ? '9+' : count}</span>}
+              subTab === key ? 'bg-ivory/30 text-ivory' : 'bg-turmeric text-ivory')}>{count > 9 ? '9+' : count}</span>}
           </button>
         ))}
       </div>
 
       {subTab === 'projectStaff' && (
-        <Card><div className="overflow-x-auto rounded-xl border border-border"><table className="ledger w-full text-sm">
+        <Card><div className="overflow-x-auto rounded-xl border border-border"><table className="w-full text-sm">
           <thead><tr className="bg-surface-hover border-b border-border text-left">
             {['Name','Designation','Project','PI','Division',''].map(h => <th key={h} className="px-4 py-3 font-medium text-text-muted">{h}</th>)}
           </tr></thead>
@@ -107,8 +118,8 @@ function StaffMappingPanel({ divisions, staff, projectStaff, phDStudents, contra
                 <td className="px-4 py-3 text-text-muted">{ps.ProjectNo}</td>
                 <td className="px-4 py-3 text-text-muted">{ps.PIName || '—'}</td>
                 <td className="px-4 py-3">{ps.DivisionCode
-                  ? <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">{ps.DivisionCode}</span>
-                  : <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">Untagged</span>}</td>
+                  ? <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-archive-green/10 text-archive-green border border-archive-green/30">{ps.DivisionCode}</span>
+                  : <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-badge-warning-bg text-badge-warning-fg border border-turmeric/40">Untagged</span>}</td>
                 <td className="px-4 py-3"><button onClick={() => expandedId === ps.id ? closeRow() : openRow(ps.id, ps.DivisionCode || '', ps.PIName || '')}
                   className="text-xs font-medium text-terracotta hover:underline">{expandedId === ps.id ? 'Cancel' : 'Edit'}</button></td>
               </tr>
@@ -117,7 +128,7 @@ function StaffMappingPanel({ divisions, staff, projectStaff, phDStudents, contra
                   <div className="flex-1 min-w-[200px] space-y-1"><label className="text-[10px] font-semibold text-text-muted uppercase tracking-widest">Division</label>{divSelect(draftDivision, setDraftDivision)}</div>
                   <div className="flex-1 min-w-[200px] space-y-1"><label className="text-[10px] font-semibold text-text-muted uppercase tracking-widest">PI Name</label>{staffSelect(draftAttached, setDraftAttached)}</div>
                   <button onClick={() => saveProjectStaff(ps.id)} disabled={savingId === ps.id}
-                    className="px-5 py-2.5 bg-terracotta hover:bg-terracotta-hover text-white text-sm font-semibold rounded-lg disabled:opacity-50 transition-colors">{savingId === ps.id ? 'Saving...' : 'Save'}</button>
+                    className="px-5 py-2.5 bg-terracotta hover:bg-terracotta-hover text-ivory text-sm font-semibold rounded-lg disabled:opacity-50 transition-colors">{savingId === ps.id ? 'Saving...' : 'Save'}</button>
                 </div>
               </td></tr>}
             </React.Fragment>
@@ -126,7 +137,7 @@ function StaffMappingPanel({ divisions, staff, projectStaff, phDStudents, contra
       )}
 
       {subTab === 'phd' && (
-        <Card><div className="overflow-x-auto rounded-xl border border-border"><table className="ledger w-full text-sm">
+        <Card><div className="overflow-x-auto rounded-xl border border-border"><table className="w-full text-sm">
           <thead><tr className="bg-surface-hover border-b border-border text-left">
             {['Student','Specialization','Supervisor','Division',''].map(h => <th key={h} className="px-4 py-3 font-medium text-text-muted">{h}</th>)}
           </tr></thead>
@@ -137,8 +148,8 @@ function StaffMappingPanel({ divisions, staff, projectStaff, phDStudents, contra
                 <td className="px-4 py-3 text-text-muted">{phd.Specialization}</td>
                 <td className="px-4 py-3 text-text-muted">{phd.SupervisorName || '—'}</td>
                 <td className="px-4 py-3">{phd.DivisionCode
-                  ? <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">{phd.DivisionCode}</span>
-                  : <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">Untagged</span>}</td>
+                  ? <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-archive-green/10 text-archive-green border border-archive-green/30">{phd.DivisionCode}</span>
+                  : <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-badge-warning-bg text-badge-warning-fg border border-turmeric/40">Untagged</span>}</td>
                 <td className="px-4 py-3"><button onClick={() => expandedId === phd.EnrollmentNo ? closeRow() : openRow(phd.EnrollmentNo, phd.DivisionCode || '', phd.SupervisorName || '')}
                   className="text-xs font-medium text-terracotta hover:underline">{expandedId === phd.EnrollmentNo ? 'Cancel' : 'Edit'}</button></td>
               </tr>
@@ -147,7 +158,7 @@ function StaffMappingPanel({ divisions, staff, projectStaff, phDStudents, contra
                   <div className="flex-1 min-w-[200px] space-y-1"><label className="text-[10px] font-semibold text-text-muted uppercase tracking-widest">Division</label>{divSelect(draftDivision, setDraftDivision)}</div>
                   <div className="flex-1 min-w-[200px] space-y-1"><label className="text-[10px] font-semibold text-text-muted uppercase tracking-widest">Supervisor</label>{staffSelect(draftAttached, setDraftAttached)}</div>
                   <button onClick={() => savePhD(phd.EnrollmentNo)} disabled={savingId === phd.EnrollmentNo}
-                    className="px-5 py-2.5 bg-terracotta hover:bg-terracotta-hover text-white text-sm font-semibold rounded-lg disabled:opacity-50 transition-colors">{savingId === phd.EnrollmentNo ? 'Saving...' : 'Save'}</button>
+                    className="px-5 py-2.5 bg-terracotta hover:bg-terracotta-hover text-ivory text-sm font-semibold rounded-lg disabled:opacity-50 transition-colors">{savingId === phd.EnrollmentNo ? 'Saving...' : 'Save'}</button>
                 </div>
               </td></tr>}
             </React.Fragment>
@@ -156,7 +167,7 @@ function StaffMappingPanel({ divisions, staff, projectStaff, phDStudents, contra
       )}
 
       {subTab === 'contract' && (
-        <Card><div className="overflow-x-auto rounded-xl border border-border"><table className="ledger w-full text-sm">
+        <Card><div className="overflow-x-auto rounded-xl border border-border"><table className="w-full text-sm">
           <thead><tr className="bg-surface-hover border-b border-border text-left">
             {['Name','Designation','Lab Code','Attached To','Division',''].map(h => <th key={h} className="px-4 py-3 font-medium text-text-muted">{h}</th>)}
           </tr></thead>
@@ -169,8 +180,8 @@ function StaffMappingPanel({ divisions, staff, projectStaff, phDStudents, contra
                   <td className="px-4 py-3 text-text-muted">{cs.LabCode}</td>
                   <td className="px-4 py-3 text-text-muted">{cs.AttachedToStaffID || '—'}</td>
                   <td className="px-4 py-3">{cs.Division
-                    ? <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">{cs.Division}</span>
-                    : <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">Untagged</span>}</td>
+                    ? <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-archive-green/10 text-archive-green border border-archive-green/30">{cs.Division}</span>
+                    : <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-badge-warning-bg text-badge-warning-fg border border-turmeric/40">Untagged</span>}</td>
                   <td className="px-4 py-3"><button onClick={() => expandedId === cs.id ? closeRow() : openRow(cs.id, cs.Division || '', cs.AttachedToStaffID || '')}
                     className="text-xs font-medium text-terracotta hover:underline">{expandedId === cs.id ? 'Cancel' : 'Edit'}</button></td>
                 </tr>
@@ -179,7 +190,7 @@ function StaffMappingPanel({ divisions, staff, projectStaff, phDStudents, contra
                     <div className="flex-1 min-w-[200px] space-y-1"><label className="text-[10px] font-semibold text-text-muted uppercase tracking-widest">Division</label>{divSelect(draftDivision, setDraftDivision)}</div>
                     <div className="flex-1 min-w-[200px] space-y-1"><label className="text-[10px] font-semibold text-text-muted uppercase tracking-widest">Attached To (Staff)</label>{staffSelect(draftAttached, setDraftAttached, true)}</div>
                     <button onClick={() => saveContract(cs.id)} disabled={savingId === cs.id}
-                      className="px-5 py-2.5 bg-terracotta hover:bg-terracotta-hover text-white text-sm font-semibold rounded-lg disabled:opacity-50 transition-colors">{savingId === cs.id ? 'Saving...' : 'Save'}</button>
+                      className="px-5 py-2.5 bg-terracotta hover:bg-terracotta-hover text-ivory text-sm font-semibold rounded-lg disabled:opacity-50 transition-colors">{savingId === cs.id ? 'Saving...' : 'Save'}</button>
                   </div>
                 </td></tr>}
               </React.Fragment>
@@ -212,7 +223,7 @@ export default function DataManagement() {
     <div className="space-y-6 max-w-6xl mx-auto">
       {/* Page heading */}
       <div>
-        <h1 className="page-title">Data Management</h1>
+        <h1 className="text-2xl font-[500] text-text font-serif">Data Management</h1>
         <p className="text-text-muted mt-1">Import data and manage division assignments</p>
       </div>
 
@@ -220,14 +231,14 @@ export default function DataManagement() {
 
       {/* Untagged banner */}
       {totalUntagged > 0 && (
-        <div className="flex items-center gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-sm cursor-pointer hover:bg-amber-100 transition-colors"
+        <div className="flex items-center gap-3 px-4 py-3 bg-badge-warning-bg border border-turmeric/40 rounded-xl text-sm cursor-pointer hover:bg-badge-warning-bg/80 transition-colors"
           onClick={() => setActiveTab('mapping')}>
-          <Tags size={16} className="text-amber-600 shrink-0" />
-          <span className="text-amber-800 font-medium">
+          <Tags size={16} className="text-turmeric shrink-0" />
+          <span className="text-badge-warning-fg font-medium">
             {totalUntagged} record{totalUntagged !== 1 ? 's' : ''} have no division assigned
             ({untaggedProjectStaff} project staff, {untaggedPhD} PhD students, {untaggedContract} contract staff).
           </span>
-          <span className="ml-auto text-amber-600 font-semibold text-xs uppercase tracking-wide">Fix →</span>
+          <span className="ml-auto text-turmeric font-semibold text-xs uppercase tracking-wide">Fix →</span>
         </div>
       )}
 
@@ -244,7 +255,7 @@ export default function DataManagement() {
           <MapPin size={14} />
           Staff Mapping
           {totalUntagged > 0 && (
-            <span className="w-5 h-5 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center">
+            <span className="w-5 h-5 rounded-full bg-turmeric text-ivory text-[10px] font-bold flex items-center justify-center">
               {totalUntagged > 9 ? '9+' : totalUntagged}
             </span>
           )}
@@ -274,7 +285,11 @@ export default function DataManagement() {
           phDStudents={phDStudents} contractStaff={contractStaff} onSaved={refreshData} />
       )}
 
-      {activeTab === 'build' && <DatabaseBuilderPanel />}
+      {activeTab === 'build' && (
+        <Suspense fallback={<PanelFallback />}>
+          <DatabaseBuilderPanel />
+        </Suspense>
+      )}
 
       {activeTab === 'records' && (
         <div className="space-y-4">
@@ -287,7 +302,7 @@ export default function DataManagement() {
                 className={clsx(
                   'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
                   activeEntityType === ft
-                    ? 'bg-terracotta text-white'
+                    ? 'bg-terracotta text-ivory'
                     : 'bg-surface-hover text-text-muted hover:text-text',
                 )}
               >
@@ -295,12 +310,16 @@ export default function DataManagement() {
               </button>
             ))}
           </div>
-          <EntityRecordsPanel key={activeEntityType} type={activeEntityType} />
+          <Suspense fallback={<PanelFallback />}>
+            <EntityRecordsPanel key={activeEntityType} type={activeEntityType} />
+          </Suspense>
         </div>
       )}
 
       {activeTab === 'harvested' && (
-        <HarvestedImportsPanel onImported={refreshData} />
+        <Suspense fallback={<PanelFallback />}>
+          <HarvestedImportsPanel onImported={refreshData} />
+        </Suspense>
       )}
 
       {activeTab === 'documents' && (

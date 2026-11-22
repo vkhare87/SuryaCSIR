@@ -42,7 +42,7 @@ export default function ReportEdit() {
     <div className="space-y-4">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="sm" onClick={() => navigate('/pms')}>← Back</Button>
-        <h1 className="page-title flex-1">
+        <h1 className="text-2xl font-serif font-medium text-text flex-1">
           {cycle?.name ?? 'Appraisal Report'} — Edit
         </h1>
         {!cycleOpen && (

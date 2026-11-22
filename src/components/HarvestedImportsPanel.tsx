@@ -4,8 +4,7 @@ import clsx from 'clsx';
 import { Card } from './ui/Cards';
 import { Button } from './ui/Button';
 import { ImportFlow } from './ImportFlow';
-import type { FileType } from '../utils/dataMigration';
-import { FILE_TYPE_LABELS } from '../utils/dataMigration';
+import { FILE_TYPE_LABELS, type FileType } from '../utils/fileTypes';
 import {
   listPendingHarvested,
   downloadHarvestedFile,
@@ -156,7 +155,7 @@ export function HarvestedImportsPanel({ onImported }: { onImported: () => void }
                   </Button>
                   <button
                     onClick={() => handleDiscard(row)}
-                    className={clsx('text-xs font-medium text-text-muted hover:text-rose-600 dark:hover:text-rose-400')}
+                    className={clsx('text-xs font-medium text-text-muted hover:text-danger')}
                   >
                     Discard
                   </button>

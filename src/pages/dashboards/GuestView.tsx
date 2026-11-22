@@ -2,7 +2,6 @@ import { Building2, Users, Briefcase, Microscope } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
 import { KpiCard } from '../../components/ui/KpiCard';
 import { Card } from '../../components/ui/Cards';
-import { Stagger } from '../../components/ui/Stagger';
 import { isActiveProject } from '../../lib/projects/stage';
 
 export function GuestView() {
@@ -12,12 +11,12 @@ export function GuestView() {
   const activeProjects = projects.filter(isActiveProject).length;
 
   return (
-    <Stagger className="space-y-8 pb-12">
-      <div className="card-contrast border rounded-xl p-5">
-        <h1 className="page-title">
+    <div className="space-y-8 pb-12">
+      <div>
+        <h1 className="text-3xl font-[500] text-[#141413] uppercase tracking-tight font-serif">
           CSIR-AMPRI Overview
         </h1>
-        <p className="text-text-muted mt-1 text-sm font-medium">
+        <p className="text-[#87867f] mt-1 text-sm font-medium">
           Guest view — read-only institute summary
         </p>
       </div>
@@ -30,29 +29,29 @@ export function GuestView() {
       </div>
 
       <Card className="p-0 overflow-hidden">
-        <div className="px-6 py-4 border-b border-border">
-          <h2 className="text-base font-semibold text-text-muted uppercase tracking-wide">Research Divisions</h2>
+        <div className="px-6 py-4 border-b border-[#f0eee6]">
+          <h2 className="text-base font-semibold text-[#4d4c48] uppercase tracking-wide">Research Divisions</h2>
         </div>
         <div className="overflow-x-auto">
-          <table className="ledger w-full text-sm">
+          <table className="w-full text-sm">
             <thead>
-              <tr className="bg-background">
-                <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-text-muted">Division</th>
-                <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-text-muted">Research Areas</th>
-                <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-text-muted">Status</th>
+              <tr className="bg-[#f5f4ed]">
+                <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-[#87867f]">Division</th>
+                <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-[#87867f]">Research Areas</th>
+                <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-[#87867f]">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border-cream">
+            <tbody className="divide-y divide-[#f0eee6]">
               {divisions.map(d => (
-                <tr key={d.divCode} className="hover:bg-background transition-colors">
+                <tr key={d.divCode} className="hover:bg-[#f5f4ed] transition-colors">
                   <td className="px-6 py-3">
-                    <div className="font-medium text-text-muted">{d.divName}</div>
-                    <div className="text-[11px] text-text-muted font-mono">{d.divCode}</div>
+                    <div className="font-medium text-[#4d4c48]">{d.divName}</div>
+                    <div className="text-[11px] text-[#b0aea5] font-mono">{d.divCode}</div>
                   </td>
-                  <td className="px-6 py-3 text-text-muted text-xs max-w-[280px]">{d.divResearchAreas}</td>
+                  <td className="px-6 py-3 text-[#87867f] text-xs max-w-[280px]">{d.divResearchAreas}</td>
                   <td className="px-6 py-3">
                     <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
-                      d.divStatus === 'Active' ? 'bg-[#f0f8f0] text-[#3a7a3a]' : 'bg-background text-text-muted'
+                      d.divStatus === 'Active' ? 'bg-[#f0f8f0] text-[#3a7a3a]' : 'bg-[#f5f4ed] text-[#87867f]'
                     }`}>
                       {d.divStatus}
                     </span>
@@ -63,6 +62,6 @@ export function GuestView() {
           </table>
         </div>
       </Card>
-    </Stagger>
+    </div>
   );
 }

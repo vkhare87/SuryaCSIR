@@ -94,13 +94,10 @@ export function getYearsInGrade(doapp: string | null | undefined): number | null
 
 /**
  * Returns true if the staff member's name matches an author string.
- * A blank name on either side matches nothing: '' is a substring of every
- * name, so an empty supervisor or author would otherwise match everyone.
  */
 export function staffNameMatchesAuthor(staffName: string, author: string): boolean {
   const n = staffName.toLowerCase().trim();
   const a = author.toLowerCase().trim();
-  if (!n || !a) return false;
   return a.includes(n) || n.includes(a);
 }
 

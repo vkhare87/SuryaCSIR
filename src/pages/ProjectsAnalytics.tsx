@@ -149,7 +149,7 @@ export default function ProjectsAnalytics() {
           className="lg:col-span-2"
         >
           <div className="overflow-x-auto">
-            <table className="ledger w-full text-sm">
+            <table className="w-full text-sm">
               <thead className="text-left text-text-muted">
                 <tr>
                   <th className="p-2 font-medium">Project</th>

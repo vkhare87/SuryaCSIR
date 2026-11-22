@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useId, useState } from 'react';
 import clsx from 'clsx';
-import { motion } from 'framer-motion';
 
 interface TabsContextType {
   value: string;
@@ -81,21 +80,16 @@ export function TabsTrigger({ value, className, disabled, children }: TabsTrigge
       disabled={disabled}
       onClick={() => setValue(value)}
       className={clsx(
-        'relative px-4 py-1.5 text-sm font-medium rounded-[8px] transition-colors',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3898ec]',
-        active ? 'text-text' : 'text-text-muted hover:text-text hover:bg-surface-hover',
+        'px-4 py-1.5 text-sm font-medium rounded-[8px] transition-colors',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-blue',
+        active
+          ? 'bg-background text-text shadow-[0px_0px_0px_1px_var(--color-border)]'
+          : 'text-text-muted hover:text-text hover:bg-surface-hover',
         disabled && 'opacity-50 cursor-not-allowed',
         className,
       )}
     >
-      {active && (
-        <motion.span
-          layoutId={`${baseId}-pill`}
-          transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-          className="absolute inset-0 rounded-[8px] bg-background shadow-[0px_0px_0px_1px_var(--color-border)]"
-        />
-      )}
-      <span className="relative">{children}</span>
+      {children}
     </button>
   );
 }

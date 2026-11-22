@@ -124,7 +124,7 @@ export default function ReportView() {
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="sm" onClick={() => navigate('/pms')}>← Back</Button>
-        <h1 className="page-title flex-1">
+        <h1 className="text-2xl font-serif font-medium text-text flex-1">
           {heading}
         </h1>
         <StatusBadge status={report.status} />
@@ -226,7 +226,7 @@ export default function ReportView() {
       {report.awpActivities.length > 0 && (
         <div className="space-y-2">
           <h2 className="font-semibold text-text">Part V — Annual Work Plan</h2>
-          <div className="divide-y divide-border border border-border rounded-xl overflow-hidden bg-surface shadow-[var(--shadow-e1)]">
+          <div className="divide-y divide-border border border-border rounded-2xl overflow-hidden">
             {report.awpActivities.map(a => (
               <div key={a.id} className="px-4 py-3 bg-surface text-sm">
                 <p className="text-text font-medium">{a.natureOfActivity}</p>
@@ -285,7 +285,7 @@ export default function ReportView() {
             value={grounds}
             onChange={e => setGrounds(e.target.value)}
             placeholder="State the grounds for your representation…"
-            className="w-full px-3 py-2 border border-border rounded-xl text-sm bg-background text-text focus:outline-none focus:border-terracotta resize-none"
+            className="w-full px-3 py-2 border border-border rounded-xl text-sm bg-background text-text focus:outline-none focus:border-[#c96442] resize-none"
           />
           {representError && <p className="text-sm text-rose-600">{representError}</p>}
           <div className="flex justify-end gap-2">

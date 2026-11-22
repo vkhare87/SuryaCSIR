@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from 'react';
 import type {
   AppraisalCycle, PMSReport, PMSReportSection, PMSAnnexure,
   PMSEvaluationCommittee, PMSEvaluationCommitteeMember,
@@ -171,16 +171,12 @@ export function PMSProvider({ children }: { children: ReactNode }) {
   const [appNotifications, setAppNotifications] = useState<AppNotification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const loadSeqRef = useRef(0);
 
   const loadData = useCallback(async () => {
-    const seq = ++loadSeqRef.current;
-    const isCurrent = () => seq === loadSeqRef.current;
     setIsLoading(true);
     setError(null);
     try {
       if (!provisioned || !supabase || !userId) {
-        if (!isCurrent()) return;
         setCycles([]);
         setReports([]);
         setCommittees([]);
@@ -192,14 +188,17 @@ export function PMSProvider({ children }: { children: ReactNode }) {
         setAppNotifications([]);
         return;
       }
-      const [cycleRes, reportRes, evalRes, notifRes, appNotifRes] = await Promise.all([
+      const [cycleRes, reportRes, committeeRes, empoweredRes, grievanceRes, evalRes, reprRes, notifRes, appNotifRes] = await Promise.all([
         supabase.from('appraisal_cycles').select('*').order('created_at', { ascending: false }),
         fetchAll(supabase.from('pms_reports').select('*').order('created_at', { ascending: false }).order('id')),
+        supabase.from('pms_evaluation_committees').select('*, pms_evaluation_committee_members(*)').order('created_at', { ascending: false }),
+        supabase.from('pms_empowered_committee_members').select('*'),
+        supabase.from('pms_grievance_members').select('*'),
         fetchAll(supabase.from('pms_evaluations').select('*').order('created_at', { ascending: false }).order('id')),
+        fetchAll(supabase.from('pms_representations').select('*').order('submitted_at', { ascending: false }).order('id')),
         fetchAll(supabase.from('pms_notifications').select('*').eq('user_id', userId).order('created_at', { ascending: false }).order('id')),
         fetchAll(supabase.from('notifications').select('*').eq('user_id', userId).order('created_at', { ascending: false }).order('id')),
       ]);
-      if (!isCurrent()) return;
 
       const nextCycles = cycleRes.data ? cycleRes.data.map(mapCycleRow) : [];
       const cycleById = new Map(nextCycles.map(c => [c.id, c]));
@@ -208,18 +207,6 @@ export function PMSProvider({ children }: { children: ReactNode }) {
         const mapped = mapReportRow(row as Record<string, unknown>);
         return { ...mapped, cycle: cycleById.get(mapped.cycleId) };
       }) : []);
-      setEvaluations(evalRes.data ? evalRes.data.map(r => mapEvaluationRow(r as Record<string, unknown>)) : []);
-      setNotifications(notifRes.data ? notifRes.data.map(r => mapNotificationRow(r as Record<string, unknown>)) : []);
-      setAppNotifications(appNotifRes.data ? appNotifRes.data.map(r => mapAppNotificationRow(r as Record<string, unknown>)) : []);
-
-      const [committeeRes, empoweredRes, grievanceRes, reprRes] = await Promise.all([
-        supabase.from('pms_evaluation_committees').select('*, pms_evaluation_committee_members(*)').order('created_at', { ascending: false }),
-        supabase.from('pms_empowered_committee_members').select('*'),
-        supabase.from('pms_grievance_members').select('*'),
-        fetchAll(supabase.from('pms_representations').select('*').order('submitted_at', { ascending: false }).order('id')),
-      ]);
-      if (!isCurrent()) return;
-
       setCommittees(committeeRes.data ? committeeRes.data.map(row => ({
         ...mapCommitteeRow(row as Record<string, unknown>),
         members: Array.isArray(row.pms_evaluation_committee_members)
@@ -228,12 +215,14 @@ export function PMSProvider({ children }: { children: ReactNode }) {
       })) : []);
       setEmpoweredMembers(empoweredRes.data ? empoweredRes.data.map(r => mapEmpoweredMemberRow(r as Record<string, unknown>)) : []);
       setGrievanceMembers(grievanceRes.data ? grievanceRes.data.map(r => mapGrievanceMemberRow(r as Record<string, unknown>)) : []);
+      setEvaluations(evalRes.data ? evalRes.data.map(r => mapEvaluationRow(r as Record<string, unknown>)) : []);
       setRepresentations(reprRes.data ? reprRes.data.map(r => mapRepresentationRow(r as Record<string, unknown>)) : []);
+      setNotifications(notifRes.data ? notifRes.data.map(r => mapNotificationRow(r as Record<string, unknown>)) : []);
+      setAppNotifications(appNotifRes.data ? appNotifRes.data.map(r => mapAppNotificationRow(r as Record<string, unknown>)) : []);
     } catch (err) {
-      if (!isCurrent()) return;
       setError(friendlyError(err, 'Failed to load PMS data'));
     } finally {
-      if (isCurrent()) setIsLoading(false);
+      setIsLoading(false);
     }
   }, [provisioned, userId, rolesKey]);
 

@@ -308,4 +308,19 @@ describe('sweep', () => {
                       VALUES ('equipment', 5, $1, 'admin@t.local', now())`, [U.admin]);
     expect(await sweep()).toBe(0);
   });
+
+  it('division-scoped stewards only stay fresh when their division was imported', async () => {
+    await db.exec(`INSERT INTO public.divisions ("divCode") VALUES ('CSE'), ('MSE') ON CONFLICT DO NOTHING`);
+    await as(db, U.admin, tx => rpc(tx, 'data_steward_set', ['phd', 'CSE', U.hod, 'steward', 30]));
+    await as(db, U.admin, tx => rpc(tx, 'data_steward_set', ['phd', 'MSE', U.steward, 'steward', 30]));
+    // Only CSE receives a fresh import event
+    await su().query(`INSERT INTO import_events (file_type, row_count, division_code, uploaded_by, uploaded_by_email, uploaded_at)
+                      VALUES ('phd', 3, 'CSE', $1, 'admin@t.local', now())`, [U.admin]);
+    const n = (await one(su(), `SELECT contribution_requests_sweep() AS n`)).n;
+    expect(n).toBe(1);
+    const created = await su().query<{ division_code: string }>(
+      `SELECT division_code FROM contribution_requests WHERE requested_by IS NULL AND domain = 'phd' AND status = 'open'`,
+    );
+    expect(created.rows).toEqual([{ division_code: 'MSE' }]);
+  });
 });

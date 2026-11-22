@@ -1,306 +1,542 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import clsx from 'clsx';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import {
+  ArrowRight, Building2, CheckCircle2, FolderKanban, Microscope, Search, Users,
+} from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
 import { useHome } from '../../contexts/HomeContext';
-import { Card, Badge } from '../../components/ui/Cards';
-import { Section } from '../../components/ui/Section';
-import { EntityLink } from '../../components/EntityLink';
-import { Stagger } from '../../components/ui/Stagger';
-import { CategoryBar } from '../../components/viz/CategoryBar';
+import { supabase } from '../../utils/supabaseClient';
+import { Card } from '../../components/ui/Cards';
+import { DoFirstStrip } from '../../components/home/common/DoFirstStrip';
+import { DivisionUpwardReportCard } from '../../components/home/stage5/Stage5Cards';
+import { divisionGreeting, needsAttention } from '../../lib/home/division';
+import { runDecisionPrecheck } from '../../lib/home/prechecks';
 import {
-  AskBox, BLOCK_TITLE, DecisionQueue, HomeGreeting, NotConnected, ROW, TITLE_LINK, WaitingOnYou, dueText,
-} from '../../components/home/parts';
-import { DoFirst, PinButton, PrioritiesAsked } from '../../components/home/Priorities';
-import { HeadPowers } from '../../components/home/Delegation';
-import { ProjectFinanceSection } from '../../components/dashboard/ProjectFinanceSection';
-import { ResearchSection } from '../../components/dashboard/ResearchSection';
-import { EquipmentOpsSection } from '../../components/dashboard/EquipmentOpsSection';
+  decisionAsk,
+  priorityAnswer,
+  priorityPin,
+  priorityWithdraw,
+} from '../../lib/home/stage3Api';
 import { ScientistView } from './ScientistView';
-import { greeting, waitingLine } from '../../lib/home/greeting';
-import { decisionQueue, isDecision } from '../../lib/home/decisions';
-import { precheck } from '../../lib/home/prechecks';
-import { useProjectReports } from '../../contexts/ProjectReportsContext';
-import { deskKey } from '../../lib/home/desk';
-import { milestonesFor } from '../../lib/home/api';
-import type { HomeMilestone } from '../../lib/home/api';
-import { projectsByException } from '../../lib/home/division';
-import { isActiveProject } from '../../lib/projects/stage';
-import { loadWorkload } from '../../lib/people/api';
-import type { WorkloadRow } from '../../lib/people/api';
-import { useDivisionStrength } from '../../lib/people/useDivisionStrength';
-import { yearsUntilRetirement } from '../../lib/staff/retirement';
-import { DEFAULT_THRESHOLDS, getEquipmentFlags } from '../../utils/directorMetrics';
-import { parseDate, diffInDays } from '../../utils/dateUtils';
 
-type HeadView = 'division' | 'own';
-const VIEW_KEY = 'surya_home_head_view';
-const MAX_ROWS = 5;
-const CONTRACT_HORIZON_DAYS = 60;
-
-function Bar({ label, pct, tone }: { label: string; pct: number | null; tone: 'time' | 'money' }) {
-  return (
-    <div className="flex items-center gap-2 text-xs text-text-muted">
-      <span className="w-12 shrink-0">{label}</span>
-      <div className="flex-1 h-1.5 rounded-full bg-surface-hover overflow-hidden" aria-hidden="true">
-        {pct !== null && <div className={clsx('h-full rounded-full', tone === 'time' ? 'bg-text-muted' : 'bg-archive-green')} style={{ width: `${pct}%` }} />}
-      </div>
-      <span className="font-mono w-10 text-right">{pct === null ? '—' : `${pct}%`}</span>
-    </div>
-  );
-}
-
-function ViewSwitch({ view, onChange }: { view: HeadView; onChange: (v: HeadView) => void }) {
-  const option = (v: HeadView, text: string) => (
-    <button
-      type="button" aria-pressed={view === v} onClick={() => onChange(v)}
-      className={clsx('px-3 py-1.5 text-xs rounded-md transition-colors',
-        view === v ? 'bg-surface-raised text-text shadow-[var(--shadow-e1)]' : 'text-text-muted hover:text-text')}
-    >{text}</button>
-  );
-  return (
-    <div role="group" aria-label="What this page shows" className="inline-flex rounded-lg bg-surface-hover p-0.5 shrink-0">
-      {option('division', 'Division')}{option('own', 'My own work')}
-    </div>
-  );
-}
+type HodMode = 'division' | 'own';
 
 export function HoDView() {
-  const { divisionCode } = useAuth();
-  const { staff, projects, projectStaff, equipment } = useData();
-  const { ownStaff, actions, doneCount, prioritiesForMe } = useHome();
-  const { byDivision } = useDivisionStrength();
-  const { reports: progressReports } = useProjectReports();
+  const navigate = useNavigate();
+  const { user, activeRole } = useAuth();
+  const { staff, projects, equipment, meetings, committeeMembers } = useData();
+  const {
+    ownStaff, ownStaffId, todayIso, rankedActions, todayProgress, registerClaimedKeys,
+    decisions, answerTime, askedPriorities, refreshHome,
+  } = useHome();
+  const [askSubject, setAskSubject] = useState<{ type: string; id: string; to: string; title: string } | null>(null);
+  const [askText, setAskText] = useState('');
+  const [pinOpen, setPinOpen] = useState(false);
+  const [pinAssignee, setPinAssignee] = useState('');
+  const [pinTitle, setPinTitle] = useState('');
+  const [pinReason, setPinReason] = useState('');
+  const [pinDate, setPinDate] = useState(todayIso);
+  const [stage3Err, setStage3Err] = useState<string | null>(null);
+  const [stage3Busy, setStage3Busy] = useState(false);
 
-  // A view preference only; it grants nothing.
-  const [view, setView] = useState<HeadView>(() => (localStorage.getItem(VIEW_KEY) === 'own' ? 'own' : 'division'));
-  const changeView = (v: HeadView) => { localStorage.setItem(VIEW_KEY, v); setView(v); };
+  const storageKey = `surya.hod.mode.${user?.id ?? 'anon'}`;
+  const [mode, setMode] = useState<HodMode>(() => {
+    try {
+      const saved = window.localStorage.getItem(storageKey);
+      return saved === 'own' ? 'own' : 'division';
+    } catch {
+      return 'division';
+    }
+  });
+  const [divCodes, setDivCodes] = useState<string[]>([]);
+  const [query, setQuery] = useState('');
 
-  const now = useMemo(() => new Date(), []);
-  const inDivision = useMemo(() => (code: string | null | undefined) => !divisionCode || code === divisionCode, [divisionCode]);
-
-  // --- 1. What waits on the head ---
-  const overdue = useMemo(() => actions.filter(a => dueText(a.due, now)?.variant === 'danger').length, [actions, now]);
-  const decisions = useMemo(() => decisionQueue(actions, now), [actions, now]);
-  const others = useMemo(() => actions.filter(a => !isDecision(a)), [actions]);
-  const sentence = useMemo(
-    () => greeting({ name: ownStaff?.Name ?? '', hour: now.getHours(), left: actions.length, overdue }) + waitingLine(decisions.length),
-    [ownStaff, now, actions.length, overdue, decisions.length],
-  );
-  const shownKeys = useMemo(
-    () => (view === 'division'
-      ? [...decisions.slice(0, 6).map(d => d.action), ...others.slice(0, MAX_ROWS + 1)].map(a => deskKey.action(a.id))
-      : null),
-    [view, decisions, others],
-  );
-  // In "My own work" the scientist view makes its own claim.
-  useClaimWhen(shownKeys);
-
-  // --- 2. Division projects, by exception ---
-  const divisionProjects = useMemo(() => projects.filter(p => inDivision(p.DivisionCode)), [projects, inDivision]);
-  const runningIds = useMemo(() => divisionProjects.filter(isActiveProject).map(p => p.ProjectID), [divisionProjects]);
-  const runningKey = runningIds.join('|');
-  const [milestones, setMilestones] = useState<HomeMilestone[]>([]);
   useEffect(() => {
     let cancelled = false;
-    milestonesFor(runningIds).then((m) => { if (!cancelled) setMilestones(m); });
+    if (!supabase || !user?.id) {
+      setDivCodes(user?.divisionCode ? [user.divisionCode] : []);
+      return;
+    }
+    supabase.rpc('caller_division_codes').then(({ data, error }) => {
+      if (cancelled) return;
+      if (!error && Array.isArray(data) && data.length > 0) {
+        setDivCodes(data.map(String));
+      } else if (user?.divisionCode) {
+        setDivCodes([user.divisionCode]);
+      } else {
+        setDivCodes([]);
+      }
+    });
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the joined ids, not the array identity
-  }, [runningKey]);
-  const exceptions = useMemo(() => projectsByException(divisionProjects, milestones, now), [divisionProjects, milestones, now]);
+  }, [user?.id, user?.divisionCode, activeRole]);
 
-  // --- 3. People ---
-  const divisionStaff = useMemo(() => staff.filter(s => inDivision(s.Division)), [staff, inDivision]);
-  const strength = divisionCode ? byDivision.get(divisionCode) : undefined;
-  const staffByGroup = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const s of divisionStaff) if (s.Group) counts.set(s.Group, (counts.get(s.Group) ?? 0) + 1);
-    return [...counts].map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);
-  }, [divisionStaff]);
-  const retiring = useMemo(
-    () => divisionStaff.filter((s) => { const y = yearsUntilRetirement(s.DOB, now); return y !== null && y >= 0 && y <= 1; }),
-    [divisionStaff, now],
+  const setModePersisted = (next: HodMode) => {
+    setMode(next);
+    try {
+      window.localStorage.setItem(storageKey, next);
+    } catch {
+      // ignore
+    }
+  };
+
+  const scopeSet = useMemo(() => new Set(divCodes), [divCodes]);
+  const primaryDiv = divCodes[0] ?? user?.divisionCode ?? '';
+
+  const divProjects = useMemo(
+    () => (scopeSet.size > 0 ? projects.filter((p) => scopeSet.has(p.DivisionCode)) : projects),
+    [projects, scopeSet],
   );
-  const contractsEnding = useMemo(() => projectStaff.filter((ps) => {
-    if (!inDivision(ps.DivisionCode)) return false;
-    const end = parseDate(ps.DateOfProjectDuration);
-    if (!end) return false;
-    const days = diffInDays(end, now);
-    return days >= 0 && days <= CONTRACT_HORIZON_DAYS;
-  }), [projectStaff, inDivision, now]);
-  const [workload, setWorkload] = useState<WorkloadRow[] | null>(null);
+  const projectExceptions = useMemo(
+    () => divProjects
+      .map((p) => ({ project: p, ...needsAttention(p, todayIso) }))
+      .filter((x) => x.attention),
+    [divProjects, todayIso],
+  );
+  const divStaff = useMemo(
+    () => (scopeSet.size > 0 ? staff.filter((s) => scopeSet.has(s.Division)) : staff),
+    [staff, scopeSet],
+  );
+  const divEquipment = useMemo(
+    () => (scopeSet.size > 0 ? equipment.filter((e) => scopeSet.has(e.Division)) : equipment),
+    [equipment, scopeSet],
+  );
+  const downEquipment = useMemo(
+    () => divEquipment.filter((e) => /down|repair|fault|non/i.test(e.WorkingStatus)),
+    [divEquipment],
+  );
+  const myCommitteesCount = useMemo(
+    () => (ownStaffId
+      ? new Set(committeeMembers.filter((m) => m.staff_id === ownStaffId).map((m) => m.committee_id)).size
+      : 0),
+    [committeeMembers, ownStaffId],
+  );
+  const upcomingDivMeetings = useMemo(
+    () => meetings.filter((m) => m.meeting_date >= todayIso && m.status === 'Scheduled').slice(0, 4),
+    [meetings, todayIso],
+  );
+
+  const topDecision = rankedActions[0] ?? null;
+
   useEffect(() => {
-    let cancelled = false;
-    loadWorkload().then((w) => { if (!cancelled) setWorkload(w); }, () => { if (!cancelled) setWorkload(null); });
-    return () => { cancelled = true; };
-  }, []);
-  const overloaded = useMemo(
-    () => (workload ?? []).filter(w => w.overload && inDivision(w.division)),
-    [workload, inDivision],
+    if (mode === 'division') {
+      registerClaimedKeys(topDecision ? [topDecision.id] : []);
+    }
+  }, [mode, topDecision, registerClaimedKeys]);
+
+  const onSearchSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    const q = query.trim();
+    if (q) navigate(`/ask?q=${encodeURIComponent(q)}`);
+  };
+
+  const greeting = divisionGreeting(
+    ownStaff?.Name ?? user?.email,
+    divCodes.join(', ') || primaryDiv,
+    projectExceptions.length + downEquipment.length,
+    rankedActions.length,
   );
-
-  // --- 4. Instruments ---
-  const equipmentFlags = useMemo(
-    () => getEquipmentFlags(equipment.filter(e => inDivision(e.Division)), DEFAULT_THRESHOLDS, now),
-    [equipment, inDivision, now],
-  );
-
-  const switcher = <ViewSwitch view={view} onChange={changeView} />;
-  if (view === 'own') {
-    return (
-      <div className="space-y-4">
-        <div className="flex justify-end">{switcher}</div>
-        <ScientistView />
-      </div>
-    );
-  }
-
-  const total = actions.length + doneCount;
 
   return (
-    <Stagger className="space-y-4 pb-12">
-      {/* --- 1. Greeting --- */}
-      <HomeGreeting
-        done={doneCount} total={total} sentence={sentence} right={switcher}
-        sub={<>
-          {divisionCode ? `Division ${divisionCode}` : 'All divisions'} · <span className="font-mono">{divisionStaff.length}</span> staff
-          {' · '}<span className="font-mono">{runningIds.length}</span> running projects
-        </>}
-      />
+    <div className="space-y-6 pb-12">
+      {/* Header + Division / My own work switch */}
+      <section aria-label="Head greeting" className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <h1 className="text-xl sm:text-2xl font-[500] font-serif text-text leading-snug">
+            {mode === 'division' ? greeting : 'My own work'}
+          </h1>
+          <p className="text-xs text-text-muted font-mono tabular-nums">
+            {divStaff.length} staff · {divProjects.length} projects · {todayProgress.done} cleared today
+          </p>
+        </div>
 
-      {/* --- 2. Ask --- */}
-      <DoFirst now={now} />
+        <div className="inline-flex rounded-lg border border-border bg-surface p-0.5 shrink-0" role="group" aria-label="Workspace mode">
+          <button
+            type="button"
+            onClick={() => setModePersisted('division')}
+            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              mode === 'division' ? 'bg-surface-hover text-text font-semibold' : 'text-text-muted hover:text-text'
+            }`}
+          >
+            Division
+          </button>
+          <button
+            type="button"
+            onClick={() => setModePersisted('own')}
+            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              mode === 'own' ? 'bg-surface-hover text-text font-semibold' : 'text-text-muted hover:text-text'
+            }`}
+          >
+            My own work
+          </button>
+        </div>
+      </section>
 
-      <AskBox placeholder="Ask SURYA: who in my division has worked on fly ash?"><PinButton /></AskBox>
+      {mode === 'own' ? (
+        <ScientistView />
+      ) : (
+        <>
+          <form onSubmit={onSearchSubmit} className="relative">
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={`Ask SURYA about ${primaryDiv || 'your division'}…`}
+              aria-label="Ask SURYA scoped to division"
+              className="w-full pl-9 pr-3 py-2 rounded-lg border border-border bg-surface text-sm text-text placeholder:text-text-muted outline-none focus:ring-2 focus:ring-focus-blue"
+            />
+          </form>
 
-      {/* --- 3. Waiting on you --- */}
-      <DecisionQueue rows={decisions} strong={prioritiesForMe.length === 0}
-        check={a => precheck(a, { projects: divisionProjects, progressReports, milestones, now })} />
-      <WaitingOnYou actions={others} now={now} rows={MAX_ROWS} strong={prioritiesForMe.length === 0 && decisions.length === 0}
-        title={decisions.length > 0 ? 'Also on you' : 'Waiting on you'} />
+          {/* SH3: Do first (priorities pinned by Director) */}
+          <DoFirstStrip />
 
-      <PrioritiesAsked />
+          {/* Waiting on your decision — oldest first, single terracotta CTA */}
+          <Card className="p-5 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-text-muted">
+                Waiting on your decision
+              </h2>
+              <div className="flex items-center gap-3 font-mono tabular-nums text-xs text-text-muted">
+                {answerTime && answerTime.decision_count > 0 && (
+                  <span>Median answer: {answerTime.median_days}d</span>
+                )}
+                <span>{decisions.length > 0 ? decisions.length : rankedActions.length} open</span>
+              </div>
+            </div>
 
-      <HeadPowers division={divisionCode} />
+            {stage3Err && <p className="text-xs text-error-crimson">{stage3Err}</p>}
 
-      {/* --- 4. Division projects, by exception --- */}
-      <Card className="p-5">
-        <p className={BLOCK_TITLE}>
-          <span>Division projects · those that need you</span>
-          <span className="font-mono">{exceptions.flagged.length} of {runningIds.length}</span>
-        </p>
-        {exceptions.flagged.slice(0, MAX_ROWS).map(({ project: p, reading }) => (
-          <Link key={p.ProjectID} to={`/projects/${encodeURIComponent(p.ProjectID)}`} className={clsx(ROW, 'flex-wrap group')}>
-            <div className="w-full sm:w-72 min-w-0">
-              <p className="text-sm text-text truncate group-hover:underline" title={p.ProjectName}>
-                <span className="font-mono text-xs text-text-muted mr-2">{p.ProjectNo}</span>{p.ProjectName}
+            {decisions.length === 0 && rankedActions.length === 0 ? (
+              <div className="flex items-center gap-2 text-xs text-text-muted">
+                <CheckCircle2 size={16} className="text-archive-green shrink-0" />
+                <span>No approvals or reviews are waiting on you right now.</span>
+              </div>
+            ) : decisions.length > 0 ? (
+              <ul className="divide-y divide-border">
+                {decisions.slice(0, 6).map((item, idx) => {
+                  const pre = runDecisionPrecheck(item.kind, {});
+                  return (
+                  <li key={`${item.subject_type}:${item.subject_id}`} className="py-2.5 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-text truncate">{item.title}</p>
+                      <p className="text-xs text-text-muted font-mono tabular-nums truncate">
+                        {item.kind} · {item.days_waiting}d waiting
+                        {item.open_question ? ' · With requester' : ''}
+                        {` · ${pre.summary}`}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {item.requester_user_id && (
+                        <button
+                          type="button"
+                          onClick={() => setAskSubject({
+                            type: item.subject_type,
+                            id: item.subject_id,
+                            to: item.requester_user_id!,
+                            title: item.title,
+                          })}
+                          className="px-2.5 py-1.5 rounded-lg border border-border text-xs text-text-muted hover:text-text hover:bg-surface-hover"
+                        >
+                          Ask
+                        </button>
+                      )}
+                      <Link
+                        to={item.link}
+                        className={
+                          idx === 0
+                            ? 'inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-terracotta hover:bg-terracotta-hover text-ivory text-xs font-semibold'
+                            : 'inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border text-xs font-medium text-text hover:bg-surface-hover'
+                        }
+                      >
+                        Open <ArrowRight size={13} />
+                      </Link>
+                    </div>
+                  </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <ul className="divide-y divide-border">
+                {rankedActions.slice(0, 6).map((item, idx) => (
+                  <li key={item.id} className="py-2.5 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-text truncate">{item.label}</p>
+                      <p className="text-xs text-text-muted truncate">
+                        {item.detail}
+                        {item.due ? ` · due ${item.due}` : ''}
+                      </p>
+                    </div>
+                    <Link
+                      to={item.link}
+                      className={
+                        idx === 0
+                          ? 'inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-terracotta hover:bg-terracotta-hover text-ivory text-xs font-semibold shrink-0'
+                          : 'inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border text-xs font-medium text-text hover:bg-surface-hover shrink-0'
+                      }
+                    >
+                      Open <ArrowRight size={13} />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {askSubject && (
+              <div className="pt-3 border-t border-border flex flex-col sm:flex-row gap-2">
+                <input
+                  type="text"
+                  value={askText}
+                  onChange={(e) => setAskText(e.target.value)}
+                  placeholder={`Ask clarification on ${askSubject.title}…`}
+                  className="flex-1 px-2.5 py-1.5 rounded-md border border-border bg-background text-xs text-text"
+                />
+                <button
+                  type="button"
+                  disabled={stage3Busy || !askText.trim()}
+                  onClick={async () => {
+                    setStage3Busy(true);
+                    setStage3Err(null);
+                    try {
+                      await decisionAsk(askSubject.type, askSubject.id, askSubject.to, askText.trim());
+                      setAskSubject(null);
+                      setAskText('');
+                      await refreshHome();
+                    } catch (err) {
+                      setStage3Err(err instanceof Error ? err.message : 'Failed to ask');
+                    } finally {
+                      setStage3Busy(false);
+                    }
+                  }}
+                  className="px-3 py-1.5 rounded-md bg-terracotta text-ivory text-xs font-semibold disabled:opacity-50"
+                >
+                  Send question
+                </button>
+              </div>
+            )}
+          </Card>
+
+          {/* HH7: Priorities I asked */}
+          <Card className="p-4 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-text-muted">
+                Priorities I asked ({askedPriorities.length})
+              </h2>
+              <button
+                type="button"
+                onClick={() => setPinOpen((v) => !v)}
+                className="text-xs text-terracotta hover:underline"
+              >
+                {pinOpen ? 'Cancel' : '+ Pin priority'}
+              </button>
+            </div>
+
+            {pinOpen && (
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (!pinAssignee || !pinTitle.trim() || pinReason.trim().length < 10) return;
+                  setStage3Busy(true);
+                  setStage3Err(null);
+                  try {
+                    await priorityPin({
+                      assigneeUserId: pinAssignee,
+                      title: pinTitle.trim(),
+                      reason: pinReason.trim(),
+                      wantedBy: pinDate,
+                    });
+                    setPinOpen(false);
+                    setPinTitle('');
+                    setPinReason('');
+                    await refreshHome();
+                  } catch (err) {
+                    setStage3Err(err instanceof Error ? err.message : 'Failed to pin priority');
+                  } finally {
+                    setStage3Busy(false);
+                  }
+                }}
+                className="space-y-2 border border-border rounded-lg p-3 bg-background"
+              >
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <select
+                    value={pinAssignee}
+                    onChange={(e) => setPinAssignee(e.target.value)}
+                    className="px-2.5 py-1.5 rounded border border-border bg-surface text-xs text-text"
+                    required
+                  >
+                    <option value="">Select staff member…</option>
+                    {divStaff.filter((s) => s.user_id && s.user_id !== user?.id).map((s) => (
+                      <option key={s.ID} value={s.user_id!}>{s.Name}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="date"
+                    value={pinDate}
+                    onChange={(e) => setPinDate(e.target.value)}
+                    className="px-2.5 py-1.5 rounded border border-border bg-surface text-xs font-mono text-text"
+                    required
+                  />
+                </div>
+                <input
+                  type="text"
+                  value={pinTitle}
+                  onChange={(e) => setPinTitle(e.target.value)}
+                  placeholder="Priority title"
+                  className="w-full px-2.5 py-1.5 rounded border border-border bg-surface text-xs text-text"
+                  required
+                />
+                <input
+                  type="text"
+                  value={pinReason}
+                  onChange={(e) => setPinReason(e.target.value)}
+                  placeholder="Reason (at least 10 characters)"
+                  className="w-full px-2.5 py-1.5 rounded border border-border bg-surface text-xs text-text"
+                  required
+                />
+                <button
+                  type="submit"
+                  disabled={stage3Busy}
+                  className="px-3 py-1.5 rounded bg-terracotta text-ivory text-xs font-semibold disabled:opacity-50"
+                >
+                  Pin priority
+                </button>
+              </form>
+            )}
+
+            {askedPriorities.length === 0 ? (
+              <p className="text-xs text-text-muted">No open priorities pinned by you.</p>
+            ) : (
+              <ul className="space-y-2">
+                {askedPriorities.map((p) => (
+                  <li key={p.id} className="text-xs border-b border-border pb-2 last:border-0 last:pb-0 flex flex-wrap items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-medium text-text">{p.title}</p>
+                      <p className="text-[11px] font-mono tabular-nums text-text-muted">
+                        By {p.wanted_by} · {p.seen_at ? 'Seen' : 'Unseen'}
+                        {p.pushback_at && !p.pushback_answer ? ` · Push-back: ${p.pushback_date} (${p.pushback_reason})` : ''}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {p.pushback_at && !p.pushback_answer && (
+                        <>
+                          <button
+                            type="button"
+                            disabled={stage3Busy}
+                            onClick={async () => { await priorityAnswer(p.id, true); await refreshHome(); }}
+                            className="px-2 py-0.5 rounded border border-border text-archive-green hover:bg-surface-hover"
+                          >
+                            Accept {p.pushback_date}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={stage3Busy}
+                            onClick={async () => { await priorityAnswer(p.id, false); await refreshHome(); }}
+                            className="px-2 py-0.5 rounded border border-border text-text-muted hover:bg-surface-hover"
+                          >
+                            Keep
+                          </button>
+                        </>
+                      )}
+                      <button
+                        type="button"
+                        disabled={stage3Busy}
+                        onClick={async () => { await priorityWithdraw(p.id); await refreshHome(); }}
+                        className="px-2 py-0.5 rounded border border-border text-text-muted hover:text-error-crimson"
+                      >
+                        Withdraw
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+
+          {/* Division projects by exception */}
+          <Card className="p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+                <FolderKanban size={13} /> Division projects needing attention
+              </h2>
+              <Link to="/projects" className="text-xs text-text-muted hover:text-text hover:underline">
+                See all ({divProjects.length})
+              </Link>
+            </div>
+            {projectExceptions.length === 0 ? (
+              <p className="text-xs text-text-muted">
+                {divProjects.length} project{divProjects.length === 1 ? '' : 's'} on track.
               </p>
-              <p className="text-xs text-badge-danger-fg truncate">{reading.reasons.join(' · ')}</p>
-            </div>
-            <div className="flex-1 min-w-[180px] space-y-1">
-              <Bar label="time" pct={reading.timePct} tone="time" />
-              <Bar label="money" pct={reading.moneyPct} tone="money" />
-            </div>
-          </Link>
-        ))}
-        <p className={clsx('text-sm text-text-muted', exceptions.flagged.length > 0 && 'mt-3')}>
-          {runningIds.length === 0
-            ? 'No running project in this division. '
-            : <><span className="font-mono">{exceptions.onCourse}</span> {exceptions.onCourse === 1 ? 'project is' : exceptions.flagged.length > 0 ? 'others are' : 'projects are'} on course.{' '}</>}
-          <Link to="/projects" className="underline inline-block py-1.5 -my-1.5">See all</Link>
-        </p>
-      </Card>
+            ) : (
+              <div className="space-y-2">
+                {projectExceptions.slice(0, 5).map(({ project, reasons }) => (
+                  <div key={project.ProjectID} className="flex items-center justify-between gap-3 text-xs border-b border-border pb-2 last:border-0 last:pb-0">
+                    <div className="min-w-0">
+                      <Link to={`/projects/${encodeURIComponent(project.ProjectID)}`} className="font-medium text-text hover:underline truncate block">
+                        <span className="font-mono text-text-muted mr-1.5">{project.ProjectNo}</span>
+                        {project.ProjectName}
+                      </Link>
+                      <span className="text-danger">{reasons.join(' · ')}</span>
+                    </div>
+                    <Link to={`/projects/${encodeURIComponent(project.ProjectID)}`} className="text-text-muted hover:text-text shrink-0">
+                      Open file
+                    </Link>
+                  </div>
+                ))}
+                {divProjects.length > projectExceptions.length && (
+                  <p className="text-xs text-text-muted font-mono tabular-nums pt-1">
+                    {divProjects.length - projectExceptions.length} others on track ·{' '}
+                    <Link to="/projects" className="underline hover:text-text">See all</Link>
+                  </p>
+                )}
+              </div>
+            )}
+          </Card>
 
-      {/* --- 5. People and instruments --- */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Section id="hod-people-my-division" title="People · my division" right={<Link to="/staff" className={TITLE_LINK}>Directory</Link>}>
-          <div className={ROW}>
-            <p className="flex-1 text-sm text-text">Posts</p>
-            {strength
-              ? <span className="text-xs text-text-muted"><span className="font-mono">{strength.filled}</span> of <span className="font-mono">{strength.sanctioned}</span> filled · <span className="font-mono">{strength.vacant}</span> vacant</span>
-              : <span className="text-xs text-text-muted">No posts are entered for this division.</span>}
+          {/* People, Instruments, Committees */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card className="p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+                  <Users size={13} /> People
+                </h2>
+                <Link to="/staff" className="text-xs text-text-muted hover:text-text hover:underline">Directory</Link>
+              </div>
+              <p className="text-lg font-mono tabular-nums text-text">{divStaff.length}</p>
+              <p className="text-xs text-text-muted">Verified staff in division scope</p>
+            </Card>
+
+            <Card className="p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+                  <Microscope size={13} /> Instruments
+                </h2>
+                <Link to="/facilities" className="text-xs text-text-muted hover:text-text hover:underline">All</Link>
+              </div>
+              <p className="text-lg font-mono tabular-nums text-text">
+                {downEquipment.length} <span className="text-xs font-sans text-text-muted">down / {divEquipment.length} total</span>
+              </p>
+              <p className="text-xs text-text-muted">
+                {downEquipment.length === 0 ? 'All division instruments operational.' : 'Review down instruments in Facilities.'}
+              </p>
+            </Card>
+
+            <Card className="p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+                  <Building2 size={13} /> Committees
+                </h2>
+                <Link to="/committees" className="text-xs text-text-muted hover:text-text hover:underline">All</Link>
+              </div>
+              <p className="text-lg font-mono tabular-nums text-text">
+                {myCommitteesCount} <span className="text-xs font-sans text-text-muted">seats · {upcomingDivMeetings.length} upcoming</span>
+              </p>
+              <p className="text-xs text-text-muted">Committee schedules and action items</p>
+            </Card>
           </div>
-          <div className={ROW}>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm text-text">Retiring within 12 months</p>
-              {retiring.length > 0 && (
-                <p className="text-xs text-text-muted truncate">
-                  {retiring.map((s, i) => (
-                    <span key={s.ID}>{i > 0 && ', '}<EntityLink kind="staff" id={s.ID} className="underline decoration-dotted hover:text-text" /></span>
-                  ))}
-                </p>
-              )}
-            </div>
-            <span className="font-mono text-xs text-text-muted">{retiring.length}</span>
-          </div>
-          <div className={ROW}>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm text-text">Project staff contracts ending in 60 days</p>
-              {contractsEnding.length > 0 && <p className="text-xs text-text-muted truncate">{contractsEnding.map(c => c.StaffName).join(', ')}</p>}
-            </div>
-            <span className="font-mono text-xs text-text-muted">{contractsEnding.length}</span>
-          </div>
-          <Link to="/staff/planning" className={clsx(ROW, 'group')}>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm text-text group-hover:underline">Scientists with a heavy load</p>
-              {overloaded.length > 0 && <p className="text-xs text-text-muted truncate">{overloaded.map(w => `${w.name} (${w.active_projects})`).join(', ')}</p>}
-            </div>
-            <span className="font-mono text-xs text-text-muted">{workload === null ? '—' : overloaded.length}</span>
-          </Link>
-          {staffByGroup.length > 0 && (
-            <>
-              <p className="text-xs text-text-muted mt-3">Staff by group</p>
-              <CategoryBar horizontal height={Math.max(110, staffByGroup.length * 30 + 40)} data={staffByGroup} />
-            </>
-          )}
-        </Section>
 
-        <Section id="hod-instruments" title="Instruments" right={<Link to="/facilities" className={TITLE_LINK}>See all</Link>}>
-          {equipmentFlags.down.length === 0 && equipmentFlags.amcExpiring.length === 0 && (
-            <p className="text-sm text-text-muted">Every instrument is working and no service contract ends in 60 days.</p>
-          )}
-          {equipmentFlags.down.slice(0, MAX_ROWS).map(e => (
-            <Link key={`down-${e.UInsID}`} to={`/facilities/${encodeURIComponent(e.UInsID)}`} className={clsx(ROW, 'group')}>
-              <p className="flex-1 min-w-0 text-sm text-text truncate group-hover:underline" title={e.Name}>{e.Name}</p>
-              <Badge variant="danger" className="normal-case shrink-0">down</Badge>
-            </Link>
-          ))}
-          {equipmentFlags.amcExpiring.slice(0, MAX_ROWS).map(e => (
-            <Link key={`amc-${e.UInsID}`} to={`/facilities/${encodeURIComponent(e.UInsID)}`} className={clsx(ROW, 'group')}>
-              <p className="flex-1 min-w-0 text-sm text-text truncate group-hover:underline" title={e.Name}>{e.Name}</p>
-              <Badge variant="warning" className="normal-case shrink-0">service contract ends <span className="font-mono ml-1">{e.amc_end_date}</span></Badge>
-            </Link>
-          ))}
-          {equipmentFlags.down.length > MAX_ROWS && (
-            <p className="text-xs text-text-muted mt-2">+<span className="font-mono">{equipmentFlags.down.length - MAX_ROWS}</span> more down</p>
-          )}
-        </Section>
-      </div>
-
-      {/* --- 6. Blocks that wait on other work --- */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <NotConnected title="Reports that go up from you">Division report drafts will be built here from your scientists' entries.</NotConnected>
-        <NotConnected title="Technologies">Readiness level and transfer state of each technology will show here.</NotConnected>
-        <NotConnected title="Outside · collaboration and visits">Open threads with partners and coming visits will show here.</NotConnected>
-      </div>
-
-      {/* --- 7. Division figures --- */}
-      <h2 className="text-xs font-medium text-text-muted pt-4">Division figures</h2>
-      <ProjectFinanceSection />
-      <ResearchSection />
-      <EquipmentOpsSection />
-    </Stagger>
+          <DivisionUpwardReportCard divisionCode={primaryDiv} todayIso={todayIso} />
+        </>
+      )}
+    </div>
   );
-}
-
-/** Claims the given keys for the role half; null leaves the claim to a child view. */
-function useClaimWhen(keys: string[] | null) {
-  const { claim } = useHome();
-  const joined = keys === null ? null : keys.join('|');
-  useEffect(() => {
-    if (joined === null) return;
-    claim(joined ? joined.split('|') : []);
-    return () => claim([]);
-  }, [claim, joined]);
 }

@@ -53,7 +53,7 @@ describe('live policy drift', () => {
   });
 
   it('the migration removes every Dashboard-era policy and the repo rules hold again', async () => {
-    await db.exec(sqlFile('supabase/migrations/20261112000009_live_policy_drift.sql'));
+    await db.exec(sqlFile('supabase/migrations_archive/2026-11-21/20261112000009_live_policy_drift.sql'));
     const left = (await db.query(`SELECT policyname FROM pg_policies WHERE schemaname = 'public'
       AND (policyname LIKE '% %' OR policyname LIKE 'collegium%' OR policyname = 'vacancy_posts_insert')`)).rows;
     expect(left).toEqual([]);

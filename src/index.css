@@ -227,32 +227,6 @@
   @media (prefers-reduced-motion: reduce) {
     .shimmer::after, .animate-sun, .animate-amber-glow, .animate-slide-in { animation: none; }
   }
-  /* DESIGN.md "Lit register": the one ink card of a page. Token classes inside
-     it (text-text, border-border…) flip with the ground, so any block can go in. */
-  .card-contrast {
-    --color-text: #faf9f5;
-    --color-text-muted: #b0aea5;
-    --color-border: #4d4c48;
-    --color-surface-hover: #30302e;
-    --color-surface: #30302e;
-    --color-surface-raised: #3d3d3a;
-    --color-archive-green: #7fa388;
-    background: #141413;
-    color: var(--color-text);
-    border-color: #141413;
-    box-shadow: var(--shadow-e3);
-  }
-  .dark .card-contrast {
-    --color-text: #141413;
-    --color-text-muted: #5e5d59;
-    --color-border: #d1cfc5;
-    --color-surface-hover: #e8e6dc;
-    --color-surface: #f0eee6;
-    --color-surface-raised: #ffffff;
-    --color-archive-green: #3f5c46;
-    background: #faf9f5;
-    border-color: #faf9f5;
-  }
   .glass-dark {
     @apply bg-background/80 backdrop-blur-md border border-border;
   }
@@ -269,72 +243,6 @@
   }
 }
 
-/* The one page title. Pages add layout classes (flex, gap) beside it. */
-.page-title {
-  font-family: var(--font-serif);
-  font-weight: 500;
-  font-size: 1.5rem;
-  line-height: 1.25;
-  color: var(--color-text);
-}
-
-/* Ledger tables (DESIGN.md R6): hairline rules, no zebra, figures that line
-   up, and a terracotta margin mark on the row under the pointer. */
-table.ledger { font-variant-numeric: tabular-nums; }
-table.ledger thead th {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--color-text-muted);
-}
-table.ledger tbody tr {
-  border-bottom: 1px solid var(--color-border);
-  transition: background-color var(--duration-fast), box-shadow var(--duration-fast);
-}
-table.ledger tbody tr:last-child { border-bottom: 0; }
-table.ledger tbody tr:hover {
-  background-color: var(--color-surface-hover);
-  box-shadow: inset 3px 0 0 var(--color-terracotta);
-}
-
-/* Page entry: the blocks of a page rise in, one after the other. Layout puts
-   `.page-slot` around every routed page, so no page has to opt in. */
-@keyframes rise-in {
-  from { opacity: 0; transform: translateY(12px); }
-}
-@media (prefers-reduced-motion: no-preference) {
-  .page-slot > * > * { animation: rise-in var(--duration-slow) var(--ease-out-expo) backwards; }
-  .page-slot > * > :nth-child(2) { animation-delay: 50ms; }
-  .page-slot > * > :nth-child(3) { animation-delay: 100ms; }
-  .page-slot > * > :nth-child(4) { animation-delay: 150ms; }
-  .page-slot > * > :nth-child(5) { animation-delay: 200ms; }
-  .page-slot > * > :nth-child(n+6) { animation-delay: 250ms; }
-}
-
-/* Login signature: rings of records turn round the sun; labels stay level. */
-@keyframes orbit-spin { to { transform: rotate(360deg); } }
-.orbit { transform-origin: 300px 300px; animation: orbit-spin var(--orbit, 60s) linear infinite; }
-.orbit-upright { transform-box: fill-box; transform-origin: center; animation: orbit-spin var(--orbit, 60s) linear infinite reverse; }
-.sun-ray { animation: sun-pulse 3.6s ease-in-out infinite; }
-@media (prefers-reduced-motion: reduce) {
-  .orbit, .orbit-upright, .sun-ray { animation: none; }
-}
-
-/* <Section> folds with a height transition where the browser can animate to
-   `auto`; elsewhere it opens and closes at once. */
-@supports (interpolate-size: allow-keywords) {
-  @media (prefers-reduced-motion: no-preference) {
-    details.section { interpolate-size: allow-keywords; }
-    details.section::details-content {
-      block-size: 0;
-      overflow: hidden;
-      transition: block-size var(--duration-base) var(--ease-out-expo), content-visibility var(--duration-base) allow-discrete;
-    }
-    details.section[open]::details-content { block-size: auto; }
-  }
-}
-
 /* Keyboard focus is always visible on interactive elements. Unlayered on
    purpose: it must win over `outline-none` / `focus:outline-none` utilities,
    which removed the outline with no replacement in ~40 places. Inputs keep
@@ -342,4 +250,13 @@ table.ledger tbody tr:hover {
 :where(a[href], button, summary, [role="button"], [tabindex]:not([tabindex="-1"])):focus-visible {
   outline: 2px solid var(--color-focus-blue);
   outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

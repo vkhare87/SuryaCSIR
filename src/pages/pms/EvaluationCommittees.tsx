@@ -134,7 +134,7 @@ export default function EvaluationCommittees() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="page-title">Evaluation Committees</h1>
+        <h1 className="text-2xl font-serif font-medium text-text">Evaluation Committees</h1>
         <Button onClick={() => { setCommitteeForm({ name: '', description: '', cycleId: cycles[0]?.id ?? '', tier: 'I' }); setFormError(null); setShowCreate(true); }}>
           New Committee
         </Button>
@@ -143,7 +143,7 @@ export default function EvaluationCommittees() {
       {committees.length === 0 ? (
         <p className="text-text-muted text-sm py-8 text-center">No evaluation committees yet.</p>
       ) : (
-        <div className="divide-y divide-border border border-border rounded-xl overflow-hidden bg-surface shadow-[var(--shadow-e1)]">
+        <div className="divide-y divide-border border border-border rounded-2xl overflow-hidden">
           {committees.map(com => {
             const cycle = cycles.find(c => c.id === com.cycleId);
             const panelOk = isPanelValid(com.members ?? []);

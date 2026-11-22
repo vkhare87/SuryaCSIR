@@ -27,7 +27,7 @@ import {
 import { friendlyError } from '../lib/errors';
 
 export default function Intelligence() {
-  const { scientificOutputs, ipIntelligence, projects, techTransfers, refreshSlice } = useData();
+  const { scientificOutputs, ipIntelligence, projects, techTransfers, refreshSlice, isLoading, error } = useData();
   const toast = useToast();
   const [activeTab, setActiveTab] = useState<'publications' | 'ipr'>('publications');
   const [searchTerm, setSearchTerm] = useState('');
@@ -219,7 +219,7 @@ export default function Intelligence() {
           href={`https://doi.org/${p.doi}`}
           target="_blank"
           rel="noreferrer"
-          className="text-terracotta hover:underline flex items-center gap-1 text-xs"
+          className="text-[#c96442] hover:underline flex items-center gap-1 text-xs"
           onClick={(e) => e.stopPropagation()}
         >
           <ExternalLink size={12} />
@@ -267,7 +267,7 @@ export default function Intelligence() {
   // -------------------------------------------------------------------------
 
   const inputCls =
-    'w-full px-3 py-2 bg-surface-hover border border-border rounded-lg text-sm text-text outline-none focus:ring-2 focus:ring-terracotta focus:border-terracotta';
+    'w-full px-3 py-2 bg-surface-hover border border-border rounded-lg text-sm text-text outline-none focus:ring-2 focus:ring-[#c96442] focus:border-[#c96442]';
 
   // -------------------------------------------------------------------------
   // Render
@@ -277,20 +277,20 @@ export default function Intelligence() {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="page-title">Institutional Intelligence</h1>
+          <h1 className="text-2xl font-[500] text-text font-serif">Institutional Intelligence</h1>
           <p className="text-text-muted mt-1">Scientific Output & IP Portfolio analysis</p>
         </div>
 
         <div className="flex bg-surface border border-border p-1 rounded-xl">
           <button
             onClick={() => setActiveTab('publications')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'publications' ? 'bg-terracotta text-white' : 'text-text-muted hover:text-text'}`}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'publications' ? 'bg-[#c96442] text-white' : 'text-text-muted hover:text-text'}`}
           >
             Publications
           </button>
           <button
             onClick={() => setActiveTab('ipr')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'ipr' ? 'bg-terracotta text-white' : 'text-text-muted hover:text-text'}`}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'ipr' ? 'bg-[#c96442] text-white' : 'text-text-muted hover:text-text'}`}
           >
             IP Intelligence
           </button>
@@ -344,7 +344,7 @@ export default function Intelligence() {
               placeholder="Search..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 pr-4 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-focus-blue outline-none text-sm w-full"
+              className="pl-9 pr-4 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm w-full"
             />
           </div>
           <div className="flex items-center gap-3">
@@ -394,7 +394,14 @@ export default function Intelligence() {
         </div>
 
         {activeTab === 'publications' ? (
-          scientificOutputs.length === 0 ? (
+          !isLoading && error && scientificOutputs.length === 0 ? (
+            <EmptyState
+              variant="error"
+              title="Couldn't load publications"
+              description={error}
+              className="h-64 m-4"
+            />
+          ) : scientificOutputs.length === 0 ? (
             <EmptyState
               icon={BarChart3}
               title="No publications"
@@ -424,7 +431,14 @@ export default function Intelligence() {
             />
           )
         ) : (
-          ipIntelligence.length === 0 ? (
+          !isLoading && error && ipIntelligence.length === 0 ? (
+            <EmptyState
+              variant="error"
+              title="Couldn't load IP records"
+              description={error}
+              className="h-64 m-4"
+            />
+          ) : ipIntelligence.length === 0 ? (
             <EmptyState
               icon={FileText}
               title="No patents or IP records"

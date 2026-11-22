@@ -26,6 +26,7 @@ import { ToastProvider } from './contexts/ToastContext.tsx'
 import { FeatureControlProvider } from './contexts/FeatureControlContext.tsx'
 import { RulesProvider } from './contexts/RulesContext.tsx'
 import { ProfileProvider } from './contexts/ProfileContext.tsx'
+import { HomeProvider } from './contexts/HomeContext.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -44,7 +45,9 @@ createRoot(document.getElementById('root')!).render(
                     <AWPProvider>
                       <ProposalsProvider>
                         <ProjectReportsProvider>
-                          <App />
+                          <HomeProvider>
+                            <App />
+                          </HomeProvider>
                         </ProjectReportsProvider>
                       </ProposalsProvider>
                     </AWPProvider>

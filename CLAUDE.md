@@ -50,10 +50,10 @@ any code that doesn't match DESIGN.md.
 | `docs/engineering/architecture_addendum.md` | Architecture, layers, folder map, security, extension points |
 | `docs/engineering/system_design.md` | Flows, all state machines, deployment, failure/scaling |
 | `docs/engineering/api_spec.md` | PostgREST + every RPC signature + Ask SURYA HTTP endpoints |
-| `docs/engineering/database_design.md` | All 92 tables, ER diagrams, indexes, migrations, retention |
+| `docs/engineering/database_design.md` | All 121 tables (8-file 2026-11-21 baseline), 8 views, ER diagrams, indexes, migrations, retention |
 | `docs/engineering/development_guide.md` | Setup, branching, testing, commits, PR checklist, debugging |
 | `docs/engineering/coding_standards.md` | Expanded TS / Python / SQL conventions |
-| `docs/engineering/FEATURES.md` · `STACK.md` | Feature catalogue · versions |
+| `docs/engineering/FEATURES.md` · `STACK.md` · `access_matrix.md` · `role_features.md` | Plain-English feature guide · stack versions · RBAC access matrix · snapshot (`roleFeatures.test.ts`) |
 
 `docs/ARCHITECTURE.md`, `docs/STRUCTURE.md`, `docs/DATA-MODEL.md` stay at the old paths as
 redirect stubs only.
@@ -163,7 +163,7 @@ No path aliases. Always relative imports.
 
 ## Database
 
-- **Source of truth**: `supabase/migrations/` — an 8-file domain baseline (`20260712000001`…`20260712000008`: extensions/helpers, auth_rbac, hr_core, pms, committees_helpdesk, proposals_reports, calendar_recruitment, rag_documents). Pre-2026-07-12 history lives in `supabase/migrations_archive/` (reference only, not applied anywhere — see its README).
+- **Source of truth**: `supabase/migrations/` — the consolidated 8-file 2026-11-21 domain baseline (`20261121000001`…`20261121000008`: `extensions_helpers`, `auth_rbac`, `hr_workforce`, `pms_awp`, `committees_helpdesk`, `projects_proposals_lifecycle`, `calendar_recruitment_ops`, `rag_documents_views_rpcs_policies`). Earlier migrations (including the 93 pre-checkpoint files) live in `supabase/migrations_archive/` (`2026-11-21/`) for reference only; existing remote databases reconcile via `supabase migration repair` per `supabase/ops/README.md`.
 - **Apply**: `supabase db push` (CLI, tracks what's applied — the only sanctioned path). `supabase db reset` for a full local rebuild. Never paste SQL into the Dashboard SQL Editor — that's exactly how the live project silently drifted from the repo before the 2026-07-12 restructure.
 - **Bootstrap data**: run `supabase/seed/*.sql` after the schema — creates helpdesk routing defaults + an OPEN appraisal cycle. First SystemAdmin is created via Dashboard → Authentication → Users, then promoted (see `supabase/ops/README.md`).
 - **Add new migration**: new timestamped file after stage 08. Never edit a shipped baseline file.
@@ -208,7 +208,7 @@ No path aliases. Always relative imports.
 - typecheck: `npm run build` — **`npx tsc --noEmit` passes vacuously** under the
   project-references layout, so it proves nothing. `npm run build` runs `tsc -b`.
 - lint: `npm run lint` (`eslint .` — covers `scripts/` and configs too, not just `src/`)
-- test: `npm test` — 148 files, 1286 tests (as of 2026-11-13). Includes `scripts/db/*.test.ts`: every
+- test: `npm test` — 148 files, 1,297 tests (as of 2026-11-21; includes 29 PGlite DB test files). Every
   migration applied to an in-process Postgres (PGlite + Supabase shims, `scripts/db/pgliteHarness.ts`),
   then RLS/RPC tests and `supabase/tests/*.sql` — no Docker or Supabase CLI needed
 - python: `python -m pytest` in `rag/` and in `ingest/`

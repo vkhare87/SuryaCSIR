@@ -1,141 +1,140 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import clsx from 'clsx';
+import { ArrowRight, CheckCircle2, GraduationCap, Shield } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
-import { useClaim, useHome } from '../../contexts/HomeContext';
-import { Section } from '../../components/ui/Section';
-import { Stagger } from '../../components/ui/Stagger';
-import { ProgressRing } from '../../components/viz/ProgressRing';
-import { Button } from '../../components/ui/Button';
-import {
-  ActionRow, AskBox, HomeGreeting, NotConnected, ROW, TITLE_LINK, WaitingOnYou,
-} from '../../components/home/parts';
-import { DoFirst } from '../../components/home/Priorities';
-import { countWord } from '../../lib/home/greeting';
-import { deskKey } from '../../lib/home/desk';
-import { daysUntil } from '../../lib/home/today';
-import { phdRoad } from '../../lib/home/people';
-import { staffNameMatchesAuthor } from '../../utils/dateUtils';
-
-const NEEDS: { label: string; to: string }[] = [
-  { label: 'Book an instrument', to: '/facilities' },
-  { label: 'Bonafide letter', to: '/helpdesk/new' },
-  { label: 'Leave', to: '/helpdesk/new' },
-  { label: 'Hostel or ID card', to: '/helpdesk/new' },
-];
-
-function partOfDay(h: number) { return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'; }
+import { useHome } from '../../contexts/HomeContext';
+import { Card } from '../../components/ui/Cards';
+import { DoFirstStrip } from '../../components/home/common/DoFirstStrip';
+import { PHD_MILESTONE_ORDER } from '../../lib/phd/progress';
 
 export function StudentView() {
-  const { phDStudents, phdMilestones, scientificOutputs, projects } = useData();
-  const { ownStaff, actions, doneCount, prioritiesForMe } = useHome();
-  const now = useMemo(() => new Date(), []);
+  const { user } = useAuth();
+  const { phDStudents, phdMilestones, scientificOutputs } = useData();
+  const { ownStaff, greeting, doNext, registerClaimedKeys } = useHome();
 
-  // Students are matched by name, as phd_students' read policy does, until the record gets its own login link.
-  const own = useMemo(
-    () => (ownStaff ? phDStudents.find(p => p.StudentName === ownStaff.Name) ?? null : null),
-    [phDStudents, ownStaff],
-  );
-  const road = useMemo(
-    () => phdRoad(own ? phdMilestones.filter(m => m.enrollmentNo === own.EnrollmentNo) : []),
-    [phdMilestones, own],
-  );
-  const papers = useMemo(
-    () => (own ? scientificOutputs.filter(o => o.authors.some(a => staffNameMatchesAuthor(own.StudentName, a))) : []),
-    [scientificOutputs, own],
-  );
-  const project = useMemo(() => (own?.ProjectNo ? projects.find(p => p.ProjectNo === own.ProjectNo) ?? null : null), [projects, own]);
+  useEffect(() => {
+    registerClaimedKeys(doNext ? [doNext.id] : []);
+  }, [doNext, registerClaimedKeys]);
 
-  useClaim(useMemo(() => actions.slice(0, 10).map(a => deskKey.action(a.id)), [actions]));
+  // Match strictly to the caller's own PhD record (never show other students)
+  const ownStudent = useMemo(() => {
+    if (!ownStaff && !user?.email) return null;
+    const nameKey = ownStaff?.Name?.trim().toLowerCase();
+    return phDStudents.find((s) => (
+      nameKey ? s.StudentName.trim().toLowerCase() === nameKey : false
+    )) ?? null;
+  }, [phDStudents, ownStaff, user?.email]);
 
-  const name = own?.StudentName ?? ownStaff?.Name ?? '';
-  const hello = name ? `${partOfDay(now.getHours())}, ${name}.` : `${partOfDay(now.getHours())}.`;
-  const passed = road.gates.filter(g => g.done).length;
-  const next = road.next;
-  const nextDays = next?.dueDate ? daysUntil(next.dueDate, now) : null;
-  const sentence = !own
-    ? `${hello} Your PhD record is not linked to this account yet.`
-    : !next
-      ? `${hello} Every step on your road is done.`
-      : `${hello} You have passed ${countWord(passed).toLowerCase()} of eight steps. Next is ${next.name.toLowerCase()}${
-        nextDays === null ? '.' : nextDays < 0 ? `, ${-nextDays} days past its date.` : `, in ${nextDays} days.`}`;
+  const ownMilestones = useMemo(() => {
+    if (!ownStudent) return [];
+    const byName = new Map(
+      phdMilestones
+        .filter((m) => m.enrollmentNo === ownStudent.EnrollmentNo)
+        .map((m) => [m.milestone, m]),
+    );
+    return PHD_MILESTONE_ORDER.map((label) => ({
+      label,
+      entry: byName.get(label) ?? null,
+    }));
+  }, [phdMilestones, ownStudent]);
+
+  const ownPapers = useMemo(() => {
+    const name = ownStudent?.StudentName || ownStaff?.Name;
+    if (!name) return [];
+    const low = name.toLowerCase();
+    return scientificOutputs.filter((o) => o.authors.some((a) => a.toLowerCase().includes(low)));
+  }, [scientificOutputs, ownStudent, ownStaff]);
 
   return (
-    <Stagger className="space-y-4 pb-12">
-      {/* --- 1. Greeting and the road --- */}
-      <HomeGreeting
-        done={doneCount} total={actions.length + doneCount} sentence={sentence}
-        sub={own
-          ? <>Enrolment <span className="font-mono">{own.EnrollmentNo}</span> · {own.Specialization || 'PhD'} · supervisor {own.SupervisorName || 'not named'}</>
-          : 'Ask your supervisor or the System Admin to link your PhD record.'}
-        right={own && <ProgressRing value={passed} max={8} size={72} label="of road" />}
-      />
-      {own && (
-        <Section id="student-road-to-the-thesis" title="Road to the thesis" right={<span className="font-mono">{passed} of 8</span>}>
-          <ol className="grid grid-cols-4 sm:grid-cols-8 gap-1.5" aria-label="PhD steps">
-            {road.gates.map(g => (
-              <li key={g.name} className="text-center">
-                <span aria-hidden="true" className={clsx('block h-1.5 rounded-full',
-                  g.done ? 'bg-archive-green' : g === next ? 'bg-turmeric' : 'bg-surface-hover')} />
-                <span className={clsx('block text-[11px] mt-1.5 leading-tight', g === next ? 'text-text' : 'text-text-muted')}>{g.name}</span>
-                <span className="sr-only">{g.done ? 'done' : g === next ? 'next' : 'not yet'}</span>
-                {g.dueDate && !g.done && <span className="block font-mono text-[11px] text-text-muted">{g.dueDate}</span>}
-              </li>
-            ))}
-          </ol>
-          <p className="text-xs text-text-muted mt-3">Fellowship: {own.FellowshipDetails || 'not on record'}.{own.ThesisTitle ? ` Thesis: ${own.ThesisTitle}.` : ''}</p>
-        </Section>
+    <div className="space-y-6 pb-12">
+      <section aria-label="Student greeting" className="space-y-1">
+        <h1 className="text-xl sm:text-2xl font-[500] font-serif text-text leading-snug">{greeting}</h1>
+        {ownStudent && (
+          <p className="text-xs text-text-muted font-mono tabular-nums">
+            {ownStudent.EnrollmentNo} · Supervisor: {ownStudent.SupervisorName || 'Unassigned'}
+          </p>
+        )}
+      </section>
+
+      <DoFirstStrip />
+
+      {/* Single next item */}
+      {doNext && (
+        <Card className="p-5 flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-xs uppercase tracking-wider text-text-muted font-semibold">Do this next</p>
+            <p className="text-base font-medium text-text truncate">{doNext.label}</p>
+            <p className="text-xs text-text-muted truncate">{doNext.detail}</p>
+          </div>
+          <Link
+            to={doNext.link}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-terracotta hover:bg-terracotta-hover text-ivory text-sm font-semibold shrink-0"
+          >
+            Open <ArrowRight size={15} />
+          </Link>
+        </Card>
       )}
 
-      {/* --- 2. Ask --- */}
-      <DoFirst now={now} />
+      {/* Thesis road */}
+      <Card className="p-4 space-y-3">
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+          <GraduationCap size={14} /> My thesis road
+        </h2>
+        {!ownStudent || ownMilestones.every((m) => !m.entry) ? (
+          <p className="text-xs text-text-muted">
+            No thesis milestones have been recorded on your enrolment yet. Your supervisor or PME updates these gates as you progress.
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {ownMilestones.map(({ label, entry }) => {
+              const done = Boolean(entry?.completedDate);
+              return (
+                <li key={label} className="flex items-center justify-between gap-3 text-xs border-b border-border pb-2 last:border-0 last:pb-0">
+                  <span className="flex items-center gap-2 text-text">
+                    <CheckCircle2 size={14} className={done ? 'text-archive-green' : 'text-border'} />
+                    {label}
+                  </span>
+                  <span className="font-mono tabular-nums text-text-muted">
+                    {entry?.completedDate ? `Done ${entry.completedDate}` : entry?.dueDate ? `Due ${entry.dueDate}` : 'Upcoming'}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </Card>
 
-      <AskBox placeholder="Ask SURYA: what does the synopsis need?" />
+      {/* Work record & Need something */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card className="p-4 space-y-2">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-text-muted">My work record</h2>
+          <p className="text-lg font-mono tabular-nums text-text">
+            {ownPapers.length} <span className="text-xs font-sans text-text-muted">indexed publication{ownPapers.length === 1 ? '' : 's'}</span>
+          </p>
+          <p className="text-xs text-text-muted">
+            <Link to="/me" className="underline hover:text-text">Open my profile</Link>
+          </p>
+        </Card>
 
-      {/* --- 3. This week: what waits on me --- */}
-      <WaitingOnYou actions={actions} now={now} rows={4} strong={prioritiesForMe.length === 0} />
-
-      {/* --- 4. Work record and need something --- */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Section id="student-my-work-record" title="My work record" right={<Link to="/me" className={TITLE_LINK}>My profile</Link>}>
-          <div className={ROW}>
-            <p className="flex-1 text-sm text-text">Papers with my name</p>
-            <span className="font-mono text-xs text-text-muted">{papers.length}</span>
-          </div>
-          {papers.slice(0, 3).map(o => (
-            <div key={o.id} className={ROW}>
-              <p className="flex-1 min-w-0 text-xs text-text-muted truncate" title={o.title}>{o.title}</p>
-              <span className="font-mono text-xs text-text-muted shrink-0">{o.year}</span>
-            </div>
-          ))}
-          <div className={ROW}>
-            <p className="flex-1 text-sm text-text">Project</p>
-            {project
-              ? <Link to={`/projects/${encodeURIComponent(project.ProjectID)}`} className="text-xs text-text-muted truncate hover:underline inline-block py-1.5 -my-1.5">
-                  <span className="font-mono mr-1">{project.ProjectNo}</span>{project.ProjectName}
-                </Link>
-              : <span className="text-xs text-text-muted">none on record</span>}
-          </div>
-        </Section>
-        <Section id="student-need-something" title="Need something">
+        <Card className="p-4 space-y-3">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-text-muted">Need something?</h2>
           <div className="flex flex-wrap gap-2">
-            {NEEDS.map(n => <Link key={n.label} to={n.to}><Button variant="secondary" size="sm" type="button">{n.label}</Button></Link>)}
+            <Link to="/helpdesk/new?key=letter" className="px-3 py-1.5 rounded-lg border border-border text-xs font-medium text-text hover:bg-surface-hover">
+              Bonafide letter
+            </Link>
+            <Link to="/helpdesk/new?key=leave" className="px-3 py-1.5 rounded-lg border border-border text-xs font-medium text-text hover:bg-surface-hover">
+              Ask leave
+            </Link>
+            <Link
+              to="/helpdesk/new?key=complaint"
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border text-xs font-medium text-text hover:bg-surface-hover"
+            >
+              <Shield size={12} /> Talk to someone, in private
+            </Link>
           </div>
-          <p className="text-xs text-text-muted mt-3">You see your own road only. No other student's progress is shown here.</p>
-        </Section>
+        </Card>
       </div>
-
-      {/* --- 5. Blocks that wait on other work --- */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <NotConnected title="Supervisor meetings">What you agreed at each meeting, and its state, will show here.</NotConnected>
-        <NotConnected title="Fellowship clock">The fellowship end date against your thesis date will show here.</NotConnected>
-      </div>
-
-      {actions.length > 5 && (
-        <Section id="student-also-open" title="Also open">
-          {actions.slice(5, 10).map(a => <ActionRow key={a.id} action={a} now={now} />)}
-        </Section>
-      )}
-    </Stagger>
+    </div>
   );
 }

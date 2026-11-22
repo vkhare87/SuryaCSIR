@@ -53,11 +53,11 @@ export function GlobalFeatureKillSwitches() {
                   disabled={saving === path}
                   onClick={() => toggle(path)}
                   className={`relative w-10 h-[22px] rounded-full transition-colors shrink-0 disabled:opacity-50 ${
-                    control.enabled ? 'bg-[#16a34a]' : 'bg-surface-hover border border-border'
+                    control.enabled ? 'bg-archive-green' : 'bg-surface-hover border border-border'
                   }`}
                 >
                   <span
-                    className={`absolute top-[3px] w-4 h-4 rounded-full bg-white shadow transition-all ${
+                    className={`absolute top-[3px] w-4 h-4 rounded-full bg-ivory shadow transition-all ${
                       control.enabled ? 'left-[22px]' : 'left-[3px]'
                     }`}
                   />
@@ -65,7 +65,7 @@ export function GlobalFeatureKillSwitches() {
                 <span className="text-sm font-semibold text-text">{FEATURE_LABELS[path]}</span>
                 <Badge variant={control.enabled ? 'success' : 'danger'}>{control.enabled ? 'ON' : 'OFF'}</Badge>
                 {savedFlash === path && (
-                  <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">Saved</span>
+                  <span className="text-[11px] font-medium text-archive-green">Saved</span>
                 )}
                 {modified && (
                   <button

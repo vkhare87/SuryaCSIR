@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { domainUploadLedger } from './uploadFreshness';
 import type { DataSteward, ImportEvent } from '../../types';
 
-const ev = (file_type: string, uploaded_at: string): ImportEvent => ({
-  id: uploaded_at, file_type, row_count: 1,
+const ev = (file_type: string, uploaded_at: string, division_code: string | null = null): ImportEvent => ({
+  id: `${uploaded_at}:${division_code ?? 'all'}`, file_type, row_count: 1, division_code,
   uploaded_by: 'u1', uploaded_by_email: 'a@b.c', uploaded_at,
 });
 
@@ -58,5 +58,20 @@ describe('domainUploadLedger', () => {
     expect(eq.daysSinceUpload).toBe(40);
     expect(eq.cadenceDays).toBe(30);
     expect(eq.status).toBe('stale');
+  });
+
+  it('tracks division-scoped uploads separately when divisionCode is supplied', () => {
+    const events = [
+      ev('staff', '2026-07-10T00:00:00Z', 'CMPD'),
+      ev('staff', '2026-01-01T00:00:00Z', 'IMD'),
+    ];
+    const cmpd = domainUploadLedger(events, [], now, 'CMPD').find((d) => d.domain === 'staff')!;
+    const imd = domainUploadLedger(events, [], now, 'IMD').find((d) => d.domain === 'staff')!;
+    const other = domainUploadLedger(events, [], now, 'NST').find((d) => d.domain === 'staff')!;
+    expect(cmpd.status).toBe('fresh');
+    expect(cmpd.divisionsUploaded).toEqual(['CMPD', 'IMD']);
+    expect(imd.status).toBe('urgent');
+    expect(other.daysSinceUpload).toBeNull();
+    expect(other.status).toBe('urgent');
   });
 });

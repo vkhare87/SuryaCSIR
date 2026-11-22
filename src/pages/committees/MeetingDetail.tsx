@@ -12,9 +12,10 @@ import { MinutesEditor } from '../../components/committees/MinutesEditor';
 import { DocumentUploader } from '../../components/committees/DocumentUploader';
 import { ActionItemModal } from '../../components/committees/ActionItemModal';
 import { DeclarationsPanel } from '../../components/committees/DeclarationsPanel';
+import { MeetingLivePanel } from '../../components/committees/MeetingLivePanel';
+import { MinutesWorkflowPanel } from '../../components/committees/MinutesWorkflowPanel';
 import type { ActionItem } from '../../types';
 import { useBack } from '../../utils/useBack';
-import { Section } from '../../components/ui/Section';
 import {
   ArrowLeft,
   Calendar,
@@ -52,7 +53,7 @@ function SectionHeader({
 }) {
   return (
     <div className="flex items-center gap-2 mb-4">
-      <Icon size={16} className="text-terracotta" />
+      <Icon size={16} className="text-[#c96442]" />
       <h3 className="text-sm font-[500] text-text font-serif">{title}</h3>
       {count !== undefined && (
         <Badge variant="neutral">{count}</Badge>
@@ -110,7 +111,11 @@ export default function MeetingDetail() {
 
   // --- Permissions ---
 
-  const canAgendaEdit = !!(user && committee && canWriteMinutes(user, committee));
+  const myStaffId = useMemo(
+    () => staff.find((s) => s.user_id === user?.id)?.ID ?? null,
+    [staff, user?.id],
+  );
+  const canAgendaEdit = !!(user && committee && canWriteMinutes(user, committee, myStaffId));
   const canUpload = !!(user && canUploadDocuments(user));
 
   // --- Helpers ---
@@ -207,7 +212,7 @@ export default function MeetingDetail() {
   return (
     <div className="space-y-6">
       {/* --- Back Nav --- */}
-      <div className="card-contrast border rounded-xl p-5 flex items-center gap-4">
+      <div className="flex items-center gap-4">
         <button
           onClick={goBack}
           aria-label="Back"
@@ -216,7 +221,7 @@ export default function MeetingDetail() {
           <ArrowLeft size={20} />
         </button>
         <div>
-          <h1 className="page-title">Meeting Detail</h1>
+          <h1 className="text-2xl font-[500] text-text font-serif">Meeting Detail</h1>
           <p className="text-text-muted text-sm">{committee?.name ?? 'Committee'}</p>
         </div>
       </div>
@@ -252,11 +257,23 @@ export default function MeetingDetail() {
           members={committeeMembers.filter(m => m.committee_id === committee.id)} staff={staff} />
       )}
 
+      {committee && (
+        <MeetingLivePanel
+          meeting={meeting}
+          committee={committee}
+          members={committeeMembers.filter(m => m.committee_id === committee.id)}
+          staff={staff}
+          canRun={canAgendaEdit}
+        />
+      )}
+
+      <MinutesWorkflowPanel meetingId={meeting.id} canRun={canAgendaEdit} />
+
       {/* --- Section 2: Agenda Items --- */}
       <Card className="p-4">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <ListOrdered size={16} className="text-terracotta" />
+            <ListOrdered size={16} className="text-[#c96442]" />
             <h3 className="text-sm font-medium text-text">Agenda</h3>
             <Badge variant="info">{meetingAgendaItems.length}</Badge>
           </div>
@@ -292,13 +309,14 @@ export default function MeetingDetail() {
           />
         </Card>
       ) : (
-        <Section id="meetingdetail-meeting-minutes" title="Meeting Minutes" className="p-4">
+        <Card className="p-4">
+          <h3 className="text-sm font-medium text-text mb-3">Meeting Minutes</h3>
           {meeting.summary ? (
             <p className="text-sm text-text whitespace-pre-wrap">{meeting.summary}</p>
           ) : (
             <p className="text-sm text-text-muted italic">No minutes recorded yet.</p>
           )}
-        </Section>
+        </Card>
       )}
 
       {/* --- Section 4: Action Items --- */}
@@ -361,7 +379,7 @@ export default function MeetingDetail() {
       <Card className="p-4">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <FileText size={16} className="text-terracotta" />
+            <FileText size={16} className="text-[#c96442]" />
             <h3 className="text-sm font-medium text-text">Documents</h3>
             <Badge variant="info">{meetingDocumentList.length}</Badge>
           </div>

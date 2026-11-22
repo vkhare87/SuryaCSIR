@@ -82,6 +82,18 @@ EXEMPT: dict[str, str] = {
         "Whether the write happens at all is decided by the table's RLS "
         "(HRAdmin/SystemAdmin/MasterAdmin) before this runs."
     ),
+    "resolve_unique_staff_id": (
+        "internal trigger/backfill helper: resolves an unambiguous display name to "
+        "staff.\"ID\". EXECUTE revoked from client roles (20261121000009)."
+    ),
+    "committee_memberships_sync_leads": (
+        "trigger on committee_memberships; keeps committees.chairperson_id/secretary_id "
+        "in step with active seat rows. Membership writes are gated by RLS."
+    ),
+    "action_items_sync_staff_id": (
+        "trigger on action_items; caches assigned_staff_id from unique_staff_names "
+        "on write. Action item writes are gated by RLS."
+    ),
     "projects_resync_child_keys": (
         "trigger on projects; relinks or unlinks child rows when a project number "
         "becomes unique or shared. The projects write is gated by its RLS; "
@@ -107,9 +119,6 @@ EXEMPT: dict[str, str] = {
     "project_change_apply": "internal: applies an approved change; called only by project_change_record_step after its own check. EXECUTE revoked (20261112000001)",
     "project_change_log": "trigger on project_change_requests; writes the timeline. EXECUTE revoked (20261112000001)",
     "project_completion_log": "trigger on project_completion_reports; writes the timeline. EXECUTE revoked (20261112000002)",
-    "ask_scope_sweep": "scheduled sweep (pg_cron, no caller): tells HRAdmin about more than 5 out-of-scope Ask SURYA refusals in a day. EXECUTE revoked from clients (20261115000001)",
-    "home_overdue_sweep": "scheduled sweep (pg_cron, no caller): tells the head of division about a progress report 7 days late. EXECUTE revoked from clients (20261114120004)",
-    "priority_notify": "internal: writes one notification for a priority step; called only by the priority_* RPCs after their own checks. EXECUTE revoked from clients (20261114120002)",
     "project_caller_is_party": (
         "caller-identity resolver: is the caller PI, author or co-PI of this "
         "project. Answers only about the caller (20261111000002)."
@@ -174,11 +183,6 @@ EXEMPT: dict[str, str] = {
     "coi_caller_chairs": "caller-identity resolver: is the caller chair or convener of this meeting's committee. Keyed on caller_staff_id(); answers only about the caller (20261112000013)",
     "profile_consistency_sweep": "weekly cron job; reads every profile to raise requests. EXECUTE revoked from client roles (20261112000012)",
     "contribution_target_can_see": "internal scope check called only by a trigger; EXECUTE revoked from client roles",
-    "caller_consents_to_file": (
-        "RLS predicate helper for publication_files_select; checks only whether "
-        "caller_staff_id() has a row in publication_author_consents for p_file_id "
-        "without recursing into publication_author_consents RLS."
-    ),
 }
 
 

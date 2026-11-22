@@ -62,12 +62,19 @@ export function deriveUpcomingWeekEvents(
   return [...hol, ...evt].sort((a, b) => a.date.localeCompare(b.date));
 }
 
-/** Non-completed action items assigned to this staff name, ascending by deadline. */
-export function deriveOwnActionItems(items: ActionItem[], staffName: string): ActionItem[] {
-  if (!staffName) return [];
+/** Non-completed action items assigned to this staff ID (or name when unlinked), ascending by deadline. */
+export function deriveOwnActionItems(
+  items: ActionItem[],
+  staffName: string,
+  staffId?: string | null,
+): ActionItem[] {
+  if (!staffName && !staffId) return [];
   return items
-    .filter(i => i.status !== 'Completed')
-    .filter(i => staffNameMatchesAuthor(staffName, i.assigned_to))
+    .filter(i => i.status !== 'Completed' && i.status !== 'Verified' && i.status !== 'Dropped')
+    .filter(i => {
+      if (staffId && i.assigned_staff_id) return i.assigned_staff_id === staffId;
+      return staffName ? staffNameMatchesAuthor(staffName, i.assigned_to) : false;
+    })
     // Correct because deadline is a YYYY-MM-DD ISO string (DB-enforced); lexical = chronological.
     .sort((a, b) => (a.deadline || '').localeCompare(b.deadline || ''));
 }

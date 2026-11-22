@@ -151,8 +151,9 @@ export default function CommitteeDetail() {
 
   // --- Permission Flags ---
 
+  const myStaffId = staff.find((s) => s.user_id === user?.id)?.ID ?? null;
   const showEdit = user && canEditCommittee(user);
-  const showScheduleMeeting = user && canScheduleMeeting(user, committee);
+  const showScheduleMeeting = user && canScheduleMeeting(user, committee, myStaffId);
   const showManageMembers = user && canManageMembers(user);
 
   const statusBadgeVariant = (s: string): 'success' | 'warning' | 'danger' | 'info' | 'neutral' => {
@@ -172,11 +173,11 @@ export default function CommitteeDetail() {
         {/* LEFT COLUMN */}
         <div className="lg:col-span-1 space-y-4">
           {/* Identity Card */}
-          <Card className="border-t-4 border-terracotta relative overflow-hidden pt-6">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-coral/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
+          <Card className="border-t-4 border-[#c96442] relative overflow-hidden pt-6">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-[#d97757]/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
             <div className="flex flex-col items-center text-center space-y-3 z-10 relative">
               <div className="w-16 h-16 rounded-full bg-surface-hover border-4 border-background flex items-center justify-center ring-2 ring-border">
-                <Building2 size={28} className="text-terracotta" />
+                <Building2 size={28} className="text-[#c96442]" />
               </div>
               <div>
                 <h2 className="text-lg font-[500] text-text font-serif leading-snug">{c.name}</h2>
@@ -196,7 +197,7 @@ export default function CommitteeDetail() {
 
           {/* Details Card */}
           <Card>
-            <div className="flex items-center gap-2 text-[10px] font-semibold text-terracotta uppercase tracking-[0.2em] mb-3">
+            <div className="flex items-center gap-2 text-[10px] font-semibold text-[#c96442] uppercase tracking-[0.2em] mb-3">
               <Building2 size={13} />
               Details
             </div>
@@ -212,7 +213,7 @@ export default function CommitteeDetail() {
           {/* Leadership Card */}
           <Card className="p-0 overflow-hidden">
             <div className="p-4 border-b border-border bg-surface flex items-center gap-2">
-              <Users size={16} className="text-terracotta" />
+              <Users size={16} className="text-[#c96442]" />
               <h3 className="text-sm font-[500] text-text font-serif">Leadership</h3>
             </div>
             <div className="divide-y divide-border">
@@ -221,11 +222,11 @@ export default function CommitteeDetail() {
                 <div className="text-xs text-text-muted font-medium w-28 shrink-0">Chairperson</div>
                 {chairperson ? (
                   <Link to={`/staff/${chairperson.ID}`} className="flex items-center gap-2 flex-1 group">
-                    <div className="w-8 h-8 rounded-full bg-terracotta/10 flex items-center justify-center font-bold text-sm text-terracotta shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-[#c96442]/10 flex items-center justify-center font-bold text-sm text-[#c96442] shrink-0">
                       {chairperson.Name.charAt(0)}
                     </div>
                     <div>
-                      <div className="text-sm font-medium text-text group-hover:text-terracotta transition-colors">
+                      <div className="text-sm font-medium text-text group-hover:text-[#c96442] transition-colors">
                         {chairperson.Name}
                       </div>
                       <div className="text-xs text-text-muted">{chairperson.Designation}</div>
@@ -240,11 +241,11 @@ export default function CommitteeDetail() {
                 <div className="text-xs text-text-muted font-medium w-28 shrink-0">Secretary</div>
                 {secretary ? (
                   <Link to={`/staff/${secretary.ID}`} className="flex items-center gap-2 flex-1 group">
-                    <div className="w-8 h-8 rounded-full bg-terracotta/10 flex items-center justify-center font-bold text-sm text-terracotta shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-[#c96442]/10 flex items-center justify-center font-bold text-sm text-[#c96442] shrink-0">
                       {secretary.Name.charAt(0)}
                     </div>
                     <div>
-                      <div className="text-sm font-medium text-text group-hover:text-terracotta transition-colors">
+                      <div className="text-sm font-medium text-text group-hover:text-[#c96442] transition-colors">
                         {secretary.Name}
                       </div>
                       <div className="text-xs text-text-muted">{secretary.Designation}</div>
@@ -261,7 +262,7 @@ export default function CommitteeDetail() {
           <Card className="p-0 overflow-hidden">
             <div className="p-4 border-b border-border bg-surface flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <Users size={16} className="text-terracotta" />
+                <Users size={16} className="text-[#c96442]" />
                 <h3 className="text-sm font-[500] text-text font-serif">Members ({members.length})</h3>
               </div>
               {showManageMembers && (
@@ -307,7 +308,7 @@ export default function CommitteeDetail() {
           <Card className="p-0 overflow-hidden">
             <div className="p-4 border-b border-border bg-surface flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <Calendar size={16} className="text-terracotta" />
+                <Calendar size={16} className="text-[#c96442]" />
                 <h3 className="text-sm font-[500] text-text font-serif">Recent Meetings</h3>
               </div>
             </div>
@@ -335,7 +336,7 @@ export default function CommitteeDetail() {
                 <div className="p-3 text-center">
                   <button
                     onClick={() => navigate(`/committees/${id}/meetings`)}
-                    className="text-sm text-terracotta hover:underline"
+                    className="text-sm text-[#c96442] hover:underline"
                   >
                     View All Meetings
                   </button>
@@ -428,7 +429,7 @@ export default function CommitteeDetail() {
     <>
     <div className="space-y-6">
       {/* Back nav + Header */}
-      <div className="card-contrast border rounded-xl p-5 flex items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <button
             onClick={goBack}
@@ -438,7 +439,7 @@ export default function CommitteeDetail() {
             <ArrowLeft size={20} />
           </button>
           <div>
-            <h1 className="page-title">Committee Profile</h1>
+            <h1 className="text-2xl font-[500] text-text font-serif">Committee Profile</h1>
             <p className="text-text-muted text-sm">{committee.committee_type === 'AdHoc' ? 'Ad Hoc' : committee.committee_type} Committee</p>
           </div>
         </div>
@@ -461,7 +462,7 @@ export default function CommitteeDetail() {
           className={({ isActive }) =>
             `px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
               isActive
-                ? 'border-terracotta text-terracotta'
+                ? 'border-[#c96442] text-[#c96442]'
                 : 'border-transparent text-text-muted hover:text-text'
             }`
           }
@@ -473,7 +474,7 @@ export default function CommitteeDetail() {
           className={({ isActive }) =>
             `px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
               isActive
-                ? 'border-terracotta text-terracotta'
+                ? 'border-[#c96442] text-[#c96442]'
                 : 'border-transparent text-text-muted hover:text-text'
             }`
           }
@@ -485,7 +486,7 @@ export default function CommitteeDetail() {
           className={({ isActive }) =>
             `px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
               isActive
-                ? 'border-terracotta text-terracotta'
+                ? 'border-[#c96442] text-[#c96442]'
                 : 'border-transparent text-text-muted hover:text-text'
             }`
           }

@@ -3,6 +3,7 @@ import { lazy, Suspense } from 'react';
 import { Routes, Route, HashRouter, Navigate, Outlet } from 'react-router-dom';
 import { Layout } from './components/layout/Layout';
 import Dashboard from './pages/Dashboard';
+import Login from './pages/Login';
 import { useAuth } from './contexts/AuthContext';
 import { useFeatureControls } from './contexts/FeatureControlContext';
 import { useUI } from './contexts/UIContext';
@@ -17,7 +18,6 @@ import { VERIFIED } from './constants/access';
 // Lazy-loaded routes — split into per-chunk bundles to keep the initial
 // payload manageable. Heavy deps (@react-pdf, xlsx, recharts) live behind
 // these boundaries.
-const Login             = lazy(() => import('./pages/Login'));
 const SetupWizard       = lazy(() => import('./pages/SetupWizard'));
 const ChangePassword    = lazy(() => import('./pages/ChangePassword'));
 const HumanCapital      = lazy(() => import('./pages/HumanCapital'));
@@ -44,6 +44,10 @@ const InstrumentDetail  = lazy(() => import('./pages/InstrumentDetail'));
 const CommitteeList     = lazy(() => import('./pages/committees/CommitteeList'));
 const CommitteeDetail   = lazy(() => import('./pages/committees/CommitteeDetail'));
 const MeetingDetail     = lazy(() => import('./pages/committees/MeetingDetail'));
+const RoomsAdmin        = lazy(() => import('./pages/committees/RoomsAdmin'));
+const VerifySignature   = lazy(() => import('./pages/verify/VerifySignature'));
+const OperationsDesk    = lazy(() => import('./pages/desk/OperationsDesk'));
+const RoleDepthHub      = lazy(() => import('./pages/depth/RoleDepthHub'));
 const Recruitment       = lazy(() => import('./pages/Recruitment'));
 const DataManagement    = lazy(() => import('./pages/DataManagement'));
 const AccessRequests    = lazy(() => import('./pages/AccessRequests'));
@@ -158,7 +162,7 @@ function App() {
   return (
     <HashRouter>
       <Routes>
-        <Route path="/login" element={<Suspense fallback={<RouteFallback />}><Login /></Suspense>} />
+        <Route path="/login" element={<Login />} />
         <Route path="/setup" element={<Suspense fallback={<RouteFallback />}><SetupWizard /></Suspense>} />
         <Route path="/change-password" element={<Suspense fallback={<RouteFallback />}><ChangePassword /></Suspense>} />
         
@@ -209,6 +213,11 @@ function App() {
             <Route path="/committees/:id/actions" element={<ProtectedRoute accessPath="/committees"><CommitteeDetail /></ProtectedRoute>} />
             <Route path="/committees/:id" element={<ProtectedRoute accessPath="/committees"><CommitteeDetail /></ProtectedRoute>} />
             <Route path="/committees" element={<ProtectedRoute accessPath="/committees"><CommitteeList /></ProtectedRoute>} />
+            <Route path="/rooms" element={<ProtectedRoute accessPath="/rooms"><RoomsAdmin /></ProtectedRoute>} />
+            <Route path="/verify/:code" element={<ProtectedRoute><VerifySignature /></ProtectedRoute>} />
+            <Route path="/verify" element={<ProtectedRoute><VerifySignature /></ProtectedRoute>} />
+            <Route path="/desk" element={<ProtectedRoute><OperationsDesk /></ProtectedRoute>} />
+            <Route path="/depth" element={<ProtectedRoute><RoleDepthHub /></ProtectedRoute>} />
             {/* Helpdesk — specific routes first (Pitfall 6) */}
             <Route path="/helpdesk/new" element={<ProtectedRoute accessPath="/helpdesk"><TicketForm /></ProtectedRoute>} />
             <Route path="/helpdesk/:id" element={<ProtectedRoute accessPath="/helpdesk"><TicketDetail /></ProtectedRoute>} />
@@ -233,6 +242,7 @@ function App() {
             <Route path="/pms/grievance" element={<ProtectedRoute accessPath="/pms"><PMSGrievance /></ProtectedRoute>} />
             <Route path="/pms/committee" element={<ProtectedRoute accessPath="/pms/committee"><CommitteeQueue /></ProtectedRoute>} />
             <Route path="/pms/audit" element={<ProtectedRoute accessPath="/pms/audit"><PmsAuditLog /></ProtectedRoute>} />
+            <Route path="/audit" element={<ProtectedRoute accessPath="/pms/audit"><PmsAuditLog /></ProtectedRoute>} />
             <Route path="/pms/awp" element={<ProtectedRoute desktopOnly accessPath="/pms/awp"><AWPMine /></ProtectedRoute>} />
             <Route path="/pms/awp/inbox" element={<ProtectedRoute accessPath="/pms/awp/inbox"><AWPInbox /></ProtectedRoute>} />
             <Route path="/pms/awp/import" element={<ProtectedRoute desktopOnly accessPath="/pms/awp/import"><AWPImport /></ProtectedRoute>} />

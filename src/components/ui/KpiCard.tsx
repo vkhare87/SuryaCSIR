@@ -52,8 +52,8 @@ export function KpiCard({ label, value, icon, sublabel, delta, sparkline, classN
         {typeof delta === 'number' && (
           <span className={cn(
             "inline-flex items-center gap-0.5 text-xs font-semibold rounded-full px-1.5 py-0.5",
-            up ? "text-emerald-700 bg-emerald-500/10 dark:text-emerald-400"
-               : "text-rose-700 bg-rose-500/10 dark:text-rose-400"
+            up ? "text-archive-green bg-archive-green/10"
+               : "text-danger bg-danger/10"
           )}>
             {up ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
             {Math.abs(delta)}%

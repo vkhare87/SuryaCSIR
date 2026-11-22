@@ -44,7 +44,7 @@ const STATUS_TO_VARIANT: Record<VacancyApplication['status'], 'info' | 'warning'
 };
 
 export default function Recruitment() {
-  const { vacancyAdvertisements, vacancyApplications, isLoading } = useData();
+  const { vacancyAdvertisements, vacancyApplications, isLoading, error } = useData();
   const { hasPermission } = useAuth();
   const canManage = hasPermission(['HRAdmin', 'SystemAdmin', 'MasterAdmin']);
   const [searchTerm, setSearchTerm] = useState('');
@@ -101,12 +101,12 @@ export default function Recruitment() {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="page-title">Recruitment Portal</h1>
+          <h1 className="text-2xl font-[500] text-text font-serif">Recruitment Portal</h1>
           <p className="text-text-muted mt-1">Manage institutional vacancies and talent acquisition</p>
         </div>
         {canManage && (
           <div className="flex gap-2">
-            <button className="bg-terracotta text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-terracotta-hover transition-colors flex items-center gap-2">
+            <button className="bg-terracotta text-ivory px-4 py-2 rounded-lg text-sm font-medium hover:bg-terracotta-hover transition-colors flex items-center gap-2">
               <UserPlus size={16} />
               New Vacancy
             </button>
@@ -114,7 +114,13 @@ export default function Recruitment() {
         )}
       </div>
 
-      {!isLoading && vacancyAdvertisements.length === 0 ? (
+      {!isLoading && error && vacancyAdvertisements.length === 0 ? (
+        <EmptyState
+          variant="error"
+          title="Couldn't load vacancy advertisements"
+          description={error}
+        />
+      ) : !isLoading && vacancyAdvertisements.length === 0 ? (
         <EmptyState
           icon={Megaphone}
           title="No active vacancies"

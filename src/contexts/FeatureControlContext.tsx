@@ -65,13 +65,14 @@ export function FeatureControlProvider({ children }: { children: ReactNode }) {
   }, [userId]);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      void Promise.all([refresh(), refreshGrants()]);
-    } else {
-      setControls([]);
-      setGrants([]);
-    }
-  }, [isAuthenticated, refresh, refreshGrants]);
+    if (isAuthenticated) void refresh();
+    else setControls([]);
+  }, [isAuthenticated, refresh]);
+
+  useEffect(() => {
+    if (isAuthenticated) void refreshGrants();
+    else setGrants([]);
+  }, [isAuthenticated, refreshGrants]);
 
   const value = useMemo<FeatureControlContextType>(() => {
     const grantSet = new Set(grants);

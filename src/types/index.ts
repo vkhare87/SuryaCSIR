@@ -286,6 +286,16 @@ export type ThemeMode = 'light' | 'dark' | 'system';
 
 // --- v1.0 Committees & Helpdesk ---
 
+export type CommitteeConfidentiality = 'institute' | 'members' | 'confidential';
+export type CommitteeSignPolicy = 'CHAIR_SECRETARY' | 'ALL_PRESENT';
+export type MeetingStage =
+  | 'PLANNED' | 'NOTICE_ISSUED' | 'AGENDA_CIRCULATED'
+  | 'HELD' | 'MINUTES_DRAFT' | 'MINUTES_CIRCULATED' | 'MINUTES_SIGNED' | 'CONFIRMED'
+  | 'POSTPONED' | 'CANCELLED' | 'ADJOURNED';
+export type CommitteeSeat =
+  | 'CHAIRPERSON' | 'MEMBER_SECRETARY' | 'CONVENER'
+  | 'MEMBER' | 'EXTERNAL_EXPERT' | 'NOMINEE' | 'INVITEE';
+
 export interface Committee {
   id: string;
   name: string;
@@ -296,6 +306,12 @@ export interface Committee {
   status: 'Active' | 'Inactive';
   formed_date: string;
   created_at: string;
+  confidentiality?: CommitteeConfidentiality;
+  parent_committee_id?: string | null;
+  rule_key?: string | null;
+  sign_policy?: CommitteeSignPolicy;
+  dissolved_on?: string | null;
+  dissolution_ref?: string | null;
 }
 
 export interface CommitteeMember {
@@ -303,6 +319,47 @@ export interface CommitteeMember {
   committee_id: string;
   staff_id: string;
   role: 'Member' | 'Invitee' | 'ExternalExpert';
+}
+
+export interface CommitteeTerm {
+  id: string;
+  committee_id: string;
+  term_no: number;
+  from_on: string;
+  to_on: string | null;
+  order_ref: string;
+  order_document_id: string | null;
+  terms_of_reference: string;
+  quorum_min: number;
+  quorum_needs_chair: boolean;
+  cadence_months: number | null;
+  status: 'ACTIVE' | 'EXPIRED' | 'SUPERSEDED';
+  created_at: string;
+}
+
+export interface ExternalMember {
+  id: string;
+  name: string;
+  organisation: string;
+  designation: string;
+  email: string | null;
+  phone: string | null;
+  user_id: string | null;
+  active: boolean;
+  created_at: string;
+}
+
+export interface CommitteeMembership {
+  id: string;
+  committee_id: string;
+  term_id: string;
+  staff_id: string | null;
+  external_member_id: string | null;
+  seat: CommitteeSeat;
+  from_on: string;
+  to_on: string | null;
+  ended_reason: string | null;
+  created_at: string;
 }
 
 export interface Meeting {
@@ -316,6 +373,14 @@ export interface Meeting {
   created_at: string;
   teams_url: string | null;
   pamphlet_url: string | null;
+  stage?: MeetingStage;
+  meeting_no?: number | null;
+  starts_at?: string | null;
+  ends_at?: string | null;
+  mode?: 'IN_PERSON' | 'ONLINE' | 'HYBRID';
+  term_id?: string | null;
+  adjourned_from_id?: string | null;
+  notice_days?: number | null;
 }
 
 export interface AgendaItem {
@@ -325,6 +390,11 @@ export interface AgendaItem {
   description: string;
   proposed_by: string;
   status: 'Pending' | 'Discussed' | 'Deferred';
+  item_type?: 'CONFIRM_MINUTES' | 'ACTION_TAKEN' | 'DECISION' | 'INFORMATION' | 'OTHER';
+  title?: string;
+  presenter_staff_id?: string | null;
+  minutes_allotted?: number | null;
+  proposal_state?: 'PROPOSED' | 'ACCEPTED' | 'DECLINED';
 }
 
 export interface ActionItem {
@@ -333,10 +403,12 @@ export interface ActionItem {
   source: 'meeting' | 'manual';
   task: string;
   assigned_to: string;
+  assigned_staff_id?: string | null;
   deadline: string;
-  status: 'Pending' | 'InProgress' | 'Completed';
+  status: 'Pending' | 'InProgress' | 'Completed' | 'Blocked' | 'Dropped' | 'Verified';
   completed_at: string | null;
   notes: string;
+  priority?: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
 }
 
 export interface MeetingDocument {
@@ -441,6 +513,7 @@ export interface ImportEvent {
   id: string;
   file_type: string;
   row_count: number;
+  division_code?: string | null;
   uploaded_by: string;
   uploaded_by_email: string;
   uploaded_at: string;

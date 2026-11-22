@@ -4,7 +4,6 @@ import type { User as SupabaseUser } from '@supabase/supabase-js';
 import type { UserAccount, Role } from '../types';
 import { supabase } from '../utils/supabaseClient';
 import { isDevLogin } from '../lib/auth/devLogin';
-import { primeDirectorThresholds } from '../hooks/useDirectorThresholds';
 
 interface AuthContextType {
   user: UserAccount | null;
@@ -45,7 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .order('role'),
       supabase
         .from('user_profiles')
-        .select('must_change_password, active_role, last_seen_at, preferences')
+        .select('must_change_password, active_role, last_seen_at')
         .eq('user_id', authUser.id)
         .single(),
     ]);
@@ -74,27 +73,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { session: current } } = await supabase.auth.getSession();
     if (current?.user.id !== authUser.id) return false;
 
-    primeDirectorThresholds(authUser.id, (profile as { preferences?: unknown } | null)?.preferences);
-
-    const email = authUser.email ?? '';
-    setUser(prev => (
-      prev &&
-      prev.id === authUser.id &&
-      prev.email === email &&
-      prev.activeRole === activeRole &&
-      prev.divisionCode === divisionCode &&
-      prev.mustChangePassword === mustChangePassword &&
-      prev.roles.join(',') === roles.join(',')
-        ? prev
-        : {
-            id: authUser.id,
-            email,
-            roles,
-            activeRole,
-            divisionCode,
-            mustChangePassword,
-          }
-    ));
+    setUser({
+      id: authUser.id,
+      email: authUser.email ?? '',
+      roles,
+      activeRole,
+      divisionCode,
+      mustChangePassword,
+    });
 
     // Debounce & fire-and-forget last_seen_at so login/refresh doesn't block on a write RTT
     const lastSeenMs = profile?.last_seen_at ? Date.parse(profile.last_seen_at) : 0;
@@ -135,13 +121,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(null);
           return;
         }
-        // INITIAL_SESSION is already handled by getSession() above.
         // USER_UPDATED fires on password change. Nothing it touches affects
         // roles or the profile, and re-resolving here raced the
         // rotation-flag clear in ChangePassword — re-reading `true` after
         // the flag had already been cleared and bouncing the user back to
         // the form. Skip it; TOKEN_REFRESHED is likewise a no-op for roles.
-        if (event === 'INITIAL_SESSION' || event === 'USER_UPDATED' || event === 'TOKEN_REFRESHED') return;
+        if (event === 'USER_UPDATED' || event === 'TOKEN_REFRESHED') return;
         // Deferred: gotrue holds its internal auth lock while it awaits this
         // callback, and resolveUserRoles' queries need that lock for the
         // access token — awaiting them here froze reloads on the loading screen.

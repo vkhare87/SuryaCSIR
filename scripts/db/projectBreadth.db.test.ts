@@ -69,8 +69,6 @@ describe('multi-lab', () => {
   });
 
   it('a running two-lab project without an IP agreement is flagged until one is filed', async () => {
-    await call(U.pme, `SELECT project_lab_set('BP-1', 'AMPRI', 'NODAL', '00000000-0000-0000-0000-00000000d001')`);
-    await call(U.pme, `SELECT project_lab_set('BP-1', 'nml', 'PARTICIPATING', NULL)`);
     expect((await q<{ m: boolean }>(db, `SELECT project_ip_agreement_missing('BP-1') m`))[0].m).toBe(true);
     await call(U.pme, `SELECT project_ip_agreement_add('BP-1', '00000000-0000-0000-0000-00000000d002', '2026-06-01')`);
     expect((await q<{ m: boolean }>(db, `SELECT project_ip_agreement_missing('BP-1') m`))[0].m).toBe(false);
@@ -79,16 +77,6 @@ describe('multi-lab', () => {
 
 describe('publication file', () => {
   let id = '';
-  const createSubmittedFile = async () => {
-    const authors = JSON.stringify([{ name: 'Asha Verma', staff_id: 'B-1' }, { name: 'J. Smith', staff_id: null }, { name: 'Meena Rao', staff_id: 'B-2' }]);
-    const fileId = (await call<{ id: string }>(U.asha, `SELECT publication_file_create('Red mud geopolymers', 'D1', $1::jsonb) id`, [authors]))[0].id;
-    await call(U.asha, `SELECT publication_move($1, 'ETHICS_CHECK', '{"similarity_pct": 8}')`, [fileId]);
-    await call(U.hod, `SELECT publication_move($1, 'CLEARED') n`, [fileId]);
-    await call(U.asha, `SELECT publication_consent($1, 'Synthesis and writing')`, [fileId]);
-    await call(U.meena, `SELECT publication_consent($1, 'Characterisation')`, [fileId]);
-    await call(U.asha, `SELECT publication_move($1, 'SUBMITTED', '{"journal": "J Mat"}')`, [fileId]);
-    return fileId;
-  };
   it('cannot be submitted without a communication number and every in-house consent', async () => {
     const authors = JSON.stringify([{ name: 'Asha Verma', staff_id: 'B-1' }, { name: 'J. Smith', staff_id: null }, { name: 'Meena Rao', staff_id: 'B-2' }]);
     await expect(call(U.hod, `SELECT publication_file_create('X', 'D1', $1::jsonb)`, [authors])).rejects.toThrow(/one of the authors/);
@@ -108,11 +96,10 @@ describe('publication file', () => {
   });
 
   it('on publication it becomes a scientific output with the authors linked', async () => {
-    const fileId = id || await createSubmittedFile();
-    await call(U.asha, `SELECT publication_move($1, 'ACCEPTED')`, [fileId]);
-    const out = (await call<{ o: string }>(U.asha, `SELECT publication_move($1, 'PUBLISHED', '{"year": 2026, "doi": "10.1/x"}') o`, [fileId]))[0].o;
+    await call(U.asha, `SELECT publication_move($1, 'ACCEPTED')`, [id]);
+    const out = (await call<{ o: string }>(U.asha, `SELECT publication_move($1, 'PUBLISHED', '{"year": 2026, "doi": "10.1/x"}') o`, [id]))[0].o;
     expect(await q(db, `SELECT pos, staff_id FROM output_authors WHERE output_id = $1 ORDER BY pos`, [out]))
       .toEqual([{ pos: 1, staff_id: 'B-1' }, { pos: 2, staff_id: null }, { pos: 3, staff_id: 'B-2' }]);
-    await expect(call(U.asha, `SELECT publication_move($1, 'DRAFT')`, [fileId])).rejects.toThrow(/cannot move/);
+    await expect(call(U.asha, `SELECT publication_move($1, 'DRAFT')`, [id])).rejects.toThrow(/cannot move/);
   });
 });

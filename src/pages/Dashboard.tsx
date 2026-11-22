@@ -3,8 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { MyActions } from '../components/MyActions';
 import { DataHealthDigest } from '../components/DataHealthDigest';
 import { StartIdeaCard } from '../components/proposals/StartIdeaCard';
-import { HomeProvider } from '../contexts/HomeContext';
-import { CommonDesk } from '../components/home/CommonDesk';
+import { HomeShell } from '../components/home/HomeShell';
 import { KpiSkeleton, TableSkeleton } from '../components/ui/Skeleton';
 
 const DirectorView           = lazy(() => import('./dashboards/DirectorView').then(m => ({ default: m.DirectorView })));
@@ -37,53 +36,39 @@ function ViewFallback() {
 export default function Dashboard() {
   const { activeRole } = useAuth();
 
-  // Two halves: the role's own view on the left, the common desk on the right.
-  // Below xl the desk moves under the role half.
-  const twoHalves = (roleHalf: ReactNode) => (
-    <HomeProvider>
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-6 items-start">
-        <div className="space-y-6 min-w-0">{roleHalf}</div>
-        <CommonDesk />
-      </div>
-    </HomeProvider>
-  );
-  // Unified pending-actions inbox above every working-role dashboard.
-  const withActions = (view: ReactNode) => twoHalves(
-    <>
-      <MyActions />
+  // Unified pending-actions inbox above non-redesigned working-role dashboards;
+  // all working roles share the two-half CommonDesk shell (CD0).
+  const withActions = (view: ReactNode, includeLegacyActions = true) => (
+    <HomeShell>
+      {includeLegacyActions && <MyActions />}
       {/* Renders nothing for roles that cannot author a proposal. */}
-      <StartIdeaCard />
+      {includeLegacyActions && <StartIdeaCard />}
       <DataHealthDigest />
-      <Suspense fallback={<ViewFallback />}>{view}</Suspense>
-    </>,
-  );
-  // A role-first home: the screen itself ranks the open items, so no inbox card above it.
-  const home = (view: ReactNode) => twoHalves(
-    <>
-      <Suspense fallback={<ViewFallback />}>{view}</Suspense>
-      <DataHealthDigest />
-    </>,
+      <Suspense fallback={<ViewFallback />}>
+        {view}
+      </Suspense>
+    </HomeShell>
   );
 
   switch (activeRole) {
-    case 'Director':     return home(<DirectorView />);
-    case 'DivisionHead': return home(<DivisionHeadView />);
-    case 'HOD':          return home(<HoDView />);
-    case 'Scientist':    return home(<ScientistView />);
-    case 'Technician':   return home(<TechnicianView />);
+    case 'Director':     return withActions(<DirectorView />, false);
+    case 'DivisionHead': return withActions(<DivisionHeadView />, false);
+    case 'HOD':          return withActions(<HoDView />, false);
+    case 'Scientist':    return withActions(<ScientistView />, false);
+    case 'Technician':   return withActions(<TechnicianView />, false);
     case 'HRAdmin':      return withActions(<HRAdminView />);
     case 'FinanceAdmin': return withActions(<FinanceAdminView />);
     case 'SystemAdmin':  return withActions(<SystemAdminView />);
     case 'MasterAdmin':  return withActions(<MasterAdminView />);
-    case 'Student':      return home(<StudentView />);
-    case 'ProjectStaff': return home(<ProjectStaffView />);
+    case 'Student':      return withActions(<StudentView />, false);
+    case 'ProjectStaff': return withActions(<ProjectStaffView />, false);
     case 'Guest':        return <Suspense fallback={<ViewFallback />}><GuestView /></Suspense>;
     case 'DefaultUser':         return <Suspense fallback={<ViewFallback />}><PendingAccessView /></Suspense>;
     case 'EmpoweredCommittee':  return withActions(<EmpoweredCommitteeView />);
     case 'PME':                 return withActions(<PMEView />);
     default:
       return (
-        <div className="flex flex-col items-center justify-center h-64 gap-4 text-text-muted">
+        <div className="flex flex-col items-center justify-center h-64 gap-4 text-stone-gray">
           <p className="text-sm font-medium">No dashboard assigned for this account.</p>
           <p className="text-xs">Contact your System Admin to assign a role.</p>
         </div>

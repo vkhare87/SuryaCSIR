@@ -95,7 +95,7 @@ export default function AuditLog() {
 
   return (
     <div className="space-y-6">
-      <h1 className="page-title">Audit Log</h1>
+      <h1 className="text-2xl font-serif font-medium text-text">Audit Log</h1>
       <p className="text-sm text-text-muted">All state transitions and administrative actions</p>
 
       <div className="inline-flex rounded-lg border border-border overflow-hidden text-sm">
@@ -129,7 +129,7 @@ export default function AuditLog() {
         </div>
       ) : (
         <>
-          <div className="divide-y divide-border border border-border rounded-xl overflow-hidden bg-surface shadow-[var(--shadow-e1)]">
+          <div className="divide-y divide-border border border-border rounded-2xl overflow-hidden">
             {logs.length === 0 ? (
               <div className="py-12 text-center text-text-muted text-sm">No audit log entries.</div>
             ) : logs.map((log) => {

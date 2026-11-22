@@ -54,7 +54,7 @@ export function UserPicker({
           onChange={(e) => setSearchTerm(e.target.value)}
           placeholder={loading ? 'Loading users…' : placeholder}
           disabled={loading}
-          className="w-full pl-9 pr-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-[#3898ec] outline-none disabled:opacity-60"
+          className="w-full pl-9 pr-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-focus-blue outline-none disabled:opacity-60"
         />
       </div>
 

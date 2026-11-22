@@ -33,7 +33,7 @@ export default function WorkforcePlanning() {
   return (
     <div className="space-y-6 pb-12">
       <div>
-        <h1 className="page-title flex items-center gap-3">
+        <h1 className="text-3xl font-[500] text-text uppercase tracking-tight font-serif flex items-center gap-3">
           <Users size={26} className="text-terracotta" /> Workforce Planning
         </h1>
         <p className="text-text-muted mt-1 text-sm">Who retires, which posts are empty, and who carries how much — from the records you may see.</p>
@@ -71,7 +71,7 @@ export default function WorkforcePlanning() {
           <h2 className="text-base font-[500] text-text font-serif">Deployment and workload</h2>
           <p className="text-xs text-text-muted">{overloaded} on more than four running projects · {idle} on none. Time split from the latest work plan.</p>
         </div>
-        <table className="ledger w-full text-sm">
+        <table className="w-full text-sm">
           <thead className="text-xs text-text-muted"><tr>
             <th className="text-left px-5 py-2">Person</th><th className="text-right">Running projects</th><th className="text-right">As PI</th>
             <th className="text-right">Value led</th><th className="text-left px-5">Work plan time split</th>

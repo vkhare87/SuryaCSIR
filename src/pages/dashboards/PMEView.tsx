@@ -7,7 +7,6 @@ import { useRules } from '../../contexts/RulesContext';
 import { useToast } from '../../contexts/ToastContext';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Cards';
-import { Stagger } from '../../components/ui/Stagger';
 import { KpiCard } from '../../components/ui/KpiCard';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { pmeDeskItems } from '../../lib/projects/pmeDesk';
@@ -103,9 +102,9 @@ export function PMEView() {
   );
 
   return (
-    <Stagger className="space-y-8 pb-12">
-      <div className="card-contrast border rounded-xl p-5">
-        <h1 className="page-title">PME Desk</h1>
+    <div className="space-y-8 pb-12">
+      <div>
+        <h1 className="text-3xl font-[500] text-text uppercase tracking-tight font-serif">PME Desk</h1>
         <p className="text-text-muted mt-1 text-sm font-medium">
           Every project file, from submission to archive
         </p>
@@ -142,6 +141,6 @@ export function PMEView() {
           </ul>
         )}
       </Card>
-    </Stagger>
+    </div>
   );
 }

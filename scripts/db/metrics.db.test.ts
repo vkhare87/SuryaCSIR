@@ -56,7 +56,6 @@ describe('registry', () => {
   });
 
   it('a snapshot never changes: the 31 March pack prints the same next month', async () => {
-    await call(U.master, `SELECT metric_snapshot_run('2026-03-31')`);
     const before = await q(db, `SELECT metric_key, scope, value FROM metric_snapshots WHERE as_on = '2026-03-31' ORDER BY 1, 2::text`);
     await db.exec(`UPDATE public.projects SET stage = 'ACTIVE' WHERE "ProjectID" = 'MP-3'`);
     await call(U.master, `SELECT metric_snapshot_run('2026-03-31')`);

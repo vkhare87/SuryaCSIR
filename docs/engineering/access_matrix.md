@@ -19,9 +19,12 @@ Source of truth: `ACCESS_MAP` in `src/constants/access.ts`. This table is genera
 5. **One check everywhere.** Sidebar, route guards, the search palette, My Actions chips,
    data loading and the SystemAdmin dashboard all call `canAccess(path)` from
    `FeatureControlContext` → `featureAccessible()` in `src/lib/access/featureControls.ts`.
-6. **Detail pages** (`/staff/:id`, `/projects/:id`, `/facilities/:uInsID`) need a verified
-   role (not Guest / DefaultUser); RLS scopes the row. Login, setup and change-password are
-   the only unguarded routes — `src/constants/access.test.ts` fails if another appears.
+6. **Detail & role-home routes:** Detail pages (`/staff/:id`, `/projects/:id`,
+   `/facilities/:uInsID`) require a verified role (not Guest / DefaultUser); RLS scopes
+   the row. Role dashboard aliases (such as `/pme` via `ROLE_ROUTES.PME` for `PME`)
+   render the home dashboard covered by `/` in `ACCESS_MAP`. Login, setup and
+   change-password are the only unguarded routes — `src/constants/access.test.ts` fails
+   if another appears.
 
 ## Role profiles
 
@@ -30,19 +33,21 @@ Source of truth: `ACCESS_MAP` in `src/constants/access.ts`. This table is genera
 | Director | Institute head | All institute analytics, HR views, research ops, PMS |
 | DivisionHead / HOD | Division manager | Same set as Director; RLS limits rows to their division |
 | Scientist | Researcher | Own PMS, projects, proposals, progress reports, PhD supervisees, committees |
-| Technician | Instrument operator | Instruments, committees, helpdesk |
-| HRAdmin | HR office | Staff, recruitment, data, PMS administration, proposal/report review |
-| FinanceAdmin | Finance office | Projects, proposals, partnerships, R&D monitor |
-| SystemAdmin | Platform operator | Accounts, access requests, data imports, IRINS sync, RAG, holidays |
-| MasterAdmin | Superuser | Every feature (38 of 38), whatever the switches; Feature Controls |
-| Student / ProjectStaff | Scholar / project hire | Own dashboard, Ask, calendar, helpdesk |
-| EmpoweredCommittee | PMS final scoring | PMS + committee queue |
-| PME | Project monitoring office | Projects, proposals, progress reports, project staff, partnerships, R&D monitor, committees. Not an admin: no HR, appraisal or account pages |
+| Technician | Instrument operator | Instruments, publication files, committees, lessons learned, helpdesk |
+| HRAdmin | HR office | Staff, sanctioned posts, workforce planning, recruitment, data, PMS/AWP administration, proposal/report review |
+| FinanceAdmin | Finance office | Projects, proposals, partnerships, portfolio, lessons learned, R&D monitor |
+| SystemAdmin | Platform operator | Accounts, access requests, data imports, people links, IRINS sync, RAG, holidays |
+| MasterAdmin | Superuser | Every feature (48 of 48), whatever the switches; Feature Controls & CSIR Rules |
+| Student / ProjectStaff | Scholar / project hire | Own dashboard, Ask SURYA, My Work, calendar, helpdesk |
+| EmpoweredCommittee | PMS final scoring | PMS + committee queue, My Work, My Profile |
+| PME | Project monitoring office | Dashboard (`/pme`), Projects, Proposals, Progress Reports, Project Staff, Expertise Finder, Partnerships, R&D Monitor, Project Portfolio, Lessons Learned, Committees. Not an admin: no HR, appraisal or account pages |
 | Guest / DefaultUser | Not yet approved | Dashboard (pending view) and helpdesk only |
 
 ## Matrix
 
 ● = role has it by default · = MasterAdmin grant needed
+
+> **Note on `MasterAdmin`:** In raw `ACCESS_MAP` arrays, `MasterAdmin` is omitted from 4 author/committee-specific entries (`/reports/new`, `/pms/reports/new`, `/pms/committee`, `/pms/awp`), so `scripts/access_matrix.mts` prints `·` on those rows. At runtime, `featureAccessible()` grants `MasterAdmin` access to all **48 of 48** `ACCESS_MAP` routes (matching [role_features.md](role_features.md)).
 
 | Feature | Path | Dir | DivH | HOD | Sci | Tech | HR | Fin | Sys | Mstr | Stu | PStf | Gst | Pend | EC | PME |
 |---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
@@ -120,6 +125,22 @@ MasterAdmin; the view behind it is row-scoped by RLS, so a division manager sees
 
 A `DRAFT` proposal is no longer readable by Director, division managers or admins: RLS
 (`proposals_can_read`, 20261110000002) limits it to its PI and named co-PIs.
+
+## What changed on 2026-11-12 / 13 (Enterprise P1–P9 & PL6)
+
+Nine feature paths were added to `ACCESS_MAP` (bringing the total to **48**):
+
+| Path | Who | Purpose |
+|---|---|---|
+| `/me` | Approved staff (`STAFF`) | Self-service research profile redirect (`/staff/:id`) |
+| `/lessons` | Director, DivisionHead, HOD, Scientist, Technician, FinanceAdmin, PME, MasterAdmin | Institute-wide searchable lessons learned from completed projects |
+| `/admin/rules` | MasterAdmin | Versioned, effective-dated CSIR institutional rules engine |
+| `/data/links` | Director, HRAdmin, SystemAdmin, MasterAdmin | Author/inventor/PI/supervisor/login identity link resolution |
+| `/staff/posts` | Director, DivisionHead, HOD, HRAdmin, MasterAdmin | Sanctioned posts register (`desktopOnly`) |
+| `/staff/planning` | Director, DivisionHead, HOD, HRAdmin, MasterAdmin | Retirement wave, vacancy & workload planning |
+| `/expertise` | Director, DivisionHead, HOD, HRAdmin, PME, MasterAdmin | Expertise finder & vocabulary curation |
+| `/publication-files` | Director, DivisionHead, HOD, Scientist, Technician, MasterAdmin | Manuscript ethics/similarity clearance & co-author consent |
+| `/admin/acting` | Director, HRAdmin, MasterAdmin | Dated acting-charge assignments (`HOD`, `DivisionHead`, `Director`) |
 
 ## Regenerate the matrix
 

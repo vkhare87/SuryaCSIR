@@ -9,7 +9,7 @@ export default function FeatureControls() {
   return (
     <div className="space-y-8 pb-12">
       <div>
-        <h1 className="page-title flex items-center gap-3">
+        <h1 className="text-3xl font-[500] text-text uppercase tracking-tight font-serif flex items-center gap-3">
           <SlidersHorizontal size={26} className="text-terracotta" /> Feature Controls
         </h1>
         <p className="text-text-muted mt-1 text-sm font-medium">

@@ -15,26 +15,6 @@ const find = (uid: string, terms: string[] | null, text: string | null) =>
   call<{ staff_id: string; confirmed_terms: number; evidence_count: number; retires_on: string | Date }>(uid,
     `SELECT staff_id, confirmed_terms, evidence_count, retires_on FROM expertise_find($1::uuid[], $2)`, [terms, text]);
 
-async function ensureVocabulary() {
-  const existing = await q<{ label: string }>(db, `SELECT label FROM expertise_terms WHERE label = 'Geopolymer'`);
-  if (existing.length === 0) {
-    await call(U.hr, `INSERT INTO expertise_terms (label, kind, theme_code, created_by) VALUES
-      ('Geopolymer', 'MATERIAL', '03', auth.uid()), ('Red mud', 'MATERIAL', '07', auth.uid()), ('Geopolymers', 'MATERIAL', '03', auth.uid())`);
-  }
-}
-
-async function ensureMeenaConfirmed() {
-  await ensureVocabulary();
-  const geo = await termId('Geopolymer');
-  const existing = await q<{ confirmed_at: string | null }>(db, `SELECT confirmed_at FROM staff_expertise WHERE staff_id = 'X-OTHER' AND term_id = $1`, [geo]);
-  if (existing.length === 0) {
-    await call(U.hr, `INSERT INTO staff_expertise (staff_id, term_id, source) VALUES ('X-OTHER', $1, 'SUGGESTED')`, [geo]);
-  }
-  if (!existing[0]?.confirmed_at) {
-    await call(U.other, `UPDATE staff_expertise SET confirmed_at = now() WHERE staff_id = 'X-OTHER' AND term_id = $1`, [geo]);
-  }
-}
-
 beforeAll(async () => {
   db = await migratedDb();
   const users = Object.values(U).map(id => `('${id}', '${id.slice(-2)}@x.local')`).join(', ');
@@ -67,13 +47,11 @@ describe('vocabulary', () => {
 
 describe('tags', () => {
   it('suggests terms from the titles of the person\'s records', async () => {
-    await ensureVocabulary();
     const rows = await call<{ label: string; evidence_count: number }>(U.asha, `SELECT label, evidence_count FROM expertise_suggest('X-ASHA')`);
     expect(rows).toEqual([{ label: 'Geopolymer', evidence_count: 1 }, { label: 'Red mud', evidence_count: 1 }]);
   });
 
   it('a curator only proposes; the person confirms; nobody tags someone else', async () => {
-    await ensureVocabulary();
     const geo = await termId('Geopolymer');
     await expect(call(U.hr, `INSERT INTO staff_expertise (staff_id, term_id, source, confirmed_at) VALUES ('X-OTHER', $1, 'SUGGESTED', now())`, [geo]))
       .rejects.toThrow(/row-level security/);
@@ -91,13 +69,11 @@ describe('tags', () => {
   });
 
   it('free text finds the same people as the term', async () => {
-    await ensureMeenaConfirmed();
     const byText = await find(U.dir, null, 'geopolymer');
     expect(byText.map(r => r.staff_id)).toEqual(['X-OTHER', 'X-ASHA', 'X-NOTE']);
   });
 
   it('merging a term moves its tags', async () => {
-    await ensureVocabulary();
     const [geo, geos] = [await termId('Geopolymer'), await termId('Geopolymers')];
     await call(U.asha, `INSERT INTO staff_expertise (staff_id, term_id, source, confirmed_at) VALUES ('X-ASHA', $1, 'SELF', now())`, [geos]);
     await expect(call(U.asha, `SELECT expertise_merge($1, $2)`, [geos, geo])).rejects.toThrow(/Only HR/);

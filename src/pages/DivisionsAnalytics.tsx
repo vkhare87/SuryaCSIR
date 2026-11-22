@@ -105,7 +105,7 @@ export default function DivisionsAnalytics() {
         bodyClassName="min-h-0"
       >
         <div className="overflow-x-auto">
-          <table className="ledger w-full text-sm">
+          <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-[11px] font-semibold uppercase tracking-widest text-text-muted">
                 <th className="px-3 py-2">Division</th>

@@ -99,26 +99,7 @@ through the verified link first. `staff_select` self-scopes on `user_id`, not
 a name string. All ticket actor columns normalised to auth uuids, with the
 convention recorded in `COMMENT ON COLUMN`.
 
-**Still to do (A3b).** The *relational* predicates still compare names,
-because the target columns store names:
-
-```sql
-"PrincipalInvestigator" = public.caller_staff_name()
-"SupervisorName"        = public.caller_staff_name()
-ps."StaffName"          = public.caller_staff_name()
-```
-
-No amount of caller-side work fixes this — the columns themselves need to
-become FKs to `staff."ID"`. That is a coordinated migration + `dataMapper` +
-`dataMigration` change, and it collides with the "HR column casing mirrors
-source Excel" debt already recorded in `CLAUDE.md`. Sequence it with that.
-
-**Also pending:** an HR reconciliation UI for `staff` rows the backfill left
-`user_id IS NULL` (duplicate or missing emails). Until then those users fall
-back to the old email match — same behaviour as before, no regression, but
-the leak is not fully closed for them.
-
-**Effort:** A3b is 3–5 days and needs a data-quality pass first.
+**Stage 09 closure (A3b, `20261121000009_stage0_hardening.sql`):** Added `resolve_unique_staff_id(text)` (including unique normalised-name matching when `person_name_key` length ≥ 3), backfilled unambiguous FKs (`projects.pi_staff_id`, `phd_students.supervisor_staff_id`, `phd_students.cosupervisor_staff_id`, `project_staff.staff_id`, `staff.user_id`), extended `identity_link_authors()` / `identity_set_link()` and `/data/links` (`IdentityLinks.tsx`) to resolve any remaining ambiguous table-link gaps, and removed the display-name fallback predicates from `projects_select`, `phd_students_select`, `project_staff_select`, and `staff_select_own_supervisor`. Before cutover on a live database with pre-existing rows, run `admin_staff_link_gaps()` and link any remaining ambiguous names on `/data/links`.
 
 ---
 
@@ -279,18 +260,16 @@ Three settings that no migration can set and that the audit's fixes depend on:
 |---|---|---|
 | 1 | **A8.3** — verify migrations applied | ✅ done — all 21 prior + all 5 new are live on SuryaCC |
 | 2 | **A8.1** — GoTrue secure password change | ✅ **pushed and active** |
-| 3 | **A7.1–2** — run the RLS tests, wire CI | ✅ CI `db` job added · ⚠️ **still never executed** |
+| 3 | **A7.1–2** — run the RLS tests, wire CI | ✅ done — `rls_negative.sql`, `rls_positive.sql`, `rls_feature_grants.sql`, and `rls_awp.sql` run green in `pms.db.test.ts` against the 8-file baseline + seed and are wired in CI `db` |
 | 4 | **A5.1–2** — RAG review queue + allowlist | ✅ done |
 | 5 | **A1.2–3** — SECURITY DEFINER audit + CI grep | ✅ done — found and fixed 3 |
 | 6 | **A6.1** — lint ratchet | ✅ done |
 | 7 | **A4** — FK conversion | ✅ **applied** (guard fired first; see below) |
-| 8 | **A3b** — name columns → FKs | ✅ applied (name fallback until `staff_link_gaps` is empty) |
+| 8 | **A3b** — name columns → FKs | ✅ done (`20261121000009`: backfill + `identity_set_link`/UI + fallback predicates removed; run `admin_staff_link_gaps()` on live DB) |
 | 9 | **A2** — data layer | ◐ truncation fixed; aggregate pushdown ongoing |
 | 10 | **A6.2** — reconcile DESIGN.md with reality | ✅ done |
 
-**Next, in order:** get the CI `db` job green (item 3 — the only untested
-thing left), drive `staff_link_gaps` to zero so A3b's name fallback can be
-deleted, then continue A2's aggregate pushdown page by page.
+**Next, in order:** run `admin_staff_link_gaps()` on live deployment data during rollout to link any ambiguous historical names, then continue A2's aggregate pushdown page by page.
 
 ---
 

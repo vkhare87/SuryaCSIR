@@ -9,7 +9,6 @@ const u = (n: string) => `7f000000-0000-0000-0000-0000000000${n}`;
 const U = { asha: u('01'), hod1: u('02'), hod2: u('03'), other: u('04'), dir: u('05') } as const;
 
 let db: PGlite;
-let seededAwpId = '';
 type Fact = { section: string; record_id: string; role: string; link: string };
 const facts = (uid: string, staffId: string, from: string | null = null, to: string | null = null) =>
   as(db, uid, async tx => (await tx.query<Fact>(
@@ -39,12 +38,9 @@ beforeAll(async () => {
       VALUES ('E-1', 'Ravi', 'Asha Verma', 'D1');
     INSERT INTO public.irins_profiles (vidwan_id, profile_data) VALUES ('V-1',
       '{"publications": [{"title": "Geopolymer from Red Mud!"}, {"title": "A paper only on IRINS", "year": "2024"}]}');
+    INSERT INTO public.pms_awps (staff_id, reporting_year, projects)
+      VALUES ('P-ASHA', '2026-27', '[{"kind": "Project", "details": "Lab work on OLP-0202 foam"}]');
   `);
-  seededAwpId = (await db.query<{ id: string }>(
-    `INSERT INTO public.pms_awps (staff_id, reporting_year, projects)
-     VALUES ('P-ASHA', '2026-27', '[{"kind": "Project", "details": "Lab work on OLP-0202 foam"}]')
-     RETURNING id`,
-  )).rows[0].id;
 }, 180000);
 
 afterAll(async () => { await db?.close(); });
@@ -53,7 +49,7 @@ describe('staff_profile_facts', () => {
   it('lists the person\'s records by key, each with a link', async () => {
     const rows = await facts(U.asha, 'P-ASHA');
     expect(rows.map(r => `${r.section}:${r.record_id}`).sort()).toEqual([
-      'AWP:' + seededAwpId,
+      'AWP:' + rows.find(r => r.section === 'AWP')!.record_id,
       'OUTPUT:PO-1', 'OUTPUT:PO-2', 'PROJECT:PP-1', 'SERVICE:P-ASHA', 'STUDENT:E-1',
     ].sort());
     expect(rows.find(r => r.record_id === 'PP-1')).toMatchObject({ role: 'PI', link: '/projects/PP-1' });

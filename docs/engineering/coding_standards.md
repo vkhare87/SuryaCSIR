@@ -2,7 +2,7 @@
 
 _The canonical, expanded version of the coding rules summarized in
 [CLAUDE.md](../../CLAUDE.md). Covers TypeScript/React, Python, and SQL. Current as of
-2026-08-08._
+2026-11-21._
 
 A rule here is descriptive of the codebase unless marked **(aspirational)**. Where an
 existing file disagrees with a rule, the rule wins for new code and the file is fixed when
@@ -34,7 +34,7 @@ Classes appear in exactly two shapes, both justified:
 2. **`@dataclass` for data** — `Answer`, `Citation`, `Config`. Frozen where immutable
    (`Config`).
 
-Everything else is a module-level function. `analytics.py` holds 17 query functions and no
+Everything else is a module-level function. `analytics.py` holds 18 query functions and no
 class.
 
 **Do not add:** a class with one implementation and no test double; a factory for a single
@@ -95,7 +95,7 @@ place to look is the model host, not the event loop.
 | Types barrel | `index.ts` | `src/types/index.ts` |
 | Test | co-located `<name>.test.ts(x)` | `scoring.test.ts` |
 | Python module | `snake_case.py` | `query_service.py` |
-| Migration | `<YYYYMMDDHHMMSS>_<snake_case>.sql` | `20260726000004_baseline_grants.sql` |
+| Migration | `<YYYYMMDDHHMMSS>_<snake_case>.sql` | `20261121000008_rag_documents_views_rpcs_policies.sql` |
 
 ### 3.2 Identifiers
 
@@ -124,7 +124,7 @@ The requested categories map onto this codebase as follows. Use these names — 
 | **Derived-analytics function** | Verb or noun phrase describing the answer | `src/lib/<domain>/`, `rag/analytics.py` | `successionRisk`, `_project_budget_variance` |
 | **Adapter** | Implementation prefix + capability | `rag/ocr.py`, `rag/llm.py`, `rag/db.py` | `NullOCR`, `TesseractOCR`, `FakeLLM`, `FakeDB` |
 | **Adapter factory** | `make_<capability>` | same | `make_ocr`, `make_llm` |
-| **Database RPC** | `<domain>_<verb>[_<object>]`, snake_case | `supabase/migrations/` | `pms_submit_report`, `proposal_issue_om`, `helpdesk_add_response` |
+| **Database RPC** | `<domain>_<verb>[_<object>]`, snake_case | `supabase/migrations/` | `pms_submit_report`, `proposal_sanction`, `helpdesk_add_response` |
 | **RLS/identity helper** | `caller_*` for identity, `<domain>_can_*` for predicates | migrations | `caller_is_admin`, `documents_can_read` |
 | **Trigger function** | `<domain>_<what_it_does>` | migrations | `pms_set_updated_at`, `pms_check_evaluation_complete` |
 | **Event / audit record** | Past-tense or noun event type in a `*_events` / `*_history` / `*_log` table | migrations | `ticket_events.event_type = 'StatusChanged'`, `proposal_status_history` |
@@ -348,9 +348,11 @@ policies → grants → triggers.
   migration.
 - **Every `SECURITY DEFINER` function opens with an authorization block.** No exceptions,
   and "the UI gates it" is not one — the function runs as owner, RLS does not apply, and the
-  function *is* the boundary. A function that genuinely needs none (a trigger, a caller
-  identity resolver, an `EXECUTE`-revoked internal helper) goes in
-  `scripts/check_security_definer.py`'s `EXEMPT` map **with a stated reason**.
+  function *is* the boundary. Use `$$` dollar-quoting on function bodies (not `$func$`/`$body$`)
+  so `scripts/check_security_definer.py` parses them reliably. A function that genuinely needs
+  none (a trigger, a caller identity resolver, an `EXECUTE`-revoked internal helper) goes in
+  `scripts/check_security_definer.py`'s `EXEMPT` map **with a stated reason**. Every new
+  migration is also applied from scratch in PGlite by `scripts/db/*.db.test.ts`.
 - **Assert client-supplied actor ids** against `auth.uid()`.
 - **`COALESCE(..., false)` around any `IF NOT (...)` guard touching a nullable column.**
   `assigned_to = auth.uid()` on an unassigned ticket is NULL; the OR-chain collapses to
@@ -422,7 +424,7 @@ real TODO goes in [TODOS.md](../../TODOS.md) too, with what breaks if it is not 
 
 | Change | Update |
 |---|---|
-| New feature or role gate | [FEATURES.md](FEATURES.md), `ACCESS_MAP` |
+| New feature or role gate | [FEATURES.md](FEATURES.md), [access_matrix.md](access_matrix.md), `ACCESS_MAP` |
 | New table, column, or index | [database_design.md](database_design.md) |
 | New RPC or HTTP endpoint | [api_spec.md](api_spec.md) |
 | New state machine or flow | [system_design.md](system_design.md) |
