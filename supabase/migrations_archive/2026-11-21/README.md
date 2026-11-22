@@ -11,6 +11,17 @@ Kept here for reference, historical diffs, and `scripts/db/policyDrift.db.test.t
 Do not apply these files manually, and do not add new migrations here — future
 schema changes go in `supabase/migrations/` as new timestamped files after stage 08.
 
+## Added 2026-11-22: files live ran after the checkpoint (9)
+
+The live project also ran these, which the consolidation missed (they came
+from PRs #32, #33 and #34). Kept so `scripts/db/liveSwitch.db.test.ts` can
+rebuild a live-shaped database and test the switch to the baseline.
+
+- `20261114120001_project_staff_self_read.sql` … `20261114120007_home_review_fixes.sql` — PR #32 home features. Stage 3/4 replace them; the first block of `20261121000009_stage0_hardening.sql` drops them on live
+- `20261115000001_ask_scope_guard.sql` — PR #33; now `20261122000002`
+- `20261116000001_coderabbit_security_and_db_fixes.sql` — PR #34; now `20261122000003`
+- `20261114120004_home_overdue_sweep.sql` — now `20261122000004`
+
 ## Consolidated Baseline (`supabase/migrations/`)
 
 All 93 files were consolidated with PGlite catalog-diff verification (`0` diffs across

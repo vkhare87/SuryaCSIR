@@ -41,6 +41,7 @@ session) and [../DESIGN.md](../DESIGN.md) (**read before any visual change**).
 |---|---|
 | [RAG-SETUP-TUTORIAL.md](operations/RAG-SETUP-TUTORIAL.md) | The AI stack from zero to a cited answer |
 | [EVALUATION-PROTOCOL.md](operations/EVALUATION-PROTOCOL.md) | Baseline measurement and the validation logbook |
+| [LIVE-BASELINE-SWITCH.md](operations/LIVE-BASELINE-SWITCH.md) | Moving the live project onto the 2026-11-21 migration baseline: history repair, push, checks, known drift |
 
 Deployment lives outside `docs/`, next to what it deploys:
 [../deploy/README.md](../deploy/README.md), [../rag/README.md](../rag/README.md),
