@@ -154,6 +154,8 @@ export default function AskSuryaDrawer() {
           </Link>
         </div>
 
+        <p className="text-[11px] text-text-muted -mt-2">Out-of-scope requests are recorded.</p>
+
         {/* Starter prompts when empty */}
         {turns.length === 0 && !loading && (
           <div className="space-y-2">

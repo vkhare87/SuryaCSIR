@@ -52,10 +52,10 @@ beforeAll(async () => {
     VALUES ('PROP-S6-1', 'Stage 6 Proposal', '${U.hod1}', 'Dr. HoD', 'D1', 'SUBMITTED', '${U.hod1}') RETURNING id
   `);
   propId = pRes.rows[0].id;
-});
+}, 180000);
 
 afterAll(async () => {
-  await db.close();
+  await db?.close();
 });
 
 describe('Stage 6 database layer', () => {

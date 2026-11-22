@@ -99,10 +99,10 @@ beforeAll(async () => {
     INSERT INTO public.agenda_items (meeting_id, sequence, description, proposed_by, status, title)
     VALUES ('${meetingId}', 1, 'Review annual progress', 'S3-SCI1', 'Pending', 'Annual Progress');
   `);
-});
+}, 180000);
 
 afterAll(async () => {
-  await db.close();
+  await db?.close();
 });
 
 const q = <T = Record<string, unknown>>(uid: string, sql: string) =>

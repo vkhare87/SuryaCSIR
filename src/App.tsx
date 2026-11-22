@@ -214,10 +214,10 @@ function App() {
             <Route path="/committees/:id" element={<ProtectedRoute accessPath="/committees"><CommitteeDetail /></ProtectedRoute>} />
             <Route path="/committees" element={<ProtectedRoute accessPath="/committees"><CommitteeList /></ProtectedRoute>} />
             <Route path="/rooms" element={<ProtectedRoute accessPath="/rooms"><RoomsAdmin /></ProtectedRoute>} />
-            <Route path="/verify/:code" element={<ProtectedRoute><VerifySignature /></ProtectedRoute>} />
-            <Route path="/verify" element={<ProtectedRoute><VerifySignature /></ProtectedRoute>} />
-            <Route path="/desk" element={<ProtectedRoute><OperationsDesk /></ProtectedRoute>} />
-            <Route path="/depth" element={<ProtectedRoute><RoleDepthHub /></ProtectedRoute>} />
+            <Route path="/verify/:code" element={<ProtectedRoute accessPath="/verify"><VerifySignature /></ProtectedRoute>} />
+            <Route path="/verify" element={<ProtectedRoute accessPath="/verify"><VerifySignature /></ProtectedRoute>} />
+            <Route path="/desk" element={<ProtectedRoute accessPath="/desk"><OperationsDesk /></ProtectedRoute>} />
+            <Route path="/depth" element={<ProtectedRoute accessPath="/depth"><RoleDepthHub /></ProtectedRoute>} />
             {/* Helpdesk — specific routes first (Pitfall 6) */}
             <Route path="/helpdesk/new" element={<ProtectedRoute accessPath="/helpdesk"><TicketForm /></ProtectedRoute>} />
             <Route path="/helpdesk/:id" element={<ProtectedRoute accessPath="/helpdesk"><TicketDetail /></ProtectedRoute>} />

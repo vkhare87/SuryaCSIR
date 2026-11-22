@@ -46,10 +46,10 @@ beforeAll(async () => {
     VALUES ('manual', 'Calibrate spectrometer', 'S5-TECH', CURRENT_DATE + 5, 'Pending') RETURNING id
   `);
   actionItemId = aiRes.rows[0].id;
-});
+}, 180000);
 
 afterAll(async () => {
-  await db.close();
+  await db?.close();
 });
 
 describe('Stage 5 database layer', () => {

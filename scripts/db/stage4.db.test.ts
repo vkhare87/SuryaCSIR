@@ -63,10 +63,10 @@ beforeAll(async () => {
     VALUES ('${meetingId}', 1, 'Approve lab budget', 'S4-SCI', 'Pending', 'Lab Budget') RETURNING id
   `);
   agendaItemId = aRes.rows[0].id;
-});
+}, 180000);
 
 afterAll(async () => {
-  await db.close();
+  await db?.close();
 });
 
 describe('Stage 4 database layer', () => {

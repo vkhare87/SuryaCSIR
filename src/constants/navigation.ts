@@ -4,7 +4,7 @@ import {
   ClipboardCheck, Ticket as TicketIcon, CalendarDays, UserCog, UserCheck,
   ScanText, Sparkles, Share2, Microscope, SlidersHorizontal, Inbox, Gauge,
   Lightbulb, Link2, Scale, ClipboardList, TrendingUp, GraduationCap, Compass,
-  ShieldCheck, Wrench,
+  ShieldCheck, Wrench, DoorOpen, Layers, FileCheck2, Stamp,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -30,6 +30,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { path: '/',                  label: 'Dashboard',         icon: LayoutDashboard, keywords: ['home', 'cockpit'] },
       { path: '/work',              label: 'My Work',           icon: Inbox,           keywords: ['inbox', 'tasks', 'requests'] },
+      { path: '/desk',              label: 'Operations Desk',   icon: Stamp,           keywords: ['forms', 'letters', 'dak', 'leave', 'safety', 'bookings'] },
       { path: '/me',                label: 'My Profile',        icon: UserCog,         keywords: ['account', 'researcher'] },
       { path: '/ask',               label: 'Ask SURYA',         icon: Sparkles,        keywords: ['ai', 'rag', 'chat', 'copilot'] },
       { path: '/intelligence',      label: 'Intelligence',      icon: Microscope,      keywords: ['publications', 'patents', 'ip', 'outputs'] },
@@ -66,6 +67,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { path: '/partnerships', label: 'Partnerships',      icon: Handshake,      keywords: ['mou', 'tech transfer', 'industry'] },
       { path: '/rnd-monitor',  label: 'R&D Monitor',       icon: Activity,       keywords: ['tracking', 'metrics'] },
       { path: '/portfolio',    label: 'Project Portfolio', icon: Gauge,          keywords: ['director', 'funding', 'overview'] },
+      { path: '/depth',        label: 'Role Depth Hub',    icon: Layers,         keywords: ['trl', 'technologies', 'faults', 'no-dues', 'mfa', 'health'] },
       { path: '/lessons',      label: 'Lessons Learned',   icon: Lightbulb,      keywords: ['closure', 'memory'] },
     ],
   },
@@ -75,6 +77,8 @@ export const NAV_SECTIONS: NavSection[] = [
     icon: ShieldCheck,
     items: [
       { path: '/committees', label: 'Committees',       icon: Building2,      keywords: ['meetings', 'minutes', 'actions'] },
+      { path: '/rooms',      label: 'Rooms & Bookings', icon: DoorOpen,       keywords: ['conference', 'hall', 'booking', 'hospitality'] },
+      { path: '/verify',     label: 'Verify Signature', icon: FileCheck2,     keywords: ['qr', 'letter', 'minutes', 'authenticity'] },
       { path: '/helpdesk',   label: 'Helpdesk',         icon: TicketIcon,     keywords: ['tickets', 'support', 'issues'] },
       { path: '/pms',        label: 'Performance Mgmt', icon: ClipboardCheck, keywords: ['appraisal', 'awp', 'evaluation'] },
     ],
