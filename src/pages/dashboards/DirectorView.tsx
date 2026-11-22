@@ -93,9 +93,9 @@ export function DirectorView() {
   const [money, setMoney] = useState<{ active: number | null; outlay: number | null; usedPct: number | null } | null>(null);
   useEffect(() => {
     let live = true;
-    Promise.all(['projects_active', 'projects_sanctioned_value', 'projects_utilisation_pct'].map(k => loadMetricValue(k)))
-      .then(([active, outlay, usedPct]) => { if (live) setMoney({ active, outlay, usedPct }); })
-      .catch(err => { console.error('Director metrics failed', err); if (live) setMoney({ active: null, outlay: null, usedPct: null }); });
+    const one = (key: string) => loadMetricValue(key).catch(err => { console.error(`Metric ${key} failed`, err); return null; });
+    void Promise.all(['projects_active', 'projects_sanctioned_value', 'projects_utilisation_pct'].map(one))
+      .then(([active, outlay, usedPct]) => { if (live) setMoney({ active, outlay, usedPct }); });
     return () => { live = false; };
   }, [projects]);
   const operationalEquipment = useMemo(
