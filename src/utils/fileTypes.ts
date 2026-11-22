@@ -117,6 +117,7 @@ export const FIELD_META: Record<FileType, FieldMeta[]> = {
     { column: 'Specialization',  label: 'Specialization', required: false, example: 'Nanomaterials',        hint: 'Research specialisation.' },
     { column: 'CoSupervisorName',label: 'Co-Supervisor',  required: false, example: 'Dr. P. Rao',           hint: 'Co-supervisor name.' },
     { column: 'FellowshipDetails',label: 'Fellowship',    required: false, example: 'CSIR-JRF',             hint: 'Fellowship type.' },
+    { column: 'fellowship_end',  label: 'Fellowship End', required: false, example: '2027-07-31',           hint: 'YYYY-MM-DD. Supervisors are told 6 months before.' },
     { column: 'CurrentStatus',   label: 'Current Status', required: false, example: 'Ongoing',              hint: 'Ongoing / Completed.' },
     { column: 'ThesisTitle',     label: 'Thesis Title',   required: false, example: 'Coatings for...',      hint: 'Thesis title.' },
     { column: 'ProjectNo',       label: 'Project No',     required: false, example: 'GAP-0125',             hint: 'Linked project, if any.' },

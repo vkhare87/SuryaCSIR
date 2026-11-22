@@ -12,6 +12,7 @@ import { DoFirstStrip } from '../../components/home/common/DoFirstStrip';
 import { DelegationDialCard } from '../../components/home/director/DelegationDialCard';
 import { DirectorWatchCard } from '../../components/home/stage5/Stage5Cards';
 import { directorGreeting, needsAttention } from '../../lib/home/division';
+import { loadMetricValue } from '../../lib/metrics/api';
 
 interface DivisionRollupRow {
   div_code: string;
@@ -87,10 +88,23 @@ export function DirectorView() {
     }
     return buckets;
   }, [projects]);
-  const sanctionedCrore = useMemo(
-    () => (activeProjects.reduce((sum, p) => sum + Number(p.SanctionedCost || 0), 0) / 1e7).toFixed(2),
-    [activeProjects],
-  );
+  // The money numbers come from the metric registry, so this screen, the
+  // Research Council pack and Ask SURYA quote the same figure.
+  // Each figure shows as soon as its own request settles: undefined = loading,
+  // null = failed or no data.
+  const [money, setMoney] = useState<{ active?: number | null; outlay?: number | null; usedPct?: number | null }>({});
+  useEffect(() => {
+    let live = true;
+    const load = (key: string, field: 'active' | 'outlay' | 'usedPct') => {
+      void loadMetricValue(key)
+        .catch(err => { console.error(`Metric ${key} failed`, err); return null; })
+        .then(v => { if (live) setMoney(m => ({ ...m, [field]: v })); });
+    };
+    load('projects_active', 'active');
+    load('projects_sanctioned_value', 'outlay');
+    load('projects_utilisation_pct', 'usedPct');
+    return () => { live = false; };
+  }, [projects]);
   const operationalEquipment = useMemo(
     () => equipment.filter((e) => !/down|fault|non/i.test(e.WorkingStatus)).length,
     [equipment],
@@ -119,7 +133,7 @@ export function DirectorView() {
         sentence={greeting}
         pills={[
           { label: `${computedRollup.length} divisions`, tone: 'neutral', to: '/divisions' },
-          { label: `${activeProjects.length} active projects`, tone: 'accent', to: '/projects' },
+          { label: `${money.active ?? activeProjects.length} active projects`, tone: 'accent', to: '/projects' },
           {
             label: rankedActions.length > 0 ? `${rankedActions.length} awaiting decision` : 'No pending decisions',
             tone: rankedActions.length > 0 ? 'warning' : 'positive',
@@ -253,7 +267,7 @@ export function DirectorView() {
           <Link to="/projects" className="rounded-lg border border-border p-3 hover:bg-surface-hover transition-colors flex items-end justify-between gap-2">
             <div>
               <div className="text-[11px] text-text-muted">Active projects</div>
-              <div className="text-xl font-mono tabular-nums text-text mt-0.5">{activeProjects.length}</div>
+              <div className="text-xl font-mono tabular-nums text-text mt-0.5">{money.active === undefined ? '…' : (money.active ?? '—')}</div>
             </div>
             {projectSeries.length >= 2 && (
               <div className="h-7 w-16 shrink-0">
@@ -263,7 +277,14 @@ export function DirectorView() {
           </Link>
           <Link to="/portfolio" className="rounded-lg border border-border p-3 hover:bg-surface-hover transition-colors">
             <div className="text-[11px] text-text-muted">Sanctioned outlay</div>
-            <div className="text-xl font-mono tabular-nums text-text mt-0.5">₹{sanctionedCrore} Cr</div>
+            <div className="text-xl font-mono tabular-nums text-text mt-0.5">
+              {money.outlay === undefined ? '…' : money.outlay === null ? '—' : `₹${(money.outlay / 1e7).toFixed(2)} Cr`}
+            </div>
+            {money.usedPct != null && (
+              <div className="text-[11px] text-text-muted mt-0.5" title="Expenditure recorded over sanctioned cost, active projects with any expenditure">
+                {money.usedPct}% used
+              </div>
+            )}
           </Link>
           <Link to="/staff" className="rounded-lg border border-border p-3 hover:bg-surface-hover transition-colors">
             <div className="text-[11px] text-text-muted">Verified staff</div>

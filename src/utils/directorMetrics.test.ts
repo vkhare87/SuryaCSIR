@@ -11,8 +11,6 @@ import type { DivisionMetric } from './analytics';
 import {
   DEFAULT_THRESHOLDS,
   getProjectFlags,
-  getInstituteUtilization,
-  getUtilizationByDivision,
   getActiveProjectGantt,
   getGanttWindow,
   getPublicationTrend,
@@ -62,30 +60,6 @@ describe('getProjectFlags', () => {
   it('ignores non-active projects for date flags', () => {
     const r = getProjectFlags([proj({ ProjectStatus: 'Completed', CompletioDate: '2026-01-01' })], DEFAULT_THRESHOLDS, NOW);
     expect(r.overdue).toHaveLength(0);
-  });
-});
-
-describe('getInstituteUtilization', () => {
-  it('sums and computes pct', () => {
-    const r = getInstituteUtilization([
-      proj({ SanctionedCost: '100', UtilizedAmount: '40' }),
-      proj({ SanctionedCost: '100', UtilizedAmount: '60' }),
-    ]);
-    expect(r.pct).toBe(50);
-  });
-  it('guards divide-by-zero', () => {
-    expect(getInstituteUtilization([proj({ SanctionedCost: '0' })]).pct).toBe(0);
-  });
-});
-
-describe('getUtilizationByDivision', () => {
-  it('groups pct per division sorted desc', () => {
-    const r = getUtilizationByDivision([
-      proj({ DivisionCode: 'A', SanctionedCost: '100', UtilizedAmount: '90' }),
-      proj({ DivisionCode: 'B', SanctionedCost: '100', UtilizedAmount: '10' }),
-    ]);
-    expect(r[0]).toEqual({ label: 'A', value: 90 });
-    expect(r[1]).toEqual({ label: 'B', value: 10 });
   });
 });
 

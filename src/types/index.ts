@@ -101,6 +101,8 @@ export interface PhDStudent {
   SupervisorName: string; // References StaffName
   CoSupervisorName: string;
   FellowshipDetails: string;
+  /** ISO date the fellowship money ends; drives the fellowship-end alert. */
+  fellowship_end?: string | null;
   CurrentStatus: string;
   ThesisTitle: string;
   ProjectNo: string; // Optional reference to ProjectInfo

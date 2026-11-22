@@ -52,6 +52,13 @@ export interface WorkloadRow {
 export interface OutlookRow { kind: 'RETIREMENT' | 'VACANCY'; year: number; discipline: string | null; division: string | null; ref: string; label: string; single_holder: boolean }
 export const loadWorkload = () => rpc<WorkloadRow[]>('staff_workload', { p_staff_id: null });
 export const loadOutlook = (years = 5) => rpc<OutlookRow[]>('workforce_outlook', { p_years: years });
+
+// Leaver list (20261122000007): who leaves soon, and what they hold.
+export interface LeaverRow { staff_id: string; name: string; designation: string | null; division: string | null; leaving_on: string; reason: string; items: number }
+export type HandoverKind = 'INSTRUMENT' | 'PROJECT' | 'STUDENT' | 'ACTION_ITEM' | 'COMMITTEE' | 'PROPOSAL' | 'TICKET' | 'STEWARD';
+export interface HandoverItem { kind: HandoverKind; ref: string; label: string; link: string; due: string | null }
+export const loadLeavers = (months = 12) => rpc<LeaverRow[]>('leaving_staff', { p_months: months });
+export const loadHandover = (staffId: string) => rpc<HandoverItem[]>('staff_handover', { p_staff_id: staffId });
 export interface CareerEventInput { staff_id: string; kind: string; effective_on: string; order_ref?: string; detail?: { summary?: string } }
 export const importCareerEvents = (events: CareerEventInput[]) => rpc<number>('career_events_import', { p_rows: events });
 

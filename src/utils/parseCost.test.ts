@@ -9,4 +9,13 @@ describe('parseCost', () => {
     expect(parseCost(undefined)).toBe(0);
   });
   it('returns 0 for non-numeric', () => expect(parseCost('N/A')).toBe(0));
+  it('keeps a plain numeric string whole, scientific notation included', () => {
+    expect(parseCost('1e6')).toBe(1000000);
+    expect(parseCost(' 2500.5 ')).toBe(2500.5);
+  });
+  it('accepts a number, as Excel imports deliver', () => {
+    expect(parseCost(120000)).toBe(120000);
+    expect(parseCost(Number.NaN)).toBe(0);
+    expect(parseCost(null)).toBe(0);
+  });
 });

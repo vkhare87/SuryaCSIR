@@ -1,5 +1,6 @@
 import type { Project } from '../../types';
 import { timeOfDayGreeting } from './greeting';
+import { parseCost } from '../../utils/parseCost';
 
 export interface ProjectAttention {
   attention: boolean;
@@ -20,8 +21,8 @@ export function needsAttention(project: Project, todayIso: string): ProjectAtten
       reasons.push('Ending within 60d');
     }
   }
-  const sanctioned = Number(project.SanctionedCost || 0);
-  const utilized = Number(project.UtilizedAmount || 0);
+  const sanctioned = parseCost(project.SanctionedCost);
+  const utilized = parseCost(project.UtilizedAmount);
   if (sanctioned > 0 && utilized > sanctioned) {
     reasons.push('Over sanctioned cost');
   }

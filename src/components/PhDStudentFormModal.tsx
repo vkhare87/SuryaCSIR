@@ -67,7 +67,8 @@ export function PhDStudentFormModal({ isOpen, onClose, student }: Props) {
     setSubmitting(true);
     setSubmitError(null);
 
-    const { projectId: _projectId, ...payload } = form;
+    const { projectId: _projectId, ...rest } = form;
+    const payload = { ...rest, fellowship_end: rest.fellowship_end || null };
     const { error } = isEdit
       ? await supabase.from('phd_students').update(payload).eq('EnrollmentNo', form.EnrollmentNo)
       : await supabase.from('phd_students').insert(payload);
@@ -136,9 +137,14 @@ export function PhDStudentFormModal({ isOpen, onClose, student }: Props) {
           <textarea rows={2} value={form.ThesisTitle} onChange={(e) => update('ThesisTitle', e.target.value)} className={inputCls + ' resize-y'} />
         </Field>
 
-        <Field label="Fellowship Details">
-          <input type="text" value={form.FellowshipDetails} onChange={(e) => update('FellowshipDetails', e.target.value)} placeholder="CSIR JRF / SRF / Project Fellow" className={inputCls} />
-        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Fellowship Details">
+            <input type="text" value={form.FellowshipDetails} onChange={(e) => update('FellowshipDetails', e.target.value)} placeholder="CSIR JRF / SRF / Project Fellow" className={inputCls} />
+          </Field>
+          <Field label="Fellowship ends on">
+            <input type="date" value={form.fellowship_end ?? ''} onChange={(e) => update('fellowship_end', e.target.value || null)} className={inputCls} />
+          </Field>
+        </div>
 
         <div className="grid grid-cols-2 gap-3">
           <Field label="Division">

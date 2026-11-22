@@ -57,6 +57,16 @@ export function Layout() {
   const copilot = useCopilot();
   const lastRole = useRef(role);
   const canAsk = canAccess('/ask');
+  // The round Ask button unmounts while the chat is open, so the chat cannot
+  // hand focus back to it; Layout does that once the button mounts again.
+  const askFabRef = useRef<HTMLButtonElement>(null);
+  const openedFromFab = useRef(false);
+  const copilotOpen = copilot?.isOpen ?? false;
+  useEffect(() => {
+    if (copilotOpen || !openedFromFab.current) return;
+    openedFromFab.current = false;
+    askFabRef.current?.focus();
+  }, [copilotOpen]);
 
   // Toast on the role actually changing, not on the click: setActiveRole
   // switches optimistically and silently rolls back if the save fails.
@@ -302,7 +312,21 @@ export function Layout() {
         </Suspense>
       )}
 
-      {/* Lazy-mounted ambient AI Copilot drawer */}
+      {/* Ask SURYA on every page: a round button that opens the chat window */}
+      {canAsk && copilot && !copilot.isOpen && !focusMode && !pathname.startsWith('/ask') && (
+        <button
+          ref={askFabRef}
+          type="button"
+          onClick={() => { openedFromFab.current = true; copilot.openCopilot(); }}
+          aria-label="Ask SURYA"
+          title="Ask SURYA (⌘J)"
+          className="fixed z-40 right-4 bottom-20 md:right-6 md:bottom-6 h-14 w-14 rounded-full bg-terracotta text-ivory shadow-[var(--shadow-e4)] hover:bg-terracotta-hover inline-flex items-center justify-center transition-colors"
+        >
+          <Sparkles size={22} />
+        </button>
+      )}
+
+      {/* Lazy-mounted Ask SURYA chat window */}
       {canAsk && copilot?.isOpen && (
         <Suspense fallback={null}>
           <AskSuryaDrawer />

@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Sparkles, Send, ExternalLink, FileText, ThumbsUp, ThumbsDown, X } from 'lucide-react';
-import { Sheet } from './ui/Sheet';
 import { Badge, Card } from './ui/Cards';
 import { inferRouteEntity, useCopilot } from '../contexts/CopilotContext';
 import {
@@ -46,8 +45,9 @@ const STARTER_PROMPTS: Record<AskEntityType | 'global', string[]> = {
 };
 
 /**
- * Lazy-loaded ambient AI Copilot drawer ("Ask SURYA Anywhere").
- * Reuses existing streaming RAG client and scopes automatically to the active page.
+ * Lazy-loaded "Ask SURYA Anywhere" chat window: a small panel in the corner,
+ * scoped automatically to the record on the active page. Not modal — the page
+ * behind stays usable. Escape closes it.
  */
 export default function AskSuryaDrawer() {
   const copilot = useCopilot();
@@ -58,6 +58,9 @@ export default function AskSuryaDrawer() {
   const [streamText, setStreamText] = useState('');
   const [error, setError] = useState('');
   const [clearedScope, setClearedScope] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const endRef = useRef<HTMLDivElement>(null);
+  const closeCopilot = copilot?.closeCopilot;
 
   const inferred = useMemo(() => inferRouteEntity(pathname, search), [pathname, search]);
   const activeEntity: AskEntity | null = useMemo(() => {
@@ -73,7 +76,18 @@ export default function AskSuryaDrawer() {
     if (copilot.initialQuestion) setQuestion(copilot.initialQuestion);
   }, [copilot?.isOpen, copilot?.initialQuestion, pathname]);
 
-  if (!copilot) return null;
+  useEffect(() => {
+    if (!copilot?.isOpen || !closeCopilot) return;
+    const opener = document.activeElement as HTMLElement | null;
+    inputRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeCopilot(); };
+    window.addEventListener('keydown', onKey);
+    return () => { window.removeEventListener('keydown', onKey); opener?.focus?.(); };
+  }, [copilot?.isOpen, closeCopilot]);
+
+  useEffect(() => { endRef.current?.scrollIntoView({ block: 'end' }); }, [turns.length, streamText]);
+
+  if (!copilot?.isOpen) return null;
 
   const starters = STARTER_PROMPTS[activeEntity?.type ?? 'global'];
   const fullHref = activeEntity
@@ -115,20 +129,23 @@ export default function AskSuryaDrawer() {
   }
 
   return (
-    <Sheet
-      isOpen={copilot.isOpen}
-      onClose={copilot.closeCopilot}
-      className="max-w-lg"
-      title={
-        <span className="inline-flex items-center gap-2">
-          <Sparkles size={17} className="text-terracotta" />
-          <span>Ask SURYA</span>
-        </span>
-      }
+    <section
+      role="dialog"
+      aria-label="Ask SURYA"
+      className="fixed z-50 inset-x-3 bottom-20 md:inset-x-auto md:right-6 md:bottom-6 md:w-[400px] h-[min(600px,calc(100dvh-7rem))] flex flex-col overflow-hidden rounded-2xl border border-border bg-surface-raised shadow-[var(--shadow-e4)]"
     >
-      <div className="flex flex-col h-full gap-4">
+      <header className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border shrink-0">
+        <span className="inline-flex items-center gap-2 text-base font-[500] font-serif text-text">
+          <Sparkles size={16} className="text-terracotta" /> Ask SURYA
+        </span>
+        <button type="button" onClick={copilot.closeCopilot} aria-label="Close Ask SURYA"
+          className="p-1 rounded-lg hover:bg-surface-hover text-text-muted">
+          <X size={18} />
+        </button>
+      </header>
+      <div className="flex flex-col flex-1 min-h-0 gap-3 px-4 py-3">
         {/* Scope + full view bar */}
-        <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center justify-between gap-2 flex-wrap shrink-0">
           {activeEntity ? (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-terracotta/12 text-terracotta px-2.5 py-1 text-xs font-medium">
               Scoped to {activeEntity.type}: <span className="font-mono">{activeEntity.id}</span>
@@ -154,31 +171,30 @@ export default function AskSuryaDrawer() {
           </Link>
         </div>
 
-        <p className="text-[11px] text-text-muted -mt-2">Out-of-scope requests are recorded.</p>
-
-        {/* Starter prompts when empty */}
-        {turns.length === 0 && !loading && (
-          <div className="space-y-2">
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-text-muted">
-              Suggested questions
-            </p>
-            <div className="space-y-1.5">
-              {starters.map(prompt => (
-                <button
-                  key={prompt}
-                  type="button"
-                  onClick={() => void runQuery(prompt)}
-                  className="w-full text-left px-3 py-2.5 rounded-xl bg-surface border border-border text-xs text-text hover:border-terracotta/50 hover:bg-surface-hover transition-all"
-                >
-                  {prompt}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+        <p className="text-[11px] text-text-muted -mt-2 shrink-0">Out-of-scope requests are recorded.</p>
 
         {/* Conversation */}
         <div aria-live="polite" aria-busy={loading} className="flex-1 overflow-y-auto space-y-3 pr-1">
+          {/* Starter prompts when empty */}
+          {turns.length === 0 && !loading && (
+            <div className="space-y-2">
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-text-muted">
+                Suggested questions
+              </p>
+              <div className="space-y-1.5">
+                {starters.map(prompt => (
+                  <button
+                    key={prompt}
+                    type="button"
+                    onClick={() => void runQuery(prompt)}
+                    className="w-full text-left px-3 py-2.5 rounded-xl bg-surface border border-border text-xs text-text hover:border-terracotta/50 hover:bg-surface-hover transition-all"
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           {turns.map((turn, idx) => (
             <Card key={idx} className="p-4 space-y-3">
               <div className="flex items-start justify-between gap-2">
@@ -232,6 +248,7 @@ export default function AskSuryaDrawer() {
               </p>
             </Card>
           )}
+          <div ref={endRef} />
         </div>
 
         {error && (
@@ -249,6 +266,7 @@ export default function AskSuryaDrawer() {
           className="flex gap-2 pt-2 border-t border-border shrink-0"
         >
           <input
+            ref={inputRef}
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
             aria-label="Ask SURYA"
@@ -264,6 +282,6 @@ export default function AskSuryaDrawer() {
           </button>
         </form>
       </div>
-    </Sheet>
+    </section>
   );
 }

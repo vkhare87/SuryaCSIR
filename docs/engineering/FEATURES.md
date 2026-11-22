@@ -117,7 +117,7 @@ When you ship a new feature or modify an existing one, copy this block into the 
   - Admin/PME/EmpoweredCommittee roles see **My Actions** above their dashboard — consolidating pending PMS reports/evaluations, proposal steps/revisions, progress report & review due slots, project change/closure approvals, committee action items, open helpdesk tickets, contribution requests, and upcoming retirements/contract ends — each deep-linking to the owning screen.
   - **All 6 operational role homes redesigned (`SH1`–`SH2`, `HH1`, `DH1`, `ST1`, `PJ1`, `TS1`):**
     - **Scientist:** Today ring, Fraunces greeting, Ask SURYA + quick starts, ranked **Do this next**, **Quick wins**, **Report timers** (`my_report_timers()` countdown + negative overdue days), committees, milestone tracks, and team summary.
-    - **Director:** Fraunces greeting, `division_rollup()` divisions by exception, decision queue, My week, and 4 drillable institute numbers.
+    - **Director:** Fraunces greeting, `division_rollup()` divisions by exception, decision queue, My week, and 4 drillable institute numbers (active projects, sanctioned outlay and % used read from the metric registry, so they match the packs and Ask SURYA).
     - **Division Head / HOD:** `caller_division_codes()` (incl. `acting_assignments`), `Division` | `My own work` mode toggle, exception-first `needsAttention()` division projects, people, instruments, and committees.
     - **Student / ProjectStaff / Technician:** Thesis milestone road + private grievance link (`StudentView`), two contract/CSIR-cap clocks via `my_engagement()` (`ProjectStaffView`), and `equipment_in_charge` + phone-first quick entry (`TechnicianView`).
     - **Finance Admin:** Project utilization, burn-rate outliers (underspend/overrun), sanctioned vs. utilized breakdown.
@@ -205,6 +205,7 @@ When you ship a new feature or modify an existing one, copy this block into the 
 - **Who uses it:** `Director`, `DivisionHead`, `HOD`, `HRAdmin`, `MasterAdmin`.
 - **Where to find it:** `/staff/planning`
 - **How it works:**
+  - **Leaving soon — handover (6 / 12 / 24 months):** `leaving_staff()` lists people retiring (DOB + 60) or with a dated transfer/deputation, with a count of what each holds; opening a row runs `staff_handover()` — instruments owned or in charge of, running projects as PI, PhD students, open action items, committee seats, open proposals, assigned helpdesk tickets and data-steward duties, each linked. Both are invoker functions, so RLS decides what the caller sees.
   - **Retirements & Vacancies Outlook (3 / 5 / 10 years):** Groups upcoming retirements and vacant posts by year and flags when a retiring scientist is the sole holder of a core area.
   - **Workload View:** Summarizes active projects and workload per scientist, highlighting overloaded and idle capacity.
 
@@ -222,6 +223,7 @@ When you ship a new feature or modify an existing one, copy this block into the 
 - **Who uses it:** `Director`, `DivisionHead`, `HOD`, `Scientist` (supervisees), `MasterAdmin` (plus `Student` sees their own status on their dashboard).
 - **Where to find it:** `/phd` (Roster + Analytics tab).
 - **How it works:**
+  - **Fellowship end date** (`phd_students.fellowship_end`, form field and import column): the supervisor, co-supervisor and division head are told 180 days before it while the thesis is not yet submitted (`renewal_watch_sweep`, daily 07:25 IST).
   - Lists scholars, supervisors, specializations, and status; supports milestone tracking (`PhDMilestonePanel`) with due dates, completion states, and overdue flags.
   - Analytics tab provides interactive stage, division, and supervisor breakdowns.
 
@@ -407,6 +409,7 @@ SURYA models the complete R&D project lifecycle (`PL0–PL7` + `P3`/`P9`) across
 - **How it works:**
   - **Commercialisation strip:** Granted patents (licensable assets), filed patents, and external/sponsored project count & value.
   - **Patent pipeline funnel:** Filed → Published → Granted counts with median time-to-grant.
+  - **Patent renewal alerts:** for a granted patent, the renewal fee for year k+1 falls due on the k-th anniversary of filing (2nd to 19th). Linked inventors and the division head are told 60 days ahead (`renewal_watch_sweep`). Assumes an Indian filing date.
   - **Emerging themes:** Detects keywords rising across recent project titles in ≥2 divisions.
   - **Collaboration analysis:** Identifies co-authorship pairs and cross-division collaboration strength.
 
@@ -427,7 +430,7 @@ SURYA models the complete R&D project lifecycle (`PL0–PL7` + `P3`/`P9`) across
 ### Ask SURYA (Grounded On-Premise AI Assistant)
 - **What it does:** Answers natural-language questions across structured institute metrics and indexed institute PDFs — with page-level citations, strict RLS scoping, and zero external data leakage.
 - **Who uses it:** All verified roles (excluded for `Guest` and `DefaultUser`).
-- **Where to find it:** `/ask` (plus **"Ask about this"** links on Project and Staff detail pages).
+- **Where to find it:** `/ask`, plus the round **Ask SURYA** button at the bottom-right of every page (and `⌘J` / the top-bar button), which opens a small chat window scoped to the record on screen. **"Ask about this"** on Project, Staff and Instrument pages opens the same window.
 - **How it works:**
   - **Three Grounded Answer Modes (logged & badged on every reply):**
     1. **`structured`:** Routes numerical/roster questions to one of **18 whitelisted Python analytics functions** running strictly through the caller's own RLS-scoped JWT (no free-form LLM SQL):

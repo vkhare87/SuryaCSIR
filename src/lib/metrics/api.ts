@@ -30,6 +30,10 @@ export const loadMetricTable = async (): Promise<MetricCell[]> =>
   ((await run<{ metric_key: string; division: string | null; value: unknown }[] | null>(client().rpc('metric_table'))) ?? [])
     .map(r => ({ metric_key: r.metric_key, division: r.division, value: n(r.value) }));
 
+/** One registry number for the institute (or a division), the same as every pack and Ask SURYA quotes. */
+export const loadMetricValue = async (key: string, division?: string): Promise<number | null> =>
+  n(await run<unknown>(client().rpc('metric_value', { p_key: key, p_scope: division ? { division } : {} })));
+
 export const loadSnapshotDates = async (): Promise<string[]> => {
   const rows = (await run<{ as_on: string }[] | null>(client().from('metric_snapshots').select('as_on').eq('scope', '{}').order('as_on', { ascending: false }))) ?? [];
   return [...new Set(rows.map(r => r.as_on))];
