@@ -90,12 +90,19 @@ export function DirectorView() {
   }, [projects]);
   // The money numbers come from the metric registry, so this screen, the
   // Research Council pack and Ask SURYA quote the same figure.
-  const [money, setMoney] = useState<{ active: number | null; outlay: number | null; usedPct: number | null } | null>(null);
+  // Each figure shows as soon as its own request settles: undefined = loading,
+  // null = failed or no data.
+  const [money, setMoney] = useState<{ active?: number | null; outlay?: number | null; usedPct?: number | null }>({});
   useEffect(() => {
     let live = true;
-    const one = (key: string) => loadMetricValue(key).catch(err => { console.error(`Metric ${key} failed`, err); return null; });
-    void Promise.all(['projects_active', 'projects_sanctioned_value', 'projects_utilisation_pct'].map(one))
-      .then(([active, outlay, usedPct]) => { if (live) setMoney({ active, outlay, usedPct }); });
+    const load = (key: string, field: 'active' | 'outlay' | 'usedPct') => {
+      void loadMetricValue(key)
+        .catch(err => { console.error(`Metric ${key} failed`, err); return null; })
+        .then(v => { if (live) setMoney(m => ({ ...m, [field]: v })); });
+    };
+    load('projects_active', 'active');
+    load('projects_sanctioned_value', 'outlay');
+    load('projects_utilisation_pct', 'usedPct');
     return () => { live = false; };
   }, [projects]);
   const operationalEquipment = useMemo(
@@ -126,7 +133,7 @@ export function DirectorView() {
         sentence={greeting}
         pills={[
           { label: `${computedRollup.length} divisions`, tone: 'neutral', to: '/divisions' },
-          { label: `${money?.active ?? activeProjects.length} active projects`, tone: 'accent', to: '/projects' },
+          { label: `${money.active ?? activeProjects.length} active projects`, tone: 'accent', to: '/projects' },
           {
             label: rankedActions.length > 0 ? `${rankedActions.length} awaiting decision` : 'No pending decisions',
             tone: rankedActions.length > 0 ? 'warning' : 'positive',
@@ -260,7 +267,7 @@ export function DirectorView() {
           <Link to="/projects" className="rounded-lg border border-border p-3 hover:bg-surface-hover transition-colors flex items-end justify-between gap-2">
             <div>
               <div className="text-[11px] text-text-muted">Active projects</div>
-              <div className="text-xl font-mono tabular-nums text-text mt-0.5">{money ? (money.active ?? '—') : '…'}</div>
+              <div className="text-xl font-mono tabular-nums text-text mt-0.5">{money.active === undefined ? '…' : (money.active ?? '—')}</div>
             </div>
             {projectSeries.length >= 2 && (
               <div className="h-7 w-16 shrink-0">
@@ -271,9 +278,9 @@ export function DirectorView() {
           <Link to="/portfolio" className="rounded-lg border border-border p-3 hover:bg-surface-hover transition-colors">
             <div className="text-[11px] text-text-muted">Sanctioned outlay</div>
             <div className="text-xl font-mono tabular-nums text-text mt-0.5">
-              {!money ? '…' : money.outlay === null ? '—' : `₹${(money.outlay / 1e7).toFixed(2)} Cr`}
+              {money.outlay === undefined ? '…' : money.outlay === null ? '—' : `₹${(money.outlay / 1e7).toFixed(2)} Cr`}
             </div>
-            {money?.usedPct != null && (
+            {money.usedPct != null && (
               <div className="text-[11px] text-text-muted mt-0.5" title="Expenditure recorded over sanctioned cost, active projects with any expenditure">
                 {money.usedPct}% used
               </div>
