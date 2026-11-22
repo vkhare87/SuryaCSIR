@@ -81,19 +81,30 @@ SELECT j.jobname, d.start_time FROM cron.job_run_details d JOIN cron.job j USING
 If the switch runs past 00:30 UTC, the jobs write as usual. That is fine for
 every path under **Undo**, because none of them reloads the backup into live.
 
-Take a backup first. The free plan has no point-in-time restore. The third file saves the
-migration history, which the first two do not include.
+Take a backup first. The free plan has no point-in-time restore. These are the
+backups from Supabase's
+[Backup and Restore using the CLI](https://supabase.com/docs/guides/platform/migrating-within-supabase/backup-restore)
+guide: roles, the full schema, all data (sign-in users included) and the
+migration history.
 
 ```powershell
-supabase db dump --linked --schema public -f backup-2026-11-22-schema.sql
+supabase db dump --linked -f backup-2026-11-22-roles.sql --role-only
 ```
 
 ```powershell
-supabase db dump --linked --data-only --schema public -f backup-2026-11-22-data.sql
+supabase db dump --linked -f backup-2026-11-22-schema.sql
 ```
 
 ```powershell
-supabase db dump --linked --data-only --schema supabase_migrations -f backup-2026-11-22-history.sql
+supabase db dump --linked -f backup-2026-11-22-data.sql --use-copy --data-only -x "storage.buckets_vectors" -x "storage.vector_indexes"
+```
+
+```powershell
+supabase db dump --linked -f backup-2026-11-22-history-schema.sql --schema supabase_migrations
+```
+
+```powershell
+supabase db dump --linked -f backup-2026-11-22-history.sql --use-copy --data-only --schema supabase_migrations
 ```
 
 Open the history file and check it lists the 102 old versions. If it is empty,
@@ -196,16 +207,30 @@ The files before it are applied, and `liveSwitch.db.test.ts` shows they leave
 the right schema. Fix the cause in a new commit, then run `supabase db push --linked` again.
 
 **After step 5, back to the old state (last resort).** Do not reload the
-backup into live. Clearing `public` there also removes objects that the backups do not hold, such as the storage
-file rules and the sign-up trigger on `auth.users`. Instead:
+backup into live. Restore it into a **new** project with Supabase's
+[Backup and Restore using the CLI](https://supabase.com/docs/guides/platform/migrating-within-supabase/backup-restore)
+guide, using the step 0 files. Do all of its sections:
 
-1. Make a new Supabase project.
-2. Load the backups into it: the schema, then the data, then the history.
-3. Check it there, and ask Claude to compare it with the backup (read only).
+- "Restore backup using CLI": roles, schema and data, in one `psql` run.
+- "Preserving migration history": the two history files.
+- "Schema changes to auth and storage". This app has two such changes, so recreate
+  them from `20261121000008_rag_documents_views_rpcs_policies.sql`: the
+  `on_auth_user_created` trigger on `auth.users` (it calls
+  `public.handle_new_auth_user()`), and the `CREATE POLICY … ON storage."objects"`
+  statements.
+
+Before you point the app at the new project:
+
+1. Stop the scheduled jobs on the old project (`SELECT cron.unschedule(jobname) FROM cron.job;`).
+   Anything they or users wrote after the backup stays in the old project and does
+   not come across. That is the cost of this path.
+2. On the new project: sign in, sign up a new test user (it must get a
+   `user_profiles` row), and open and upload a document.
+3. Ask Claude to compare the new project with the old one (read only).
 4. Point the app at it: change `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
 
-On a paid plan, Dashboard → Database → Backups can restore the whole project
-in place instead.
+This path has not been tried. On a paid plan, Dashboard → Database → Backups can
+restore the whole project in place instead.
 
 ## Not fixed by the switch (follow-ups)
 
