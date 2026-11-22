@@ -1,6 +1,6 @@
 # SURYA — API Specification
 
-_Complete interface reference. Current as of 2026-11-21 (8-file consolidated DB baseline `20261121000001`–`20261121000008`)._
+_Complete interface reference. Current as of 2026-11-22 (8-file consolidated DB baseline `20261121000001`–`20261121000008` + migrations through `20261122000006`)._
 
 SURYA exposes **three API surfaces**. There is no bespoke Node/REST tier — that is deliberate ([app.md §8](app.md#8-non-goals)).
 
@@ -447,6 +447,7 @@ Client-side validation (`missingTicketFields`) requires non-empty `category`, `s
 | `coi_declare` | `p_meeting_id uuid, p_format text, p_note text` | `uuid` | Committee member, chair, or convener. Records `F1` or `F2` (note required on `F2`) until chair decides |
 | `coi_chair_decide` | `p_id uuid, p_decision text` | `void` | Committee chair (not on own declaration). Decides `F2`: `CONTINUE` \| `RECUSE` |
 | `committee_seat` / `committee_can_read` / `committee_can_run` | `p_committee_id uuid` | `text` / `boolean` | RLS & permission helpers (`20261121000010_committee_foundations.sql`). Resolves caller seat from active `committee_memberships`, `external_members`, and active `acting_assignments`; enforces `confidentiality` (`institute \| members \| confidential`) |
+| `amc_expiry_sweep` / `ask_scope_sweep` / `home_overdue_sweep` / `project_staff_link_user` | `()` / `(p_user_id uuid, ...)` | `void` | `20261122000001`–`06`. Sweeps run on `pg_cron` / `service_role`. `project_staff_link_user` links a project-staff person to a login. Read the migration for exact arguments |
 | `room_book` / `room_booking_decide` / `meeting_schedule` / `meeting_postpone` / `hospitality_request_create` / `hospitality_request_decide` | `(room/meeting/hospitality args)` | `uuid` / `void` | Stage 2 `CM1` RPCs (`20261121000011_stage2_homes_desk_rooms.sql`). Advisory-lock clash protection on `room_bookings`, booking move on meeting postpone, hospitality desk approvals |
 | `my_day` / `my_requests` / `my_report_timers` / `my_engagement` / `division_rollup` / `caller_division_codes` / `calendar_token_rotate` | `(optional date window)` | `TABLE(...)` / `text[]` / `text` | Stage 2 `SH2`, `HH1`, `DH1`, `PJ1`, `CD1–CD3` invoker feeds & helpers honoring RLS and active `acting_assignments` |
 

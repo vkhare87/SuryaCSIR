@@ -23,7 +23,7 @@ measured evaluation numbers and a day-by-day readiness plan).
 | 6.10 Business case | Cost–benefit, payback | `docs/roadmap/sources/IMPROVEMENT-PROPOSALS.md`; figures live in report only |
 | 7 Resources | Open-source stack, local LLM | `rag/requirements.txt`, `package.json`, `deploy/README.md` |
 | 8 Risks / 9 Issues | RLS gate, OCR, refusal invariant, migrations | See §3 row per risk; all were real bugs fixed in repo |
-| 10 Conclusions + scalability | Federated per-lab topology | `docs/ARCHITECTURE.md`, `deploy/profiles/` |
+| 10 Conclusions + scalability | Federated per-lab topology | `docs/engineering/architecture_addendum.md`, `deploy/profiles/` |
 | Annexure-1 | Three-layer architecture | §2 below |
 | Annexure-2 | Data category mapping | `supabase/migrations/` schema per domain |
 | Annexure-3 | Ingestion pipeline flow | `rag/worker.py`, `src/utils/dataMigration.ts`, `src/components/DocumentPanel.tsx` |

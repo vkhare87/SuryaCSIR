@@ -12,7 +12,7 @@
 > any future phase. Supersedes `INTELLIGENCE-DESIGN.md` and
 > `INTELLIGENCE-BLUEPRINT.md` (archived in `docs/archive/`).
 > Phase-1 executable tasks stay in
-> `docs/superpowers/plans/2026-07-12-intelligence-phase1-digest-entity-catalog.md`.
+> `docs/superpowers/plans/2026-07-12-intelligence-phase1-digest-entity-catalog.md` (deleted; see git history).
 >
 > Naming: codebase = **SURYA**; product name = **AHEAD+**. Module names below are
 > as they appear in code.
@@ -515,7 +515,7 @@ decision, never by drift.
 
 | Phase | When | Ships | Layer strengthened | Status |
 |---|---|---|---|---|
-| **1** | Month 1–2 | R3 digest (finish in-flight) + R5 entity functions + gold questions | L7, L4, L1 | **Plan written** — `docs/superpowers/plans/2026-07-12-intelligence-phase1-digest-entity-catalog.md` |
+| **1** | Month 1–2 | R3 digest (finish in-flight) + R5 entity functions + gold questions | L7, L4, L1 | **Plan written** — `docs/superpowers/plans/2026-07-12-intelligence-phase1-digest-entity-catalog.md` (deleted; see git history) |
 | **2** | Month 3–4 | R1 catalog expansion driven by query-log mining | L4 | entry criteria below |
 | **3** | Month 5–6 | R4 verified answers | L5, L1 | — |
 | **4** | Month 7–9 | R2 embedded copilot (DirectorView first) | L6, L7 | depends on phase-2 catalog maturity |

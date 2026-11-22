@@ -15,7 +15,7 @@ The verified reference. If code and one of these disagree, that is a bug in the 
 | [architecture_addendum.md](engineering/architecture_addendum.md) | Architecture — principles, layers, folder map, frontend/AI/worker/event layers, DI, config, security, observability, extension points |
 | [system_design.md](engineering/system_design.md) | Runtime — request flows, ingestion pipelines, every state machine, deployment, failure recovery, scaling limits |
 | [api_spec.md](engineering/api_spec.md) | All three API surfaces — PostgREST, every RPC signature, the Ask SURYA HTTP endpoints, DTOs and validation |
-| [database_design.md](engineering/database_design.md) | All 121 tables (8-file 2026-11-21 baseline), 8 views, 310 functions, 301 policies, ER diagrams, indexes, migration strategy, retention |
+| [database_design.md](engineering/database_design.md) | All 169 tables (121 in the 8-file 2026-11-21 baseline, 48 added since), baseline's 8 views, 310 functions, 301 policies, ER diagrams, indexes, migration strategy, retention |
 | [development_guide.md](engineering/development_guide.md) | Setup, branching, testing workflow, commit conventions, PR checklist, Definition of Done, debugging. **Also serves as the contributing guide** |
 | [coding_standards.md](engineering/coding_standards.md) | TypeScript, React, Python and SQL conventions; naming; exception design; DI patterns; logging |
 | [STACK.md](engineering/STACK.md) | Versions and dependencies |
@@ -32,6 +32,8 @@ session) and [../DESIGN.md](../DESIGN.md) (**read before any visual change**).
 |---|---|
 | [ROADMAP.md](roadmap/ROADMAP.md) | **Start here.** 20 work packages merged from every proposal in the repo, grouped so related items are taken up together. No dates, no committed order |
 | [EXECUTION-PLAN.md](roadmap/EXECUTION-PLAN.md) | **Ordered build checklist (Stages 0–8).** Consolidated, dependency-ordered execution guide of all remaining unfinished work (current as of `2026-11-21`); point new Gemini threads here to execute step by step |
+| [NEXT-STEPS-2026-11-22.md](roadmap/NEXT-STEPS-2026-11-22.md) | Health check and short-term cleanup plan after PR #37 |
+| [ANALYTICS-APP-UX-REVIEW.md](roadmap/ANALYTICS-APP-UX-REVIEW.md) · [UX-ANALYTICS-IMPLEMENTATION-PLAN.md](roadmap/UX-ANALYTICS-IMPLEMENTATION-PLAN.md) · [SURYA-OPERATING-MODEL-OVERHAUL-PLAN.md](roadmap/SURYA-OPERATING-MODEL-OVERHAUL-PLAN.md) | UX review, its implementation plan, and the operating-model overhaul plan |
 | [VISION-ARCHITECTURE.md](roadmap/VISION-ARCHITECTURE.md) | The north star — the institute record spine, four pillars, permanent document |
 | [sources/](roadmap/sources/) | The original proposal briefs the roadmap merges. Hand one of these to an implementation session; the roadmap tells you *which* |
 
@@ -64,10 +66,10 @@ behaviour, read `engineering/`.
 [OVERHAUL-PLAN.md](history/OVERHAUL-PLAN.md) (T0–T6, all shipped) ·
 [ARCHITECTURE-REMEDIATION.md](history/ARCHITECTURE-REMEDIATION.md) (2026-07-25 audit; three
 items still open, tracked as WP-0) ·
-[PMS-SENIOR-TRACK-PLAN.md](history/PMS-SENIOR-TRACK-PLAN.md) (shipped 2026-07-26)
+[PMS-SENIOR-TRACK-PLAN.md](history/PMS-SENIOR-TRACK-PLAN.md) (shipped 2026-07-26) ·
+[PLAN-visual-overhaul.md](history/PLAN-visual-overhaul.md) · [PLAN-ui-navigation-overhaul.md](history/PLAN-ui-navigation-overhaul.md) (shipped; moved from repo root)
 
-Also here in spirit: [superpowers/](superpowers/) (dated design specs and plans) and
-[archive/](archive/) (superseded intelligence documents).
+Also here in spirit: [superpowers/specs/](superpowers/specs/) (dated design specs). Old step-by-step plans and superseded intelligence documents were deleted 2026-11-22; they remain in git history.
 
 ---
 

@@ -1,6 +1,6 @@
 # SURYA — Database Design
 
-_Consolidated checkpoint baseline: 2026-11-21 (8-file domain baseline `20261121000001`–`20261121000008`, 121 tables in `public`, 8 views, 310 functions, 77 triggers, 301 RLS policies across `public` and `storage.objects`, 7 private storage buckets, 6 sequences, 7 `pg_cron` jobs)._
+_Consolidated checkpoint baseline: 2026-11-21 (8-file domain baseline `20261121000001`–`20261121000008`, 121 tables in `public`; migrations `20261121000009`–`20261122000006` add 48 more, so **169 tables** now. Counts below are the baseline unless a line says otherwise; 8 views, 310 functions, 77 triggers, 301 RLS policies across `public` and `storage.objects`, 7 private storage buckets, 6 sequences, 7 `pg_cron` jobs)._
 
 > **Authoritative sources.** Physical schema and policies live in [supabase/migrations/](../../supabase/migrations/). Operational runbooks live in [supabase/ops/README.md](../../supabase/ops/README.md), workflow state machines in [system_design.md §4](system_design.md#4-state-machines), and PostgREST/RPC contracts in [api_spec.md](api_spec.md).
 
@@ -11,7 +11,7 @@ _Consolidated checkpoint baseline: 2026-11-21 (8-file domain baseline `202611210
 - **Primary keys.** Native SURYA modules use `uuid DEFAULT gen_random_uuid()`. Legacy HR/spreadsheet tables retain quoted CamelCase string keys (`divisions."divCode"`, `staff."ID"`, `projects."ProjectID"`, `phd_students."EnrollmentNo"`, `equipment."UInsID"`, `contract_staff."id"`, `project_staff."id"`). Six append-only event/log tables use `bigint` sequence keys (`ai_action_log_id_seq`, `irins_sync_log_id_seq`, `project_events_id_seq`, `proposal_status_history_id_seq`, `recruitment_events_id_seq`, `sanctioned_post_events_id_seq`). Registry and reference catalogs use domain text codes (`project_schemes.code`, `metrics.key`, `project_stage_items.item_key`, `pms_pen_picture_items.item_key`, `feature_controls.feature_key`, `collection_indexes.collection_key`).
 - **Timestamps and Indian Standard Time.** All timestamps are `timestamp with time zone DEFAULT now()`. Business-day checks run in IST via `ist_today()` (`(now() AT TIME ZONE 'Asia/Kolkata')::date`); Indian financial years (`YYYY-YY`, Apr–Mar) derive from `fiscal_year_of(date)`.
 - **Row-Level Security and least-privilege ACLs.**
-  - All **121** `public` tables have `ENABLE ROW LEVEL SECURITY` active (`283` policies in `public`, `18` policies on `storage.objects` = `301` policies).
+  - All **169** `public` tables (121 baseline + 48 from stage 0–6 migrations) have `ENABLE ROW LEVEL SECURITY` active (`283` policies in `public`, `18` policies on `storage.objects` = `301` policies).
   - Stage 01 (`20261121000001`) sets default privileges revoking `PUBLIC`/`anon` table, sequence, and function access and granting `authenticated`/`service_role` defaults without `TRUNCATE`, `TRIGGER`, or `REFERENCES`.
   - Stage 08 (`20261121000008`) narrows privileges explicitly:
     - **Column-narrowed writes (`UPDATE` restricted):** `user_profiles` (`active_role`, `last_seen_at`), `notifications` (`status`, `updated_at`), and `proposal_review_comments` (`resolved_at` only; table grant is `ardm` = SELECT/INSERT/DELETE/REFERENCES).

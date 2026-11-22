@@ -298,7 +298,7 @@ must show where it came from.
 ## 6. Suggested order
 
 **Build plan for the `Now` and `Next` items:**
-[`docs/superpowers/plans/2026-11-12-enterprise-phases.md`](../../superpowers/plans/2026-11-12-enterprise-phases.md)
+`docs/superpowers/plans/2026-11-12-enterprise-phases.md` (deleted; see git history) (deleted; see git history)
 — nine phases, with tables, function names and "done when". Where it differs from the waves
 below, the phase plan wins.
 

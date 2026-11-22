@@ -5,7 +5,7 @@ work. It puts the phases of eight plans into one order._
 
 | Plan | IDs |
 |---|---|
-| [`2026-11-12-enterprise-phases.md`](../../superpowers/plans/2026-11-12-enterprise-phases.md) | `P1`–`P9` |
+| `2026-11-12-enterprise-phases.md` (deleted; see git history) | `P1`–`P9` |
 | [`COMMITTEE-MODULE-PLAN.md`](COMMITTEE-MODULE-PLAN.md) | `CM0`–`CM8` |
 | [`SCIENTIST-HOME-PLAN.md`](SCIENTIST-HOME-PLAN.md) | `SH1`–`SH6` |
 | [`HOD-HOME-PLAN.md`](HOD-HOME-PLAN.md) | `HH1`–`HH8` |

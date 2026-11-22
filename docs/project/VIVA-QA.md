@@ -57,7 +57,7 @@ repository + unified document registry. Layer 2: 14 role-scoped dashboards and
 decision-support analytics. Layer 3: Python FastAPI retrieval service (PageIndex
 tree reasoning, three-mode router, grounding refusal) behind the Ask SURYA
 interface. Governance spans all layers: RBAC, RLS, access tiers, audit. (§6.2,
-Annexure-1; `docs/ARCHITECTURE.md`)
+Annexure-1; `docs/engineering/architecture_addendum.md`)
 
 **B2. Why PostgreSQL/Supabase?**
 Row-Level Security is the hard gate — enforced in the database on every path,

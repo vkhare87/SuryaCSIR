@@ -50,13 +50,10 @@ any code that doesn't match DESIGN.md.
 | `docs/engineering/architecture_addendum.md` | Architecture, layers, folder map, security, extension points |
 | `docs/engineering/system_design.md` | Flows, all state machines, deployment, failure/scaling |
 | `docs/engineering/api_spec.md` | PostgREST + every RPC signature + Ask SURYA HTTP endpoints |
-| `docs/engineering/database_design.md` | All 121 tables (8-file 2026-11-21 baseline), 8 views, ER diagrams, indexes, migrations, retention |
+| `docs/engineering/database_design.md` | All 169 tables (8-file 2026-11-21 baseline + stage 0–6 and 2026-11-22 migrations), 8 views, ER diagrams, indexes, migrations, retention |
 | `docs/engineering/development_guide.md` | Setup, branching, testing, commits, PR checklist, debugging |
 | `docs/engineering/coding_standards.md` | Expanded TS / Python / SQL conventions |
 | `docs/engineering/FEATURES.md` · `STACK.md` · `access_matrix.md` · `role_features.md` | Plain-English feature guide · stack versions · RBAC access matrix · snapshot (`roleFeatures.test.ts`) |
-
-`docs/ARCHITECTURE.md`, `docs/STRUCTURE.md`, `docs/DATA-MODEL.md` stay at the old paths as
-redirect stubs only.
 
 **Planning new work?** `docs/roadmap/ROADMAP.md` is the single merged plan — every proposal
 in the repo, grouped into work packages with dependencies and original item IDs preserved.
@@ -208,7 +205,7 @@ No path aliases. Always relative imports.
 - typecheck: `npm run build` — **`npx tsc --noEmit` passes vacuously** under the
   project-references layout, so it proves nothing. `npm run build` runs `tsc -b`.
 - lint: `npm run lint` (`eslint .` — covers `scripts/` and configs too, not just `src/`)
-- test: `npm test` — 148 files, 1,297 tests (as of 2026-11-21; includes 29 PGlite DB test files). Every
+- test: `npm test` — 171 files, 1,457 tests (as of 2026-11-22; includes ~40 PGlite DB test files). Every
   migration applied to an in-process Postgres (PGlite + Supabase shims, `scripts/db/pgliteHarness.ts`),
   then RLS/RPC tests and `supabase/tests/*.sql` — no Docker or Supabase CLI needed
 - python: `python -m pytest` in `rag/` and in `ingest/`

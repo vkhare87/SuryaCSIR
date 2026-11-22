@@ -40,7 +40,7 @@ Effort assumes single developer + AI assistance; calendar assumes part-time.
 "who is X / what does X work on / who runs division Y".
 
 **Status:** task-level plan WRITTEN —
-`docs/superpowers/plans/2026-07-12-intelligence-phase1-digest-entity-catalog.md`
+`docs/superpowers/plans/2026-07-12-intelligence-phase1-digest-entity-catalog.md` (deleted; see git history)
 (6 tasks, TDD steps, full code). Execute as-is.
 
 **Entry criteria:** none (in-flight work already in the tree).

@@ -11,7 +11,7 @@ transcript, proceedings, signatures, tasks, follow-up and monitoring live in one
 (§5), conflict-of-interest declarations (§6.3), committee make-up and quorum (§3.3, §5).
 
 **Relation to other work.** The enterprise phase plan
-(`docs/superpowers/plans/2026-11-12-enterprise-phases.md`) is being built in another
+(`docs/superpowers/plans/2026-11-12-enterprise-phases.md` (deleted; see git history)) is being built in another
 session. It owns two things this module uses and must **not** create again:
 
 | Owned there | Used here |

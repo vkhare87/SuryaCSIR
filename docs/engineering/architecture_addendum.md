@@ -1,7 +1,7 @@
 # SURYA — Engineering Architecture
 
 _Canonical architecture reference. Supersedes the former `docs/ARCHITECTURE.md` and
-`docs/STRUCTURE.md`, which now point here. Current as of 2026-11-21._
+`docs/STRUCTURE.md` (deleted 2026-11-22). Current as of 2026-11-21._
 
 Companion documents: [system_design.md](system_design.md) (flows, state machines,
 deployment), [database_design.md](database_design.md) (schema), [api_spec.md](api_spec.md)

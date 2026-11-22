@@ -725,7 +725,7 @@ END $$;
 [~] WO-S11  Deps + CI gates (SEC-14, 15, 18)           P3   #28
 ```
 
-`[x]` merged, `[~]` PR open. Plan: `docs/superpowers/plans/2026-11-01-security-phase2.md`.
+`[x]` merged, `[~]` PR open. Plan: `docs/superpowers/plans/2026-11-01-security-phase2.md` (deleted; see git history).
 Migrations `20261102000008`/`0009` (#23) are live (checked 2026-11-01).
 
 ---

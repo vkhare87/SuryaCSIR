@@ -2,7 +2,7 @@
 
 > **Purpose:** Master reference & upgrade checklist for modernizing SURYA's UI and navigation feel while preserving its warm editorial-archival identity (*Digital Sun* — parchment, ivory, terracotta, Fraunces + Inter + IBM Plex Mono) and adding **zero new npm dependencies**.
 >
-> Companion to [DESIGN.md](./DESIGN.md) and [PLAN-visual-overhaul.md](./PLAN-visual-overhaul.md).
+> Companion to [DESIGN.md](../../DESIGN.md) and [PLAN-visual-overhaul.md](./PLAN-visual-overhaul.md).
 
 ---
 
