@@ -11,7 +11,8 @@ from answer import Answer
 from llm import NOT_FOUND, REFUSAL_TEXT
 from router import decide
 from retrieval import traverse, pick_context, flatten, select_docs, section_label
-from analytics import run_analytics, CATALOG
+from analytics import run_analytics, CATALOG, AGGREGATE
+from scope import scope_of, verdict, looks_like_self, SCOPE_REFUSAL_TEXT
 
 
 def _catalog_version() -> str:
@@ -82,12 +83,10 @@ _ENTITIES = {
 }
 
 
-def entity_context(client, entity):
-    """(preamble, docs) for a question asked from a record page. The record is
-    read with the caller's client, so a record they may not see raises
-    LookupError. docs: that record's indexed documents (for a project, also its
-    progress reports), or None when it has none; the caller then searches the
-    whole corpus."""
+def entity_preamble(client, entity):
+    """One line naming the record a question was asked from. The record is read
+    with the caller's client, so a record they may not see raises LookupError.
+    This is the only read before the scope gate: routing needs the name."""
     kind, rid = entity.get("type"), str(entity.get("id") or "")
     if kind not in _ENTITIES or not rid:
         raise LookupError("unknown record")
@@ -97,8 +96,14 @@ def entity_context(client, entity):
         raise LookupError("record not found")
     row = rows[0]
     named = " · ".join(str(row[c]) for c in cols if row.get(c))
-    preamble = f"This question is about {kind} {rid}" + (f" ({named})" if named else "") + "."
+    return f"This question is about {kind} {rid}" + (f" ({named})" if named else "") + "."
 
+
+def entity_docs(client, entity):
+    """That record's indexed documents (for a project, also its progress
+    reports), or None when it has none; the caller then searches the whole
+    corpus. Read only after the scope gate allows retrieval."""
+    kind, rid = entity.get("type"), str(entity.get("id") or "")
     ids = [rid]
     if kind == "project":
         reports = (client.table("project_reports").select("id").eq("project_id", rid).execute().data) or []
@@ -113,7 +118,7 @@ def entity_context(client, entity):
             doc = doc[0] if doc else {}
         docs.append({"id": doc.get("id", r["document_id"]), "title": doc.get("title", "Document"),
                      "storage_path": doc.get("storage_path", ""), "tree": r["tree"]})
-    return preamble, (docs or None)
+    return docs or None
 
 
 def read_collections(client):
@@ -227,25 +232,82 @@ HISTORY_MAX_TURNS = 3
 HISTORY_ANSWER_CHARS = 300
 
 
-def _with_history(question, history):
+def _with_history(question, history, answers=True):
     """Prepend a condensed transcript so route, picks and answer all see the
-    conversation. The raw question is what gets logged (api.py logs its own copy)."""
-    turns = [f"Q: {h.get('question', '')}\nA: {(h.get('answer') or '')[:HISTORY_ANSWER_CHARS]}"
+    conversation. The raw question is what gets logged (api.py logs its own copy).
+    answers=False is the router's copy: earlier questions give a follow-up its
+    meaning, but client-sent answers are free text an asker could forge to steer
+    the scope labels."""
+    turns = [f"Q: {h.get('question', '')}"
+             + (f"\nA: {(h.get('answer') or '')[:HISTORY_ANSWER_CHARS]}" if answers else "")
              for h in history[-HISTORY_MAX_TURNS:]]
     return "Earlier in this conversation:\n" + "\n".join(turns) + f"\n\nCurrent question: {question}"
 
 
+def _refused(decision, reason):
+    """SURYA's scope refusal. reason 'out_of_scope' is a strike (the HR sweep
+    counts it); 'totals_only' is an ordinary question we cannot total honestly."""
+    return Answer(SCOPE_REFUSAL_TEXT, "document", [], trace={
+        "route": decision["route"], "function": decision.get("function"),
+        "params": decision.get("params"), "refusal": reason,
+        "topic": decision.get("topic"), "subject": decision.get("subject")})
+
+
+def _scope_gate(decision, client, question):
+    """None = full scope, carry on. Otherwise the Answer to return as-is: a
+    refusal, or under a 'totals' verdict the one aggregate it may serve.
+    question: the text the router saw (record line, earlier questions, the
+    current question), so an asker who named themself earlier keeps that on a
+    follow-up such as "and for 2024?"."""
+    scope = scope_of(client)
+    if scope.get("lookup_failed"):
+        # The roles could not be read, so no scope can be checked: refuse
+        # everything, never as a strike.
+        return _refused(decision, "scope_unavailable")
+    v = verdict(scope, decision.get("topic", "unknown"), decision.get("subject", "unknown"),
+                decision.get("subject_division"))
+    if v == "full":
+        return None
+    if v == "refuse":
+        # Only a refusal we are sure of is a strike. A failed name read means
+        # the self check could not run; self-like wording may be a model slip.
+        if scope.get("name_lookup_failed"):
+            return _refused(decision, "scope_unavailable")
+        if looks_like_self(scope, question):
+            return _refused(decision, "self_unsure")
+        return _refused(decision, "out_of_scope")
+    if decision["route"] == "structured" and decision.get("function") in AGGREGATE:
+        answer = _run_structured(decision["function"], decision["params"], client)
+        if answer is not None:
+            answer.trace = {"route": "structured", "function": decision["function"],
+                            "params": decision.get("params")}
+            return answer
+    return _refused(decision, "totals_only")
+
+
+def _prepare(question, client, llm, history, entity):
+    """(question with record line and history, the router's copy, route decision)."""
+    if entity:
+        question = entity_preamble(client, entity) + "\n" + question
+    route_q = _with_history(question, history, answers=False) if history else question
+    decision = decide(route_q, llm, CATALOG, examples=read_route_labels(client))
+    full_q = _with_history(question, history) if history else question
+    return full_q, route_q, decision
+
+
 def handle_query(question, client, llm, history=None, entity=None):
-    """Route and answer. client must be the caller's RLS-scoped client.
+    """Route, check scope, answer. client must be the caller's RLS-scoped client.
     history: optional [{'question','answer'}] recent turns for follow-ups.
     entity: optional {'type','id'}, the record the question was asked from."""
-    entity_docs = None
-    if entity:
-        preamble, entity_docs = entity_context(client, entity)
-        question = preamble + "\n" + question
-    if history:
-        question = _with_history(question, history)
-    decision = decide(question, llm, CATALOG, examples=read_route_labels(client))
+    question, route_q, decision = _prepare(question, client, llm, history, entity)
+    gated = _scope_gate(decision, client, route_q)
+    if gated is not None:
+        return gated
+    return _answer(question, entity_docs(client, entity) if entity else None, decision, client, llm)
+
+
+def _answer(question, entity_docs, decision, client, llm):
+    """Everything after the gate, for a decision already made and allowed."""
     trace = {"route": decision["route"], "function": decision.get("function"),
              "params": decision.get("params")}
     fetch_texts = make_fetch_texts(client)
@@ -270,21 +332,22 @@ def stream_query(question, client, llm, history=None, entity=None):
     ('done', Answer). Only the document path truly streams; structured/hybrid
     answers arrive as a single token. Grounding invariant matches traverse:
     NOT_FOUND / blank answers become the refusal with zero citations."""
-    entity_docs = None
-    q = question
-    if entity:
-        preamble, entity_docs = entity_context(client, entity)
-        q = preamble + "\n" + q
-    q = _with_history(q, history) if history else q
-    decision = decide(q, llm, CATALOG, examples=read_route_labels(client))
+    q, route_q, decision = _prepare(question, client, llm, history, entity)
+    gated = _scope_gate(decision, client, route_q)
+    if gated is not None:
+        yield ("token", gated.text)
+        yield ("done", gated)
+        return
+    docs = entity_docs(client, entity) if entity else None
     if decision["route"] in ("structured", "hybrid"):
-        answer = handle_query(question, client, llm, history=history, entity=entity)
+        # Reuse the gated decision: routing again could relabel past the gate.
+        answer = _answer(q, docs, decision, client, llm)
         yield ("token", answer.text)
         yield ("done", answer)
         return
 
     trace = {"route": "document", "function": None, "params": None}
-    pc = pick_context(entity_docs or select_corpus(q, client, llm), q, llm, make_fetch_texts(client))
+    pc = pick_context(docs or select_corpus(q, client, llm), q, llm, make_fetch_texts(client))
     if pc is None:
         yield ("token", REFUSAL_TEXT)
         yield ("done", Answer(REFUSAL_TEXT, "document", [], trace=trace))
@@ -353,7 +416,8 @@ def log_query(client, question, answer, latency_ms=None):
             "route": trace.get("route"),
             "function_name": trace.get("function"),
             "function_params": trace.get("params"),
-            "refusal_reason": "no_grounded_answer" if answer.text == REFUSAL_TEXT else None,
+            "refusal_reason": trace.get("refusal")
+                              or ("no_grounded_answer" if answer.text == REFUSAL_TEXT else None),
             "catalog_version": CATALOG_VERSION,
         }).execute().data)
         return row[0]["id"] if row else None

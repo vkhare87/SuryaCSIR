@@ -161,6 +161,12 @@ describe('staffNameMatchesAuthor', () => {
   it('does not match unrelated names', () => {
     expect(staffNameMatchesAuthor('Patel', 'Dr. A. K. Sharma')).toBe(false);
   });
+
+  it('a blank name on either side matches nothing', () => {
+    expect(staffNameMatchesAuthor('Dr. A. K. Sharma', '')).toBe(false);
+    expect(staffNameMatchesAuthor('Dr. A. K. Sharma', '   ')).toBe(false);
+    expect(staffNameMatchesAuthor('', 'Dr. A. K. Sharma')).toBe(false);
+  });
 });
 
 describe('staffNameMatchesSupervisor', () => {

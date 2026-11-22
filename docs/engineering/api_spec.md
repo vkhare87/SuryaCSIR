@@ -150,7 +150,7 @@ Full column-level definitions are in [database_design.md](database_design.md). R
 | `sanctioned_posts`, `sanctioned_post_events`, `staff_career_events`, `staff_profile_changes`, `output_authors`, `ip_inventors`, `project_staff_persons`, `project_selections`, `project_engagements`, `project_staff_leave`, `publication_files`, `publication_author_consents`, `recruitment_events` | Verified / role- / division- / author-scoped RLS | **RPC / trigger only** (`SELECT` grant only; `staff_expertise` allows owner insert/update/delete + curator suggestion insert) |
 | `pms_reports`, `pms_report_sections`, `pms_annexures`, `pms_evaluations`, `pms_panel_scores`, `pms_part1`, `pms_report_items`, `pms_committee_decisions`, `pms_representations`, `pms_condonations`, `pms_awps`, `pms_awp_revisions`, `pms_pen_picture_items` | Owner + admins + assigned evaluators/panel + Empowered/Grievance committees (`pms_awp_can_read` for AWPs) | Owner in `DRAFT` on report/sections/annexures; panel scores, decisions, representations, Part I, items & AWPs **RPC only** |
 | `documents`, `doc_indexes`, `doc_pages`, `collection_indexes` | `documents_can_read` — four-tier ladder (`institute`, `division`, `owner`, `confidential`) | `documents` INSERT by owner (`owner`/`confidential`, or any tier for admin/Director); UPDATE by SystemAdmin/MasterAdmin; indexes/pages worker (`service_role`) only |
-| `query_log`, `scheduled_queries`, `route_labels` | `query_log`/`scheduled_queries`: own rows (+ admin reads on `query_log`); `route_labels`: admins | `query_log`: caller INSERT + owner `feedback` UPDATE; `scheduled_queries`: owner INSERT/DELETE (`ard`); `route_labels`: admins |
+| `query_log`, `scheduled_queries`, `route_labels` | `query_log`/`scheduled_queries`: own rows (+ admin reads on `query_log`); `route_labels`: admins | `query_log`: caller INSERT + owner UPDATE of `feedback` and `pinned` only; `scheduled_queries`: owner INSERT/DELETE (`ard`); `route_labels`: admins |
 | `user_roles`, `user_profiles`, `acting_assignments`, `access_requests` | Own rows + admins (`acting_assignments` verified users) | **Column-narrowed grants** (`user_profiles`: `active_role`, `last_seen_at` only); `user_roles` & `acting_assignments` **RPC only** |
 | `feature_controls`, `feature_grants`, `notifications`, `ai_action_log`, `csir_rules`, `metrics`, `metric_snapshots` | Verified/all authenticated (`feature_grants` & `notifications` & `ai_action_log` own/admin) | `feature_controls` & `feature_grants`: MasterAdmin; `notifications`: column `UPDATE (status, updated_at)` by owner; rest **RPC / cron / trigger only** |
 | `data_stewards`, `contribution_requests`, `contribution_request_events` | Operational / reviewer / requester / assignee / delegate | **RPC only** (`SELECT` only) |
@@ -575,7 +575,18 @@ Document-mode response:
 }
 ```
 
-`query_id` is `null` if logging failed — logging is best-effort and never breaks an answer. Use it with `sendFeedback(queryId, 1 | -1)`, which updates `query_log.feedback` directly under RLS.
+**Scope refusal.** Before answer retrieval and analytics, the route call also labels `topic` and `subject`,
+and `rag/scope.py` checks them against the caller's held roles. An out-of-scope question
+returns `200` with `text` = `This information cannot be retrieved for you.`, `mode`
+`document`, no citations, and `trace.refusal` = `out_of_scope` or `totals_only` (also written
+to `query_log.refusal_reason`; `scope_unavailable` when the caller's roles or name could not be read, `self_unsure` when a
+refused question names the asker or says "my", "I" or "myself" — neither is a strike; "me" alone does not count). The router sees earlier `history` questions but not their answers.
+Exception: with `context_entity`, the record itself is read under RLS before the gate,
+because routing needs its name; its documents are read only after the gate allows it.
+
+`query_id` is `null` if logging failed — logging is best-effort and never breaks an answer.
+Use it with `sendFeedback(queryId, 1 | -1)`, which updates `query_log.feedback` directly
+under RLS.
 
 **Errors:** `400 empty question` · `401 missing bearer token` · `401 invalid token` · `403 forbidden` · `404 record not found` · `504 model timeout`.
 

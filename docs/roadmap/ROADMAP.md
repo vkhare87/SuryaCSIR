@@ -293,6 +293,7 @@ asked about WCAG.
 |---|---|---|---|
 | E2 | **Chart answers** — structured/hybrid answers render a chart beside the number | M | Touches `rag/`; run `run_eval.py --report` before and after to prove no regression |
 | E3 | **Pinned queries as dashboard widgets** — save to `user_preferences` (table exists), render as role-dashboard cards | S–M | |
+| E6 | **Scope guard + question history** — SURYA refuses out-of-scope questions by role, HRAdmin hears of repeated probing, recent / saved / most-used questions on `/ask`. **Shipped** ([design](../superpowers/specs/2026-11-15-ask-surya-scope-guard-design.md), [plan](../superpowers/plans/2026-11-15-ask-surya-scope-guard.md)) | M | Multi-lab scope waits for WP-17 (`scope.lab`) |
 | D4b | **Helpdesk knowledge base** — resolved tickets promoted to a `faq` table, searchable via the document path with an `entity_type` filter | M | Pairs with WP-14's D4a |
 
 Depends on **WP-3** only in the sense that answer quality gates perceived value here.
