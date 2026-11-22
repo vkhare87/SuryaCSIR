@@ -7,11 +7,12 @@ import { InstrumentForm } from '../components/InstrumentForm';
 import { RequestUpdateButton } from '../components/RequestUpdateButton';
 import { RelatedRail, type RailSection } from '../components/RelatedRail';
 import { UsageLogPanel } from '../components/UsageLogPanel';
+import { Dossier } from '../components/layout/Dossier';
 import { amcStatus, AMC_CARD_COLORS, AMC_TEXT_COLORS, findStaffByName } from '../utils/dateUtils';
 import { equipmentStatusClass } from '../utils/equipmentStatus';
 import { useBack } from '../utils/useBack';
 import {
-  ArrowLeft, MapPin, Wrench, CalendarClock, AlertTriangle,
+  MapPin, Wrench, CalendarClock, AlertTriangle,
   CheckCircle2, Clock, Package, DollarSign, Users, FlaskConical,
   Edit,
 } from 'lucide-react';
@@ -84,49 +85,8 @@ export default function InstrumentDetail() {
   const manager = findStaffByName(staff, instrument.IndenterName);
   const operator = findStaffByName(staff, instrument.OperatorName);
 
-  return (
-    <div className="space-y-6">
-      {/* Back nav */}
-      <div className="card-contrast border rounded-xl p-5 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={goBack}
-            aria-label="Back"
-            className="p-2 hover:bg-surface-hover rounded-full transition-colors text-text-muted hover:text-text"
-          >
-            <ArrowLeft size={20} />
-          </button>
-          <div>
-            <h1 className="page-title">Instrument Profile</h1>
-            <p className="text-text-muted text-sm">Scientific Instrument Record</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <RelatedRail sections={relatedSections} />
-          <RequestUpdateButton
-            domain="equipment"
-            recordRef={instrument.UInsID}
-            divisionCode={instrument.Division || null}
-            record={instrument}
-            defaultTitle={`Update instrument ${instrument.Name}`}
-          />
-          {isAdmin && (
-            <button
-              onClick={() => setEditOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 text-sm border border-border rounded-lg hover:bg-surface-hover transition-colors text-text"
-            >
-              <Edit size={14} />
-              Edit
-            </button>
-          )}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-        {/* LEFT COLUMN */}
-        <div className="lg:col-span-1 space-y-4">
-
+  const aside = (
+        <>
           {/* Identity card */}
           <Card className="border-t-4 border-terracotta relative overflow-hidden pt-6">
             <div className="absolute top-0 right-0 w-32 h-32 bg-coral/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
@@ -181,12 +141,11 @@ export default function InstrumentDetail() {
               <div className={`text-xs mt-1 ${AMC_TEXT_COLORS[amc]}`}>End date: {instrument.amc_end_date}</div>
             )}
           </div>
+        </>
+  );
 
-        </div>
-
-        {/* RIGHT COLUMN */}
-        <div className="lg:col-span-2 space-y-5">
-
+  const details = (
+        <>
           {/* Location card */}
           <Card>
             <div className="flex items-center gap-2 text-[10px] font-semibold text-terracotta uppercase tracking-[0.2em] mb-3">
@@ -199,23 +158,6 @@ export default function InstrumentDetail() {
             <InfoRow label="Movable"      value={instrument.Movable} />
             <InfoRow label="Req / Installation" value={instrument.RequirementInstallation} />
             <InfoRow label="End Use"      value={instrument.EndUse} />
-          </Card>
-
-          {/* Procurement card */}
-          <Card>
-            <div className="flex items-center gap-2 text-[10px] font-semibold text-terracotta uppercase tracking-[0.2em] mb-3">
-              <DollarSign size={13} />
-              Procurement
-            </div>
-            <InfoRow label="Procurement Date" value={instrument.procurement_date} />
-            <InfoRow
-              label="Purchase Cost"
-              value={instrument.purchase_cost != null
-                ? `₹ ${instrument.purchase_cost.toLocaleString('en-IN')}`
-                : undefined}
-            />
-            <InfoRow label="Indenter / Manager" value={instrument.IndenterName} />
-            <InfoRow label="Justification"      value={instrument.Justification} />
           </Card>
 
           {/* People card */}
@@ -264,13 +206,63 @@ export default function InstrumentDetail() {
               <p className="text-sm text-text-muted leading-relaxed">{instrument.Remark}</p>
             </Card>
           )}
+        </>
+  );
 
-        </div>
-      </div>
+  const procurement = (
+          <Card>
+            <div className="flex items-center gap-2 text-[10px] font-semibold text-terracotta uppercase tracking-[0.2em] mb-3">
+              <DollarSign size={13} />
+              Procurement
+            </div>
+            <InfoRow label="Procurement Date" value={instrument.procurement_date} />
+            <InfoRow
+              label="Purchase Cost"
+              value={instrument.purchase_cost != null
+                ? `₹ ${instrument.purchase_cost.toLocaleString('en-IN')}`
+                : undefined}
+            />
+            <InfoRow label="Indenter / Manager" value={instrument.IndenterName} />
+            <InfoRow label="Justification"      value={instrument.Justification} />
+          </Card>
+  );
 
+  return (
+    <>
+      <Dossier
+        kicker="Instrument"
+        title={instrument.Name}
+        subtitle={instrument.instrument_code || instrument.UInsID}
+        onBack={goBack}
+        askAbout={{ type: 'instrument', id: instrument.UInsID }}
+        actions={<>
+          <RelatedRail sections={relatedSections} />
+          <RequestUpdateButton
+            domain="equipment"
+            recordRef={instrument.UInsID}
+            divisionCode={instrument.Division || null}
+            record={instrument}
+            defaultTitle={`Update instrument ${instrument.Name}`}
+          />
+          {isAdmin && (
+            <button
+              onClick={() => setEditOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 text-sm border border-border rounded-lg hover:bg-surface-hover transition-colors text-text"
+            >
+              <Edit size={14} />
+              Edit
+            </button>
+          )}
+        </>}
+        aside={aside}
+        tabs={[
+          { key: 'details', label: 'Details', content: details },
+          { key: 'procurement', label: 'Procurement', content: procurement },
+        ]}
+      />
       {editOpen && (
         <InstrumentForm instrument={instrument} onClose={() => setEditOpen(false)} />
       )}
-    </div>
+    </>
   );
 }

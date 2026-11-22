@@ -3,15 +3,14 @@ import { useData } from '../contexts/DataContext';
 import { Card, Badge, StatCard } from '../components/ui/Cards';
 import { Button } from '../components/ui/Button';
 import {
-  ArrowLeft, Building2, Calendar, FileText, IndianRupee,
+  Building2, Calendar, FileText, IndianRupee,
   CopyCheck, UserPlus, Users, GraduationCap, ChevronRight,
   Clock, AlertTriangle, Edit,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Tabs, TabsList, TabsTrigger } from '../components/ui/Tabs';
+import { Dossier, type DossierTab } from '../components/layout/Dossier';
 import { LensCard } from '../components/projects/LensCard';
-import { AskAboutLink } from '../components/AskAboutLink';
 import { FundsPanel } from '../components/projects/FundsPanel';
 import { MilestonesPanel } from '../components/projects/MilestonesPanel';
 import { OutputsPanel } from '../components/projects/OutputsPanel';
@@ -24,7 +23,6 @@ import { needsLegacyCompletion } from '../lib/projects/legacy';
 import { loadProjectFile } from '../lib/projects/projectFileApi';
 import { PacksPanel } from '../components/projects/PacksPanel';
 import { StageGatePanel } from '../components/projects/StageGatePanel';
-import { useUrlTab } from '../utils/useUrlTab';
 import { friendlyError } from '../lib/errors';
 import type { ProjectFile } from '../types/projectFile';
 import { parseDate, diffInDays, isWithinMonths } from '../utils/dateUtils';
@@ -33,8 +31,6 @@ import { ProjectFormModal } from '../components/ProjectFormModal';
 import { RequestUpdateButton } from '../components/RequestUpdateButton';
 import { useBack } from '../utils/useBack';
 import { isActiveProject, isCompletedProject, projectStatusLabel } from '../lib/projects/stage';
-
-const TABS = ['overview', 'monitoring', 'funds', 'milestones', 'changes', 'closure', 'outputs', 'timeline'] as const;
 
 const normalizePersonName = (name?: string | null) =>
   (name ?? '').toLowerCase().replace(/^(dr\.|sh\.|smt\.)\s+/i, '').trim();
@@ -47,7 +43,6 @@ export default function ProjectDetail() {
   const { user } = useAuth();
   const canEdit = useCanEdit('projects');
   const [editOpen, setEditOpen] = useState(false);
-  const [tab, setTab] = useUrlTab(TABS);
   const [file, setFile] = useState<ProjectFile | null>(null);
   const [fileError, setFileError] = useState('');
   const fileReqRef = useRef(0);
@@ -175,86 +170,7 @@ export default function ProjectDetail() {
     return 'neutral';
   };
 
-  return (
-    <div className="space-y-6">
-      <div className="card-contrast border rounded-xl p-5 flex items-center gap-4">
-        <button
-          onClick={goBack}
-          aria-label="Back"
-          className="p-2 hover:bg-surface-hover rounded-full transition-colors text-text-muted hover:text-text"
-        >
-          <ArrowLeft size={20} />
-        </button>
-        <div className="flex-1">
-          <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="page-title">{project.ProjectNo}</h1>
-            <Badge variant={statusVariant}>{projectStatusLabel(project)}</Badge>
-            {daysLeft !== null && daysLeft > 0 && daysLeft <= 30 && (
-              <Badge variant="danger" className="flex items-center gap-1">
-                <AlertTriangle size={10} /> {daysLeft}d left
-              </Badge>
-            )}
-          </div>
-          <p className="text-text-muted text-sm mt-1">Research & Sponsored Project Profile</p>
-        </div>
-        <AskAboutLink entity={{ type: 'project', id: project.ProjectID }} />
-        <RequestUpdateButton
-          domain="projects"
-          recordRef={project.ProjectID}
-          divisionCode={project.DivisionCode || null}
-          record={project}
-          defaultTitle={`Update project ${project.ProjectNo}`}
-        />
-        {canEdit && (
-          <button
-            onClick={() => setEditOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-2 bg-surface border border-border rounded-lg text-sm font-medium text-text hover:bg-surface-hover transition-colors"
-          >
-            <Edit size={14} /> Edit Project
-          </button>
-        )}
-      </div>
-
-      <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="flex-wrap">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="monitoring">Monitoring{file && file.slots.some(s => s.status === 'PENDING' && s.dueDate < new Date().toISOString().slice(0, 10)) ? ' •' : ''}</TabsTrigger>
-          <TabsTrigger value="funds">Funds</TabsTrigger>
-          <TabsTrigger value="milestones">Milestones{file && file.milestones.length > 0 ? ` (${file.milestones.length})` : ''}</TabsTrigger>
-          <TabsTrigger value="changes">Changes{file && file.changes.some(c => c.status === 'SUBMITTED' || c.status === 'UNDER_REVIEW' || c.status === 'RETURNED') ? ' •' : ''}</TabsTrigger>
-          <TabsTrigger value="closure">Closure</TabsTrigger>
-          <TabsTrigger value="outputs">Outputs</TabsTrigger>
-          <TabsTrigger value="timeline">Timeline</TabsTrigger>
-        </TabsList>
-      </Tabs>
-      {fileError && tab !== 'overview' && <p role="alert" className="text-sm text-danger">{fileError}</p>}
-      {tab === 'monitoring' && file && (
-        <MonitoringPanel project={project} file={file} isOffice={isOffice} isParty={isParty}
-          canCall={!isParty && partyStatusKnown && !!user && (user.roles.includes('Director') || user.roles.includes('PME') || user.roles.includes('MasterAdmin'))}
-          onChanged={onFileChanged} />
-      )}
-      {tab === 'monitoring' && project.track === 'HQ' && (
-        <StageGatePanel project={project} canRecord={isOffice || isParty} onChanged={onFileChanged} />
-      )}
-      {tab === 'changes' && file && project.track === 'HQ' && (isOffice || isParty) && <PacksPanel project={project} file={file} changesOnly />}
-      {tab === 'changes' && file && (
-        <ChangesPanel project={project} file={file} isPi={isPi} isOffice={isOffice}
-          userId={user?.id ?? null} roles={user?.roles ?? []} onChanged={onFileChanged} />
-      )}
-      {tab === 'closure' && file && (
-        <ClosurePanel project={project} file={file} isPi={isPi} isOffice={isOffice} roles={user?.roles ?? []} onChanged={onFileChanged} />
-      )}
-      {tab === 'funds' && isOffice && needsLegacyCompletion(project) && <LegacyPanel project={project} onChanged={onFileChanged} />}
-      {tab === 'funds' && file && <FundsPanel project={project} file={file} isOffice={isOffice} onChanged={onFileChanged} />}
-      {tab === 'funds' && file && project.track === 'HQ' && (isOffice || isParty) && <PacksPanel project={project} file={file} />}
-      {tab === 'milestones' && file && (
-        <MilestonesPanel project={project} startDate={/^\d{4}-\d{2}-\d{2}$/.test(project.StartDate) ? project.StartDate : null}
-          milestones={file.milestones} isOffice={isOffice} isParty={isParty} onChanged={onFileChanged} />
-      )}
-      {tab === 'outputs' && <OutputsPanel project={project} canLink={isOffice || isParty || !!user?.roles.includes('PME')} />}
-      {tab === 'timeline' && file && <TimelinePanel events={file.events} documents={file.documents} />}
-
-      {tab === 'overview' && (
+  const overview = (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {/* ── LEFT COLUMN ── */}
@@ -489,11 +405,120 @@ export default function ProjectDetail() {
 
         </div>
       </div>
-      )}
+  );
 
+  const today = new Date().toISOString().slice(0, 10);
+  const fileAlert = fileError ? <p role="alert" className="text-sm text-danger">{fileError}</p> : null;
+  const tabs: DossierTab[] = [
+    { key: 'overview', label: 'Overview', content: overview },
+    {
+      key: 'monitoring',
+      label: `Monitoring${file && file.slots.some(s => s.status === 'PENDING' && s.dueDate < today) ? ' •' : ''}`,
+      content: <>
+        {fileAlert}
+        {file && (
+          <MonitoringPanel project={project} file={file} isOffice={isOffice} isParty={isParty}
+            canCall={!isParty && partyStatusKnown && !!user && (user.roles.includes('Director') || user.roles.includes('PME') || user.roles.includes('MasterAdmin'))}
+            onChanged={onFileChanged} />
+        )}
+        {project.track === 'HQ' && <StageGatePanel project={project} canRecord={isOffice || isParty} onChanged={onFileChanged} />}
+      </>,
+    },
+    {
+      key: 'funds', label: 'Funds',
+      content: <>
+        {fileAlert}
+        {isOffice && needsLegacyCompletion(project) && <LegacyPanel project={project} onChanged={onFileChanged} />}
+        {file && <FundsPanel project={project} file={file} isOffice={isOffice} onChanged={onFileChanged} />}
+        {file && project.track === 'HQ' && (isOffice || isParty) && <PacksPanel project={project} file={file} />}
+      </>,
+    },
+    {
+      key: 'milestones',
+      label: `Milestones${file && file.milestones.length > 0 ? ` (${file.milestones.length})` : ''}`,
+      content: <>
+        {fileAlert}
+        {file && (
+          <MilestonesPanel project={project} startDate={/^\d{4}-\d{2}-\d{2}$/.test(project.StartDate) ? project.StartDate : null}
+            milestones={file.milestones} isOffice={isOffice} isParty={isParty} onChanged={onFileChanged} />
+        )}
+      </>,
+    },
+    {
+      key: 'changes',
+      label: `Changes${file && file.changes.some(c => c.status === 'SUBMITTED' || c.status === 'UNDER_REVIEW' || c.status === 'RETURNED') ? ' •' : ''}`,
+      content: <>
+        {fileAlert}
+        {file && project.track === 'HQ' && (isOffice || isParty) && <PacksPanel project={project} file={file} changesOnly />}
+        {file && (
+          <ChangesPanel project={project} file={file} isPi={isPi} isOffice={isOffice}
+            userId={user?.id ?? null} roles={user?.roles ?? []} onChanged={onFileChanged} />
+        )}
+      </>,
+    },
+    {
+      key: 'closure', label: 'Closure',
+      content: <>
+        {fileAlert}
+        {file && <ClosurePanel project={project} file={file} isPi={isPi} isOffice={isOffice} roles={user?.roles ?? []} onChanged={onFileChanged} />}
+      </>,
+    },
+    {
+      key: 'outputs', label: 'Outputs',
+      content: <>
+        {fileAlert}
+        <OutputsPanel project={project} canLink={isOffice || isParty || !!user?.roles.includes('PME')} />
+      </>,
+    },
+    {
+      key: 'timeline', label: 'Timeline',
+      content: <>
+        {fileAlert}
+        {file && <TimelinePanel events={file.events} documents={file.documents} />}
+      </>,
+    },
+  ];
+
+  return (
+    <>
+      <Dossier
+        kicker="Project"
+        title={project.ProjectNo}
+        subtitle={
+          <span className="flex items-center gap-2 flex-wrap">
+            <Badge variant={statusVariant}>{projectStatusLabel(project)}</Badge>
+            {daysLeft !== null && daysLeft > 0 && daysLeft <= 30 && (
+              <Badge variant="danger" className="flex items-center gap-1">
+                <AlertTriangle size={10} /> {daysLeft}d left
+              </Badge>
+            )}
+            <span className="truncate">{project.ProjectName}</span>
+          </span>
+        }
+        onBack={goBack}
+        askAbout={{ type: 'project', id: project.ProjectID }}
+        actions={<>
+          <RequestUpdateButton
+            domain="projects"
+            recordRef={project.ProjectID}
+            divisionCode={project.DivisionCode || null}
+            record={project}
+            defaultTitle={`Update project ${project.ProjectNo}`}
+          />
+          {canEdit && (
+            <button
+              onClick={() => setEditOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-surface border border-border rounded-lg text-sm font-medium text-text hover:bg-surface-hover transition-colors"
+            >
+              <Edit size={14} /> Edit Project
+            </button>
+          )}
+        </>}
+        tabs={tabs}
+      />
       {canEdit && (
         <ProjectFormModal isOpen={editOpen} onClose={() => setEditOpen(false)} project={project} />
       )}
-    </div>
+    </>
   );
 }

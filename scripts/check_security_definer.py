@@ -108,6 +108,7 @@ EXEMPT: dict[str, str] = {
     "project_change_log": "trigger on project_change_requests; writes the timeline. EXECUTE revoked (20261112000001)",
     "project_completion_log": "trigger on project_completion_reports; writes the timeline. EXECUTE revoked (20261112000002)",
     "ask_scope_sweep": "scheduled sweep (pg_cron, no caller): tells HRAdmin about more than 5 out-of-scope Ask SURYA refusals in a day. EXECUTE revoked from clients (20261115000001)",
+    "amc_expiry_sweep": "scheduled sweep (pg_cron, no caller): tells the instrument owner and the head of division about an AMC near its end. EXECUTE revoked from clients (20261116000001)",
     "home_overdue_sweep": "scheduled sweep (pg_cron, no caller): tells the head of division about a progress report 7 days late. EXECUTE revoked from clients (20261114120004)",
     "priority_notify": "internal: writes one notification for a priority step; called only by the priority_* RPCs after their own checks. EXECUTE revoked from clients (20261114120002)",
     "project_caller_is_party": (
