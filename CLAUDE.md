@@ -208,7 +208,7 @@ No path aliases. Always relative imports.
 - test: `npm test` — 171 files, 1,457 tests (as of 2026-11-22; includes ~40 PGlite DB test files). Every
   migration applied to an in-process Postgres (PGlite + Supabase shims, `scripts/db/pgliteHarness.ts`),
   then RLS/RPC tests and `supabase/tests/*.sql` — no Docker or Supabase CLI needed
-- python: `python -m pytest` in `rag/` and in `ingest/`
+- python: `.venv/Scripts/python.exe -m pytest` inside `rag/` (308 tests) and `ingest/` (45 tests) — use the 3.12 venvs, not the default 3.14 (PyMuPDF has no 3.14 wheel)
 - policy audit: `python scripts/check_security_definer.py`
 
 ---
