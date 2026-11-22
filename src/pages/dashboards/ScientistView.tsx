@@ -9,6 +9,7 @@ import { useData } from '../../contexts/DataContext';
 import { useHome } from '../../contexts/HomeContext';
 import { useProposals } from '../../contexts/ProposalsContext';
 import { Card } from '../../components/ui/Cards';
+import { LivingBriefHeader } from '../../components/dashboard/LivingBriefHeader';
 import { DoFirstStrip } from '../../components/home/common/DoFirstStrip';
 import { canSnoozeForTomorrow } from '../../lib/home/doNext';
 import { timerRingRatio } from '../../lib/home/division';
@@ -125,9 +126,18 @@ export function ScientistView() {
 
   return (
     <div className="space-y-6 pb-12">
-      {/* 1. Today ring + Fraunces greeting */}
-      <section aria-label="Today summary" className="flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
-        <div className="flex items-center gap-4">
+      {/* 1. Editorial brief + Today ring */}
+      <LivingBriefHeader
+        kicker={ownStaff ? `${ownStaff.Designation} · Division ${ownStaff.Division}` : 'Researcher Workspace'}
+        sentence={greeting}
+        pills={[
+          { label: `${ownProposalsCount} proposal${ownProposalsCount === 1 ? '' : 's'}`, tone: 'neutral', to: '/proposals' },
+          { label: `${ownProjects.length} project${ownProjects.length === 1 ? '' : 's'}`, tone: 'accent', to: '/projects' },
+          ...(onTimeRecord && onTimeRecord.total_count > 0
+            ? [{ label: `${onTimeRecord.on_time_count}/${onTimeRecord.total_count} reports on time`, tone: 'positive' as const, to: '/reports' }]
+            : []),
+        ]}
+        actions={
           <div
             className="relative w-12 h-12 shrink-0 flex items-center justify-center"
             aria-label={`Today progress: ${todayProgress.done} of ${todayProgress.total} complete`}
@@ -155,17 +165,8 @@ export function ScientistView() {
               {todayProgress.done}/{todayProgress.total}
             </span>
           </div>
-          <div>
-            <h1 className="text-xl sm:text-2xl font-[500] font-serif text-text leading-snug">
-              {greeting}
-            </h1>
-            <p className="text-xs text-text-muted mt-0.5 font-mono tabular-nums">
-              {ownProposalsCount} proposal{ownProposalsCount === 1 ? '' : 's'} · {ownProjects.length} project{ownProjects.length === 1 ? '' : 's'}
-              {onTimeRecord && onTimeRecord.total_count > 0 ? ` · ${onTimeRecord.on_time_count} of ${onTimeRecord.total_count} reports on time this year` : ''}
-            </p>
-          </div>
-        </div>
-      </section>
+        }
+      />
 
       {/* 2. Ask SURYA & quick starts */}
       <section aria-label="Ask and start" className="flex flex-wrap items-center gap-2">

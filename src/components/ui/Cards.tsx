@@ -6,7 +6,7 @@ import { cn } from '../../utils/cn';
 interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   children?: React.ReactNode;
   isGlass?: boolean;
-  variant?: 'flat' | 'raised' | 'interactive';
+  variant?: 'flat' | 'raised' | 'interactive' | 'contrast';
   /** Subtle pointer-reactive warm spotlight sheen (pure CSS variables, zero re-renders). */
   sheen?: boolean;
 }
@@ -15,6 +15,7 @@ const cardVariants = {
   flat: "bg-surface border border-border shadow-[0px_0px_0px_1px_var(--color-border)] hover:shadow-[0px_0px_0px_1px_var(--color-ring-warm)] transition-shadow",
   raised: "bg-surface-raised border border-border shadow-[var(--shadow-e2)] dark:shadow-[var(--shadow-e2),var(--shadow-dark-highlight)] transition-shadow",
   interactive: "bg-surface-raised border border-border shadow-[var(--shadow-e2)] dark:shadow-[var(--shadow-e2),var(--shadow-dark-highlight)] hover:shadow-[var(--shadow-e3)] hover:border-terracotta/40 hover:-translate-y-0.5 transition-all cursor-pointer",
+  contrast: "card-contrast border",
 };
 
 export function Card({ children, className, isGlass = false, variant = 'flat', sheen = false, onPointerMove, ...props }: CardProps) {

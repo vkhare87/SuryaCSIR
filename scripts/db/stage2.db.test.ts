@@ -176,3 +176,39 @@ describe('CM1 rooms, bookings clash guard, meeting schedule & hospitality', () =
     expect(status).toBe('APPROVED');
   });
 });
+
+describe('PJ1 project_staff_link_user (20261122000006)', () => {
+  it('allows PME/HR to link a login to a project_staff_persons row and prevents duplicate links', async () => {
+    const keeper = u('08');
+    await db.exec(`
+      INSERT INTO auth.users (id, email) VALUES ('${keeper}', 'pme@s2');
+      INSERT INTO public.user_roles (user_id, role) VALUES ('${keeper}', 'PME');
+    `);
+
+    // Non-keeper cannot link
+    await expect(
+      as(db, U.sci, tx => tx.query(
+        `SELECT project_staff_link_user('a0000000-0000-0000-0000-000000000001', '${U.pj1}')`,
+      )),
+    ).rejects.toThrow(/Only PME or HR/);
+
+    // Duplicate login rejected
+    await expect(
+      as(db, keeper, tx => tx.query(
+        `SELECT project_staff_link_user('a0000000-0000-0000-0000-000000000002', '${U.pj1}')`,
+      )),
+    ).rejects.toThrow(/already linked/);
+
+    // Keeper can unlink and re-link cleanly
+    await as(db, keeper, tx => tx.query(
+      `SELECT project_staff_link_user('a0000000-0000-0000-0000-000000000001', NULL)`,
+    ));
+    await as(db, keeper, tx => tx.query(
+      `SELECT project_staff_link_user('a0000000-0000-0000-0000-000000000001', '${U.pj1}')`,
+    ));
+    const linked = (await db.query<{ user_id: string | null }>(
+      `SELECT user_id FROM public.project_staff_persons WHERE id = 'a0000000-0000-0000-0000-000000000001'`,
+    )).rows[0];
+    expect(linked.user_id).toBe(U.pj1);
+  });
+});

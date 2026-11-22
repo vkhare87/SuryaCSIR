@@ -6,6 +6,8 @@ import { useData } from '../../contexts/DataContext';
 import { useHome } from '../../contexts/HomeContext';
 import { supabase } from '../../utils/supabaseClient';
 import { Card } from '../../components/ui/Cards';
+import { LivingBriefHeader } from '../../components/dashboard/LivingBriefHeader';
+import { Sparkline } from '../../components/viz/Sparkline';
 import { DoFirstStrip } from '../../components/home/common/DoFirstStrip';
 import { DelegationDialCard } from '../../components/home/director/DelegationDialCard';
 import { DirectorWatchCard } from '../../components/home/stage5/Stage5Cards';
@@ -73,6 +75,18 @@ export function DirectorView() {
   }, [topDecision, registerClaimedKeys]);
 
   const activeProjects = useMemo(() => projects.filter((p) => p.ProjectStatus === 'Active'), [projects]);
+  const projectSeries = useMemo(() => {
+    const years = projects
+      .map((p) => Number(p.StartDate?.slice(0, 4)))
+      .filter((y) => Number.isFinite(y) && y >= 2000 && y <= 2100);
+    if (years.length === 0) return [];
+    const maxYear = Math.max(...years);
+    const buckets: number[] = [];
+    for (let y = maxYear - 5; y <= maxYear; y++) {
+      buckets.push(years.filter((v) => v === y).length);
+    }
+    return buckets;
+  }, [projects]);
   const sanctionedCrore = useMemo(
     () => (activeProjects.reduce((sum, p) => sum + Number(p.SanctionedCost || 0), 0) / 1e7).toFixed(2),
     [activeProjects],
@@ -100,12 +114,19 @@ export function DirectorView() {
 
   return (
     <div className="space-y-6 pb-12">
-      <section aria-label="Director greeting" className="space-y-1">
-        <h1 className="text-xl sm:text-2xl font-[500] font-serif text-text leading-snug">{greeting}</h1>
-        <p className="text-xs text-text-muted font-mono tabular-nums">
-          {computedRollup.length} divisions · {activeProjects.length} active projects
-        </p>
-      </section>
+      <LivingBriefHeader
+        kicker="CSIR-AMPRI · Director's Cockpit"
+        sentence={greeting}
+        pills={[
+          { label: `${computedRollup.length} divisions`, tone: 'neutral', to: '/divisions' },
+          { label: `${activeProjects.length} active projects`, tone: 'accent', to: '/projects' },
+          {
+            label: rankedActions.length > 0 ? `${rankedActions.length} awaiting decision` : 'No pending decisions',
+            tone: rankedActions.length > 0 ? 'warning' : 'positive',
+            to: '/portfolio',
+          },
+        ]}
+      />
 
       <form onSubmit={onSearchSubmit} className="relative">
         <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
@@ -229,9 +250,16 @@ export function DirectorView() {
           Institute at a glance
         </h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <Link to="/projects" className="rounded-lg border border-border p-3 hover:bg-surface-hover transition-colors">
-            <div className="text-[11px] text-text-muted">Active projects</div>
-            <div className="text-xl font-mono tabular-nums text-text mt-0.5">{activeProjects.length}</div>
+          <Link to="/projects" className="rounded-lg border border-border p-3 hover:bg-surface-hover transition-colors flex items-end justify-between gap-2">
+            <div>
+              <div className="text-[11px] text-text-muted">Active projects</div>
+              <div className="text-xl font-mono tabular-nums text-text mt-0.5">{activeProjects.length}</div>
+            </div>
+            {projectSeries.length >= 2 && (
+              <div className="h-7 w-16 shrink-0">
+                <Sparkline data={projectSeries} />
+              </div>
+            )}
           </Link>
           <Link to="/portfolio" className="rounded-lg border border-border p-3 hover:bg-surface-hover transition-colors">
             <div className="text-[11px] text-text-muted">Sanctioned outlay</div>
