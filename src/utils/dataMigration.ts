@@ -148,6 +148,8 @@ export const SCHEMA_MAPS: Record<FileType, Record<string, string>> = {
     'SupervisorName':    'SupervisorName',
     'CoSupervisorName':  'CoSupervisorName',
     'FellowshipDetails': 'FellowshipDetails',
+    'Fellowship End':    'fellowship_end',
+    'fellowship_end':    'fellowship_end',
     'CurrentStatus':     'CurrentStatus',
     'ThesisTitle':       'ThesisTitle',
     'ProjectNo':         'ProjectNo',
@@ -231,7 +233,7 @@ export const ALLOWED_COLUMNS: Record<FileType, string[]> = {
   ],
   phd: [
     'EnrollmentNo', 'StudentName', 'Specialization', 'SupervisorName',
-    'CoSupervisorName', 'FellowshipDetails', 'CurrentStatus', 'ThesisTitle', 'ProjectNo',
+    'CoSupervisorName', 'FellowshipDetails', 'fellowship_end', 'CurrentStatus', 'ThesisTitle', 'ProjectNo',
   ],
   equipment: [
     'UInsID', 'instrument_code', 'Name', 'serial_number', 'manufacturer',

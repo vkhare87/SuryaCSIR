@@ -100,6 +100,7 @@ export const mapPhDStudentRow = (row: any): PhDStudent => ({
   SupervisorName: row.SupervisorName || row.supervisor_name || '',
   CoSupervisorName: row.CoSupervisorName || row.co_supervisor_name || 'None',
   FellowshipDetails: row.FellowshipDetails || row.fellowship_details || '',
+  fellowship_end: row.fellowship_end ?? null,
   CurrentStatus: row.CurrentStatus || row.current_status || '',
   ThesisTitle: row.ThesisTitle || row.thesis_title || '',
   ProjectNo: row.ProjectNo || row.project_no || '',

@@ -62,34 +62,6 @@ export function getProjectFlags(
   return { overdue, endingSoon, lowBurn };
 }
 
-export function getInstituteUtilization(projects: ProjectInfo[]): {
-  sanctioned: number;
-  utilized: number;
-  pct: number;
-} {
-  let sanctioned = 0;
-  let utilized = 0;
-  for (const p of projects) {
-    sanctioned += parseCost(p.SanctionedCost);
-    utilized += parseCost(p.UtilizedAmount);
-  }
-  return { sanctioned, utilized, pct: sanctioned > 0 ? Math.round((utilized / sanctioned) * 100) : 0 };
-}
-
-export function getUtilizationByDivision(projects: ProjectInfo[]): CategoryDatum[] {
-  const m = new Map<string, { s: number; u: number }>();
-  for (const p of projects) {
-    const k = p.DivisionCode || 'Unspecified';
-    const cur = m.get(k) ?? { s: 0, u: 0 };
-    cur.s += parseCost(p.SanctionedCost);
-    cur.u += parseCost(p.UtilizedAmount);
-    m.set(k, cur);
-  }
-  return Array.from(m, ([label, { s, u }]) => ({ label, value: s > 0 ? Math.round((u / s) * 100) : 0 })).sort(
-    (a, b) => b.value - a.value,
-  );
-}
-
 export interface GanttWindow {
   start: Date;
   end: Date;

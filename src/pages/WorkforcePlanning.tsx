@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Users } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
 import { Card, Badge } from '../components/ui/Cards';
+import { LeaverList } from '../components/LeaverList';
 import { loadOutlook, loadWorkload, type OutlookRow, type WorkloadRow } from '../lib/people/api';
 import { friendlyError } from '../lib/errors';
 
@@ -38,6 +39,8 @@ export default function WorkforcePlanning() {
         </h1>
         <p className="text-text-muted mt-1 text-sm">Who retires, which posts are empty, and who carries how much — from the records you may see.</p>
       </div>
+
+      <LeaverList />
 
       <Card className="p-0 overflow-hidden">
         <div className="px-5 py-3 border-b border-border flex items-center gap-3">

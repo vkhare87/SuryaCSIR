@@ -1,6 +1,7 @@
 /** Parse a loose cost string (e.g. "₹ 1,250.50 L") to a number. Returns 0 if unparseable. */
-export function parseCost(s: string | undefined): number {
+export function parseCost(s: string | number | null | undefined): number {
+  if (typeof s === 'number') return Number.isFinite(s) ? s : 0;
   if (!s) return 0;
-  const v = parseFloat(s.replace(/[^0-9.-]+/g, ''));
+  const v = parseFloat(String(s).replace(/[^0-9.-]+/g, ''));
   return Number.isFinite(v) ? v : 0;
 }

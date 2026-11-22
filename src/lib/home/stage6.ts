@@ -1,4 +1,5 @@
 import type { Project, StaffMember } from '../../types';
+import { parseCost } from '../../utils/parseCost';
 
 export function isThreadIdle(lastContactOn: string, todayIso: string, thresholdDays = 21): boolean {
   const last = Date.parse(lastContactOn);
@@ -23,8 +24,8 @@ export function portfolioHealthScore(projects: Project[], todayIso: string): num
   for (const p of active) {
     let item = 100;
     if (p.CompletioDate && p.CompletioDate < todayIso) item -= 40;
-    const sanctioned = Number(p.SanctionedCost || 0);
-    const utilized = Number(p.UtilizedAmount || 0);
+    const sanctioned = parseCost(p.SanctionedCost);
+    const utilized = parseCost(p.UtilizedAmount);
     if (sanctioned > 0 && utilized > sanctioned) item -= 35;
     score += Math.max(0, item);
   }
