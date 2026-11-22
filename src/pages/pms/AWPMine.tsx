@@ -1,13 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { pdf } from '@react-pdf/renderer';
 import { Download } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAWP } from '../../contexts/AWPContext';
 import { useData } from '../../contexts/DataContext';
 import { AWPPartVForm } from '../../components/pms/AWPPartVForm';
 import { AWPPanel } from '../../components/pms/AWPPanel';
-import { AWPPDF } from '../../components/pms/AWPPDF';
 import { Button } from '../../components/ui/Button';
 import { Skeleton } from '../../components/ui/Skeleton';
 import {
@@ -80,6 +78,7 @@ export default function AWPMine() {
   };
 
   const download = async (a: PMSAWP) => {
+    const [{ pdf }, { AWPPDF }] = await Promise.all([import('@react-pdf/renderer'), import('../../components/pms/AWPPDF')]);
     const blob = await pdf(<AWPPDF awp={a} />).toBlob();
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
