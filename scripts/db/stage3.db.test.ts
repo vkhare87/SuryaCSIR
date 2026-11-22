@@ -153,12 +153,20 @@ describe('Stage 3 database layer', () => {
     // Assignee seen -> push back -> asker accepts -> wanted_by moves
     await q(U.sci1, `SELECT public.priority_seen('${id1}')`);
     await q(U.sci1, `SELECT public.priority_push_back('${id1}', 'Field visit scheduled', CURRENT_DATE + 10)`);
-    await q(U.hod1, `SELECT public.priority_answer('${id1}', true)`);
+    // An answer to a date the asker no longer sees is refused, unchanged (20261122000005)
+    await expect(q(U.hod1, `SELECT public.priority_answer('${id1}', true, CURRENT_DATE + 11)`))
+      .rejects.toThrow(/date asked for has changed/);
+    const untouched = await db.query<{ pushback_answer: string | null }>(
+      `SELECT pushback_answer FROM public.work_priorities WHERE id = '${id1}'`,
+    );
+    expect(untouched.rows[0].pushback_answer).toBeNull();
+    await q(U.hod1, `SELECT public.priority_answer('${id1}', true, CURRENT_DATE + 10)`);
 
-    const updated = await db.query<{ pushback_answer: string; wanted_by: string }>(
-      `SELECT pushback_answer, wanted_by::text FROM public.work_priorities WHERE id = '${id1}'`,
+    const updated = await db.query<{ pushback_answer: string; wanted_by: string; moved: boolean }>(
+      `SELECT pushback_answer, wanted_by::text, wanted_by = CURRENT_DATE + 10 AS moved FROM public.work_priorities WHERE id = '${id1}'`,
     );
     expect(updated.rows[0].pushback_answer).toBe('ACCEPTED');
+    expect(updated.rows[0].moved).toBe(true);
 
     // Assignee marks done
     await q(U.sci1, `SELECT public.priority_done('${id1}')`);

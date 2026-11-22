@@ -25,6 +25,8 @@ BEGIN
     FOREACH t IN ARRAY ARRAY['work_priorities', 'notices', 'notice_reads', 'general_meetings',
                              'general_meeting_invitees', 'delegation_orders', 'delegation_lines'] LOOP
         IF to_regclass('public.' || t) IS NOT NULL THEN
+            -- Held to commit, so no row can arrive between the count and the drop.
+            EXECUTE format('LOCK TABLE public.%I IN ACCESS EXCLUSIVE MODE', t);
             EXECUTE format('SELECT count(*) FROM public.%I', t) INTO n;
             IF n > 0 THEN
                 RAISE EXCEPTION 'reconcile: public.% has % rows; move them before the switch', t, n;
@@ -33,6 +35,7 @@ BEGIN
     END LOOP;
     IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public'
                  AND table_name = 'project_staff_persons' AND column_name = 'user_id') THEN
+        LOCK TABLE public.project_staff_persons IN ACCESS EXCLUSIVE MODE;
         EXECUTE 'SELECT count(*) FROM public.project_staff_persons WHERE user_id IS NOT NULL' INTO n;
         IF n > 0 THEN
             RAISE EXCEPTION 'reconcile: % project staff records are linked to a login; keep the link before the switch', n;

@@ -422,7 +422,7 @@ export function HoDView() {
                           <button
                             type="button"
                             disabled={stage3Busy}
-                            onClick={async () => { await priorityAnswer(p.id, true); await refreshHome(); }}
+                            onClick={async () => { await priorityAnswer(p.id, true, p.pushback_date); await refreshHome(); }}
                             className="px-2 py-0.5 rounded border border-border text-archive-green hover:bg-surface-hover"
                           >
                             Accept {p.pushback_date}
@@ -430,7 +430,7 @@ export function HoDView() {
                           <button
                             type="button"
                             disabled={stage3Busy}
-                            onClick={async () => { await priorityAnswer(p.id, false); await refreshHome(); }}
+                            onClick={async () => { await priorityAnswer(p.id, false, p.pushback_date); await refreshHome(); }}
                             className="px-2 py-0.5 rounded border border-border text-text-muted hover:bg-surface-hover"
                           >
                             Keep
