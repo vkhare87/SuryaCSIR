@@ -12,6 +12,7 @@ import { DoFirstStrip } from '../../components/home/common/DoFirstStrip';
 import { DivisionUpwardReportCard } from '../../components/home/stage5/Stage5Cards';
 import { divisionGreeting, needsAttention } from '../../lib/home/division';
 import { runDecisionPrecheck } from '../../lib/home/prechecks';
+import { friendlyError } from '../../lib/errors';
 import {
   decisionAsk,
   priorityAnswer,
@@ -39,6 +40,17 @@ export function HoDView() {
   const [pinDate, setPinDate] = useState(todayIso);
   const [stage3Err, setStage3Err] = useState<string | null>(null);
   const [stage3Busy, setStage3Busy] = useState(false);
+
+  // A changed date is refused by the server; show why and reload so the new date is on screen.
+  const answerPushBack = async (id: string, accept: boolean, shownDate: string | null) => {
+    setStage3Err(null);
+    try {
+      await priorityAnswer(id, accept, shownDate);
+    } catch (err) {
+      setStage3Err(friendlyError(err, 'Could not answer the push-back'));
+    }
+    await refreshHome();
+  };
 
   const storageKey = `surya.hod.mode.${user?.id ?? 'anon'}`;
   const [mode, setMode] = useState<HodMode>(() => {
@@ -422,7 +434,7 @@ export function HoDView() {
                           <button
                             type="button"
                             disabled={stage3Busy}
-                            onClick={async () => { await priorityAnswer(p.id, true); await refreshHome(); }}
+                            onClick={() => void answerPushBack(p.id, true, p.pushback_date)}
                             className="px-2 py-0.5 rounded border border-border text-archive-green hover:bg-surface-hover"
                           >
                             Accept {p.pushback_date}
@@ -430,7 +442,7 @@ export function HoDView() {
                           <button
                             type="button"
                             disabled={stage3Busy}
-                            onClick={async () => { await priorityAnswer(p.id, false); await refreshHome(); }}
+                            onClick={() => void answerPushBack(p.id, false, p.pushback_date)}
                             className="px-2 py-0.5 rounded border border-border text-text-muted hover:bg-surface-hover"
                           >
                             Keep

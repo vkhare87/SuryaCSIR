@@ -105,9 +105,9 @@ export async function priorityPushBack(id: string, reason: string, newDate: stri
   if (error) throw error;
 }
 
-export async function priorityAnswer(id: string, accept: boolean): Promise<void> {
+export async function priorityAnswer(id: string, accept: boolean, shownDate: string | null): Promise<void> {
   const sb = requireSb();
-  const { error } = await sb.rpc('priority_answer', { p_id: id, p_accept: accept });
+  const { error } = await sb.rpc('priority_answer', { p_id: id, p_accept: accept, p_expected_date: shownDate });
   if (error) throw error;
 }
 

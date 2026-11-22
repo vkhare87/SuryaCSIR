@@ -65,6 +65,8 @@ supabase migration repair --status applied \
 (If upgrading an older DB that had earlier timestamps tracked in
 `supabase_migrations.schema_migrations`, mark the superseded timestamps `--status reverted`
 first, or start fresh on a clean database with `supabase db reset` / `supabase db push`.)
+The live project's switch (2026-11-22) is written out step by step in
+`docs/operations/LIVE-BASELINE-SWITCH.md`, with the exact version lists.
 From this point on, every schema change is a new timestamped file applied via
 `supabase db push` — **no more pasting SQL into the Dashboard SQL Editor**.
 
