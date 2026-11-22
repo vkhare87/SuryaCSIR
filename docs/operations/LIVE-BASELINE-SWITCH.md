@@ -55,8 +55,25 @@ reaches the linked project on v2 and v3 (v3 prints a warning that suggests `--re
 
 Pick a quiet time and tell users the app is down for about 30 minutes. If you
 have to restore, anything written after the backup is lost. Keep users out
-until step 6 passes or the undo is done. The pg_cron sweeps only write
-notifications, so you can leave them running.
+until step 6 passes or the undo is done.
+
+The scheduled jobs write too. On live (2026-11-22) they all run between 00:30 and 02:00 UTC
+(06:00–07:30 IST): `metric-snapshot` (00:30 on the 1st), `pms-timeline-sweep`,
+`notifications-sweep`, `ai-suggest-sweep`, `contribution-requests-sweep`,
+`home-overdue-sweep`, `ask-scope-sweep`, and on Mondays `metric-digest` and
+`profile-consistency-sweep` (02:00). Start after 02:00 UTC and finish before
+00:30 UTC the next day, and no job writes during the switch. Check the list first; it
+only reads:
+
+```sql
+SELECT jobname, schedule, active FROM cron.job ORDER BY 1;
+```
+
+If the list has a job outside that window, pick a window that misses it.
+
+If you may need the last-resort restore under **Undo**, practise it first on a
+Supabase branch or a new project that is not live. Run steps 0–5 there, then the restore. Check
+the schema, data, migration history, storage file rules and scheduled jobs.
 
 Take a backup first. The free plan has no point-in-time restore. The third file saves the
 migration history, which the first two do not include.
@@ -81,6 +98,19 @@ the last-resort restore below would lose them, and the dumps above leave out the
 psql -X -At "<connection string>" -o backup-2026-11-22-storage-policies.sql -c "SELECT string_agg(format('DROP POLICY IF EXISTS %I ON storage.objects; CREATE POLICY %I ON storage.objects AS %s FOR %s TO %s%s%s;', policyname, policyname, permissive, cmd, array_to_string(roles, ', '), CASE WHEN qual IS NOT NULL THEN ' USING (' || qual || ')' ELSE '' END, CASE WHEN with_check IS NOT NULL THEN ' WITH CHECK (' || with_check || ')' ELSE '' END), E'
 ' ORDER BY policyname) FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects'"
 ```
+
+Check the export worked. Each command above must end without an error. The
+file must hold one `DROP POLICY` line per storage rule:
+
+```powershell
+(Select-String -Path backup-2026-11-22-storage-policies.sql -Pattern '^DROP POLICY IF EXISTS').Count
+```
+
+```sql
+SELECT count(*) FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects';
+```
+
+The two numbers must match (18 on 2026-11-22). If they do not, stop and run the export again.
 
 Open the history file and check it lists the 102 old versions. If it is empty,
 run `SELECT version FROM supabase_migrations.schema_migrations ORDER BY 1;` in
