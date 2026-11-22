@@ -121,7 +121,7 @@ export default function RecruitmentAnalytics() {
                   <td className="py-1.5 pr-2 text-text-muted">{a.driveStage}</td>
                   <td className="py-1.5 text-right tabular-nums">
                     <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                      (a.daysOpen ?? 0) > 60 ? 'bg-[#fde2e2] text-[#991b1b]' : 'bg-surface-hover text-text-muted'
+                      (a.daysOpen ?? 0) > 60 ? 'bg-badge-danger-bg text-badge-danger-fg' : 'bg-surface-hover text-text-muted'
                     }`}>
                       {a.daysOpen}d
                     </span>

@@ -128,7 +128,7 @@ export default function Reports() {
                   <p className="text-xs text-text-muted/60 font-mono mt-0.5">
                     Scientist: {r.scientistId.slice(0, 8)}…
                     {r.dutyDays != null && (
-                      <span className={r.dutyDays < MIN_DUTY_DAYS ? ' text-rose-500' : ''}>
+                      <span className={r.dutyDays < MIN_DUTY_DAYS ? ' text-danger' : ''}>
                         {' '}· {r.dutyDays} duty days
                       </span>
                     )}
@@ -189,15 +189,15 @@ export default function Reports() {
                 min={0}
                 value={dutyDaysInput}
                 onChange={e => setDutyDaysInput(e.target.value)}
-                className="w-32 px-3 py-2 border border-border rounded-xl text-sm bg-background text-text focus:outline-none focus:border-[#c96442]"
+                className="w-32 px-3 py-2 border border-border rounded-xl text-sm bg-background text-text focus:outline-none focus:border-terracotta"
               />
               <Button size="sm" isLoading={saving} onClick={handleSaveDutyDays}>Save</Button>
             </div>
           </div>
 
           {manageReport?.dutyDays != null && manageReport.dutyDays < MIN_DUTY_DAYS && (
-            <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl space-y-2">
-              <p className="text-sm text-amber-800">
+            <div className="p-4 bg-badge-warning-bg border border-turmeric/30 rounded-xl space-y-2">
+              <p className="text-sm text-badge-warning-fg">
                 Duty days below {MIN_DUTY_DAYS} — the appraisal can be bypassed with an automatic
                 system remark.
               </p>
@@ -267,7 +267,7 @@ export default function Reports() {
             </div>
           )}
 
-          {error && <p role="alert" className="text-sm text-rose-600">{error}</p>}
+          {error && <p role="alert" className="text-sm text-danger">{error}</p>}
         </div>
       </Modal>
     </div>

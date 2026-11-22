@@ -27,11 +27,11 @@ export default function SetupWizard() {
     <div className="min-h-screen w-full flex items-center justify-center bg-background p-4 relative overflow-hidden">
 
       {/* Background decorations */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[#c96442]/5 rounded-full blur-3xl" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-terracotta/5 rounded-full blur-3xl" />
 
-      <Card className="w-full max-w-lg p-8 z-10 mx-4 border-[#f0eee6] dark:border-[#30302e]">
+      <Card className="w-full max-w-lg p-8 z-10 mx-4 border-border-cream dark:border-dark-surface">
         <div className="flex items-center gap-3 mb-6">
-          <div className="p-3 bg-[#f0eee6] text-[#c96442] rounded-lg">
+          <div className="p-3 bg-border-cream text-terracotta rounded-lg">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
           </div>
           <div>
@@ -56,7 +56,7 @@ export default function SetupWizard() {
               type="url"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              className="w-full px-4 py-2 bg-[#f5f4ed] border border-[#f0eee6] rounded-[12px] focus:ring-2 focus:ring-[#3898ec] focus:border-[#3898ec] outline-none text-text text-sm"
+              className="w-full px-4 py-2 bg-parchment border border-border-cream rounded-[12px] focus:ring-2 focus:ring-focus-blue focus:border-focus-blue outline-none text-text text-sm"
               placeholder="https://xyzcompany.supabase.co"
               required
             />
@@ -70,7 +70,7 @@ export default function SetupWizard() {
               type="password"
               value={key}
               onChange={(e) => setKey(e.target.value)}
-              className="w-full px-4 py-2 bg-[#f5f4ed] border border-[#f0eee6] rounded-[12px] focus:ring-2 focus:ring-[#3898ec] focus:border-[#3898ec] outline-none text-text text-sm"
+              className="w-full px-4 py-2 bg-parchment border border-border-cream rounded-[12px] focus:ring-2 focus:ring-focus-blue focus:border-focus-blue outline-none text-text text-sm"
               placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpX..."
               required
             />

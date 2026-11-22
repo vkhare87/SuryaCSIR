@@ -12,20 +12,20 @@ type Source = 'all' | 'pms' | 'modules';
 
 const ACTION_COLORS: Record<string, string> = {
   // PMS actions
-  SUBMIT:                           'bg-blue-100 text-blue-700',
-  ASSIGN_EVALUATORS:                'bg-purple-100 text-purple-700',
-  AUTO_ADVANCE_EMPOWERED_COMMITTEE: 'bg-orange-100 text-orange-700',
-  REPORT_FINALIZED:                 'bg-green-100 text-green-700',
-  DUTY_DAYS_RECORDED:               'bg-amber-100 text-amber-700',
-  MARKED_NOT_ASSESSED:              'bg-gray-100 text-gray-700',
-  NON_SUBMISSION_RECORDED:          'bg-amber-100 text-amber-700',
-  REPRESENTATION_SUBMITTED:         'bg-orange-100 text-orange-700',
-  REPRESENTATION_RESOLVED:          'bg-green-100 text-green-700',
+  SUBMIT:                           'bg-iron-gall/10 text-iron-gall',
+  ASSIGN_EVALUATORS:                'bg-iron-gall/10 text-iron-gall',
+  AUTO_ADVANCE_EMPOWERED_COMMITTEE: 'bg-badge-warning-bg text-badge-warning-fg',
+  REPORT_FINALIZED:                 'bg-archive-green/10 text-archive-green',
+  DUTY_DAYS_RECORDED:               'bg-badge-warning-bg text-badge-warning-fg',
+  MARKED_NOT_ASSESSED:              'bg-surface-hover text-text',
+  NON_SUBMISSION_RECORDED:          'bg-badge-warning-bg text-badge-warning-fg',
+  REPRESENTATION_SUBMITTED:         'bg-badge-warning-bg text-badge-warning-fg',
+  REPRESENTATION_RESOLVED:          'bg-archive-green/10 text-archive-green',
   // Committees / helpdesk actions
-  created:        'bg-blue-100 text-blue-700',
-  updated:        'bg-amber-100 text-amber-700',
-  deleted:        'bg-rose-100 text-rose-700',
-  status_changed: 'bg-purple-100 text-purple-700',
+  created:        'bg-iron-gall/10 text-iron-gall',
+  updated:        'bg-badge-warning-bg text-badge-warning-fg',
+  deleted:        'bg-badge-danger-bg text-badge-danger-fg',
+  status_changed: 'bg-iron-gall/10 text-iron-gall',
 };
 
 const PER_PAGE = 25;
@@ -120,7 +120,7 @@ export default function AuditLog() {
       </div>
 
       {error && (
-        <div role="alert" className="px-4 py-3 bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl">{error}</div>
+        <div role="alert" className="px-4 py-3 bg-badge-danger-bg border border-danger/30 text-badge-danger-fg text-sm rounded-xl">{error}</div>
       )}
 
       {isLoading ? (
@@ -137,7 +137,7 @@ export default function AuditLog() {
               return (
                 <div key={log.id} className="flex items-start gap-4 px-5 py-3.5 bg-surface hover:bg-surface-hover transition-colors">
                   <div className="shrink-0 mt-0.5">
-                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${ACTION_COLORS[log.action] ?? 'bg-gray-100 text-gray-700'}`}>
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${ACTION_COLORS[log.action] ?? 'bg-surface-hover text-text'}`}>
                       {log.action.replace(/_/g, ' ')}
                     </span>
                   </div>

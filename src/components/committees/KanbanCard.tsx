@@ -65,7 +65,7 @@ export function KanbanCard({
   return (
     <div
       className={`bg-surface border rounded-lg p-3 space-y-2 ${
-        isOverdue ? 'border-l-4 border-l-red-500' : 'border-border'
+        isOverdue ? 'border-l-4 border-l-danger' : 'border-border'
       }`}
     >
       {/* Task name */}
@@ -83,14 +83,14 @@ export function KanbanCard({
       {/* Deadline row */}
       <div className="flex items-center gap-2 text-xs">
         {deadlineDate ? (
-          <span className={isOverdue ? 'text-red-500 font-medium' : 'text-text-muted'}>
+          <span className={isOverdue ? 'text-danger font-medium' : 'text-text-muted'}>
             {deadlineDate}
           </span>
         ) : (
           <span className="text-text-muted">No deadline</span>
         )}
         {isOverdue && (
-          <span className="text-red-500 font-semibold">+{daysOverdue}d</span>
+          <span className="text-danger font-semibold">+{daysOverdue}d</span>
         )}
       </div>
 

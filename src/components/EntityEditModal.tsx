@@ -110,7 +110,7 @@ export function EntityEditModal({ type, record, onClose, onSaved }: EntityEditMo
   };
 
   return (
-    <div ref={panelRef} role="dialog" aria-modal="true" aria-label="Edit record" tabIndex={-1} className="outline-none fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+    <div ref={panelRef} role="dialog" aria-modal="true" aria-label="Edit record" tabIndex={-1} className="outline-none fixed inset-0 z-50 flex items-center justify-center p-4 bg-near-black/40 backdrop-blur-sm">
       <div className="bg-surface border border-border rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
@@ -142,7 +142,7 @@ export function EntityEditModal({ type, record, onClose, onSaved }: EntityEditMo
               <div key={f.column}>
                 <label className="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1.5">
                   {f.label}
-                  {f.required && <span className="text-rose-500 ml-1">*</span>}
+                  {f.required && <span className="text-danger ml-1">*</span>}
                   {isPk && <span className="ml-1.5 text-[10px] font-normal text-text-muted/60 normal-case tracking-normal">(primary key)</span>}
                 </label>
                 <input
@@ -153,11 +153,11 @@ export function EntityEditModal({ type, record, onClose, onSaved }: EntityEditMo
                   placeholder={f.example}
                   className={clsx(
                     'w-full px-3 py-2 rounded-lg border text-sm text-text bg-surface placeholder:text-text-muted/50',
-                    'focus:outline-none focus:ring-2 focus:ring-[#c96442]/30 focus:border-[#c96442]',
+                    'focus:outline-none focus:ring-2 focus:ring-terracotta/30 focus:border-terracotta',
                     'transition-colors',
                     disabled
                       ? 'opacity-50 cursor-not-allowed border-border'
-                      : 'border-border hover:border-[#c96442]/40',
+                      : 'border-border hover:border-terracotta/40',
                   )}
                 />
                 {f.hint && (
@@ -171,7 +171,7 @@ export function EntityEditModal({ type, record, onClose, onSaved }: EntityEditMo
         {/* Footer */}
         <div className="px-6 py-4 border-t border-border shrink-0 flex items-center justify-between gap-3">
           {error ? (
-            <p className="text-sm text-rose-600 flex-1">{error}</p>
+            <p className="text-sm text-danger flex-1">{error}</p>
           ) : (
             <span />
           )}
@@ -185,7 +185,7 @@ export function EntityEditModal({ type, record, onClose, onSaved }: EntityEditMo
             <button
               onClick={handleSave}
               disabled={saving}
-              className="flex items-center gap-2 px-5 py-2 bg-[#c96442] hover:bg-[#b5593b] text-white text-sm font-semibold rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 px-5 py-2 bg-terracotta hover:bg-terracotta-hover text-ivory text-sm font-semibold rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
               {saving ? 'Saving…' : 'Save'}

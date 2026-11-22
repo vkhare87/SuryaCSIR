@@ -167,7 +167,7 @@ export default function CommitteeQueue() {
       <p className="text-sm text-text-muted">
         {committeeReports.length} report{committeeReports.length !== 1 ? 's' : ''} awaiting final decision
       </p>
-      {pdfWarning && <p className="text-sm text-rose-600">{pdfWarning}</p>}
+      {pdfWarning && <p className="text-sm text-danger">{pdfWarning}</p>}
 
       {statusCounts.length > 0 && (
         <div className="flex flex-wrap gap-3">
@@ -265,7 +265,7 @@ export default function CommitteeQueue() {
                     value={finalScore}
                     onChange={e => setFinalScore(e.target.value)}
                     placeholder="0 – 100"
-                    className="w-32 px-3 py-2 border border-border rounded-xl text-sm bg-background text-text focus:outline-none focus:border-[#c96442]"
+                    className="w-32 px-3 py-2 border border-border rounded-xl text-sm bg-background text-text focus:outline-none focus:border-terracotta"
                   />
                   {parsedScore != null && !isNaN(parsedScore) && (
                     <span className="text-sm text-text-muted">{getGrade(parsedScore)}</span>
@@ -276,14 +276,14 @@ export default function CommitteeQueue() {
               {needsOutstanding && (
                 <div>
                   <label className="block text-sm font-medium text-text mb-1">
-                    Reasons for Outstanding grade <span className="text-rose-600">*</span>
+                    Reasons for Outstanding grade <span className="text-danger">*</span>
                   </label>
                   <textarea
                     rows={3}
                     value={reasonsOutstanding}
                     onChange={e => setReasonsOutstanding(e.target.value)}
                     placeholder="Mandatory for scores of 90 or above…"
-                    className="w-full px-3 py-2 border border-border rounded-xl text-sm bg-background text-text focus:outline-none focus:border-[#c96442] resize-none"
+                    className="w-full px-3 py-2 border border-border rounded-xl text-sm bg-background text-text focus:outline-none focus:border-terracotta resize-none"
                   />
                 </div>
               )}
@@ -291,26 +291,26 @@ export default function CommitteeQueue() {
                 <>
                   <div>
                     <label className="block text-sm font-medium text-text mb-1">
-                      Reasons for score below threshold <span className="text-rose-600">*</span>
+                      Reasons for score below threshold <span className="text-danger">*</span>
                     </label>
                     <textarea
                       rows={3}
                       value={reasonsBelow}
                       onChange={e => setReasonsBelow(e.target.value)}
                       placeholder="Mandatory for scores of 75 or below…"
-                      className="w-full px-3 py-2 border border-border rounded-xl text-sm bg-background text-text focus:outline-none focus:border-[#c96442] resize-none"
+                      className="w-full px-3 py-2 border border-border rounded-xl text-sm bg-background text-text focus:outline-none focus:border-terracotta resize-none"
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-text mb-1">
-                      Suggestions for improvement <span className="text-rose-600">*</span>
+                      Suggestions for improvement <span className="text-danger">*</span>
                     </label>
                     <textarea
                       rows={3}
                       value={suggestions}
                       onChange={e => setSuggestions(e.target.value)}
                       placeholder="Mandatory for scores of 75 or below…"
-                      className="w-full px-3 py-2 border border-border rounded-xl text-sm bg-background text-text focus:outline-none focus:border-[#c96442] resize-none"
+                      className="w-full px-3 py-2 border border-border rounded-xl text-sm bg-background text-text focus:outline-none focus:border-terracotta resize-none"
                     />
                   </div>
                 </>
@@ -329,14 +329,14 @@ export default function CommitteeQueue() {
                   value={justification}
                   onChange={e => setJustification(e.target.value)}
                   placeholder="Explain the basis for the final score decision…"
-                  className="w-full px-3 py-2 border border-border rounded-xl text-sm bg-background text-text focus:outline-none focus:border-[#c96442] resize-none"
+                  className="w-full px-3 py-2 border border-border rounded-xl text-sm bg-background text-text focus:outline-none focus:border-terracotta resize-none"
                 />
-                <p className={`text-xs mt-1 ${justLen < 50 ? 'text-rose-500' : 'text-green-600'}`}>
+                <p className={`text-xs mt-1 ${justLen < 50 ? 'text-danger' : 'text-archive-green'}`}>
                   {justLen}/50 characters minimum
                 </p>
               </div>
 
-              {error && <p role="alert" className="text-sm text-rose-600">{error}</p>}
+              {error && <p role="alert" className="text-sm text-danger">{error}</p>}
 
               <div className="flex justify-end gap-2">
                 <Button variant="ghost" onClick={() => setSelectedReportId(null)}>Cancel</Button>

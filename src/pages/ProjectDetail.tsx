@@ -179,10 +179,10 @@ export default function ProjectDetail() {
         <div className="lg:col-span-1 space-y-6">
           <LensCard project={project} canEdit={isParty || isOffice} onSaved={() => refreshSlice('projects')} />
           {/* Financials */}
-          <Card className="border-t-4 border-emerald-500 flex flex-col pt-6 relative overflow-hidden">
+          <Card className="border-t-4 border-archive-green flex flex-col pt-6 relative overflow-hidden">
             <div className="z-10">
               <h3 className="text-lg font-[500] text-text flex items-center gap-2 mb-4 font-serif">
-                <IndianRupee size={18} className="text-emerald-500" />
+                <IndianRupee size={18} className="text-archive-green" />
                 Financial Overview
               </h3>
               <div className="space-y-4">
@@ -236,7 +236,7 @@ export default function ProjectDetail() {
               </div>
               <div className="flex justify-between border-b border-border pb-2">
                 <span className="text-text-muted">Expected Completion</span>
-                <span className={`font-medium font-mono ${daysLeft !== null && daysLeft <= 30 && daysLeft > 0 ? 'text-rose-500' : 'text-text'}`}>
+                <span className={`font-medium font-mono ${daysLeft !== null && daysLeft <= 30 && daysLeft > 0 ? 'text-danger' : 'text-text'}`}>
                   {project.CompletioDate || 'N/A'}
                 </span>
               </div>
@@ -326,8 +326,8 @@ export default function ProjectDetail() {
               <StatCard
                 title="Tenure Alerts"
                 value={teureAlerts.length}
-                valueColor="text-rose-500"
-                className="bg-rose-50 border-rose-100 dark:bg-rose-900/10 dark:border-rose-900/30 shadow-none"
+                valueColor="text-danger"
+                className="bg-badge-danger-bg border-danger/30 dark:bg-danger/10 shadow-none"
               />
             )}
           </div>
@@ -345,7 +345,7 @@ export default function ProjectDetail() {
                   const days = endDate ? diffInDays(endDate, new Date()) : null;
                   const expiringSoon = days !== null && days > 0 && days <= 90;
                   return (
-                    <div key={s.id} className={`p-4 hover:bg-surface-hover transition-colors flex items-center justify-between gap-4 ${expiringSoon ? 'bg-rose-50/50 dark:bg-rose-900/10' : ''}`}>
+                    <div key={s.id} className={`p-4 hover:bg-surface-hover transition-colors flex items-center justify-between gap-4 ${expiringSoon ? 'bg-badge-danger-bg/50 dark:bg-danger/10' : ''}`}>
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-full bg-terracotta/10 flex items-center justify-center font-bold text-sm text-terracotta shrink-0">
                           {s.StaffName.charAt(0)}
@@ -357,11 +357,11 @@ export default function ProjectDetail() {
                       </div>
                       <div className="text-right shrink-0">
                         <div className="text-[10px] text-text-muted uppercase tracking-wider">Contract ends</div>
-                        <div className={`text-xs font-bold font-mono mt-0.5 ${expiringSoon ? 'text-rose-500' : 'text-text'}`}>
+                        <div className={`text-xs font-bold font-mono mt-0.5 ${expiringSoon ? 'text-danger' : 'text-text'}`}>
                           {s.DateOfProjectDuration}
                         </div>
                         {expiringSoon && (
-                          <div className="flex items-center justify-end gap-1 mt-0.5 text-[10px] text-rose-500 font-bold">
+                          <div className="flex items-center justify-end gap-1 mt-0.5 text-[10px] text-danger font-bold">
                             <Clock size={10} /> {days}d left
                           </div>
                         )}
@@ -393,7 +393,7 @@ export default function ProjectDetail() {
           {scholars.length > 0 && (
             <Card className="p-0 overflow-hidden">
               <div className="p-5 border-b border-border bg-surface flex items-center gap-2">
-                <GraduationCap size={18} className="text-emerald-500" />
+                <GraduationCap size={18} className="text-archive-green" />
                 <h3 className="text-base font-semibold text-text">PhD Scholars ({scholars.length})</h3>
               </div>
               <div className="divide-y divide-border">

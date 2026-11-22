@@ -56,7 +56,7 @@ export function MinutesEditor({ meeting, committee, user, onUpdate }: MinutesEdi
         <div className="flex items-center gap-2">
           {isLocked && (
             <span
-              className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 border border-amber-200 rounded text-xs text-amber-700"
+              className="inline-flex items-center gap-1 px-2 py-0.5 bg-badge-warning-bg border border-turmeric/30 rounded text-xs text-badge-warning-fg"
               title="Minutes are locked 7 days after meeting completion. Only admins can unlock."
             >
               <Lock size={12} /> Locked
@@ -65,7 +65,7 @@ export function MinutesEditor({ meeting, committee, user, onUpdate }: MinutesEdi
           {canUnlock && (
             <button
               onClick={handleUnlock}
-              className="text-xs text-[#c96442] hover:underline"
+              className="text-xs text-terracotta hover:underline"
             >
               Unlock
             </button>

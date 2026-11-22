@@ -46,7 +46,7 @@ export default function ReportEdit() {
           {cycle?.name ?? 'Appraisal Report'} — Edit
         </h1>
         {!cycleOpen && (
-          <span className="text-xs text-amber-700 bg-amber-100 px-2 py-1 rounded-full">
+          <span className="text-xs text-badge-warning-fg bg-badge-warning-bg px-2 py-1 rounded-full">
             Cycle closed — cannot submit
           </span>
         )}

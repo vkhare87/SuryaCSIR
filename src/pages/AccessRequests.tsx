@@ -111,7 +111,7 @@ export default function AccessRequests() {
                     <div className="font-semibold text-text">{req.email}</div>
                     <div className="text-xs text-text-muted mt-0.5">{new Date(req.created_at).toLocaleString()}</div>
                   </div>
-                  <div className={`text-xs rounded-lg px-3 py-2 ${match ? 'bg-[#e6f4eb] text-[#2f7a4a]' : 'bg-[#f5ede0] text-[#7a4a1e]'}`}>
+                  <div className={`text-xs rounded-lg px-3 py-2 ${match ? 'bg-archive-green/10 text-archive-green' : 'bg-badge-warning-bg text-badge-warning-fg'}`}>
                     {match ? (
                       <span>Staff match: <b>{match.Name}</b> · {match.Designation} · {match.Division}</span>
                     ) : (
@@ -149,7 +149,7 @@ export default function AccessRequests() {
                     {divisions.map((dv) => <option key={dv.divCode} value={dv.divCode}>{dv.divCode} - {dv.divName}</option>)}
                   </select>
                   <button onClick={() => approve(req)}
-                    className="px-4 py-2 bg-[#c96442] text-white rounded-lg text-sm font-medium hover:bg-[#b5593b] transition-colors">
+                    className="px-4 py-2 bg-terracotta text-ivory rounded-lg text-sm font-medium hover:bg-terracotta-hover transition-colors">
                     Approve &amp; grant
                   </button>
                   <button onClick={() => reject(req)}

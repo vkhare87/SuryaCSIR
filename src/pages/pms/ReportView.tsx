@@ -140,11 +140,11 @@ export default function ReportView() {
       </div>
 
       {exportError && (
-        <p role="alert" className="text-sm text-rose-600">{exportError}</p>
+        <p role="alert" className="text-sm text-danger">{exportError}</p>
       )}
 
       {report.systemRemark && (
-        <div className="px-4 py-3 bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-xl">
+        <div className="px-4 py-3 bg-badge-warning-bg border border-turmeric/30 text-badge-warning-fg text-sm rounded-xl">
           <span className="font-medium">System remark:</span> {report.systemRemark}
         </div>
       )}
@@ -285,9 +285,9 @@ export default function ReportView() {
             value={grounds}
             onChange={e => setGrounds(e.target.value)}
             placeholder="State the grounds for your representation…"
-            className="w-full px-3 py-2 border border-border rounded-xl text-sm bg-background text-text focus:outline-none focus:border-[#c96442] resize-none"
+            className="w-full px-3 py-2 border border-border rounded-xl text-sm bg-background text-text focus:outline-none focus:border-terracotta resize-none"
           />
-          {representError && <p className="text-sm text-rose-600">{representError}</p>}
+          {representError && <p className="text-sm text-danger">{representError}</p>}
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={() => setShowRepresent(false)}>Cancel</Button>
             <Button onClick={handleRepresent} isLoading={representing}>Submit</Button>

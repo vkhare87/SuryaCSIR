@@ -47,7 +47,7 @@ export function DynamicTable({ columns, rows, onChange }: Props) {
                 {columns.map(c => (
                   <td key={c.key} className="px-2 py-1">
                     <input
-                      className="w-full bg-transparent text-text text-sm px-1 py-1 rounded focus:outline-none focus:ring-1 focus:ring-[#c96442]"
+                      className="w-full bg-transparent text-text text-sm px-1 py-1 rounded focus:outline-none focus:ring-1 focus:ring-terracotta"
                       value={row[c.key] ?? ''}
                       onChange={e => updateCell(rowIdx, c.key, e.target.value)}
                     />
@@ -56,7 +56,7 @@ export function DynamicTable({ columns, rows, onChange }: Props) {
                 <td className="px-2 py-1 text-center">
                   <button
                     onClick={() => removeRow(rowIdx)}
-                    className="p-1 text-text-muted hover:text-rose-600 transition-colors"
+                    className="p-1 text-text-muted hover:text-danger transition-colors"
                   >
                     <Trash2 size={14} />
                   </button>

@@ -106,7 +106,7 @@ export default function Projects() {
     {
       header: 'Project No',
       accessorKey: 'ProjectNo' as const,
-      className: 'w-32 font-mono font-medium text-[#c96442]',
+      className: 'w-32 font-mono font-medium text-terracotta',
     },
     {
       header: 'Project Details',
@@ -157,7 +157,7 @@ export default function Projects() {
       header: 'Staff Identity',
       cell: (s: ProjectStaff) => (
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-[#c96442]/10 text-[#c96442] flex items-center justify-center font-bold text-xs shrink-0">
+          <div className="w-8 h-8 rounded-full bg-terracotta/10 text-terracotta flex items-center justify-center font-bold text-xs shrink-0">
             {s.StaffName?.charAt(0) || '?'}
           </div>
           <div>
@@ -171,7 +171,7 @@ export default function Projects() {
       header: 'Project Assignment',
       cell: (s: ProjectStaff) => (
         <div>
-          <div className="text-sm font-mono text-[#c96442] font-bold">{s.ProjectNo || 'N/A'}</div>
+          <div className="text-sm font-mono text-terracotta font-bold">{s.ProjectNo || 'N/A'}</div>
           <div className="text-xs text-text-muted mt-0.5">PI: {s.PIName || 'Unknown'}</div>
         </div>
       )
@@ -199,9 +199,9 @@ export default function Projects() {
   ];
 
   const renderProjectCard = (p: ProjectInfo) => (
-    <Card className="h-full flex flex-col bg-surface hover:bg-surface-hover hover:border-[#c96442]/50 transition-colors pointer-events-none group-hover:bg-surface-hover">
+    <Card className="h-full flex flex-col bg-surface hover:bg-surface-hover hover:border-terracotta/50 transition-colors pointer-events-none group-hover:bg-surface-hover">
       <div className="flex justify-between items-start mb-3">
-        <span className="font-mono text-xs font-bold text-[#c96442] bg-[#c96442]/10 px-2 py-1 rounded">
+        <span className="font-mono text-xs font-bold text-terracotta bg-terracotta/10 px-2 py-1 rounded">
           {p.ProjectNo}
         </span>
         <Badge variant={isActiveProject(p) ? 'success' : isCompletedProject(p) ? 'info' : 'neutral'}>
@@ -236,14 +236,14 @@ export default function Projects() {
   );
 
   const renderStaffCard = (s: ProjectStaff) => (
-    <Card className="h-full flex flex-col bg-surface hover:bg-surface-hover hover:border-[#c96442]/50 transition-colors">
+    <Card className="h-full flex flex-col bg-surface hover:bg-surface-hover hover:border-terracotta/50 transition-colors">
       <div className="flex items-start gap-3 mb-4">
-        <div className="w-10 h-10 rounded-full bg-[#c96442]/10 text-[#c96442] flex items-center justify-center font-bold text-sm shrink-0">
+        <div className="w-10 h-10 rounded-full bg-terracotta/10 text-terracotta flex items-center justify-center font-bold text-sm shrink-0">
           {s.StaffName?.charAt(0) || '?'}
         </div>
         <div>
           <h3 className="font-bold text-text" title={s.StaffName}>{s.StaffName}</h3>
-          <div className="text-xs text-[#c96442] font-medium mt-0.5">{s.Designation}</div>
+          <div className="text-xs text-terracotta font-medium mt-0.5">{s.Designation}</div>
         </div>
       </div>
       
@@ -280,7 +280,7 @@ export default function Projects() {
           {canEdit && (
             <button
               onClick={() => setShowCreate(true)}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#c96442] text-[#faf9f5] rounded-lg text-sm font-medium hover:bg-[#b5593b] transition-colors"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-terracotta text-ivory rounded-lg text-sm font-medium hover:bg-terracotta-hover transition-colors"
             >
               <Plus size={14} /> New Project
             </button>
@@ -292,7 +292,7 @@ export default function Projects() {
               placeholder="Search ID, name, PI..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 pr-4 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm w-full sm:w-64"
+              className="pl-9 pr-4 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-focus-blue outline-none text-sm w-full sm:w-64"
             />
           </div>
           
@@ -301,7 +301,7 @@ export default function Projects() {
             <select aria-label="Filter by status"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full sm:w-auto sm:max-w-xs max-w-full pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm appearance-none cursor-pointer"
+              className="w-full sm:w-auto sm:max-w-xs max-w-full pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-focus-blue outline-none text-sm appearance-none cursor-pointer"
             >
               <option value="ALL">All Statuses</option>
               {PROJECT_STAGES.map(s => <option key={s} value={STAGE_LABELS[s]}>{STAGE_LABELS[s]}</option>)}
@@ -313,30 +313,30 @@ export default function Projects() {
       <div className="border-b border-border flex gap-6">
         <button 
           onClick={() => setActiveTab('projects')}
-          className={`pb-3 text-sm font-bold transition-colors relative ${activeTab === 'projects' ? 'text-[#c96442]' : 'text-text-muted hover:text-text'}`}
+          className={`pb-3 text-sm font-bold transition-colors relative ${activeTab === 'projects' ? 'text-terracotta' : 'text-text-muted hover:text-text'}`}
         >
           Research Projects
           {activeTab === 'projects' && (
-            <span className="absolute bottom-0 left-0 w-full h-0.5 bg-[#c96442] rounded-t-full" />
+            <span className="absolute bottom-0 left-0 w-full h-0.5 bg-terracotta rounded-t-full" />
           )}
         </button>
         <button
           onClick={() => setActiveTab('staff')}
-          className={`pb-3 text-sm font-bold transition-colors relative ${activeTab === 'staff' ? 'text-[#c96442]' : 'text-text-muted hover:text-text'}`}
+          className={`pb-3 text-sm font-bold transition-colors relative ${activeTab === 'staff' ? 'text-terracotta' : 'text-text-muted hover:text-text'}`}
         >
           Project Staff
           {activeTab === 'staff' && (
-            <span className="absolute bottom-0 left-0 w-full h-0.5 bg-[#c96442] rounded-t-full" />
+            <span className="absolute bottom-0 left-0 w-full h-0.5 bg-terracotta rounded-t-full" />
           )}
         </button>
         <button
           onClick={() => setActiveTab('analytics')}
-          className={`pb-3 text-sm font-bold transition-colors relative flex items-center gap-1.5 ${activeTab === 'analytics' ? 'text-[#c96442]' : 'text-text-muted hover:text-text'}`}
+          className={`pb-3 text-sm font-bold transition-colors relative flex items-center gap-1.5 ${activeTab === 'analytics' ? 'text-terracotta' : 'text-text-muted hover:text-text'}`}
         >
           <BarChart3 size={14} />
           Analytics
           {activeTab === 'analytics' && (
-            <span className="absolute bottom-0 left-0 w-full h-0.5 bg-[#c96442] rounded-t-full" />
+            <span className="absolute bottom-0 left-0 w-full h-0.5 bg-terracotta rounded-t-full" />
           )}
         </button>
       </div>

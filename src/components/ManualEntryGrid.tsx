@@ -98,7 +98,7 @@ export function ManualEntryGrid({ type, onComplete }: ManualEntryGridProps) {
         <p className="text-sm text-text-muted">
           <span className="font-bold text-text">{filledCount}</span> row{filledCount !== 1 ? 's' : ''} filled
           {errorCount > 0 && (
-            <span className="ml-2 text-rose-600">· {errorCount} with errors</span>
+            <span className="ml-2 text-danger">· {errorCount} with errors</span>
           )}
         </p>
         <Button variant="secondary" size="sm" onClick={addRow}>
@@ -114,7 +114,7 @@ export function ManualEntryGrid({ type, onComplete }: ManualEntryGridProps) {
               {fields.map((f) => (
                 <th key={f.column} className="px-3 py-3 font-medium text-text-muted whitespace-nowrap" title={f.hint}>
                   {f.label}
-                  {f.required && <span className="text-rose-500 ml-0.5">*</span>}
+                  {f.required && <span className="text-danger ml-0.5">*</span>}
                 </th>
               ))}
               <th className="px-2 py-3 w-8" />
@@ -130,8 +130,8 @@ export function ManualEntryGrid({ type, onComplete }: ManualEntryGridProps) {
                     const opts = optionsFor(f.column);
                     const cellHasError = rowErrors.some((e) => e.field === f.column);
                     const cellClass = clsx(
-                      'w-full min-w-[120px] px-2 py-1 text-sm bg-surface border rounded outline-none focus:ring-1 focus:ring-[#c96442]',
-                      cellHasError ? 'border-rose-400' : 'border-border',
+                      'w-full min-w-[120px] px-2 py-1 text-sm bg-surface border rounded outline-none focus:ring-1 focus:ring-terracotta',
+                      cellHasError ? 'border-danger' : 'border-border',
                     );
                     return (
                       <td key={f.column} className="px-2 py-1.5">
@@ -163,7 +163,7 @@ export function ManualEntryGrid({ type, onComplete }: ManualEntryGridProps) {
                   <td className="px-2 py-1.5 text-center">
                     <button
                       onClick={() => removeRow(rowIdx)}
-                      className="text-text-muted hover:text-rose-600 transition-colors"
+                      className="text-text-muted hover:text-danger transition-colors"
                       title="Remove row"
                     >
                       <Trash2 size={14} />
@@ -177,14 +177,14 @@ export function ManualEntryGrid({ type, onComplete }: ManualEntryGridProps) {
       </div>
 
       {errorCount > 0 && (
-        <div className="px-4 py-2 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-sm flex items-center gap-2">
+        <div className="px-4 py-2 bg-badge-danger-bg border border-danger/30 rounded-lg text-badge-danger-fg text-sm flex items-center gap-2">
           <AlertCircle size={14} />
           <span>Fix required fields (marked *) in {errorCount} row{errorCount !== 1 ? 's' : ''} before saving.</span>
         </div>
       )}
 
       {result && (
-        <div className="px-4 py-2 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-700 text-sm flex items-center gap-2">
+        <div className="px-4 py-2 bg-archive-green/10 border border-archive-green/30 rounded-lg text-archive-green text-sm flex items-center gap-2">
           <Check size={14} />
           <span>Saved {result.upserted} row{result.upserted !== 1 ? 's' : ''}{result.failed > 0 ? `, ${result.failed} failed` : ''}.</span>
         </div>
@@ -195,7 +195,7 @@ export function ManualEntryGrid({ type, onComplete }: ManualEntryGridProps) {
           variant="primary"
           onClick={handleSave}
           disabled={!isProvisioned() || isSaving || filledCount === 0 || errorCount > 0}
-          className="bg-[#c96442] hover:bg-[#b5593b] text-white font-bold px-6"
+          className="bg-terracotta hover:bg-terracotta-hover text-ivory font-bold px-6"
         >
           {isSaving ? 'Saving...' : `Save ${filledCount || ''} Row${filledCount !== 1 ? 's' : ''}`}
         </Button>

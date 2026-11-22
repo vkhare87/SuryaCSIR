@@ -77,55 +77,55 @@ export default function ChangePassword() {
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col lg:flex-row bg-[#f5f4ed] overflow-hidden font-sans">
+    <div className="min-h-screen w-full flex flex-col lg:flex-row bg-parchment overflow-hidden font-sans">
 
       {/* Left Panel */}
-      <div className="flex-1 relative overflow-hidden bg-[#141413] p-12 flex flex-col justify-between">
-        <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-[#faf9f5]/5 rounded-full -translate-x-1/2 -translate-y-1/2 pointer-events-none border border-[#faf9f5]/10" />
-        <div className="absolute bottom-0 right-0 w-[300px] h-[300px] bg-[#c96442]/5 rounded-full translate-x-1/4 translate-y-1/4 pointer-events-none" />
+      <div className="flex-1 relative overflow-hidden bg-near-black p-12 flex flex-col justify-between">
+        <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-ivory/5 rounded-full -translate-x-1/2 -translate-y-1/2 pointer-events-none border border-ivory/10" />
+        <div className="absolute bottom-0 right-0 w-[300px] h-[300px] bg-terracotta/5 rounded-full translate-x-1/4 translate-y-1/4 pointer-events-none" />
 
         <div className="relative z-10 flex items-center gap-6">
-          <div className="text-[10px] font-semibold text-[#d97757] tracking-widest uppercase">
+          <div className="text-[10px] font-semibold text-coral tracking-widest uppercase">
             Digital Sun Initiative
           </div>
         </div>
 
         <div className="relative z-10 flex flex-col gap-4 py-20 lg:py-0">
           <div className="flex items-center gap-6">
-            <h1 className="text-8xl lg:text-[10rem] font-[500] text-[#faf9f5] tracking-tight font-serif">SURYA</h1>
-            <div className="text-[#d97757] animate-pulse">
+            <h1 className="text-8xl lg:text-[10rem] font-[500] text-ivory tracking-tight font-serif">SURYA</h1>
+            <div className="text-coral animate-pulse">
               <Sun size={80} strokeWidth={3} />
             </div>
           </div>
-          <p className="text-[#b0aea5] text-base max-w-md mt-4 leading-relaxed">
+          <p className="text-warm-silver text-base max-w-md mt-4 leading-relaxed">
             Your account requires a password change before you can access the system.
             Choose a strong password you haven't used before.
           </p>
         </div>
 
-        <div className="relative z-10 border-t border-[#faf9f5]/10 pt-8">
-          <div className="text-[10px] font-semibold text-[#b0aea5] tracking-[0.4em] uppercase">
+        <div className="relative z-10 border-t border-ivory/10 pt-8">
+          <div className="text-[10px] font-semibold text-warm-silver tracking-[0.4em] uppercase">
             CSIR-AMPRI — UNIFIED INSTITUTIONAL INTELLIGENCE
           </div>
         </div>
       </div>
 
       {/* Right Panel */}
-      <div className="lg:w-[500px] bg-[#faf9f5] flex flex-col items-center justify-center p-8 lg:p-16 relative">
+      <div className="lg:w-[500px] bg-ivory flex flex-col items-center justify-center p-8 lg:p-16 relative">
         <div className="w-full max-w-sm space-y-10">
 
           <div className="flex flex-col items-center text-center">
-            <div className="w-20 h-20 bg-[#faf9f5] rounded-[16px] p-4 mb-6 shadow-[0px_0px_0px_1px_#f0eee6] flex items-center justify-center">
-              <Lock size={36} className="text-[#c96442]" />
+            <div className="w-20 h-20 bg-ivory rounded-[16px] p-4 mb-6 shadow-[0px_0px_0px_1px_#f0eee6] flex items-center justify-center">
+              <Lock size={36} className="text-terracotta" />
             </div>
-            <h2 className="text-3xl font-[500] text-[#141413] tracking-tight mb-2 uppercase font-serif">
+            <h2 className="text-3xl font-[500] text-near-black tracking-tight mb-2 uppercase font-serif">
               Set New Password
             </h2>
             <div className="flex flex-col items-center">
-              <span className="text-[10px] font-semibold tracking-[0.2em] text-[#87867f] uppercase">
+              <span className="text-[10px] font-semibold tracking-[0.2em] text-stone-gray uppercase">
                 First Login — Password Change Required
               </span>
-              <div className="h-1 w-24 bg-[#c96442] mt-2 rounded-full" />
+              <div className="h-1 w-24 bg-terracotta mt-2 rounded-full" />
             </div>
           </div>
 
@@ -133,28 +133,28 @@ export default function ChangePassword() {
             {/* Current Password */}
             <div className="space-y-2">
               <div className="flex items-center justify-between ml-1">
-                <label className="text-[10px] font-semibold text-[#87867f] uppercase tracking-widest">
+                <label className="text-[10px] font-semibold text-stone-gray uppercase tracking-widest">
                   Current Password
                 </label>
-                <span className="text-[10px] text-[#b0aea5] italic">
+                <span className="text-[10px] text-warm-silver italic">
                   Leave blank if signing in for the first time
                 </span>
               </div>
               <div className="relative group">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#b0aea5] group-focus-within:text-[#3898ec] transition-colors">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-warm-silver group-focus-within:text-focus-blue transition-colors">
                   <Lock size={18} />
                 </div>
                 <input
                   type={showCurrent ? 'text' : 'password'}
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
-                  className="w-full pl-12 pr-12 py-4 bg-[#f5f4ed] border border-[#f0eee6] rounded-[12px] focus:ring-2 focus:ring-[#3898ec] focus:border-[#3898ec] outline-none text-[#141413] font-medium transition-all placeholder:text-[#b0aea5]"
+                  className="w-full pl-12 pr-12 py-4 bg-parchment border border-border-cream rounded-[12px] focus:ring-2 focus:ring-focus-blue focus:border-focus-blue outline-none text-near-black font-medium transition-all placeholder:text-warm-silver"
                   placeholder="Your current password"
                 />
                 <button
                   type="button"
                   onClick={() => setShowCurrent((v) => !v)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-[#b0aea5] hover:text-[#141413] transition-colors"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-warm-silver hover:text-near-black transition-colors"
                 >
                   {showCurrent ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
@@ -163,25 +163,25 @@ export default function ChangePassword() {
 
             {/* New Password */}
             <div className="space-y-2">
-              <label className="text-[10px] font-semibold text-[#87867f] uppercase tracking-widest ml-1">
+              <label className="text-[10px] font-semibold text-stone-gray uppercase tracking-widest ml-1">
                 New Password
               </label>
               <div className="relative group">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#b0aea5] group-focus-within:text-[#3898ec] transition-colors">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-warm-silver group-focus-within:text-focus-blue transition-colors">
                   <Lock size={18} />
                 </div>
                 <input
                   type={showNew ? 'text' : 'password'}
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full pl-12 pr-12 py-4 bg-[#f5f4ed] border border-[#f0eee6] rounded-[12px] focus:ring-2 focus:ring-[#3898ec] focus:border-[#3898ec] outline-none text-[#141413] font-medium transition-all placeholder:text-[#b0aea5]"
+                  className="w-full pl-12 pr-12 py-4 bg-parchment border border-border-cream rounded-[12px] focus:ring-2 focus:ring-focus-blue focus:border-focus-blue outline-none text-near-black font-medium transition-all placeholder:text-warm-silver"
                   placeholder={`Min. ${MIN_PASSWORD_LENGTH} chars, mixed case, digit, symbol`}
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowNew((v) => !v)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-[#b0aea5] hover:text-[#141413] transition-colors"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-warm-silver hover:text-near-black transition-colors"
                 >
                   {showNew ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
@@ -190,18 +190,18 @@ export default function ChangePassword() {
 
             {/* Confirm Password */}
             <div className="space-y-2">
-              <label className="text-[10px] font-semibold text-[#87867f] uppercase tracking-widest ml-1">
+              <label className="text-[10px] font-semibold text-stone-gray uppercase tracking-widest ml-1">
                 Confirm New Password
               </label>
               <div className="relative group">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#b0aea5] group-focus-within:text-[#3898ec] transition-colors">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-warm-silver group-focus-within:text-focus-blue transition-colors">
                   <Lock size={18} />
                 </div>
                 <input
                   type="password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full pl-12 pr-4 py-4 bg-[#f5f4ed] border border-[#f0eee6] rounded-[12px] focus:ring-2 focus:ring-[#3898ec] focus:border-[#3898ec] outline-none text-[#141413] font-medium transition-all placeholder:text-[#b0aea5]"
+                  className="w-full pl-12 pr-4 py-4 bg-parchment border border-border-cream rounded-[12px] focus:ring-2 focus:ring-focus-blue focus:border-focus-blue outline-none text-near-black font-medium transition-all placeholder:text-warm-silver"
                   placeholder="Re-enter new password"
                   required
                 />
@@ -209,7 +209,7 @@ export default function ChangePassword() {
             </div>
 
             {error && (
-              <div role="alert" className="text-xs text-[#b53333] font-bold bg-[#f5e8e8] p-4 rounded-xl border border-[#e8c8c8]">
+              <div role="alert" className="text-xs text-error-crimson font-bold bg-badge-danger-bg p-4 rounded-xl border border-danger/30">
                 {error}
               </div>
             )}
@@ -217,7 +217,7 @@ export default function ChangePassword() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-4 bg-[#c96442] hover:bg-[#b5593b] text-[#faf9f5] rounded-[8px] font-semibold text-sm uppercase tracking-widest flex items-center justify-center gap-3 shadow-[0px_0px_0px_1px_#c96442] transition-all active:scale-[0.98] disabled:opacity-70 group"
+              className="w-full py-4 bg-terracotta hover:bg-terracotta-hover text-ivory rounded-[8px] font-semibold text-sm uppercase tracking-widest flex items-center justify-center gap-3 shadow-[0px_0px_0px_1px_#c96442] transition-all active:scale-[0.98] disabled:opacity-70 group"
             >
               {isLoading ? 'Updating...' : 'Set New Password'}
               <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />

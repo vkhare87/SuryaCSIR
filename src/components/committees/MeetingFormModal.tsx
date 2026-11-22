@@ -146,13 +146,13 @@ export function MeetingFormModal({ isOpen, onClose, committeeId, meeting }: Meet
 
   // --- Section label ---
   const sectionLabel = (text: string) => (
-    <p className="text-[10px] font-black text-[#c96442] uppercase tracking-widest mb-3">{text}</p>
+    <p className="text-[10px] font-black text-terracotta uppercase tracking-widest mb-3">{text}</p>
   );
 
   // --- Field error ---
   const fieldError = (fieldName: string) =>
     errors[fieldName] ? (
-      <p className="text-red-500 text-xs mt-1">{errors[fieldName]}</p>
+      <p className="text-danger text-xs mt-1">{errors[fieldName]}</p>
     ) : null;
 
   return (
@@ -164,13 +164,13 @@ export function MeetingFormModal({ isOpen, onClose, committeeId, meeting }: Meet
           <div className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-text-muted mb-1">
-                Title <span className="text-red-500">*</span>
+                Title <span className="text-danger">*</span>
               </label>
               <input
                 type="text"
                 value={title}
                 onChange={e => { setTitle(e.target.value); setErrors(prev => ({ ...prev, title: '' })); }}
-                className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-[#3898ec] outline-none"
+                className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-focus-blue outline-none"
                 placeholder="e.g., Q2 Review Meeting"
               />
               {fieldError('title')}
@@ -179,13 +179,13 @@ export function MeetingFormModal({ isOpen, onClose, committeeId, meeting }: Meet
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-text-muted mb-1">
-                  Date <span className="text-red-500">*</span>
+                  Date <span className="text-danger">*</span>
                 </label>
                 <input
                   type="date"
                   value={meetingDate}
                   onChange={e => { setMeetingDate(e.target.value); setErrors(prev => ({ ...prev, meetingDate: '' })); }}
-                  className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-[#3898ec] outline-none"
+                  className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-focus-blue outline-none"
                 />
                 {fieldError('meetingDate')}
               </div>
@@ -196,7 +196,7 @@ export function MeetingFormModal({ isOpen, onClose, committeeId, meeting }: Meet
                   <select
                     value={status}
                     onChange={e => setStatus(e.target.value as typeof status)}
-                    className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-[#3898ec] outline-none appearance-none"
+                    className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-focus-blue outline-none appearance-none"
                   >
                     {MEETING_STATUSES.map(s => (
                       <option key={s} value={s}>{s}</option>
@@ -208,13 +208,13 @@ export function MeetingFormModal({ isOpen, onClose, committeeId, meeting }: Meet
 
             <div>
               <label className="block text-xs font-semibold text-text-muted mb-1">
-                Venue <span className="text-red-500">*</span>
+                Venue <span className="text-danger">*</span>
               </label>
               <input
                 type="text"
                 value={venue}
                 onChange={e => { setVenue(e.target.value); setErrors(prev => ({ ...prev, venue: '' })); }}
-                className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-[#3898ec] outline-none"
+                className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-focus-blue outline-none"
                 placeholder="e.g., Conference Room A"
               />
               {fieldError('venue')}
@@ -233,7 +233,7 @@ export function MeetingFormModal({ isOpen, onClose, committeeId, meeting }: Meet
                 onChange={e => setAgendaInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addAgendaItem(); } }}
                 placeholder="Agenda item description..."
-                className="flex-1 px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-[#3898ec] outline-none"
+                className="flex-1 px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-focus-blue outline-none"
               />
               <input
                 type="text"
@@ -241,13 +241,13 @@ export function MeetingFormModal({ isOpen, onClose, committeeId, meeting }: Meet
                 onChange={e => setAgendaProposer(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addAgendaItem(); } }}
                 placeholder="Proposed by..."
-                className="w-36 px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-[#3898ec] outline-none"
+                className="w-36 px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-focus-blue outline-none"
               />
               <button
                 type="button"
                 onClick={addAgendaItem}
                 disabled={!agendaInput.trim()}
-                className="px-3 py-2 bg-[#c96442] text-white rounded-lg text-sm hover:bg-[#b55a3a] transition-colors disabled:opacity-40 shrink-0"
+                className="px-3 py-2 bg-terracotta text-ivory rounded-lg text-sm hover:bg-terracotta-hover transition-colors disabled:opacity-40 shrink-0"
               >
                 Add
               </button>
@@ -286,7 +286,7 @@ export function MeetingFormModal({ isOpen, onClose, committeeId, meeting }: Meet
 
         {/* --- Submit Error --- */}
         {submitError && (
-          <div role="alert" className="bg-[#f5e8e8] border border-[#e8c8c8] text-[#b53333] px-4 py-3 rounded-lg text-sm">
+          <div role="alert" className="bg-badge-danger-bg border border-danger/30 text-error-crimson px-4 py-3 rounded-lg text-sm">
             {submitError}
           </div>
         )}
@@ -304,7 +304,7 @@ export function MeetingFormModal({ isOpen, onClose, committeeId, meeting }: Meet
             type="button"
             onClick={handleSubmit}
             disabled={submitting}
-            className="px-5 py-2 text-sm bg-[#c96442] text-white rounded-lg hover:bg-[#b55a3a] transition-colors disabled:opacity-50"
+            className="px-5 py-2 text-sm bg-terracotta text-ivory rounded-lg hover:bg-terracotta-hover transition-colors disabled:opacity-50"
           >
             {submitting ? 'Saving...' : isEdit ? 'Update' : 'Schedule'}
           </button>

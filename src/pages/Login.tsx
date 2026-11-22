@@ -171,13 +171,13 @@ export default function Login() {
             className="absolute -left-16 top-1/2 -translate-y-1/2 w-[480px] h-[480px] rounded-full pointer-events-none animate-amber-glow"
             style={{ background: 'radial-gradient(circle, rgba(201,100,66,0.45) 0%, rgba(201,100,66,0.12) 35%, transparent 70%)' }}
           />
-          <h1 className="relative text-7xl lg:text-[9rem] font-[500] text-[#faf9f5] tracking-tight font-serif">SURYA</h1>
-          <div className="relative text-[#d97757] animate-sun">
+          <h1 className="relative text-7xl lg:text-[9rem] font-[500] text-ivory tracking-tight font-serif">SURYA</h1>
+          <div className="relative text-coral animate-sun">
             <Sun size={72} strokeWidth={3} />
           </div>
         </div>
 
-        <p className="relative max-w-2xl text-sm lg:text-base text-[#d6d4cb] leading-relaxed font-medium border-l-2 border-[#c96442] pl-4">
+        <p className="relative max-w-2xl text-sm lg:text-base text-warm-silver leading-relaxed font-medium border-l-2 border-terracotta pl-4">
           {TAGLINE}
         </p>
 
@@ -185,14 +185,14 @@ export default function Login() {
           {ACRONYM.map(item => (
             <div
               key={item.letter}
-              className="group flex gap-3 rounded-xl border border-[#faf9f5]/10 bg-[#faf9f5]/[0.03] p-3 transition-all duration-300 hover:bg-[#c96442]/10 hover:border-[#c96442]/40 hover:-translate-y-1 hover:shadow-lg hover:shadow-[#c96442]/10 cursor-default"
+              className="group flex gap-3 rounded-xl border border-ivory/10 bg-ivory/[0.03] p-3 transition-all duration-300 hover:bg-terracotta/10 hover:border-terracotta/40 hover:-translate-y-1 hover:shadow-lg hover:shadow-terracotta/10 cursor-default"
             >
-              <div className="w-9 h-9 rounded-lg bg-[#c96442]/20 flex items-center justify-center text-[#d97757] font-semibold text-lg shrink-0 transition-colors group-hover:bg-[#c96442] group-hover:text-[#faf9f5]">
+              <div className="w-9 h-9 rounded-lg bg-terracotta/20 flex items-center justify-center text-coral font-semibold text-lg shrink-0 transition-colors group-hover:bg-terracotta group-hover:text-ivory">
                 {item.letter}
               </div>
               <div>
-                <div className="text-[11px] font-semibold text-[#faf9f5] uppercase tracking-wider">{item.title}</div>
-                <div className="text-[10px] text-[#b0aea5] leading-relaxed mt-0.5 opacity-70 group-hover:opacity-100 transition-opacity">{item.body}</div>
+                <div className="text-[11px] font-semibold text-ivory uppercase tracking-wider">{item.title}</div>
+                <div className="text-[10px] text-warm-silver leading-relaxed mt-0.5 opacity-70 group-hover:opacity-100 transition-opacity">{item.body}</div>
               </div>
             </div>
           ))}
@@ -202,11 +202,11 @@ export default function Login() {
 
     /* ---- Slide 2: The concept — an institute that remembers ---- */
     <div key="concept" className="relative h-full flex flex-col justify-center">
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-[#c96442]/5 pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-terracotta/5 pointer-events-none" />
       <div className="relative z-10 max-w-3xl">
-        <div className="text-[10px] font-semibold text-[#d97757] tracking-widest uppercase mb-1">The Concept</div>
-        <h2 className="text-3xl lg:text-4xl font-[500] text-[#faf9f5] font-serif mb-3">An institute that remembers</h2>
-        <p className="text-sm text-[#b0aea5] leading-relaxed mb-8 max-w-2xl">
+        <div className="text-[10px] font-semibold text-coral tracking-widest uppercase mb-1">The Concept</div>
+        <h2 className="text-3xl lg:text-4xl font-[500] text-ivory font-serif mb-3">An institute that remembers</h2>
+        <p className="text-sm text-warm-silver leading-relaxed mb-8 max-w-2xl">
           A research institute is more than its buildings — it is decades of people, projects, results,
           and hard-won know-how. SURYA exists so none of that is ever lost, and all of it is put to work.
         </p>
@@ -215,13 +215,13 @@ export default function Login() {
           {CONCEPT_POINTS.map(p => {
             const Icon = p.icon;
             return (
-              <div key={p.title} className="flex gap-4 rounded-xl border border-[#faf9f5]/10 bg-[#faf9f5]/[0.03] p-5">
-                <div className="w-10 h-10 rounded-lg bg-[#c96442]/20 flex items-center justify-center text-[#d97757] shrink-0">
+              <div key={p.title} className="flex gap-4 rounded-xl border border-ivory/10 bg-ivory/[0.03] p-5">
+                <div className="w-10 h-10 rounded-lg bg-terracotta/20 flex items-center justify-center text-coral shrink-0">
                   <Icon size={20} />
                 </div>
                 <div>
-                  <div className="text-sm font-semibold text-[#faf9f5] mb-1">{p.title}</div>
-                  <div className="text-[11px] text-[#b0aea5] leading-relaxed">{p.body}</div>
+                  <div className="text-sm font-semibold text-ivory mb-1">{p.title}</div>
+                  <div className="text-[11px] text-warm-silver leading-relaxed">{p.body}</div>
                 </div>
               </div>
             );
@@ -232,11 +232,11 @@ export default function Login() {
 
     /* ---- Slide 3: The leverage ---- */
     <div key="leverage" className="relative h-full flex flex-col justify-center">
-      <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-[#c96442]/5 rounded-full -translate-x-1/3 translate-y-1/3 pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-terracotta/5 rounded-full -translate-x-1/3 translate-y-1/3 pointer-events-none" />
       <div className="relative z-10 max-w-3xl">
-        <div className="text-[10px] font-semibold text-[#d97757] tracking-widest uppercase mb-1">The Leverage</div>
-        <h2 className="text-3xl lg:text-4xl font-[500] text-[#faf9f5] font-serif mb-3">What one trusted record makes possible</h2>
-        <p className="text-sm text-[#b0aea5] leading-relaxed mb-8">
+        <div className="text-[10px] font-semibold text-coral tracking-widest uppercase mb-1">The Leverage</div>
+        <h2 className="text-3xl lg:text-4xl font-[500] text-ivory font-serif mb-3">What one trusted record makes possible</h2>
+        <p className="text-sm text-warm-silver leading-relaxed mb-8">
           When the institute’s work is recorded once, well, and in one place, everything built on top
           of it gets faster, fairer, and clearer.
         </p>
@@ -247,13 +247,13 @@ export default function Login() {
             return (
               <div
                 key={f.title}
-                className="group rounded-xl border border-[#faf9f5]/10 bg-[#faf9f5]/[0.03] p-5 transition-all duration-300 hover:bg-[#c96442]/10 hover:border-[#c96442]/40 hover:-translate-y-1"
+                className="group rounded-xl border border-ivory/10 bg-ivory/[0.03] p-5 transition-all duration-300 hover:bg-terracotta/10 hover:border-terracotta/40 hover:-translate-y-1"
               >
-                <div className="w-10 h-10 rounded-lg bg-[#c96442]/20 flex items-center justify-center text-[#d97757] mb-3 transition-colors group-hover:bg-[#c96442] group-hover:text-[#faf9f5]">
+                <div className="w-10 h-10 rounded-lg bg-terracotta/20 flex items-center justify-center text-coral mb-3 transition-colors group-hover:bg-terracotta group-hover:text-ivory">
                   <Icon size={20} />
                 </div>
-                <div className="text-sm font-semibold text-[#faf9f5] mb-1">{f.title}</div>
-                <div className="text-[11px] text-[#b0aea5] leading-relaxed">{f.body}</div>
+                <div className="text-sm font-semibold text-ivory mb-1">{f.title}</div>
+                <div className="text-[11px] text-warm-silver leading-relaxed">{f.body}</div>
               </div>
             );
           })}
@@ -263,11 +263,11 @@ export default function Login() {
 
     /* ---- Slide 4: Future possibilities for CSIR ---- */
     <div key="future" className="relative h-full flex flex-col justify-center">
-      <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-[#c96442]/5 rounded-full translate-x-1/3 -translate-y-1/3 pointer-events-none" />
+      <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-terracotta/5 rounded-full translate-x-1/3 -translate-y-1/3 pointer-events-none" />
       <div className="relative z-10 max-w-3xl">
-        <div className="text-[10px] font-semibold text-[#d97757] tracking-widest uppercase mb-1">The Road Ahead</div>
-        <h2 className="text-3xl lg:text-4xl font-[500] text-[#faf9f5] font-serif mb-3">What one lab starts, thirty-eight can share</h2>
-        <p className="text-sm text-[#b0aea5] leading-relaxed mb-8">
+        <div className="text-[10px] font-semibold text-coral tracking-widest uppercase mb-1">The Road Ahead</div>
+        <h2 className="text-3xl lg:text-4xl font-[500] text-ivory font-serif mb-3">What one lab starts, thirty-eight can share</h2>
+        <p className="text-sm text-warm-silver leading-relaxed mb-8">
           SURYA begins at CSIR-AMPRI. The same idea — an institution that keeps and uses its own
           record — can serve every laboratory in the CSIR family.
         </p>
@@ -278,13 +278,13 @@ export default function Login() {
             return (
               <div
                 key={f.title}
-                className="group rounded-xl border border-[#faf9f5]/10 bg-[#faf9f5]/[0.03] p-5 transition-all duration-300 hover:bg-[#c96442]/10 hover:border-[#c96442]/40 hover:-translate-y-1"
+                className="group rounded-xl border border-ivory/10 bg-ivory/[0.03] p-5 transition-all duration-300 hover:bg-terracotta/10 hover:border-terracotta/40 hover:-translate-y-1"
               >
-                <div className="w-10 h-10 rounded-lg bg-[#c96442]/20 flex items-center justify-center text-[#d97757] mb-3 transition-colors group-hover:bg-[#c96442] group-hover:text-[#faf9f5]">
+                <div className="w-10 h-10 rounded-lg bg-terracotta/20 flex items-center justify-center text-coral mb-3 transition-colors group-hover:bg-terracotta group-hover:text-ivory">
                   <Icon size={20} />
                 </div>
-                <div className="text-sm font-semibold text-[#faf9f5] mb-1">{f.title}</div>
-                <div className="text-[11px] text-[#b0aea5] leading-relaxed">{f.body}</div>
+                <div className="text-sm font-semibold text-ivory mb-1">{f.title}</div>
+                <div className="text-[11px] text-warm-silver leading-relaxed">{f.body}</div>
               </div>
             );
           })}
@@ -294,30 +294,30 @@ export default function Login() {
 
     /* ---- Slide 5: CSIR today + launchpad ---- */
     <div key="csir" className="relative h-full flex flex-col justify-center">
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-[#c96442]/5 pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-terracotta/5 pointer-events-none" />
       <div className="relative z-10">
-        <div className="text-[10px] font-semibold text-[#d97757] tracking-widest uppercase mb-1">Council of Scientific & Industrial Research</div>
-        <h2 className="text-3xl lg:text-4xl font-[500] text-[#faf9f5] font-serif mb-2">A Nation’s Research Backbone</h2>
-        <p className="max-w-2xl text-sm text-[#b0aea5] leading-relaxed">
+        <div className="text-[10px] font-semibold text-coral tracking-widest uppercase mb-1">Council of Scientific & Industrial Research</div>
+        <h2 className="text-3xl lg:text-4xl font-[500] text-ivory font-serif mb-2">A Nation’s Research Backbone</h2>
+        <p className="max-w-2xl text-sm text-warm-silver leading-relaxed">
           CSIR operates 38 national laboratories across India, advancing science from materials and energy to
           health and aerospace. CSIR-AMPRI, Bhopal anchors advanced materials & processes research.
         </p>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6 max-w-2xl">
           {CSIR_STATS.map(stat => (
-            <div key={stat.label} className="rounded-xl border border-[#faf9f5]/10 bg-[#faf9f5]/[0.03] p-4 text-center">
-              <div className="text-2xl font-[600] text-[#d97757] font-serif tabular-nums">
+            <div key={stat.label} className="rounded-xl border border-ivory/10 bg-ivory/[0.03] p-4 text-center">
+              <div className="text-2xl font-[600] text-coral font-serif tabular-nums">
                 <StatCounter target={stat.target} suffix={stat.suffix} />
               </div>
-              <div className="text-[10px] text-[#b0aea5] uppercase tracking-widest mt-1">{stat.label}</div>
+              <div className="text-[10px] text-warm-silver uppercase tracking-widest mt-1">{stat.label}</div>
             </div>
           ))}
         </div>
 
-        <div className="mt-5 max-w-2xl rounded-xl border border-[#faf9f5]/10 bg-[#faf9f5]/[0.03] px-4 py-3">
-          <div className="text-[9px] font-semibold text-[#87867f] uppercase tracking-widest mb-1">Did you know</div>
+        <div className="mt-5 max-w-2xl rounded-xl border border-ivory/10 bg-ivory/[0.03] px-4 py-3">
+          <div className="text-[9px] font-semibold text-stone-gray uppercase tracking-widest mb-1">Did you know</div>
           <div
-            className="text-xs text-[#d6d4cb] leading-relaxed italic transition-opacity duration-300 min-h-[2.5rem]"
+            className="text-xs text-warm-silver leading-relaxed italic transition-opacity duration-300 min-h-[2.5rem]"
             style={{ opacity: tickerVisible ? 1 : 0 }}
           >
             {ACHIEVEMENTS[tickerIndex]}
@@ -326,7 +326,7 @@ export default function Login() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6 max-w-4xl">
           <div className="lg:col-span-2">
-            <div className="text-[10px] font-semibold text-[#87867f] uppercase tracking-widest mb-3">Institutional Quick Links</div>
+            <div className="text-[10px] font-semibold text-stone-gray uppercase tracking-widest mb-3">Institutional Quick Links</div>
             <div className="grid grid-cols-2 gap-2">
               {QUICK_LINKS.map(link => (
                 <a
@@ -334,34 +334,34 @@ export default function Login() {
                   href={link.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="group flex items-center justify-between gap-2 rounded-lg border border-[#faf9f5]/10 bg-[#faf9f5]/[0.03] px-3 py-2.5 transition-all hover:bg-[#c96442]/10 hover:border-[#c96442]/40"
+                  className="group flex items-center justify-between gap-2 rounded-lg border border-ivory/10 bg-ivory/[0.03] px-3 py-2.5 transition-all hover:bg-terracotta/10 hover:border-terracotta/40"
                 >
                   <div className="min-w-0">
-                    <div className="text-[11px] font-semibold text-[#faf9f5] truncate">{link.label}</div>
-                    <div className="text-[9px] text-[#87867f] truncate">{link.sub}</div>
+                    <div className="text-[11px] font-semibold text-ivory truncate">{link.label}</div>
+                    <div className="text-[9px] text-stone-gray truncate">{link.sub}</div>
                   </div>
-                  <ExternalLink size={13} className="text-[#87867f] group-hover:text-[#d97757] shrink-0 transition-colors" />
+                  <ExternalLink size={13} className="text-stone-gray group-hover:text-coral shrink-0 transition-colors" />
                 </a>
               ))}
             </div>
           </div>
 
           <div>
-            <div className="text-[10px] font-semibold text-[#87867f] uppercase tracking-widest mb-3 flex items-center gap-1.5">
+            <div className="text-[10px] font-semibold text-stone-gray uppercase tracking-widest mb-3 flex items-center gap-1.5">
               <Newspaper size={12} /> CSIR News
             </div>
-            <div className="rounded-xl border border-[#faf9f5]/10 bg-[#faf9f5]/[0.03] p-3 space-y-3">
+            <div className="rounded-xl border border-ivory/10 bg-ivory/[0.03] p-3 space-y-3">
               {NEWS.map((n, i) => (
                 <div key={i} className="flex gap-2">
-                  <div className="w-1 shrink-0 rounded-full bg-[#c96442]/60" />
-                  <p className="text-[11px] text-[#d6d4cb] leading-snug">{n}</p>
+                  <div className="w-1 shrink-0 rounded-full bg-terracotta/60" />
+                  <p className="text-[11px] text-warm-silver leading-snug">{n}</p>
                 </div>
               ))}
               <a
                 href="https://csirnews.niscpr.res.in/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-center gap-1.5 mt-1 rounded-lg border border-[#c96442]/40 bg-[#c96442]/10 px-3 py-2 text-[10px] font-semibold text-[#d97757] uppercase tracking-widest hover:bg-[#c96442]/20 transition-colors"
+                className="flex items-center justify-center gap-1.5 mt-1 rounded-lg border border-terracotta/40 bg-terracotta/10 px-3 py-2 text-[10px] font-semibold text-coral uppercase tracking-widest hover:bg-terracotta/20 transition-colors"
               >
                 View CSIR News Portal <ExternalLink size={11} />
               </a>
@@ -373,29 +373,29 @@ export default function Login() {
   ];
 
   return (
-    <div className="min-h-screen w-full flex flex-col lg:flex-row bg-[#f5f4ed] font-sans lg:h-screen lg:overflow-hidden">
+    <div className="min-h-screen w-full flex flex-col lg:flex-row bg-parchment font-sans lg:h-screen lg:overflow-hidden">
 
       {/* ============ LEFT: auto-running slide deck ============ */}
       <div
-        className="flex-1 bg-[#141413] flex flex-col min-h-[720px] lg:h-screen overflow-hidden"
+        className="flex-1 bg-near-black flex flex-col min-h-[720px] lg:h-screen overflow-hidden"
         onMouseEnter={() => setPaused(true)}
         onMouseLeave={() => setPaused(false)}
       >
         {/* Persistent chrome: branding */}
         <div className="flex items-start gap-6 relative z-20 p-10 pb-0 lg:p-12 lg:pb-0">
-          <div className="bg-[#faf9f5] p-3 rounded-xl flex flex-col items-center gap-2 w-28 scale-90 lg:scale-100">
+          <div className="bg-ivory p-3 rounded-xl flex flex-col items-center gap-2 w-28 scale-90 lg:scale-100">
             <img src={csirLogo} alt="CSIR" className="w-12 h-12 object-contain rounded" />
-            <div className="text-[8px] font-semibold leading-tight text-center text-[#4d4c48] uppercase">Council of Scientific & Industrial Research</div>
+            <div className="text-[8px] font-semibold leading-tight text-center text-charcoal-warm uppercase">Council of Scientific & Industrial Research</div>
           </div>
 
-          <div className="bg-[#faf9f5] p-3 rounded-xl flex flex-col items-center gap-2 w-28 scale-90 lg:scale-100">
+          <div className="bg-ivory p-3 rounded-xl flex flex-col items-center gap-2 w-28 scale-90 lg:scale-100">
             <img src={ampriLogo} alt="CSIR-AMPRI" className="w-12 h-12 object-contain" />
-            <div className="text-[8px] font-semibold leading-tight text-center text-[#4d4c48] uppercase">Advanced Materials & Processes Research Institute</div>
+            <div className="text-[8px] font-semibold leading-tight text-center text-charcoal-warm uppercase">Advanced Materials & Processes Research Institute</div>
           </div>
 
           <div className="ml-4 pt-2 hidden md:block">
-            <div className="text-[10px] font-semibold text-[#d97757] tracking-widest uppercase">Digital Sun Initiative</div>
-            <div className="text-[10px] font-medium text-[#b0aea5] tracking-wider">CSIR-AMPRI BHOPAL</div>
+            <div className="text-[10px] font-semibold text-coral tracking-widest uppercase">Digital Sun Initiative</div>
+            <div className="text-[10px] font-medium text-warm-silver tracking-wider">CSIR-AMPRI BHOPAL</div>
           </div>
         </div>
 
@@ -410,12 +410,12 @@ export default function Login() {
         </div>
 
         {/* Persistent chrome: footer + dot navigation */}
-        <div className="relative z-20 flex items-end justify-between gap-6 border-t border-[#faf9f5]/10 p-10 pt-5 lg:px-12 lg:py-5">
+        <div className="relative z-20 flex items-end justify-between gap-6 border-t border-ivory/10 p-10 pt-5 lg:px-12 lg:py-5">
           <div className="flex items-start gap-4">
-            <div className="h-10 w-1 bg-[#c96442]" />
+            <div className="h-10 w-1 bg-terracotta" />
             <div>
-              <div className="text-2xl font-[500] text-[#d97757] leading-tight font-serif">सूर्य</div>
-              <div className="text-[10px] font-semibold text-[#b0aea5] tracking-[0.4em] uppercase">The Digital Sun</div>
+              <div className="text-2xl font-[500] text-coral leading-tight font-serif">सूर्य</div>
+              <div className="text-[10px] font-semibold text-warm-silver tracking-[0.4em] uppercase">The Digital Sun</div>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -425,7 +425,7 @@ export default function Login() {
                 aria-label={userPaused ? 'Play slides' : 'Pause slides'}
                 aria-pressed={userPaused}
                 onClick={() => setUserPaused(p => !p)}
-                className="p-1 rounded-full text-[#faf9f5]/60 hover:text-[#faf9f5]"
+                className="p-1 rounded-full text-ivory/60 hover:text-ivory"
               >
                 {userPaused ? <Play size={14} /> : <Pause size={14} />}
               </button>
@@ -437,7 +437,7 @@ export default function Login() {
                 aria-label={title}
                 onClick={() => setSlide(i)}
                 className={`relative after:absolute after:-inset-2 h-2 rounded-full transition-all duration-300 ${
-                  i === slide ? 'w-8 bg-[#d97757]' : 'w-2 bg-[#faf9f5]/25 hover:bg-[#faf9f5]/50'
+                  i === slide ? 'w-8 bg-coral' : 'w-2 bg-ivory/25 hover:bg-ivory/50'
                 }`}
               />
             ))}
@@ -446,29 +446,29 @@ export default function Login() {
       </div>
 
       {/* ============ RIGHT: fixed auth panel ============ */}
-      <div className="lg:w-[500px] lg:h-screen bg-[#faf9f5] flex flex-col items-center justify-center p-8 lg:p-16 relative lg:overflow-y-auto">
+      <div className="lg:w-[500px] lg:h-screen bg-ivory flex flex-col items-center justify-center p-8 lg:p-16 relative lg:overflow-y-auto">
         <div className="w-full max-w-sm space-y-10">
 
           {/* Header */}
           <div className="flex flex-col items-center text-center">
-            <div className="w-20 h-20 bg-[#faf9f5] rounded-[16px] p-3 mb-6 shadow-[0px_0px_0px_1px_#f0eee6] flex items-center justify-center">
+            <div className="w-20 h-20 bg-ivory rounded-[16px] p-3 mb-6 shadow-[0px_0px_0px_1px_#f0eee6] flex items-center justify-center">
               <img src={ampriLogo} alt="CSIR-AMPRI" className="w-full h-full object-contain" />
             </div>
-            <h2 className="text-2xl lg:text-[1.75rem] font-[500] text-[#141413] tracking-tight mb-2 font-serif leading-tight">Sign in to SURYA</h2>
+            <h2 className="text-2xl lg:text-[1.75rem] font-[500] text-near-black tracking-tight mb-2 font-serif leading-tight">Sign in to SURYA</h2>
             <div className="flex flex-col items-center">
-              <span className="text-[10px] font-semibold tracking-[0.2em] text-[#87867f] uppercase">Authorized Institutional Access</span>
-              <div className="h-1 w-24 bg-[#c96442] mt-2 rounded-full" />
+              <span className="text-[10px] font-semibold tracking-[0.2em] text-stone-gray uppercase">Authorized Institutional Access</span>
+              <div className="h-1 w-24 bg-terracotta mt-2 rounded-full" />
             </div>
 
             {/* Contextual greeting */}
-            <div className="mt-6 w-full rounded-xl border border-[#f0eee6] bg-[#f5f4ed] px-4 py-3">
-              <div className="text-sm font-semibold text-[#141413]">{greeting()}</div>
+            <div className="mt-6 w-full rounded-xl border border-border-cream bg-parchment px-4 py-3">
+              <div className="text-sm font-semibold text-near-black">{greeting()}</div>
               <div className="flex items-center justify-center gap-1.5 mt-1">
                 <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full rounded-full bg-[#16a34a] opacity-75 animate-ping" />
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-[#16a34a]" />
+                  <span className="absolute inline-flex h-full w-full rounded-full bg-archive-green opacity-75 animate-ping" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-archive-green" />
                 </span>
-                <span className="text-[10px] font-medium text-[#87867f] uppercase tracking-widest">CSIR-AMPRI Strategic Network Active</span>
+                <span className="text-[10px] font-medium text-stone-gray uppercase tracking-widest">CSIR-AMPRI Strategic Network Active</span>
               </div>
             </div>
           </div>
@@ -476,18 +476,18 @@ export default function Login() {
           {magicLinkSent ? (
             <div className="space-y-6">
               <div className="flex flex-col items-center gap-4 py-6 text-center">
-                <div className="w-16 h-16 rounded-full bg-[#f0fdf4] border border-[#bbf7d0] flex items-center justify-center text-[#16a34a]">
+                <div className="w-16 h-16 rounded-full bg-archive-green/10 border border-archive-green/30 flex items-center justify-center text-archive-green">
                   <Mail size={28} />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-[#141413] mb-1">Check your inbox</p>
-                  <p className="text-xs text-[#87867f] leading-relaxed">
+                  <p className="text-sm font-semibold text-near-black mb-1">Check your inbox</p>
+                  <p className="text-xs text-stone-gray leading-relaxed">
                     A sign-in link has been sent to<br />
-                    <span className="font-semibold text-[#141413]">{email}</span>.<br />
+                    <span className="font-semibold text-near-black">{email}</span>.<br />
                     Click the link in the email to access SURYA.
                   </p>
                 </div>
-                <p className="text-[10px] text-[#b0aea5] leading-relaxed px-2">
+                <p className="text-[10px] text-warm-silver leading-relaxed px-2">
                   Your account requires a one-time recovery. After signing in via the link,
                   contact your administrator to restore normal password access.
                 </p>
@@ -495,7 +495,7 @@ export default function Login() {
               <button
                 type="button"
                 onClick={() => { setMagicLinkSent(false); setError(''); }}
-                className="w-full py-3 border border-[#e5e3dc] rounded-[8px] text-xs font-semibold text-[#87867f] uppercase tracking-widest hover:bg-[#f5f4ed] transition-colors"
+                className="w-full py-3 border border-border rounded-[8px] text-xs font-semibold text-stone-gray uppercase tracking-widest hover:bg-parchment transition-colors"
               >
                 Back to login
               </button>
@@ -504,9 +504,9 @@ export default function Login() {
           <form onSubmit={handleLogin} className="space-y-8">
             <div className="space-y-6">
               <div className="space-y-2">
-                <label htmlFor="login-email" className="text-[10px] font-semibold text-[#87867f] uppercase tracking-widest ml-1">Institutional Email</label>
+                <label htmlFor="login-email" className="text-[10px] font-semibold text-stone-gray uppercase tracking-widest ml-1">Institutional Email</label>
                 <div className="relative group">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#b0aea5] group-focus-within:text-[#c96442] transition-colors">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-warm-silver group-focus-within:text-terracotta transition-colors">
                     <Mail size={18} />
                   </div>
                   <input
@@ -515,7 +515,7 @@ export default function Login() {
                     autoComplete="username"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pl-12 pr-4 py-4 bg-[#f5f4ed] border border-[#f0eee6] rounded-[12px] focus:ring-2 focus:ring-[#c96442] focus:border-[#c96442] outline-none text-[#141413] font-medium transition-all placeholder:text-[#b0aea5]"
+                    className="w-full pl-12 pr-4 py-4 bg-parchment border border-border-cream rounded-[12px] focus:ring-2 focus:ring-terracotta focus:border-terracotta outline-none text-near-black font-medium transition-all placeholder:text-warm-silver"
                     placeholder="Institutional Email"
                     required
                   />
@@ -523,9 +523,9 @@ export default function Login() {
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="login-password" className="text-[10px] font-semibold text-[#87867f] uppercase tracking-widest ml-1">Secure Passphrase</label>
+                <label htmlFor="login-password" className="text-[10px] font-semibold text-stone-gray uppercase tracking-widest ml-1">Secure Passphrase</label>
                 <div className="relative group">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#b0aea5] group-focus-within:text-[#c96442] transition-colors">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-warm-silver group-focus-within:text-terracotta transition-colors">
                     <Lock size={18} />
                   </div>
                   <input
@@ -534,7 +534,7 @@ export default function Login() {
                     autoComplete="current-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-12 pr-4 py-4 bg-[#f5f4ed] border border-[#f0eee6] rounded-[12px] focus:ring-2 focus:ring-[#c96442] focus:border-[#c96442] outline-none text-[#141413] font-medium transition-all placeholder:text-[#b0aea5]"
+                    className="w-full pl-12 pr-4 py-4 bg-parchment border border-border-cream rounded-[12px] focus:ring-2 focus:ring-terracotta focus:border-terracotta outline-none text-near-black font-medium transition-all placeholder:text-warm-silver"
                     placeholder="Secure Passphrase"
                     required
                   />
@@ -543,7 +543,7 @@ export default function Login() {
             </div>
 
             {error && (
-              <div role="alert" className="text-xs text-[#b53333] font-bold bg-[#f5e8e8] p-4 rounded-xl border border-[#e8c8c8] animate-shake">
+              <div role="alert" className="text-xs text-error-crimson font-bold bg-badge-danger-bg p-4 rounded-xl border border-danger/30 animate-shake">
                 {error}
               </div>
             )}
@@ -551,7 +551,7 @@ export default function Login() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-4 [background:var(--gradient-brand)] hover:brightness-105 text-[#faf9f5] rounded-lg font-semibold text-sm uppercase tracking-widest flex items-center justify-center gap-3 shadow-[var(--shadow-e2)] transition-all active:scale-[0.98] disabled:opacity-70 group"
+              className="w-full py-4 [background:var(--gradient-brand)] hover:brightness-105 text-ivory rounded-lg font-semibold text-sm uppercase tracking-widest flex items-center justify-center gap-3 shadow-[var(--shadow-e2)] transition-all active:scale-[0.98] disabled:opacity-70 group"
             >
               {isLoading ? 'Signing in…' : 'Sign In'}
               <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
@@ -561,8 +561,8 @@ export default function Login() {
 
           {/* Footer Branding */}
           <div className="pt-6 flex flex-col items-center">
-            <div className="text-[10px] font-semibold text-[#87867f] tracking-[0.25em] uppercase mb-4">Institutional Reflective Service</div>
-            <p className="text-[10px] text-[#87867f] leading-relaxed text-center font-medium px-4">
+            <div className="text-[10px] font-semibold text-stone-gray tracking-[0.25em] uppercase mb-4">Institutional Reflective Service</div>
+            <p className="text-[10px] text-stone-gray leading-relaxed text-center font-medium px-4">
               Access to this system is restricted to verified CSIR-AMPRI officials.
               Unauthorized attempts are logged under Govt IT policy.
             </p>
@@ -578,7 +578,7 @@ export default function Login() {
                   window.location.reload();
                 }
               }}
-              className="mt-6 p-2 -m-2 text-xs text-[#b0aea5] hover:text-[#c96442] transition-colors underline underline-offset-2"
+              className="mt-6 p-2 -m-2 text-xs text-warm-silver hover:text-terracotta transition-colors underline underline-offset-2"
             >
               Reset App
             </button>

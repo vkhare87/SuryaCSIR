@@ -100,7 +100,7 @@ export function DocumentUploader({ meetingId, committeeId, canUpload }: Document
             />
           </label>
           {uploadError && (
-            <p role="alert" className="text-red-500 text-xs mt-1">{uploadError}</p>
+            <p role="alert" className="text-danger text-xs mt-1">{uploadError}</p>
           )}
         </div>
       )}
@@ -119,14 +119,14 @@ export function DocumentUploader({ meetingId, committeeId, canUpload }: Document
               <span className="text-xs text-text-muted">{doc.uploaded_at}</span>
               <button
                 onClick={() => handleDownload(doc.storage_path, doc.file_name)}
-                className="text-[#c96442] hover:underline text-xs"
+                className="text-terracotta hover:underline text-xs"
               >
                 Download
               </button>
               {canUpload && (
                 <button
                   onClick={() => handleDelete(doc)}
-                  className="text-text-muted hover:text-red-500"
+                  className="text-text-muted hover:text-danger"
                 >
                   <X size={14} />
                 </button>

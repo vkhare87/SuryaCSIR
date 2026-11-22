@@ -116,7 +116,7 @@ export default function PhDTracker() {
         return (
           <div className="text-sm">
             {supId ? (
-              <button onClick={() => navigate(`/staff/${supId}`)} className="text-[#c96442] hover:underline font-medium text-left">
+              <button onClick={() => navigate(`/staff/${supId}`)} className="text-terracotta hover:underline font-medium text-left">
                 {s.SupervisorName}
               </button>
             ) : (
@@ -124,7 +124,7 @@ export default function PhDTracker() {
             )}
             {s.CoSupervisorName && s.CoSupervisorName !== 'None' && (
               coSupId ? (
-                <button onClick={() => navigate(`/staff/${coSupId}`)} className="text-xs text-[#c96442] hover:underline block mt-0.5">
+                <button onClick={() => navigate(`/staff/${coSupId}`)} className="text-xs text-terracotta hover:underline block mt-0.5">
                   Co: {s.CoSupervisorName}
                 </button>
               ) : (
@@ -193,7 +193,7 @@ export default function PhDTracker() {
     if (s.CurrentStatus === 'Ongoing') variant = 'info';
     if (s.CurrentStatus === 'Thesis Submitted') variant = 'success';
     return (
-      <Card className="h-full flex flex-col bg-surface hover:bg-surface-hover hover:border-[#c96442]/50 transition-colors">
+      <Card className="h-full flex flex-col bg-surface hover:bg-surface-hover hover:border-terracotta/50 transition-colors">
         <div className="flex items-start justify-between gap-3 mb-3">
           <div className="min-w-0">
             <h3 className="font-bold text-text truncate" title={s.StudentName}>{s.StudentName}</h3>
@@ -230,7 +230,7 @@ export default function PhDTracker() {
           {canEdit && (
             <button
               onClick={() => setShowCreate(true)}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#c96442] text-[#faf9f5] rounded-lg text-sm font-medium hover:bg-[#b5593b] transition-colors"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-terracotta text-ivory rounded-lg text-sm font-medium hover:bg-terracotta-hover transition-colors"
             >
               <Plus size={14} /> New Student
             </button>
@@ -242,7 +242,7 @@ export default function PhDTracker() {
               placeholder="Search student, supervisor..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 pr-4 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm w-full sm:w-64"
+              className="pl-9 pr-4 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-focus-blue outline-none text-sm w-full sm:w-64"
             />
           </div>
           
@@ -251,7 +251,7 @@ export default function PhDTracker() {
             <select aria-label="Filter by status"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full sm:w-auto sm:max-w-xs max-w-full pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm appearance-none cursor-pointer"
+              className="w-full sm:w-auto sm:max-w-xs max-w-full pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-focus-blue outline-none text-sm appearance-none cursor-pointer"
             >
               <option value="ALL">All Statuses</option>
               <option value="Ongoing">Ongoing</option>

@@ -137,10 +137,10 @@ export function EventForm({
           type="text"
           value={values.title}
           onChange={(e) => set('title', e.target.value)}
-          className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text focus:outline-none focus:ring-2 focus:ring-[#c96442]"
+          className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text focus:outline-none focus:ring-2 focus:ring-terracotta"
         />
         {errors.title && (
-          <p className="text-rose-500 text-xs mt-1">{errors.title}</p>
+          <p className="text-danger text-xs mt-1">{errors.title}</p>
         )}
       </div>
 
@@ -154,10 +154,10 @@ export function EventForm({
           type="date"
           value={values.event_date}
           onChange={(e) => set('event_date', e.target.value)}
-          className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text focus:outline-none focus:ring-2 focus:ring-[#c96442]"
+          className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text focus:outline-none focus:ring-2 focus:ring-terracotta"
         />
         {errors.event_date && (
-          <p className="text-rose-500 text-xs mt-1">{errors.event_date}</p>
+          <p className="text-danger text-xs mt-1">{errors.event_date}</p>
         )}
       </div>
 
@@ -172,14 +172,14 @@ export function EventForm({
           onChange={(e) =>
             set('event_kind', e.target.value as EventFormValues['event_kind'])
           }
-          className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text focus:outline-none focus:ring-2 focus:ring-[#c96442]"
+          className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text focus:outline-none focus:ring-2 focus:ring-terracotta"
         >
           <option value="Custom">Custom</option>
           <option value="Pamphlet">Pamphlet</option>
           <option value="Announcement">Announcement</option>
         </select>
         {errors.event_kind && (
-          <p className="text-rose-500 text-xs mt-1">{errors.event_kind}</p>
+          <p className="text-danger text-xs mt-1">{errors.event_kind}</p>
         )}
       </div>
 
@@ -193,10 +193,10 @@ export function EventForm({
           type="text"
           value={values.location}
           onChange={(e) => set('location', e.target.value)}
-          className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text focus:outline-none focus:ring-2 focus:ring-[#c96442]"
+          className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text focus:outline-none focus:ring-2 focus:ring-terracotta"
         />
         {errors.location && (
-          <p className="text-rose-500 text-xs mt-1">{errors.location}</p>
+          <p className="text-danger text-xs mt-1">{errors.location}</p>
         )}
       </div>
 
@@ -211,10 +211,10 @@ export function EventForm({
           value={values.teams_url}
           onChange={(e) => set('teams_url', e.target.value)}
           placeholder="https://teams.microsoft.com/..."
-          className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text focus:outline-none focus:ring-2 focus:ring-[#c96442]"
+          className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text focus:outline-none focus:ring-2 focus:ring-terracotta"
         />
         {errors.teams_url && (
-          <p className="text-rose-500 text-xs mt-1">{errors.teams_url}</p>
+          <p className="text-danger text-xs mt-1">{errors.teams_url}</p>
         )}
       </div>
 
@@ -229,10 +229,10 @@ export function EventForm({
           value={values.pamphlet_url}
           onChange={(e) => set('pamphlet_url', e.target.value)}
           placeholder="https://..."
-          className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text focus:outline-none focus:ring-2 focus:ring-[#c96442]"
+          className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text focus:outline-none focus:ring-2 focus:ring-terracotta"
         />
         {errors.pamphlet_url && (
-          <p className="text-rose-500 text-xs mt-1">{errors.pamphlet_url}</p>
+          <p className="text-danger text-xs mt-1">{errors.pamphlet_url}</p>
         )}
       </div>
 
@@ -246,10 +246,10 @@ export function EventForm({
           rows={3}
           value={values.description}
           onChange={(e) => set('description', e.target.value)}
-          className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text focus:outline-none focus:ring-2 focus:ring-[#c96442] resize-none"
+          className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text focus:outline-none focus:ring-2 focus:ring-terracotta resize-none"
         />
         {errors.description && (
-          <p className="text-rose-500 text-xs mt-1">{errors.description}</p>
+          <p className="text-danger text-xs mt-1">{errors.description}</p>
         )}
       </div>
 
@@ -266,14 +266,14 @@ export function EventForm({
                 checked={values.visibility === vis}
                 onChange={() => set('visibility', vis)}
                 {...(vis === 'Division' ? { 'aria-label': 'Division' } : {})}
-                className="accent-[#c96442]"
+                className="accent-terracotta"
               />
               {vis === 'OrgWide' ? 'Org-Wide' : vis}
             </label>
           ))}
         </div>
         {errors.visibility && (
-          <p className="text-rose-500 text-xs mt-1">{errors.visibility}</p>
+          <p className="text-danger text-xs mt-1">{errors.visibility}</p>
         )}
       </div>
 
@@ -287,7 +287,7 @@ export function EventForm({
             id="event-division"
             value={values.division_code}
             onChange={(e) => set('division_code', e.target.value)}
-            className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text focus:outline-none focus:ring-2 focus:ring-[#c96442]"
+            className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text focus:outline-none focus:ring-2 focus:ring-terracotta"
           >
             <option value="">Select division…</option>
             {divisions.map((d) => (
@@ -297,7 +297,7 @@ export function EventForm({
             ))}
           </select>
           {errors.division_code && (
-            <p className="text-rose-500 text-xs mt-1">{errors.division_code}</p>
+            <p className="text-danger text-xs mt-1">{errors.division_code}</p>
           )}
         </div>
       )}
@@ -314,7 +314,7 @@ export function EventForm({
         <button
           type="submit"
           disabled={submitting}
-          className="bg-[#c96442] text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-[#b5593b] disabled:opacity-50"
+          className="bg-terracotta text-ivory px-4 py-2 rounded-md text-sm font-medium hover:bg-terracotta-hover disabled:opacity-50"
         >
           {submitting ? 'Saving…' : submitLabel}
         </button>

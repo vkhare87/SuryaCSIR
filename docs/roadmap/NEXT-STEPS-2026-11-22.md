@@ -26,8 +26,8 @@ Snapshot after PRs #1–#37 merged. `main` = `origin/main` = `74b1c05f`. No open
 ## Plan (in order)
 
 1. **Docs sync (S) — DONE 2026-11-22.** Fix counts in `CLAUDE.md`, `database_design.md`, `api_spec.md`. Add new migrations 09–15 and `20261122*`.
-2. **Housekeeping (S).** Delete merged remote branches. Drop dead stashes after a look.
-3. **Token cleanup (M).** Replace raw colours with semantic tokens, page by page. Start with `pms/` and `proposals/`. Target: 0 warnings. Then make the lint rule an error.
+2. **Housekeeping (S) — DONE 2026-11-22.** Delete merged remote branches. Drop dead stashes after a look.
+3. **Token cleanup (M) — DONE 2026-11-22.** 0 colour warnings; debt list is empty and the rule is now `error` everywhere. Replace raw colours with semantic tokens, page by page. Start with `pms/` and `proposals/`. Target: 0 warnings. Then make the lint rule an error.
 4. **Hook warning (S).** Fix or justify the one `exhaustive-deps` warning.
 5. **Code-split (M).** Lazy-load `react-pdf` and admin-only routes (`/data`, `/pms/audit`, `/audit`).
 6. **Python gate (M).** Get `rag/` and `ingest/` tests running (Python 3.12 venv). Close the mail-in ack-after-land bug (WP-0).

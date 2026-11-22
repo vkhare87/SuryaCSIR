@@ -86,7 +86,7 @@ export default function ScientistProfile({ vidwanId, compact = false }: Props) {
       <div className="text-sm text-text-muted py-2 italic">
         IRINS data: {error}.{' '}
         {vidwanId && (
-          <a href={`https://ampri.irins.org/profile/${vidwanId}`} target="_blank" rel="noreferrer" className="text-[#c96442] hover:underline">
+          <a href={`https://ampri.irins.org/profile/${vidwanId}`} target="_blank" rel="noreferrer" className="text-terracotta hover:underline">
             View on IRINS <ExternalLink size={11} className="inline" />
           </a>
         )}
@@ -125,7 +125,7 @@ export default function ScientistProfile({ vidwanId, compact = false }: Props) {
             {awardCount} awards
           </span>
         )}
-        <a href={`https://ampri.irins.org/profile/${vidwanId}`} target="_blank" rel="noreferrer" className="text-[#c96442] hover:underline flex items-center gap-0.5 ml-1">
+        <a href={`https://ampri.irins.org/profile/${vidwanId}`} target="_blank" rel="noreferrer" className="text-terracotta hover:underline flex items-center gap-0.5 ml-1">
           IRINS <ExternalLink size={10} />
         </a>
       </div>
@@ -140,7 +140,7 @@ export default function ScientistProfile({ vidwanId, compact = false }: Props) {
           {data.name && <h3 className="text-lg font-semibold text-text">{data.name}</h3>}
           {data.designation && <p className="text-sm text-text-muted">{data.designation}{data.division ? ` · ${data.division}` : ''}</p>}
         </div>
-        <a href={`https://ampri.irins.org/profile/${vidwanId}`} target="_blank" rel="noreferrer" className="text-[#c96442] hover:underline text-xs flex items-center gap-1">
+        <a href={`https://ampri.irins.org/profile/${vidwanId}`} target="_blank" rel="noreferrer" className="text-terracotta hover:underline text-xs flex items-center gap-1">
           Full IRINS profile <ExternalLink size={11} />
         </a>
       </div>
@@ -205,7 +205,7 @@ export default function ScientistProfile({ vidwanId, compact = false }: Props) {
           <div className="space-y-1.5">
             {data.awards.slice(0, 5).map((a, i) => (
               <p key={i} className="text-xs text-text-muted">
-                <span className="text-[#c96442] font-mono">{a.year}</span>
+                <span className="text-terracotta font-mono">{a.year}</span>
                 {a.year && ' '}
                 {a.title}{a.awarding_body ? ` — ${a.awarding_body}` : ''}
               </p>
@@ -224,7 +224,7 @@ export default function ScientistProfile({ vidwanId, compact = false }: Props) {
                 <p className="text-text">{pub.title}</p>
                 <p className="text-text-muted mt-0.5">
                   {pub.journal && <span>{pub.journal}</span>}
-                  {pub.year && <span className="text-[#c96442] ml-1">({pub.year})</span>}
+                  {pub.year && <span className="text-terracotta ml-1">({pub.year})</span>}
                   {pub.type && <Badge variant="neutral" className="ml-1.5">{pub.type}</Badge>}
                 </p>
               </div>
@@ -241,7 +241,7 @@ export default function ScientistProfile({ vidwanId, compact = false }: Props) {
               <div key={i} className="text-xs border-b border-border/50 pb-1.5 last:border-0">
                 <p className="text-text">{pat.title}</p>
                 <p className="text-text-muted mt-0.5 flex gap-2">
-                  {pat.status && <span className={clsx(pat.status === 'Granted' ? 'text-emerald-600' : 'text-amber-600')}>{pat.status}</span>}
+                  {pat.status && <span className={clsx(pat.status === 'Granted' ? 'text-archive-green' : 'text-turmeric')}>{pat.status}</span>}
                   {pat.number && <span className="font-mono">#{pat.number}</span>}
                   {pat.filing_date && <span>Filed: {pat.filing_date}</span>}
                 </p>
@@ -299,9 +299,9 @@ function Section({ icon, title, children }: { icon: React.ReactNode; title: stri
 
 function IdBadge({ label, value, href }: { label: string; value: string; href: string }) {
   return (
-    <a href={href} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-2 py-1 bg-surface-hover rounded border border-border hover:border-[#c96442]/30 transition-colors">
+    <a href={href} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-2 py-1 bg-surface-hover rounded border border-border hover:border-terracotta/30 transition-colors">
       <span className="text-text-muted">{label}:</span>
-      <span className="text-[#c96442] font-mono">{value}</span>
+      <span className="text-terracotta font-mono">{value}</span>
       <ExternalLink size={10} className="text-text-muted" />
     </a>
   );

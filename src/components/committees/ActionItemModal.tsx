@@ -88,7 +88,7 @@ export function ActionItemModal({ isOpen, onClose, meetingId }: ActionItemModalP
   // --- Field error helper ---
   const fieldError = (fieldName: string) =>
     errors[fieldName] ? (
-      <p className="text-red-500 text-xs mt-1">{errors[fieldName]}</p>
+      <p className="text-danger text-xs mt-1">{errors[fieldName]}</p>
     ) : null;
 
   return (
@@ -103,12 +103,12 @@ export function ActionItemModal({ isOpen, onClose, meetingId }: ActionItemModalP
         {source === 'manual' && (
           <div>
             <label className="block text-xs font-semibold text-text-muted mb-1">
-              Committee <span className="text-red-500">*</span>
+              Committee <span className="text-danger">*</span>
             </label>
             <select
               value={committeeId}
               onChange={e => { setCommitteeId(e.target.value); setErrors(prev => ({ ...prev, committeeId: '' })); }}
-              className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-[#3898ec] outline-none appearance-none"
+              className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-focus-blue outline-none appearance-none"
             >
               <option value="">— Select Committee —</option>
               {dataCommittees.map(c => (
@@ -122,13 +122,13 @@ export function ActionItemModal({ isOpen, onClose, meetingId }: ActionItemModalP
         {/* --- Task --- */}
         <div>
           <label className="block text-xs font-semibold text-text-muted mb-1">
-            Task Description <span className="text-red-500">*</span>
+            Task Description <span className="text-danger">*</span>
           </label>
           <textarea
             value={task}
             onChange={e => { setTask(e.target.value); setErrors(prev => ({ ...prev, task: '' })); }}
             rows={3}
-            className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-[#3898ec] outline-none resize-none"
+            className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-focus-blue outline-none resize-none"
             placeholder="Describe the action item..."
           />
           {fieldError('task')}
@@ -137,12 +137,12 @@ export function ActionItemModal({ isOpen, onClose, meetingId }: ActionItemModalP
         {/* --- Assignee --- */}
         <div>
           <label className="block text-xs font-semibold text-text-muted mb-1">
-            Assign To <span className="text-red-500">*</span>
+            Assign To <span className="text-danger">*</span>
           </label>
           <select
             value={assignedTo}
             onChange={e => { setAssignedTo(e.target.value); setErrors(prev => ({ ...prev, assignedTo: '' })); }}
-            className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-[#3898ec] outline-none appearance-none"
+            className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-focus-blue outline-none appearance-none"
           >
             <option value="">— Select Staff —</option>
             {sortedStaff.map(s => (
@@ -155,20 +155,20 @@ export function ActionItemModal({ isOpen, onClose, meetingId }: ActionItemModalP
         {/* --- Deadline --- */}
         <div>
           <label className="block text-xs font-semibold text-text-muted mb-1">
-            Deadline <span className="text-red-500">*</span>
+            Deadline <span className="text-danger">*</span>
           </label>
           <input
             type="date"
             value={deadline}
             onChange={e => { setDeadline(e.target.value); setErrors(prev => ({ ...prev, deadline: '' })); }}
-            className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-[#3898ec] outline-none"
+            className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-focus-blue outline-none"
           />
           {fieldError('deadline')}
         </div>
 
         {/* --- Submit Error --- */}
         {submitError && (
-          <div role="alert" className="bg-[#f5e8e8] border border-[#e8c8c8] text-[#b53333] px-4 py-3 rounded-lg text-sm">
+          <div role="alert" className="bg-badge-danger-bg border border-danger/30 text-error-crimson px-4 py-3 rounded-lg text-sm">
             {submitError}
           </div>
         )}
@@ -186,7 +186,7 @@ export function ActionItemModal({ isOpen, onClose, meetingId }: ActionItemModalP
             type="button"
             onClick={handleSubmit}
             disabled={submitting}
-            className="px-5 py-2 text-sm bg-[#c96442] text-white rounded-lg hover:bg-[#b55a3a] transition-colors disabled:opacity-50"
+            className="px-5 py-2 text-sm bg-terracotta text-ivory rounded-lg hover:bg-terracotta-hover transition-colors disabled:opacity-50"
           >
             {submitting ? 'Creating...' : 'Create Action Item'}
           </button>

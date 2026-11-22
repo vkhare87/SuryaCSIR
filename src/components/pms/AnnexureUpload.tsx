@@ -60,7 +60,7 @@ export function AnnexureUpload({ annexures, onUpload, onDelete }: Props) {
               </div>
               <button
                 onClick={() => onDelete(a.id, a.filePath)}
-                className="p-1.5 text-text-muted hover:text-rose-600 transition-colors"
+                className="p-1.5 text-text-muted hover:text-danger transition-colors"
               >
                 <Trash2 size={14} />
               </button>
@@ -75,7 +75,7 @@ export function AnnexureUpload({ annexures, onUpload, onDelete }: Props) {
         </Button>
         <span className="text-xs text-text-muted">PDF, Word, JPEG, PNG</span>
       </div>
-      {error && <p role="alert" className="text-xs text-rose-600">{error}</p>}
+      {error && <p role="alert" className="text-xs text-danger">{error}</p>}
     </div>
   );
 }

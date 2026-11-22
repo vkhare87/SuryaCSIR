@@ -65,7 +65,7 @@ export function MemberPicker({ selected, onChange }: MemberPickerProps) {
             onFocus={() => setShowDropdown(true)}
             onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
             placeholder="Search staff by name..."
-            className="w-full pl-9 pr-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-[#3898ec] outline-none"
+            className="w-full pl-9 pr-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-focus-blue outline-none"
           />
         </div>
 
@@ -73,7 +73,7 @@ export function MemberPicker({ selected, onChange }: MemberPickerProps) {
         <select
           value={roleForNew}
           onChange={e => setRoleForNew(e.target.value as MemberRole)}
-          className="px-2 py-2 bg-surface border border-border rounded-lg text-xs text-text focus:ring-2 focus:ring-[#3898ec] outline-none"
+          className="px-2 py-2 bg-surface border border-border rounded-lg text-xs text-text focus:ring-2 focus:ring-focus-blue outline-none"
         >
           <option value="Member">Member</option>
           <option value="Invitee">Invitee</option>
@@ -88,7 +88,7 @@ export function MemberPicker({ selected, onChange }: MemberPickerProps) {
               addMember(filteredStaff[0].ID, filteredStaff[0].Name);
             }
           }}
-          className="p-2 bg-[#c96442] text-white rounded-lg hover:bg-[#b55a3a] transition-colors disabled:opacity-40 shrink-0"
+          className="p-2 bg-terracotta text-ivory rounded-lg hover:bg-terracotta-hover transition-colors disabled:opacity-40 shrink-0"
           title="Add first match"
         >
           <Plus size={16} />
@@ -128,7 +128,7 @@ export function MemberPicker({ selected, onChange }: MemberPickerProps) {
               <select
                 value={m.role}
                 onChange={e => changeRole(m.staffId, e.target.value as MemberRole)}
-                className="px-2 py-1 bg-surface border border-border rounded text-xs text-text outline-none focus:ring-2 focus:ring-[#3898ec]"
+                className="px-2 py-1 bg-surface border border-border rounded text-xs text-text outline-none focus:ring-2 focus:ring-focus-blue"
               >
                 <option value="Member">Member</option>
                 <option value="Invitee">Invitee</option>

@@ -136,16 +136,16 @@ export function DivisionFormModal({ isOpen, onClose, division }: Props) {
               disabled={isEdit}
               maxLength={16}
               placeholder="ARC"
-              className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-[#3898ec] outline-none disabled:opacity-60"
+              className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-focus-blue outline-none disabled:opacity-60"
             />
-            {errors.divCode && <p className="text-xs text-red-600 mt-1">{errors.divCode}</p>}
+            {errors.divCode && <p className="text-xs text-danger mt-1">{errors.divCode}</p>}
           </div>
           <div>
             <label className="block text-xs font-semibold text-text-muted mb-1">Status</label>
             <select
               value={divStatus}
               onChange={(e) => setDivStatus(e.target.value as 'Active' | 'Inactive')}
-              className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-[#3898ec] outline-none"
+              className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-focus-blue outline-none"
             >
               {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
@@ -159,9 +159,9 @@ export function DivisionFormModal({ isOpen, onClose, division }: Props) {
             value={divName}
             onChange={(e) => setDivName(e.target.value)}
             placeholder="Advanced Refractory Ceramics"
-            className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-[#3898ec] outline-none"
+            className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-focus-blue outline-none"
           />
-          {errors.divName && <p className="text-xs text-red-600 mt-1">{errors.divName}</p>}
+          {errors.divName && <p className="text-xs text-danger mt-1">{errors.divName}</p>}
         </div>
 
         <div>
@@ -171,7 +171,7 @@ export function DivisionFormModal({ isOpen, onClose, division }: Props) {
             value={divDescription}
             onChange={(e) => setDivDescription(e.target.value)}
             placeholder="Research scope of this division..."
-            className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-[#3898ec] outline-none resize-y"
+            className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-focus-blue outline-none resize-y"
           />
         </div>
 
@@ -182,7 +182,7 @@ export function DivisionFormModal({ isOpen, onClose, division }: Props) {
             value={divResearchAreas}
             onChange={(e) => setDivResearchAreas(e.target.value)}
             placeholder="Comma-separated focus areas..."
-            className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-[#3898ec] outline-none resize-y"
+            className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-focus-blue outline-none resize-y"
           />
         </div>
 
@@ -191,7 +191,7 @@ export function DivisionFormModal({ isOpen, onClose, division }: Props) {
           <select
             value={divHoDID}
             onChange={(e) => setDivHoDID(e.target.value)}
-            className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-[#3898ec] outline-none"
+            className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-focus-blue outline-none"
           >
             <option value="">— None —</option>
             {staff.map((s) => (
@@ -209,9 +209,9 @@ export function DivisionFormModal({ isOpen, onClose, division }: Props) {
               value={divSanctionedstrength}
               readOnly
               title="Comes from the Sanctioned Posts register"
-              className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-[#3898ec] outline-none"
+              className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-focus-blue outline-none"
             />
-            {errors.divSanctionedstrength && <p className="text-xs text-red-600 mt-1">{errors.divSanctionedstrength}</p>}
+            {errors.divSanctionedstrength && <p className="text-xs text-danger mt-1">{errors.divSanctionedstrength}</p>}
           </div>
           <div>
             <label className="block text-xs font-semibold text-text-muted mb-1">Current Strength</label>
@@ -221,15 +221,15 @@ export function DivisionFormModal({ isOpen, onClose, division }: Props) {
               value={divCurrentStrength}
               readOnly
               title="Comes from the Sanctioned Posts register"
-              className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-[#3898ec] outline-none"
+              className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-focus-blue outline-none"
             />
-            {errors.divCurrentStrength && <p className="text-xs text-red-600 mt-1">{errors.divCurrentStrength}</p>}
+            {errors.divCurrentStrength && <p className="text-xs text-danger mt-1">{errors.divCurrentStrength}</p>}
           </div>
           <p className="col-span-2 text-xs text-text-muted">Strength comes from the Sanctioned Posts register; change it there.</p>
         </div>
 
         {submitError && (
-          <div role="alert" className="bg-[#f5e8e8] border border-[#e8c8c8] text-[#b53333] px-4 py-3 rounded-lg text-sm">
+          <div role="alert" className="bg-badge-danger-bg border border-danger/30 text-error-crimson px-4 py-3 rounded-lg text-sm">
             {submitError}
           </div>
         )}

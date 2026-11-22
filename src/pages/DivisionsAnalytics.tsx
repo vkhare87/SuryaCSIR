@@ -12,9 +12,9 @@ import { isActiveProject } from '../lib/projects/stage';
 import { DivisionScorecard } from '../components/DivisionScorecard';
 
 const STALENESS_STYLE: Record<Staleness, string> = {
-  fresh: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
-  aging: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
-  stale: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+  fresh: 'bg-archive-green/10 text-archive-green dark:bg-archive-green/30',
+  aging: 'bg-badge-warning-bg text-badge-warning-fg dark:bg-turmeric/30 dark:text-turmeric',
+  stale: 'bg-badge-danger-bg text-badge-danger-fg dark:bg-danger/30 dark:text-danger',
   empty: 'bg-surface-hover text-text-muted',
 };
 
@@ -127,7 +127,7 @@ export default function DivisionsAnalytics() {
                         <div
                           className={clsx(
                             'h-full rounded-full',
-                            f.completeness >= 80 ? 'bg-emerald-500' : f.completeness >= 50 ? 'bg-amber-500' : 'bg-red-500',
+                            f.completeness >= 80 ? 'bg-archive-green' : f.completeness >= 50 ? 'bg-turmeric' : 'bg-danger',
                           )}
                           style={{ width: `${f.completeness}%` }}
                         />

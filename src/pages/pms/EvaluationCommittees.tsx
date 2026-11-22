@@ -156,11 +156,11 @@ export default function EvaluationCommittees() {
                 <div>
                   <p className="font-medium text-text text-sm">
                     {com.name}
-                    {com.tier && <span className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">Tier {com.tier}</span>}
+                    {com.tier && <span className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded bg-iron-gall/10 text-iron-gall">Tier {com.tier}</span>}
                   </p>
                   <p className="text-xs text-text-muted">
                     {cycle?.name ?? com.cycleId} · {com.members?.length ?? 0} member{(com.members?.length ?? 0) !== 1 ? 's' : ''}
-                    {!panelOk && <span className="ml-2 text-amber-600 font-medium">panel incomplete</span>}
+                    {!panelOk && <span className="ml-2 text-turmeric font-medium">panel incomplete</span>}
                   </p>
                 </div>
                 <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); setSelectedCommitteeId(com.id); }}>
@@ -191,8 +191,8 @@ export default function EvaluationCommittees() {
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-text">Empowered Committee</h3>
               {isEmpoweredCommitteeValid(cycleEmpowered)
-                ? <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-green-100 text-green-700">Valid</span>
-                : <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">Needs 3, 5, or 7 members + Chairman</span>}
+                ? <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-archive-green/10 text-archive-green">Valid</span>
+                : <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-badge-warning-bg text-badge-warning-fg">Needs 3, 5, or 7 members + Chairman</span>}
             </div>
             {cycleEmpowered.length === 0 ? (
               <p className="text-sm text-text-muted">No members configured.</p>
@@ -202,7 +202,7 @@ export default function EvaluationCommittees() {
                   <div key={m.id} className="flex items-center justify-between px-4 py-2.5">
                     <p className="text-sm text-text">
                       {labelFor(m.userId)}
-                      {m.isChairman && <span className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded bg-orange-100 text-orange-700">Chairman (Director/DG)</span>}
+                      {m.isChairman && <span className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded bg-badge-warning-bg text-badge-warning-fg">Chairman (Director/DG)</span>}
                     </p>
                     <Button variant="danger" size="sm" onClick={() => void run(() => removeEmpoweredMember(m.id))}>Remove</Button>
                   </div>
@@ -246,8 +246,8 @@ export default function EvaluationCommittees() {
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-text">Grievance Redressal Committee</h3>
               {cycleGrievance.length === 5
-                ? <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-green-100 text-green-700">Valid</span>
-                : <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">{cycleGrievance.length}/5 members</span>}
+                ? <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-archive-green/10 text-archive-green">Valid</span>
+                : <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-badge-warning-bg text-badge-warning-fg">{cycleGrievance.length}/5 members</span>}
             </div>
             {cycleGrievance.length === 0 ? (
               <p className="text-sm text-text-muted">No members configured.</p>
@@ -285,7 +285,7 @@ export default function EvaluationCommittees() {
             </div>
           </div>
         </div>
-        {formError && <p role="alert" className="text-sm text-rose-600">{formError}</p>}
+        {formError && <p role="alert" className="text-sm text-danger">{formError}</p>}
       </div>
 
       {/* Create Committee Modal */}
@@ -330,7 +330,7 @@ export default function EvaluationCommittees() {
               {cycles.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
-          {formError && <p role="alert" className="text-sm text-rose-600">{formError}</p>}
+          {formError && <p role="alert" className="text-sm text-danger">{formError}</p>}
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="secondary" onClick={() => setShowCreate(false)}>Cancel</Button>
             <Button isLoading={saving} onClick={handleCreateCommittee}>Create</Button>
@@ -347,7 +347,7 @@ export default function EvaluationCommittees() {
       >
         <div className="space-y-5">
           {selectedCommittee && !isPanelValid(selectedCommittee.members ?? []) && (
-            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+            <p className="text-xs text-badge-warning-fg bg-badge-warning-bg border border-turmeric/30 rounded-lg px-3 py-2">
               Panel requires an odd number of members including one Reporting Officer, one Reviewing Officer, and one Empowered Committee member.
             </p>
           )}
@@ -362,7 +362,7 @@ export default function EvaluationCommittees() {
                   <div key={m.id} className="flex items-center justify-between px-4 py-3">
                     <div>
                       <p className="text-sm text-text">{labelFor(m.userId)}</p>
-                      <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${m.role === 'EC_MEMBER' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                      <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${m.role === 'EC_MEMBER' ? 'bg-iron-gall/10 text-iron-gall' : 'bg-iron-gall/10 text-iron-gall'}`}>
                         {ROLE_LABELS[m.role]}
                       </span>
                     </div>
@@ -398,7 +398,7 @@ export default function EvaluationCommittees() {
                 </div>
               )}
             </div>
-            {formError && <p role="alert" className="text-sm text-rose-600 mt-2">{formError}</p>}
+            {formError && <p role="alert" className="text-sm text-danger mt-2">{formError}</p>}
           </div>
         </div>
       </Modal>

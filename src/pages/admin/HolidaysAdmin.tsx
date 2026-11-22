@@ -200,7 +200,7 @@ export default function HolidaysAdmin() {
             </select>
             <button
               onClick={addHoliday}
-              className="col-span-1 bg-[#c96442] text-white rounded-md py-1.5 hover:bg-[#b5593b]"
+              className="col-span-1 bg-terracotta text-ivory rounded-md py-1.5 hover:bg-terracotta-hover"
               aria-label="Add holiday"
             >
               <Plus size={16} />
@@ -226,7 +226,7 @@ export default function HolidaysAdmin() {
                       <td><input type="text" aria-label="Holiday name" value={editValues.name} onChange={(e) => setEditValues({ ...editValues, name: e.target.value })} className="bg-surface border border-border rounded-md px-1 py-0.5 text-sm text-text w-full" /></td>
                       <td><select aria-label="Holiday type" value={editValues.type} onChange={(e) => setEditValues({ ...editValues, type: e.target.value as HolidayType })} className="bg-surface border border-border rounded-md px-1 py-0.5 text-sm text-text">{HOLIDAY_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}</select></td>
                       <td className="text-right">
-                        <button onClick={() => saveEdit(h.id)} className="p-1 text-emerald-500 hover:bg-surface-hover rounded-md" aria-label="Save"><Save size={14} /></button>
+                        <button onClick={() => saveEdit(h.id)} className="p-1 text-archive-green hover:bg-surface-hover rounded-md" aria-label="Save"><Save size={14} /></button>
                         <button onClick={() => setEditingId(null)} className="p-1 text-text-muted hover:bg-surface-hover rounded-md" aria-label="Cancel"><X size={14} /></button>
                       </td>
                     </>
@@ -237,7 +237,7 @@ export default function HolidaysAdmin() {
                       <td className="py-2">{h.holiday_type}</td>
                       <td className="text-right">
                         <button onClick={() => startEdit(h)} className="p-1 text-text-muted hover:bg-surface-hover rounded-md" aria-label="Edit"><Edit2 size={14} /></button>
-                        <button onClick={() => deleteHoliday(h.id)} className="p-1 text-rose-500 hover:bg-rose-500/10 rounded-md" aria-label="Delete"><Trash2 size={14} /></button>
+                        <button onClick={() => deleteHoliday(h.id)} className="p-1 text-danger hover:bg-danger/10 rounded-md" aria-label="Delete"><Trash2 size={14} /></button>
                       </td>
                     </>
                   )}
@@ -276,11 +276,11 @@ export default function HolidaysAdmin() {
                   </thead>
                   <tbody>
                     {importRows.map((r, i) => (
-                      <tr key={i} className={clsx('border-b border-border', r.error && 'bg-rose-500/5')}>
+                      <tr key={i} className={clsx('border-b border-border', r.error && 'bg-danger/5')}>
                         <td className="py-1">{r.date}</td>
                         <td className="py-1">{r.name}</td>
                         <td className="py-1">{r.type}</td>
-                        <td className="py-1 text-rose-500">{r.error || 'OK'}</td>
+                        <td className="py-1 text-danger">{r.error || 'OK'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -290,7 +290,7 @@ export default function HolidaysAdmin() {
               <button
                 onClick={commitImport}
                 disabled={importRows.filter((r) => !r.error).length === 0}
-                className="mt-3 bg-[#c96442] text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-[#b5593b] disabled:opacity-50"
+                className="mt-3 bg-terracotta text-ivory px-3 py-1.5 rounded-md text-sm font-medium hover:bg-terracotta-hover disabled:opacity-50"
               >
                 Import {importRows.filter((r) => !r.error).length} valid rows
               </button>

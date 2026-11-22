@@ -59,7 +59,7 @@ export function DocumentPanel({ entityType, entityId, docType, accessTier, title
     <Card className="p-5 space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <FileText size={18} className="text-[#5e5d59]" />
+          <FileText size={18} className="text-olive-gray" />
           <h3 className="text-base font-[500] text-text font-serif">{title}</h3>
         </div>
         {canUpload && (

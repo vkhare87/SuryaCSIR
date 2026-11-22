@@ -103,10 +103,14 @@ export default tseslint.config(
   // without holding the build hostage to 1083 pre-existing violations.
   // The selectors are repeated deliberately — `'no-restricted-syntax': 'warn'`
   // with no options carries no restrictions at all and would silence them.
-  {
-    files: designDebt,
-    rules: {
-      'no-restricted-syntax': ['warn', ...DESIGN_TOKEN_RULES],
-    },
-  },
+  ...(designDebt.length
+    ? [
+        {
+          files: designDebt,
+          rules: {
+            'no-restricted-syntax': ['warn', ...DESIGN_TOKEN_RULES],
+          },
+        },
+      ]
+    : []),
 );

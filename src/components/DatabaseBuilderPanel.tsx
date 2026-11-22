@@ -83,7 +83,7 @@ export function DatabaseBuilderPanel() {
       </p>
 
       {!isProvisioned() && (
-        <div className="flex items-center gap-3 px-4 py-3 bg-rose-50 border border-rose-200 rounded-xl text-sm text-rose-700">
+        <div className="flex items-center gap-3 px-4 py-3 bg-badge-danger-bg border border-danger/30 rounded-xl text-sm text-badge-danger-fg">
           <AlertTriangle size={16} className="shrink-0" />
           Not connected to Supabase. Templates still download, but uploading and saving are disabled until you connect.
         </div>
@@ -102,16 +102,16 @@ export function DatabaseBuilderPanel() {
                     onClick={() => { setActiveIdx(idx); setMode('upload'); }}
                     className={clsx(
                       'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors',
-                      isActive ? 'bg-[#c96442]/10 text-[#c96442]' : 'hover:bg-surface-hover text-text',
+                      isActive ? 'bg-terracotta/10 text-terracotta' : 'hover:bg-surface-hover text-text',
                     )}
                   >
                     <span
                       className={clsx(
                         'w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2 shrink-0',
                         done
-                          ? 'bg-emerald-100 text-emerald-700 border-emerald-300'
+                          ? 'bg-archive-green/10 text-archive-green border-archive-green/30'
                           : isActive
-                          ? 'bg-[#c96442] text-white border-[#c96442]'
+                          ? 'bg-terracotta text-ivory border-terracotta'
                           : 'bg-surface-hover text-text-muted border-border',
                       )}
                     >
@@ -144,7 +144,7 @@ export function DatabaseBuilderPanel() {
                 </Button>
                 <button
                   onClick={() => downloadTemplate(active.type, 'csv')}
-                  className="text-xs font-medium text-[#c96442] hover:underline inline-flex items-center gap-1"
+                  className="text-xs font-medium text-terracotta hover:underline inline-flex items-center gap-1"
                 >
                   <FileSpreadsheet size={12} /> .csv
                 </button>
@@ -152,7 +152,7 @@ export function DatabaseBuilderPanel() {
             </div>
 
             {prereqMissing && (
-              <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm">
+              <div className="flex items-center gap-2 px-4 py-2.5 bg-badge-warning-bg border border-turmeric/30 rounded-lg text-badge-warning-fg text-sm">
                 <AlertTriangle size={14} className="shrink-0" />
                 No {active.prereqLabel} added yet. You can still proceed, but linking records to {active.prereqLabel} will be easier after adding them first.
               </div>
@@ -164,7 +164,7 @@ export function DatabaseBuilderPanel() {
                 onClick={() => setMode('upload')}
                 className={clsx(
                   'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors',
-                  mode === 'upload' ? 'bg-[#c96442] text-white' : 'bg-surface-hover text-text-muted hover:text-text',
+                  mode === 'upload' ? 'bg-terracotta text-ivory' : 'bg-surface-hover text-text-muted hover:text-text',
                 )}
               >
                 <UploadCloud size={14} /> Upload Filled File
@@ -173,7 +173,7 @@ export function DatabaseBuilderPanel() {
                 onClick={() => setMode('manual')}
                 className={clsx(
                   'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors',
-                  mode === 'manual' ? 'bg-[#c96442] text-white' : 'bg-surface-hover text-text-muted hover:text-text',
+                  mode === 'manual' ? 'bg-terracotta text-ivory' : 'bg-surface-hover text-text-muted hover:text-text',
                 )}
               >
                 <PencilLine size={14} /> Add Rows Manually

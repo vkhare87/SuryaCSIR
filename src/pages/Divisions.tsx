@@ -136,8 +136,8 @@ export default function Divisions() {
         const isHoD = s.ID === selectedDiv?.divHoDID;
         return (
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-[#c96442]/10 text-[#c96442] flex items-center justify-center font-bold text-sm shrink-0">
-              {isHoD ? <Crown size={16} className="text-amber-500" /> : s.Name?.charAt(0)}
+            <div className="w-9 h-9 rounded-full bg-terracotta/10 text-terracotta flex items-center justify-center font-bold text-sm shrink-0">
+              {isHoD ? <Crown size={16} className="text-turmeric" /> : s.Name?.charAt(0)}
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -179,18 +179,18 @@ export default function Divisions() {
     return (
       <div
         onClick={() => navigate(`/staff/${s.ID}`)}
-        className="cursor-pointer rounded-2xl border border-border bg-surface hover:bg-surface-hover hover:border-[#c96442]/50 transition-colors p-5 flex flex-col h-full"
+        className="cursor-pointer rounded-2xl border border-border bg-surface hover:bg-surface-hover hover:border-terracotta/50 transition-colors p-5 flex flex-col h-full"
       >
         <div className="flex items-start gap-4 mb-4">
-          <div className="w-12 h-12 rounded-full bg-[#c96442]/10 text-[#c96442] flex items-center justify-center font-bold text-lg shrink-0">
-            {isHoD ? <Crown size={24} className="text-amber-500" /> : s.Name?.charAt(0)}
+          <div className="w-12 h-12 rounded-full bg-terracotta/10 text-terracotta flex items-center justify-center font-bold text-lg shrink-0">
+            {isHoD ? <Crown size={24} className="text-turmeric" /> : s.Name?.charAt(0)}
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <h3 className="font-bold text-text truncate" title={s.Name}>{s.Name}</h3>
               {isHoD && <Badge variant="warning" className="text-[9px] py-0 h-4">HOD</Badge>}
             </div>
-            <div className="text-sm text-[#c96442] font-medium mt-0.5 truncate" title={s.Designation}>{s.Designation}</div>
+            <div className="text-sm text-terracotta font-medium mt-0.5 truncate" title={s.Designation}>{s.Designation}</div>
           </div>
         </div>
         <div className="space-y-3 mt-auto mb-4">
@@ -245,13 +245,13 @@ export default function Divisions() {
               placeholder="Filter Divisions..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3898ec]/50 text-text transition-all"
+              className="w-full pl-9 pr-4 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-focus-blue/50 text-text transition-all"
             />
           </div>
           {canEdit && (
             <button
               onClick={() => setShowCreate(true)}
-              className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 bg-[#c96442] text-[#faf9f5] rounded-lg text-sm font-medium hover:bg-[#b5593b] transition-colors"
+              className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 bg-terracotta text-ivory rounded-lg text-sm font-medium hover:bg-terracotta-hover transition-colors"
             >
               <Plus size={14} /> New Division
             </button>
@@ -267,23 +267,23 @@ export default function Divisions() {
                 onClick={() => setSelectedDivCode(div.divCode)}
                 className={clsx(
                   'w-full text-left p-5 border-b border-border/50 transition-all relative group',
-                  isSelected ? 'bg-[#c96442]/5' : 'hover:bg-surface-hover'
+                  isSelected ? 'bg-terracotta/5' : 'hover:bg-surface-hover'
                 )}
               >
-                {isSelected && <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#c96442]" />}
+                {isSelected && <div className="absolute left-0 top-0 bottom-0 w-1 bg-terracotta" />}
                 <div className="flex justify-between items-start mb-2">
-                  <span className={clsx('text-sm font-bold tracking-tight', isSelected ? 'text-[#c96442]' : 'text-text')}>
+                  <span className={clsx('text-sm font-bold tracking-tight', isSelected ? 'text-terracotta' : 'text-text')}>
                     {div.divCode}
                   </span>
                   <div className="flex items-center gap-1.5">
                     <span className={clsx(
                       'text-[10px] font-bold px-2 py-0.5 rounded-full',
-                      isSelected ? 'bg-[#c96442] text-white' : 'bg-surface-hover text-text-muted group-hover:bg-border transition-colors'
+                      isSelected ? 'bg-terracotta text-ivory' : 'bg-surface-hover text-text-muted group-hover:bg-border transition-colors'
                     )}>
                       {strength.get(div.divCode)?.filled ?? 0}
                     </span>
                     {gap > 0 && (
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-badge-warning-bg text-badge-warning-fg dark:bg-turmeric/30 dark:text-turmeric">
                         -{gap}
                       </span>
                     )}
@@ -291,7 +291,7 @@ export default function Divisions() {
                 </div>
                 <h4 className={clsx(
                   'text-[11px] font-medium leading-relaxed tracking-wide transition-colors',
-                  isSelected ? 'text-[#c96442]/80' : 'text-text-muted group-hover:text-text'
+                  isSelected ? 'text-terracotta/80' : 'text-text-muted group-hover:text-text'
                 )}>
                   {div.divName}
                 </h4>
@@ -385,9 +385,9 @@ export default function Divisions() {
         <>
         {/* Header */}
         <div className="relative p-12 rounded-[32px] overflow-hidden border border-border glass">
-          <div className="absolute inset-0 bg-gradient-to-br from-[#c96442]/10 via-transparent to-[#d97757]/5" />
+          <div className="absolute inset-0 bg-gradient-to-br from-terracotta/10 via-transparent to-coral/5" />
           <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
-            <Info size={120} className="rotate-12 text-[#c96442]" />
+            <Info size={120} className="rotate-12 text-terracotta" />
           </div>
           <div className="relative z-10 max-w-4xl space-y-6">
             <div className="flex items-center gap-3">
@@ -418,7 +418,7 @@ export default function Divisions() {
                 )}
               </div>
             </div>
-            <p className="text-lg text-text-muted italic font-medium leading-relaxed max-w-3xl border-l-4 border-[#c96442] pl-6">
+            <p className="text-lg text-text-muted italic font-medium leading-relaxed max-w-3xl border-l-4 border-terracotta pl-6">
               "{selectedDiv.divDescription || 'No description available for this division.'}"
             </p>
             {/* Strength bar */}
@@ -430,7 +430,7 @@ export default function Divisions() {
                 <div
                   className={clsx(
                     'h-full rounded-full transition-all',
-                    vacancyGap > 3 ? 'bg-amber-500' : 'bg-emerald-500'
+                    vacancyGap > 3 ? 'bg-turmeric' : 'bg-archive-green'
                   )}
                   style={{ width: `${Math.min(100, Math.round(((selectedDiv.divCurrentStrength || 0) / (selectedDiv.divSanctionedstrength || 1)) * 100))}%` }}
                 />
@@ -446,27 +446,27 @@ export default function Divisions() {
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           {/* HoD */}
           <Card className="p-8 border-none ring-1 ring-border bg-surface relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-32 h-32 -mr-16 -mt-16 bg-amber-500/5 rounded-full blur-3xl group-hover:bg-amber-500/10 transition-all" />
-            <div className="flex items-center gap-2 mb-8 uppercase text-[10px] font-black text-amber-500 tracking-[0.2em]">
+            <div className="absolute top-0 right-0 w-32 h-32 -mr-16 -mt-16 bg-turmeric/5 rounded-full blur-3xl group-hover:bg-turmeric/10 transition-all" />
+            <div className="flex items-center gap-2 mb-8 uppercase text-[10px] font-black text-turmeric tracking-[0.2em]">
               <Crown size={18} />
               <span>Head of Division</span>
             </div>
             {hod ? (
               <div>
                 <div className="flex gap-8 items-start mb-8">
-                  <div className="w-24 h-24 rounded-2xl bg-[#c96442]/5 border border-[#c96442]/10 text-[#c96442] flex items-center justify-center text-4xl font-semibold shrink-0">
+                  <div className="w-24 h-24 rounded-2xl bg-terracotta/5 border border-terracotta/10 text-terracotta flex items-center justify-center text-4xl font-semibold shrink-0">
                     {hod.Name.charAt(0)}
                   </div>
                   <div className="space-y-3 py-1">
                     <h3 className="text-2xl font-[500] text-text tracking-tight font-serif">{hod.Name}</h3>
-                    <p className="text-[#c96442] font-bold text-sm uppercase tracking-widest bg-[#c96442]/5 inline-block px-3 py-1 rounded-lg">
+                    <p className="text-terracotta font-bold text-sm uppercase tracking-widest bg-terracotta/5 inline-block px-3 py-1 rounded-lg">
                       {hod.Designation}
                     </p>
                     <div className="flex flex-wrap gap-2 mt-4">
                       <span className="inline-flex items-center px-3 py-1.5 rounded-xl bg-background text-[11px] font-bold text-text-muted border border-border shadow-sm">
                         ID: {hod.ID}
                       </span>
-                      <span className="inline-flex items-center px-3 py-1.5 rounded-xl bg-background text-[11px] font-bold text-[#c96442] border border-[#c96442]/10">
+                      <span className="inline-flex items-center px-3 py-1.5 rounded-xl bg-background text-[11px] font-bold text-terracotta border border-terracotta/10">
                         {hod.Email || 'No Email'}
                       </span>
                     </div>
@@ -484,7 +484,7 @@ export default function Divisions() {
                   </div>
                   <Link
                     to={`/staff/${hod.ID}`}
-                    className="flex items-center gap-1.5 text-[11px] font-semibold text-[#c96442] hover:underline"
+                    className="flex items-center gap-1.5 text-[11px] font-semibold text-terracotta hover:underline"
                   >
                     Full Profile <ChevronRight size={12} />
                   </Link>
@@ -499,8 +499,8 @@ export default function Divisions() {
 
           {/* Research Framework */}
           <Card className="p-8 border-none ring-1 ring-border bg-surface relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-32 h-32 -mr-16 -mt-16 bg-[#c96442]/5 rounded-full blur-3xl group-hover:bg-[#c96442]/10 transition-all" />
-            <div className="flex items-center gap-2 mb-8 uppercase text-[10px] font-semibold text-[#5e5d59] tracking-[0.2em]">
+            <div className="absolute top-0 right-0 w-32 h-32 -mr-16 -mt-16 bg-terracotta/5 rounded-full blur-3xl group-hover:bg-terracotta/10 transition-all" />
+            <div className="flex items-center gap-2 mb-8 uppercase text-[10px] font-semibold text-olive-gray tracking-[0.2em]">
               <Target size={18} />
               <span>Research Framework</span>
             </div>
@@ -508,9 +508,9 @@ export default function Divisions() {
               <div className="flex flex-wrap gap-3">
                 {researchAreas.map((area, idx) => (
                   <div key={idx} className="group/item relative">
-                    <div className="absolute -inset-1 bg-gradient-to-r from-[#c96442] to-[#d97757] rounded-full opacity-0 group-hover/item:opacity-20 blur transition-opacity" />
-                    <div className="relative flex items-center gap-3 text-xs font-semibold text-text uppercase tracking-widest border border-border px-5 py-3 rounded-2xl bg-surface hover:border-[#c96442]/40 transition-all">
-                      <div className="w-6 h-6 rounded-full flex items-center justify-center bg-[#c96442]/10 text-[#c96442]">
+                    <div className="absolute -inset-1 bg-gradient-to-r from-terracotta to-coral rounded-full opacity-0 group-hover/item:opacity-20 blur transition-opacity" />
+                    <div className="relative flex items-center gap-3 text-xs font-semibold text-text uppercase tracking-widest border border-border px-5 py-3 rounded-2xl bg-surface hover:border-terracotta/40 transition-all">
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center bg-terracotta/10 text-terracotta">
                         <Lightbulb size={14} />
                       </div>
                       {area}
@@ -530,7 +530,7 @@ export default function Divisions() {
         <div className="space-y-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-border">
             <div className="flex items-center gap-4 text-text">
-              <div className="w-12 h-12 rounded-2xl bg-[#c96442] text-white flex items-center justify-center">
+              <div className="w-12 h-12 rounded-2xl bg-terracotta text-ivory flex items-center justify-center">
                 <Users size={24} />
               </div>
               <div>
@@ -540,17 +540,17 @@ export default function Divisions() {
             </div>
             <div className="flex gap-4">
               <div className="px-6 py-2.5 rounded-2xl bg-surface border border-border shadow-sm flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-[#c96442] animate-pulse" />
+                <div className="w-2 h-2 rounded-full bg-terracotta animate-pulse" />
                 <span className="text-xs font-black text-text uppercase whitespace-nowrap">{scientistsCount} Scientists</span>
               </div>
               <div className="px-6 py-2.5 rounded-2xl bg-surface border border-border shadow-sm flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <div className="w-2 h-2 rounded-full bg-archive-green animate-pulse" />
                 <span className="text-xs font-black text-text uppercase whitespace-nowrap">{technicalCount} Technical</span>
               </div>
               {vacancyGap > 0 && (
-                <div className="px-6 py-2.5 rounded-2xl bg-amber-50 border border-amber-200 dark:bg-amber-900/20 dark:border-amber-800 shadow-sm flex items-center gap-3">
-                  <AlertTriangle size={14} className="text-amber-500" />
-                  <span className="text-xs font-black text-amber-700 dark:text-amber-400 uppercase whitespace-nowrap">{vacancyGap} Vacant</span>
+                <div className="px-6 py-2.5 rounded-2xl bg-badge-warning-bg border border-turmeric/30 dark:bg-turmeric/20 dark:border-turmeric shadow-sm flex items-center gap-3">
+                  <AlertTriangle size={14} className="text-turmeric" />
+                  <span className="text-xs font-black text-badge-warning-fg dark:text-turmeric uppercase whitespace-nowrap">{vacancyGap} Vacant</span>
                 </div>
               )}
             </div>
@@ -569,7 +569,7 @@ export default function Divisions() {
         {divProjects.length > 0 && (
           <div className="space-y-4">
             <div className="flex items-center gap-3 pb-4 border-b border-border">
-              <div className="w-10 h-10 rounded-xl bg-[#c96442] text-white flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-terracotta text-ivory flex items-center justify-center">
                 <Briefcase size={20} />
               </div>
               <div>
@@ -582,19 +582,19 @@ export default function Divisions() {
                 <Link
                   key={proj.ProjectID}
                   to={ENTITY_META.project.route(proj.ProjectID)}
-                  className="flex items-start gap-4 p-4 rounded-2xl border border-border bg-surface hover:border-[#c96442]/40 hover:bg-surface-hover transition-all group"
+                  className="flex items-start gap-4 p-4 rounded-2xl border border-border bg-surface hover:border-terracotta/40 hover:bg-surface-hover transition-all group"
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="font-mono text-xs font-bold text-[#c96442]">{proj.ProjectNo}</span>
+                      <span className="font-mono text-xs font-bold text-terracotta">{proj.ProjectNo}</span>
                       <Badge variant={isActiveProject(proj) ? 'success' : 'neutral'} className="text-[9px]">
                         {projectStatusLabel(proj)}
                       </Badge>
                     </div>
-                    <p className="text-sm font-bold text-text truncate group-hover:text-[#c96442] transition-colors" title={proj.ProjectName}>{proj.ProjectName}</p>
+                    <p className="text-sm font-bold text-text truncate group-hover:text-terracotta transition-colors" title={proj.ProjectName}>{proj.ProjectName}</p>
                     <p className="text-xs text-text-muted mt-1">{proj.PrincipalInvestigator} • {proj.SponsorerName}</p>
                   </div>
-                  <ChevronRight size={16} className="text-text-muted group-hover:text-[#c96442] group-hover:translate-x-1 transition-all shrink-0 mt-1" />
+                  <ChevronRight size={16} className="text-text-muted group-hover:text-terracotta group-hover:translate-x-1 transition-all shrink-0 mt-1" />
                 </Link>
               ))}
             </div>
@@ -605,7 +605,7 @@ export default function Divisions() {
         {divEquipment.length > 0 && (
           <div className="space-y-4">
             <div className="flex items-center gap-3 pb-4 border-b border-border">
-              <div className="w-10 h-10 rounded-xl bg-[#5e5d59] text-white flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-olive-gray text-ivory flex items-center justify-center">
                 <Settings2 size={20} />
               </div>
               <div>
@@ -649,7 +649,7 @@ export default function Divisions() {
         {divPublications.length > 0 && (
           <div className="space-y-4">
             <div className="flex items-center gap-3 pb-4 border-b border-border">
-              <div className="w-10 h-10 rounded-xl bg-[#5e5d59] text-white flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-olive-gray text-ivory flex items-center justify-center">
                 <BookOpen size={20} />
               </div>
               <div>
@@ -676,7 +676,7 @@ export default function Divisions() {
                       href={`https://doi.org/${pub.doi}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="flex items-center gap-1 text-[10px] text-[#c96442] hover:underline mt-2"
+                      className="flex items-center gap-1 text-[10px] text-terracotta hover:underline mt-2"
                     >
                       <ExternalLink size={10} /> {pub.doi}
                     </a>
@@ -691,7 +691,7 @@ export default function Divisions() {
         {divIP.length > 0 && (
           <div className="space-y-4">
             <div className="flex items-center gap-3 pb-4 border-b border-border">
-              <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-turmeric text-ivory flex items-center justify-center">
                 <Lightbulb size={20} />
               </div>
               <div>

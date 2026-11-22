@@ -96,7 +96,7 @@ export function InstrumentForm({ instrument, onClose }: Props) {
         value={String(form[key] ?? '')}
         onChange={e => set(key, e.target.value)}
         required={required}
-        className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-[#3898ec] outline-none"
+        className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-focus-blue outline-none"
       />
     </div>
   );
@@ -107,7 +107,7 @@ export function InstrumentForm({ instrument, onClose }: Props) {
       <select
         value={String(form[key] ?? '')}
         onChange={e => set(key, e.target.value)}
-        className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-[#3898ec] outline-none appearance-none"
+        className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-focus-blue outline-none appearance-none"
       >
         <option value="">— Select —</option>
         {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -116,7 +116,7 @@ export function InstrumentForm({ instrument, onClose }: Props) {
   );
 
   return (
-    <div ref={panelRef} role="dialog" aria-modal="true" aria-label="Instrument form" tabIndex={-1} className="outline-none fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <div ref={panelRef} role="dialog" aria-modal="true" aria-label="Instrument form" tabIndex={-1} className="outline-none fixed inset-0 z-50 flex items-center justify-center bg-near-black/40 p-4">
       <div className="bg-background border border-border rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-border sticky top-0 bg-background z-10">
           <h2 className="text-lg font-[500] text-text font-serif">
@@ -130,7 +130,7 @@ export function InstrumentForm({ instrument, onClose }: Props) {
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* Identification */}
           <section>
-            <p className="text-[10px] font-black text-[#c96442] uppercase tracking-widest mb-3">Identification</p>
+            <p className="text-[10px] font-black text-terracotta uppercase tracking-widest mb-3">Identification</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {field('Instrument ID (UInsID)', 'UInsID', 'text', true)}
               {field('Instrument Code', 'instrument_code')}
@@ -143,7 +143,7 @@ export function InstrumentForm({ instrument, onClose }: Props) {
 
           {/* Location */}
           <section>
-            <p className="text-[10px] font-black text-[#c96442] uppercase tracking-widest mb-3">Location</p>
+            <p className="text-[10px] font-black text-terracotta uppercase tracking-widest mb-3">Location</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {select('Division', 'Division', divisions.map(d => ({ value: d.divCode, label: `${d.divCode} — ${d.divName}` })))}
               {select('Lab', 'lab_id', labs.map(l => ({ value: l.id, label: l.lab_name })))}
@@ -154,7 +154,7 @@ export function InstrumentForm({ instrument, onClose }: Props) {
 
           {/* Usage */}
           <section>
-            <p className="text-[10px] font-black text-[#c96442] uppercase tracking-widest mb-3">Usage</p>
+            <p className="text-[10px] font-black text-terracotta uppercase tracking-widest mb-3">Usage</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {field('End Use', 'EndUse')}
               {field('Indenter / Manager Name', 'IndenterName')}
@@ -165,7 +165,7 @@ export function InstrumentForm({ instrument, onClose }: Props) {
 
           {/* Status */}
           <section>
-            <p className="text-[10px] font-black text-[#c96442] uppercase tracking-widest mb-3">Status & Maintenance</p>
+            <p className="text-[10px] font-black text-terracotta uppercase tracking-widest mb-3">Status & Maintenance</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {select('Working Status', 'WorkingStatus', [
                 { value: 'Working', label: 'Working' },
@@ -179,7 +179,7 @@ export function InstrumentForm({ instrument, onClose }: Props) {
 
           {/* Procurement */}
           <section>
-            <p className="text-[10px] font-black text-[#c96442] uppercase tracking-widest mb-3">Procurement</p>
+            <p className="text-[10px] font-black text-terracotta uppercase tracking-widest mb-3">Procurement</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {field('Purchase Cost (₹)', 'purchase_cost', 'number')}
               {field('Procurement Date', 'procurement_date', 'date')}
@@ -189,19 +189,19 @@ export function InstrumentForm({ instrument, onClose }: Props) {
 
           {/* Remarks */}
           <section>
-            <p className="text-[10px] font-black text-[#c96442] uppercase tracking-widest mb-3">Remarks</p>
+            <p className="text-[10px] font-black text-terracotta uppercase tracking-widest mb-3">Remarks</p>
             <div>
               <label className="block text-xs font-semibold text-text-muted mb-1">Remark</label>
               <textarea
                 value={String(form['Remark'] ?? '')}
                 onChange={e => set('Remark', e.target.value)}
                 rows={3}
-                className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-[#3898ec] outline-none resize-none"
+                className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-focus-blue outline-none resize-none"
               />
             </div>
           </section>
 
-          {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
+          {error && <p role="alert" className="text-sm text-danger">{error}</p>}
 
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm border border-border rounded-lg hover:bg-surface-hover transition-colors">
@@ -210,7 +210,7 @@ export function InstrumentForm({ instrument, onClose }: Props) {
             <button
               type="submit"
               disabled={saving}
-              className="px-5 py-2 text-sm bg-[#c96442] text-white rounded-lg hover:bg-[#b55a3a] transition-colors disabled:opacity-50"
+              className="px-5 py-2 text-sm bg-terracotta text-ivory rounded-lg hover:bg-terracotta-hover transition-colors disabled:opacity-50"
             >
               {saving ? 'Saving…' : instrument ? 'Save Changes' : 'Add Instrument'}
             </button>

@@ -285,13 +285,13 @@ export function ImportFlow({ type, showTypePicker = false, initialFile, onComple
       {/* Connection status badge */}
       <div className="flex items-center gap-2 mb-4">
         {isProvisioned() ? (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-archive-green/10 text-archive-green border border-archive-green/30">
+            <span className="w-2 h-2 rounded-full bg-archive-green" />
             Connected
           </span>
         ) : (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200">
-            <span className="w-2 h-2 rounded-full bg-rose-500" />
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-badge-danger-bg text-badge-danger-fg border border-danger/30">
+            <span className="w-2 h-2 rounded-full bg-danger" />
             Not Connected
           </span>
         )}
@@ -305,9 +305,9 @@ export function ImportFlow({ type, showTypePicker = false, initialFile, onComple
               className={clsx(
                 'w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2',
                 step === num
-                  ? 'bg-[#c96442] text-white border-[#c96442]'
+                  ? 'bg-terracotta text-ivory border-terracotta'
                   : step > num
-                  ? 'bg-emerald-100 text-emerald-700 border-emerald-300'
+                  ? 'bg-archive-green/10 text-archive-green border-archive-green/30'
                   : 'bg-surface-hover text-text-muted border-border',
               )}
             >
@@ -330,7 +330,7 @@ export function ImportFlow({ type, showTypePicker = false, initialFile, onComple
               <select
                 value={selectedType}
                 onChange={(e) => setSelectedType(e.target.value as FileType)}
-                className="w-full bg-surface-hover border border-border text-text text-sm rounded-lg focus:ring-[#3898ec] focus:border-[#3898ec] block p-2.5 outline-none"
+                className="w-full bg-surface-hover border border-border text-text text-sm rounded-lg focus:ring-focus-blue focus:border-focus-blue block p-2.5 outline-none"
               >
                 {(Object.keys(FILE_TYPE_LABELS) as FileType[]).map((t) => (
                   <option key={t} value={t}>
@@ -355,7 +355,7 @@ export function ImportFlow({ type, showTypePicker = false, initialFile, onComple
                 className="sr-only"
                 onChange={handleFileChange}
               />
-              <FileSpreadsheet className="w-12 h-12 text-[#c96442] mb-3 mx-auto opacity-80" />
+              <FileSpreadsheet className="w-12 h-12 text-terracotta mb-3 mx-auto opacity-80" />
               <p className="text-sm font-bold text-text mb-1">
                 {file ? file.name : 'Click or drag & drop a file here'}
               </p>
@@ -364,7 +364,7 @@ export function ImportFlow({ type, showTypePicker = false, initialFile, onComple
           </div>
 
           {parseError && (
-            <div className="text-sm text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-4 py-3">
+            <div className="text-sm text-danger bg-badge-danger-bg border border-danger/30 rounded-lg px-4 py-3">
               {parseError}
             </div>
           )}
@@ -374,7 +374,7 @@ export function ImportFlow({ type, showTypePicker = false, initialFile, onComple
               variant="primary"
               onClick={handleNext1}
               disabled={!file || isParsing || !isProvisioned()}
-              className="bg-[#c96442] hover:bg-[#b5593b] text-white font-bold px-6"
+              className="bg-terracotta hover:bg-terracotta-hover text-ivory font-bold px-6"
             >
               {isParsing ? 'Parsing...' : 'Next'}
             </Button>
@@ -391,7 +391,7 @@ export function ImportFlow({ type, showTypePicker = false, initialFile, onComple
           </div>
 
           {totalErrors > 0 && (
-            <div className="mb-3 px-4 py-2 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-sm flex items-center gap-2">
+            <div className="mb-3 px-4 py-2 bg-badge-danger-bg border border-danger/30 rounded-lg text-badge-danger-fg text-sm flex items-center gap-2">
               <AlertCircle size={14} />
               <span>
                 {totalErrors} error{totalErrors !== 1 ? 's' : ''} found in {errorRowCount} row
@@ -425,7 +425,7 @@ export function ImportFlow({ type, showTypePicker = false, initialFile, onComple
                       onChange={(e) => handleMappingSelect(raw, e.target.value || null)}
                       className={clsx(
                         'flex-1 min-w-0 bg-surface border rounded-lg text-sm p-1.5 outline-none',
-                        mapped ? 'border-border text-text' : 'border-amber-300 text-amber-700',
+                        mapped ? 'border-border text-text' : 'border-turmeric/30 text-badge-warning-fg',
                       )}
                     >
                       <option value="">— Not imported —</option>
@@ -465,12 +465,12 @@ export function ImportFlow({ type, showTypePicker = false, initialFile, onComple
                         key={rowIdx}
                         className={clsx(
                           'border-b border-border last:border-0',
-                          rowHasErrors ? 'bg-rose-50' : rowIdx % 2 === 0 ? 'bg-surface' : 'bg-surface-hover/40',
+                          rowHasErrors ? 'bg-badge-danger-bg' : rowIdx % 2 === 0 ? 'bg-surface' : 'bg-surface-hover/40',
                         )}
                       >
                         <td className="px-2 py-1.5 text-center">
                           {rowHasErrors && (
-                            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-rose-500 text-white text-[10px] font-bold">
+                            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-danger text-ivory text-[10px] font-bold">
                               {rowErrors.length}
                             </span>
                           )}
@@ -485,8 +485,8 @@ export function ImportFlow({ type, showTypePicker = false, initialFile, onComple
                               onClick={() => handleCellClick(rowIdx, mapped)}
                               className={clsx(
                                 'px-3 py-1.5 text-text whitespace-nowrap max-w-[180px] truncate',
-                                cellHasError && 'outline outline-1 outline-red-400',
-                                cellHasError && !isEditing && 'cursor-pointer hover:bg-rose-100',
+                                cellHasError && 'outline outline-1 outline-danger',
+                                cellHasError && !isEditing && 'cursor-pointer hover:bg-badge-danger-bg',
                               )}
                               title={isEditing ? undefined : row[mapped] ?? ''}
                             >
@@ -504,7 +504,7 @@ export function ImportFlow({ type, showTypePicker = false, initialFile, onComple
                                     }
                                   }}
                                   onBlur={handleCellSave}
-                                  className="w-full px-2 py-1 text-sm border border-[#c96442] rounded outline-none focus:ring-1 focus:ring-[#c96442]"
+                                  className="w-full px-2 py-1 text-sm border border-terracotta rounded outline-none focus:ring-1 focus:ring-terracotta"
                                 />
                               ) : (
                                 row[mapped] ?? ''
@@ -532,7 +532,7 @@ export function ImportFlow({ type, showTypePicker = false, initialFile, onComple
             <Button
               variant="primary"
               onClick={() => setStep(3)}
-              className="bg-[#c96442] hover:bg-[#b5593b] text-white font-bold px-6"
+              className="bg-terracotta hover:bg-terracotta-hover text-ivory font-bold px-6"
             >
               Next
             </Button>
@@ -545,7 +545,7 @@ export function ImportFlow({ type, showTypePicker = false, initialFile, onComple
         <div className="space-y-5">
           <Card className="space-y-4">
             <div className="flex items-center gap-3 mb-1">
-              <UploadCloud size={20} className="text-[#c96442]" />
+              <UploadCloud size={20} className="text-terracotta" />
               <h3 className="font-bold text-text">Import Summary</h3>
             </div>
             <div className="grid grid-cols-3 gap-4 text-sm">
@@ -554,11 +554,11 @@ export function ImportFlow({ type, showTypePicker = false, initialFile, onComple
                 <div className="text-text-muted">Total Rows</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-emerald-600">{parsedData.length - errorRowCount}</div>
+                <div className="text-2xl font-bold text-archive-green">{parsedData.length - errorRowCount}</div>
                 <div className="text-text-muted">Valid</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-rose-600">{errorRowCount}</div>
+                <div className="text-2xl font-bold text-danger">{errorRowCount}</div>
                 <div className="text-text-muted">With Errors</div>
               </div>
             </div>
@@ -568,7 +568,7 @@ export function ImportFlow({ type, showTypePicker = false, initialFile, onComple
           </Card>
 
           {errorRowCount > 0 && (
-            <div className="px-4 py-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-sm flex items-center gap-2">
+            <div className="px-4 py-3 bg-badge-danger-bg border border-danger/30 rounded-lg text-badge-danger-fg text-sm flex items-center gap-2">
               <AlertCircle size={14} />
               <span>
                 Fix all {totalErrors} error{totalErrors !== 1 ? 's' : ''} in Step 2 before importing.
@@ -577,9 +577,9 @@ export function ImportFlow({ type, showTypePicker = false, initialFile, onComple
           )}
 
           {commitResult && (
-            <Card className="bg-emerald-50 border-emerald-200 space-y-2">
-              <h3 className="font-bold text-emerald-800">Import Complete</h3>
-              <div className="text-sm text-emerald-700 space-y-1">
+            <Card className="bg-archive-green/10 border-archive-green/30 space-y-2">
+              <h3 className="font-bold text-archive-green">Import Complete</h3>
+              <div className="text-sm text-archive-green space-y-1">
                 <p>Rows upserted: {commitResult.upserted}</p>
                 <p>Rows failed: {commitResult.failed}</p>
                 <p>Total: {commitResult.upserted + commitResult.failed}</p>
@@ -598,7 +598,7 @@ export function ImportFlow({ type, showTypePicker = false, initialFile, onComple
               variant="primary"
               disabled={errorRowCount > 0 || isCommitting || commitResult !== null}
               onClick={handleConfirmImport}
-              className="bg-[#c96442] hover:bg-[#b5593b] text-white font-bold px-6"
+              className="bg-terracotta hover:bg-terracotta-hover text-ivory font-bold px-6"
             >
               {isCommitting ? 'Importing...' : 'Confirm Import'}
             </Button>

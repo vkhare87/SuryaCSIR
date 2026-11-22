@@ -53,11 +53,11 @@ export function SignatureUpload({ currentUrl, onUpload }: Props) {
           <img
             src={displayUrl}
             alt="Signature"
-            className="h-24 border border-border rounded-lg object-contain bg-white p-2"
+            className="h-24 border border-border rounded-lg object-contain bg-surface-raised p-2"
           />
           <button
             onClick={clearPreview}
-            className="absolute -top-2 -right-2 bg-surface border border-border rounded-full p-0.5 text-text-muted hover:text-rose-600"
+            className="absolute -top-2 -right-2 bg-surface border border-border rounded-full p-0.5 text-text-muted hover:text-danger"
           >
             <X size={12} />
           </button>
@@ -65,7 +65,7 @@ export function SignatureUpload({ currentUrl, onUpload }: Props) {
       ) : (
         <div
           onClick={() => ref.current?.click()}
-          className="flex flex-col items-center justify-center h-24 border-2 border-dashed border-border rounded-xl cursor-pointer hover:border-[#c96442] transition-colors text-text-muted"
+          className="flex flex-col items-center justify-center h-24 border-2 border-dashed border-border rounded-xl cursor-pointer hover:border-terracotta transition-colors text-text-muted"
         >
           <Upload size={20} className="mb-1" />
           <span className="text-xs">Click to upload signature</span>
@@ -73,7 +73,7 @@ export function SignatureUpload({ currentUrl, onUpload }: Props) {
         </div>
       )}
       {uploading && <p className="text-xs text-text-muted">Uploading…</p>}
-      {error && <p role="alert" className="text-xs text-rose-600">{error}</p>}
+      {error && <p role="alert" className="text-xs text-danger">{error}</p>}
       {!displayUrl && (
         <Button variant="secondary" size="sm" onClick={() => ref.current?.click()}>
           Choose File

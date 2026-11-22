@@ -288,7 +288,7 @@ export default function Calendar() {
             className={clsx(
               'px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors',
               canCreate
-                ? 'bg-[#c96442] text-white hover:bg-[#b5593b]'
+                ? 'bg-terracotta text-ivory hover:bg-terracotta-hover'
                 : 'bg-surface text-text-muted/50 cursor-not-allowed border border-border'
             )}
           >
@@ -365,13 +365,13 @@ export default function Calendar() {
                     title={hasEvent ? `${cellEvents.length} event(s)` : ''}
                     className={clsx(
                       'relative py-1.5 text-xs rounded-md cursor-pointer transition-colors',
-                      isToday && !isSelected && 'text-[#c96442] font-semibold',
-                      isSelected ? 'bg-[#c96442] text-white font-bold' : 'hover:bg-surface-hover text-text'
+                      isToday && !isSelected && 'text-terracotta font-semibold',
+                      isSelected ? 'bg-terracotta text-ivory font-bold' : 'hover:bg-surface-hover text-text'
                     )}
                   >
                     {day}
                     {hasEvent && !isSelected && (
-                      <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-[#c96442]" />
+                      <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-terracotta" />
                     )}
                   </button>
                 );
@@ -410,7 +410,7 @@ export default function Calendar() {
           <Card className="p-0 overflow-hidden">
             <div className="p-4 border-b border-border bg-surface-hover flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <CalendarIcon size={18} className="text-[#c96442]" />
+                <CalendarIcon size={18} className="text-terracotta" />
                 <h3 className="font-bold text-text">
                   {viewMode === 'day'
                     ? `${MONTH_NAMES[month]} ${selectedDay}, ${year}`
@@ -418,8 +418,8 @@ export default function Calendar() {
                 </h3>
               </div>
               <div className="flex gap-1 bg-surface border border-border p-1 rounded-md">
-                <button onClick={() => setViewMode('day')} className={clsx('px-3 py-1 text-[10px] font-bold rounded', viewMode === 'day' ? 'bg-[#c96442] text-white' : 'text-text-muted hover:text-text')}>Day</button>
-                <button onClick={() => setViewMode('week')} className={clsx('px-3 py-1 text-[10px] font-bold rounded', viewMode === 'week' ? 'bg-[#c96442] text-white' : 'text-text-muted hover:text-text')}>Week</button>
+                <button onClick={() => setViewMode('day')} className={clsx('px-3 py-1 text-[10px] font-bold rounded', viewMode === 'day' ? 'bg-terracotta text-ivory' : 'text-text-muted hover:text-text')}>Day</button>
+                <button onClick={() => setViewMode('week')} className={clsx('px-3 py-1 text-[10px] font-bold rounded', viewMode === 'week' ? 'bg-terracotta text-ivory' : 'text-text-muted hover:text-text')}>Week</button>
               </div>
             </div>
 
@@ -459,7 +459,7 @@ export default function Calendar() {
                     return (
                       <div key={i} className="p-3 text-center border-l border-border">
                         <div className="text-[10px] font-bold text-text-muted uppercase">{['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][i]}</div>
-                        <div className={clsx('text-lg font-black mt-0.5 w-8 h-8 rounded-full flex items-center justify-center mx-auto', isToday ? 'bg-[#c96442] text-white' : 'text-text')}>
+                        <div className={clsx('text-lg font-black mt-0.5 w-8 h-8 rounded-full flex items-center justify-center mx-auto', isToday ? 'bg-terracotta text-ivory' : 'text-text')}>
                           {d.getDate()}
                         </div>
                       </div>
@@ -477,7 +477,7 @@ export default function Calendar() {
                           <button
                             key={e.id}
                             onClick={() => setDetailEvent(e)}
-                            className={clsx('w-full text-left rounded-md p-1.5 text-white text-[10px] font-bold shadow-sm', EVENT_COLOR[e.kind])}
+                            className={clsx('w-full text-left rounded-md p-1.5 text-ivory text-[10px] font-bold shadow-sm', EVENT_COLOR[e.kind])}
                             title={e.title}
                           >
                             <div className="truncate">{e.title}</div>

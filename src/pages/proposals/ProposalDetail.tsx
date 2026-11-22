@@ -73,7 +73,7 @@ export default function ProposalDetail() {
 
   useEffect(() => { reload(); }, [reload]);
 
-  if (error) return <div className="p-6 text-red-600">{error}</div>;
+  if (error) return <div className="p-6 text-danger">{error}</div>;
   if (!proposal) return <div className="p-6 text-text-muted">Loading…</div>;
 
   const editable = user ? canEditProposal(user, proposal) : false;

@@ -85,7 +85,7 @@ export default function AssignEvaluators() {
                   <p className="text-xs text-text-muted mt-0.5">{r.periodFrom} – {r.periodTo}</p>
                 )}
                 {r.nonSubmissionCertificatePath && (
-                  <p className="text-xs text-amber-600 mt-0.5">Non-submission — certificate on file</p>
+                  <p className="text-xs text-turmeric mt-0.5">Non-submission — certificate on file</p>
                 )}
               </div>
               <div className="flex items-center gap-3">
@@ -131,7 +131,7 @@ export default function AssignEvaluators() {
                         checked={selectedCommitteeId === c.id}
                         onChange={() => setSelectedCommitteeId(c.id)}
                         disabled={!panelOk}
-                        className="accent-[#c96442]"
+                        className="accent-terracotta"
                       />
                       <div className="flex-1">
                         <p className="text-sm font-medium text-text">{c.name}</p>
@@ -141,7 +141,7 @@ export default function AssignEvaluators() {
                         </p>
                       </div>
                       {c.tier && (
-                        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-iron-gall/10 text-iron-gall">
                           Tier {c.tier}
                         </span>
                       )}
@@ -151,7 +151,7 @@ export default function AssignEvaluators() {
               </div>
 
               {error && (
-                <p role="alert" className="text-sm text-rose-600">{error}</p>
+                <p role="alert" className="text-sm text-danger">{error}</p>
               )}
 
               <div className="flex justify-end gap-2 pt-2">

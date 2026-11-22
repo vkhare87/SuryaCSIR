@@ -119,7 +119,7 @@ export default function Cycles() {
           <option value="ARCHIVED">Archived</option>
         </select>
       </div>
-      {formError && <p role="alert" className="text-sm text-rose-600">{formError}</p>}
+      {formError && <p role="alert" className="text-sm text-danger">{formError}</p>}
       <div className="flex justify-end gap-2 pt-2">
         <Button variant="secondary" onClick={closeModals}>Cancel</Button>
         <Button isLoading={saving} onClick={handleSave}>
@@ -130,9 +130,9 @@ export default function Cycles() {
   );
 
   const statusStyle = (s: CycleStatus) => {
-    if (s === 'OPEN') return 'bg-green-100 text-green-700';
-    if (s === 'CLOSED') return 'bg-gray-100 text-gray-700';
-    return 'bg-yellow-100 text-yellow-700';
+    if (s === 'OPEN') return 'bg-archive-green/10 text-archive-green';
+    if (s === 'CLOSED') return 'bg-surface-hover text-text';
+    return 'bg-badge-warning-bg text-badge-warning-fg';
   };
 
   return (
@@ -165,7 +165,7 @@ export default function Cycles() {
                 </div>
                 <div className="flex items-center gap-3">
                   {locked && (
-                    <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-rose-100 text-rose-700">
+                    <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-badge-danger-bg text-badge-danger-fg">
                       LOCKED
                     </span>
                   )}

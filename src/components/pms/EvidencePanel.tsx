@@ -18,9 +18,9 @@ import type { PMSReport, PMSReportSection } from '../../types/pms';
 // It shows evidence; it never suggests a score.
 
 const CLAIM_CHIP: Record<ClaimStatus, { label: string; cls: string }> = {
-  'corroborated':       { label: 'Corroborated',        cls: 'bg-green-100 text-green-700' },
-  'no-matching-record': { label: 'No matching record',  cls: 'bg-amber-100 text-amber-700' },
-  'new-to-system':      { label: 'New to system',       cls: 'bg-blue-100 text-blue-700' },
+  'corroborated':       { label: 'Corroborated',        cls: 'bg-archive-green/10 text-archive-green' },
+  'no-matching-record': { label: 'No matching record',  cls: 'bg-badge-warning-bg text-badge-warning-fg' },
+  'new-to-system':      { label: 'New to system',       cls: 'bg-iron-gall/10 text-iron-gall' },
 };
 
 const FLAG_LABEL: Record<TrajectoryFlag, string> = {
@@ -132,7 +132,7 @@ export function EvidencePanel({ report, sections }: Props) {
         <div>
           <h2 className="font-semibold text-sm text-text">Institutional Evidence</h2>
           <p className="text-xs text-text-muted mt-0.5">
-            <Link to={`/staff/${dossier.member.ID}`} className="text-[#c96442] hover:underline inline-flex items-center gap-1">
+            <Link to={`/staff/${dossier.member.ID}`} className="text-terracotta hover:underline inline-flex items-center gap-1">
               {dossier.member.Name} <ExternalLink size={11} />
             </Link>
             {' · '}assembled {dossier.dataFreshness} · joins are name-based

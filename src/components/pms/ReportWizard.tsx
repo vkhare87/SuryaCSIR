@@ -173,7 +173,7 @@ export function ReportWizard({ report: initialReport, cycleOpen }: Props) {
         </div>
         <div className="w-full h-1.5 bg-surface-hover rounded-full overflow-hidden">
           <div
-            className="h-full bg-[#c96442] rounded-full transition-all duration-300"
+            className="h-full bg-terracotta rounded-full transition-all duration-300"
             style={{ width: `${((step + 1) / steps.length) * 100}%` }}
           />
         </div>
@@ -183,8 +183,8 @@ export function ReportWizard({ report: initialReport, cycleOpen }: Props) {
               key={i}
               onClick={() => { if (i < step) { setStep(i); setError(null); } }}
               className={`h-2 rounded-full transition-all ${
-                i === step ? 'w-6 bg-[#c96442]'
-                : i < step  ? 'w-2 bg-[#c96442]/50 cursor-pointer'
+                i === step ? 'w-6 bg-terracotta'
+                : i < step  ? 'w-2 bg-terracotta/50 cursor-pointer'
                              : 'w-2 bg-surface-hover cursor-default'
               }`}
             />
@@ -273,7 +273,7 @@ export function ReportWizard({ report: initialReport, cycleOpen }: Props) {
                   </div>
                 </div>
                 {report.dutyDays != null && report.dutyDays < 90 && (
-                  <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  <p className="text-xs text-badge-warning-fg bg-badge-warning-bg border border-turmeric/30 rounded-lg px-3 py-2">
                     Recorded physical duty days ({report.dutyDays}) are below the 90-day minimum —
                     this report cannot be submitted for appraisal.
                   </p>
@@ -312,7 +312,7 @@ export function ReportWizard({ report: initialReport, cycleOpen }: Props) {
 
       {/* Error */}
       {error && (
-        <div role="alert" className="px-4 py-3 bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl">
+        <div role="alert" className="px-4 py-3 bg-badge-danger-bg border border-danger/30 text-badge-danger-fg text-sm rounded-xl">
           {error}
         </div>
       )}

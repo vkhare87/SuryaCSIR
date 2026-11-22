@@ -203,7 +203,7 @@ export function ProjectFormModal({ isOpen, onClose, project }: Props) {
         </Field>
 
         {submitError && (
-          <div role="alert" className="bg-[#f5e8e8] border border-[#e8c8c8] text-[#b53333] px-4 py-3 rounded-lg text-sm">
+          <div role="alert" className="bg-badge-danger-bg border border-danger/30 text-error-crimson px-4 py-3 rounded-lg text-sm">
             {submitError}
           </div>
         )}
@@ -234,14 +234,14 @@ export function ProjectFormModal({ isOpen, onClose, project }: Props) {
   );
 }
 
-const inputCls = 'w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-[#3898ec] outline-none';
+const inputCls = 'w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-focus-blue outline-none';
 
 function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
   return (
     <div>
       <label className="block text-xs font-semibold text-text-muted mb-1">{label}</label>
       {children}
-      {error && <p role="alert" className="text-xs text-red-600 mt-1">{error}</p>}
+      {error && <p role="alert" className="text-xs text-danger mt-1">{error}</p>}
     </div>
   );
 }

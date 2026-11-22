@@ -87,7 +87,7 @@ export default function ProjectStaffRoster() {
     <button
       onClick={() => setActiveTab(tab)}
       className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-        activeTab === tab ? 'bg-[#c96442] text-white' : 'text-text-muted hover:text-text'
+        activeTab === tab ? 'bg-terracotta text-ivory' : 'text-text-muted hover:text-text'
       }`}
     >
       {label}
@@ -131,7 +131,7 @@ export default function ProjectStaffRoster() {
                 placeholder="Search name, project, PI..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 pr-4 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm w-full sm:w-64"
+                className="pl-9 pr-4 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-focus-blue outline-none text-sm w-full sm:w-64"
               />
             </div>
             <div className="relative">
@@ -139,7 +139,7 @@ export default function ProjectStaffRoster() {
               <select aria-label="Filter by division"
                 value={selectedDivision}
                 onChange={(e) => setSelectedDivision(e.target.value)}
-                className="w-full sm:w-auto sm:max-w-xs max-w-full pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm appearance-none cursor-pointer"
+                className="w-full sm:w-auto sm:max-w-xs max-w-full pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-focus-blue outline-none text-sm appearance-none cursor-pointer"
               >
                 <option value="ALL">All Divisions</option>
                 {divisions.map((d) => (
@@ -152,7 +152,7 @@ export default function ProjectStaffRoster() {
             {facet && (
               <button
                 onClick={() => setFacet(null)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#c96442]/10 text-[#c96442] rounded-lg text-xs font-medium"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-terracotta/10 text-terracotta rounded-lg text-xs font-medium"
               >
                 {FACET_LABEL[facet.dim]}: {facet.value}
                 <X size={12} />

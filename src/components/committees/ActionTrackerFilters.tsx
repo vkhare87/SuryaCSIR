@@ -35,7 +35,7 @@ export function ActionTrackerFilters({
               onClick={() => onStatusChange(status)}
               className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors ${
                 isActive
-                  ? 'bg-[#c96442]/10 text-[#c96442] border-[#c96442]/30'
+                  ? 'bg-terracotta/10 text-terracotta border-terracotta/30'
                   : 'border-border text-text-muted hover:bg-surface-hover'
               }`}
             >
@@ -49,7 +49,7 @@ export function ActionTrackerFilters({
       <select aria-label="Filter by committee"
         value={committeeFilter}
         onChange={(e) => onCommitteeChange(e.target.value)}
-        className="px-3 py-1.5 text-xs border border-border rounded-lg bg-surface text-text-muted focus:outline-none focus:ring-1 focus:ring-[#c96442]/30"
+        className="px-3 py-1.5 text-xs border border-border rounded-lg bg-surface text-text-muted focus:outline-none focus:ring-1 focus:ring-terracotta/30"
       >
         <option value="All">All Committees</option>
         {committees.map((c) => (
@@ -70,7 +70,7 @@ export function ActionTrackerFilters({
           placeholder="Search assignee..."
           value={assigneeSearch}
           onChange={(e) => onAssigneeSearchChange(e.target.value)}
-          className="pl-8 pr-3 py-1.5 text-xs border border-border rounded-lg bg-surface text-text placeholder:text-text-muted/60 focus:outline-none focus:ring-1 focus:ring-[#c96442]/30 w-48"
+          className="pl-8 pr-3 py-1.5 text-xs border border-border rounded-lg bg-surface text-text placeholder:text-text-muted/60 focus:outline-none focus:ring-1 focus:ring-terracotta/30 w-48"
         />
       </div>
     </div>

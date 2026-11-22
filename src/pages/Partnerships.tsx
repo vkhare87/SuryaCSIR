@@ -92,13 +92,13 @@ export default function Partnerships() {
       <div className="flex gap-2">
         <button
           onClick={() => { setTab('mous'); setShowForm(false); }}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${tab === 'mous' ? 'bg-[#c96442] text-white' : 'text-text-muted hover:text-text'}`}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${tab === 'mous' ? 'bg-terracotta text-ivory' : 'text-text-muted hover:text-text'}`}
         >
           MOUs ({mous.length})
         </button>
         <button
           onClick={() => { setTab('transfers'); setShowForm(false); }}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${tab === 'transfers' ? 'bg-[#c96442] text-white' : 'text-text-muted hover:text-text'}`}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${tab === 'transfers' ? 'bg-terracotta text-ivory' : 'text-text-muted hover:text-text'}`}
         >
           <span className="inline-flex items-center gap-1">
             <ArrowRightLeft className="h-3.5 w-3.5" /> Tech Transfers ({techTransfers.length})
@@ -107,9 +107,9 @@ export default function Partnerships() {
       </div>
 
       {tab === 'mous' && expiring.length > 0 && (
-        <Card className="p-4 border-l-4 border-l-[#c96442]">
+        <Card className="p-4 border-l-4 border-l-terracotta">
           <div className="flex items-center gap-2 text-sm font-medium text-text mb-1">
-            <AlertTriangle className="h-4 w-4 text-[#c96442]" /> Expiring within 90 days
+            <AlertTriangle className="h-4 w-4 text-terracotta" /> Expiring within 90 days
           </div>
           <ul className="text-sm text-text-muted space-y-0.5">
             {expiring.map(m => (

@@ -38,20 +38,20 @@ const ALL_ROLE_VALUES: Role[] = [
 ];
 
 const ROLE_COLORS: Record<string, string> = {
-  Director:     'bg-[#fdf0e8] text-[#c96442]',
-  DivisionHead: 'bg-[#e8f4fd] text-[#1a6b9a]',
-  HOD:          'bg-[#e8f4fd] text-[#1a6b9a]',
-  Scientist:    'bg-[#f0f8f0] text-[#3a7a3a]',
-  Technician:   'bg-[#f5f4ed] text-[#4d4c48]',
-  HRAdmin:      'bg-[#fdf5e8] text-[#a07020]',
-  FinanceAdmin: 'bg-[#fdf5e8] text-[#a07020]',
-  SystemAdmin:  'bg-[#f0e8fd] text-[#6a3aaa]',
-  MasterAdmin:  'bg-[#141413] text-[#faf9f5]',
-  Student:      'bg-[#e8fdf5] text-[#1a7a5a]',
-  ProjectStaff: 'bg-[#f5e8fd] text-[#7a1a9a]',
-  Guest:        'bg-[#f5f4ed] text-[#87867f]',
-  DefaultUser:  'bg-[#f5e8e8] text-[#a03333]',
-  EmpoweredCommittee: 'bg-[#ede9fe] text-[#5b21b6]',
+  Director:     'bg-badge-warning-bg text-terracotta',
+  DivisionHead: 'bg-iron-gall/10 text-iron-gall',
+  HOD:          'bg-iron-gall/10 text-iron-gall',
+  Scientist:    'bg-archive-green/10 text-archive-green',
+  Technician:   'bg-parchment text-charcoal-warm',
+  HRAdmin:      'bg-badge-warning-bg text-badge-warning-fg',
+  FinanceAdmin: 'bg-badge-warning-bg text-badge-warning-fg',
+  SystemAdmin:  'bg-iron-gall/10 text-iron-gall',
+  MasterAdmin:  'bg-near-black text-ivory',
+  Student:      'bg-archive-green/10 text-archive-green',
+  ProjectStaff: 'bg-iron-gall/10 text-iron-gall',
+  Guest:        'bg-parchment text-stone-gray',
+  DefaultUser:  'bg-badge-danger-bg text-badge-danger-fg',
+  EmpoweredCommittee: 'bg-iron-gall/10 text-iron-gall',
   PME:          'bg-surface-hover text-brand-blue',
 };
 
@@ -254,13 +254,13 @@ export function MasterAdminView() {
       </div>
 
       {dataError && (
-        <div className="rounded-lg border border-[#fca5a5] bg-[#fde2e2] px-4 py-3 text-xs text-[#991b1b]">
+        <div className="rounded-lg border border-danger/30 bg-badge-danger-bg px-4 py-3 text-xs text-badge-danger-fg">
           Data load error: {dataError}
         </div>
       )}
 
       {!isBackendProvisioned && (
-        <div className="bg-[#fef3c7] border border-[#fde68a] rounded-lg px-5 py-3 text-sm text-[#92400e]">
+        <div className="bg-badge-warning-bg border border-turmeric/30 rounded-lg px-5 py-3 text-sm text-badge-warning-fg">
           <strong>Demo mode</strong> — read-only. Connect Supabase via the Setup Wizard to enable user role mutations.
         </div>
       )}
@@ -297,7 +297,7 @@ export function MasterAdminView() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="space-y-4">
           <div>
-            <h2 className="text-base font-semibold text-[#4d4c48] uppercase tracking-wide">PMS Reports by Status</h2>
+            <h2 className="text-base font-semibold text-charcoal-warm uppercase tracking-wide">PMS Reports by Status</h2>
             <p className="text-xs text-text-muted mt-1">Across the appraisal state machine</p>
           </div>
           <div className="h-64">
@@ -317,7 +317,7 @@ export function MasterAdminView() {
 
         <Card className="space-y-4">
           <div>
-            <h2 className="text-base font-semibold text-[#4d4c48] uppercase tracking-wide">Role Assignment Distribution</h2>
+            <h2 className="text-base font-semibold text-charcoal-warm uppercase tracking-wide">Role Assignment Distribution</h2>
             <p className="text-xs text-text-muted mt-1">Total role grants (composite roles counted per assignment)</p>
           </div>
           <div className="h-64">
@@ -336,31 +336,31 @@ export function MasterAdminView() {
 
       {/* ── Backend health ───────────────────────────────────────── */}
       <Card className="space-y-3">
-        <h2 className="text-base font-semibold text-[#4d4c48] uppercase tracking-wide">Backend Health</h2>
+        <h2 className="text-base font-semibold text-charcoal-warm uppercase tracking-wide">Backend Health</h2>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
           <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-surface-hover">
-            <Database size={18} className={isBackendProvisioned ? 'text-[#16a34a]' : 'text-text-muted'} />
+            <Database size={18} className={isBackendProvisioned ? 'text-archive-green' : 'text-text-muted'} />
             <div>
               <div className="font-semibold text-text">Database</div>
               <div className="text-[11px] text-text-muted">{isBackendProvisioned ? 'Supabase live' : 'Mock data'}</div>
             </div>
           </div>
           <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-surface-hover">
-            <Shield size={18} className="text-[#16a34a]" />
+            <Shield size={18} className="text-archive-green" />
             <div>
               <div className="font-semibold text-text">RLS Policies</div>
               <div className="text-[11px] text-text-muted">48 policies enforced</div>
             </div>
           </div>
           <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-surface-hover">
-            <Activity size={18} className="text-[#16a34a]" />
+            <Activity size={18} className="text-archive-green" />
             <div>
               <div className="font-semibold text-text">PMS Workflow</div>
               <div className="text-[11px] text-text-muted">{openCycle ? openCycle.name : 'No open cycle'}</div>
             </div>
           </div>
           <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-surface-hover">
-            <FileText size={18} className="text-[#16a34a]" />
+            <FileText size={18} className="text-archive-green" />
             <div>
               <div className="font-semibold text-text">Evaluations</div>
               <div className="text-[11px] text-text-muted">
@@ -375,7 +375,7 @@ export function MasterAdminView() {
       <Card className="p-0 overflow-hidden">
         <details className="group/users">
         <summary className="px-6 py-4 flex items-center justify-between gap-3 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden group-open/users:border-b group-open/users:border-border">
-          <h2 className="text-base font-semibold text-[#4d4c48] uppercase tracking-wide">Users &amp; Roles</h2>
+          <h2 className="text-base font-semibold text-charcoal-warm uppercase tracking-wide">Users &amp; Roles</h2>
           <span className="flex items-center gap-2 text-xs text-text-muted">
             {users.length} accounts
             <ChevronDown size={16} className="transition-transform group-open/users:rotate-180" />
@@ -387,9 +387,9 @@ export function MasterAdminView() {
         ) : users.length === 0 ? (
           <div className="px-6 py-8 text-center text-text-muted text-xs italic">No users found.</div>
         ) : (
-          <div className="divide-y divide-[#f0eee6]">
+          <div className="divide-y divide-border-cream">
             {users.map(u => (
-              <div key={u.user_id} className="px-6 py-4 hover:bg-[#f5f4ed]/50 transition-colors">
+              <div key={u.user_id} className="px-6 py-4 hover:bg-parchment/50 transition-colors">
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -397,7 +397,7 @@ export function MasterAdminView() {
                         {u.email ?? <span className="font-mono text-text-muted">{u.user_id.substring(0, 12)}…</span>}
                       </span>
                       {u.must_change_password && (
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#fdf0e8] text-[#c96442]">
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-badge-warning-bg text-terracotta">
                           Password reset pending
                         </span>
                       )}
@@ -406,12 +406,12 @@ export function MasterAdminView() {
                     <div className="flex flex-wrap gap-1.5 mt-2">
                       {u.roles.map(role => (
                         <div key={role} className="flex items-center gap-1">
-                          <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${ROLE_COLORS[role] ?? 'bg-[#f5f4ed] text-[#4d4c48]'}`}>
+                          <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${ROLE_COLORS[role] ?? 'bg-parchment text-charcoal-warm'}`}>
                             {role}
                           </span>
                           <button
                             onClick={() => handleRemoveRole(u.user_id, role)}
-                            className="text-text-muted hover:text-[#b53333] transition-colors"
+                            className="text-text-muted hover:text-error-crimson transition-colors"
                             title={`Remove ${role}`}
                           >
                             <Trash2 size={11} />
@@ -433,7 +433,7 @@ export function MasterAdminView() {
                     </button>
                     <button
                       onClick={() => { setAddingRoleFor(u.user_id); setNewRole('DefaultUser'); setNewDivCode(''); }}
-                      className="flex items-center gap-1.5 text-[11px] font-semibold text-[#faf9f5] bg-[#c96442] hover:bg-[#b5593b] px-3 py-1.5 rounded-[6px] transition-colors"
+                      className="flex items-center gap-1.5 text-[11px] font-semibold text-ivory bg-terracotta hover:bg-terracotta-hover px-3 py-1.5 rounded-[6px] transition-colors"
                     >
                       <Plus size={12} />
                       Add Role
@@ -446,7 +446,7 @@ export function MasterAdminView() {
                     <select
                       value={newRole}
                       onChange={e => setNewRole(e.target.value as Role)}
-                      className="border border-border rounded-[6px] px-2 py-1.5 text-xs text-text bg-surface focus:outline-none focus:ring-1 focus:ring-[#c96442]"
+                      className="border border-border rounded-[6px] px-2 py-1.5 text-xs text-text bg-surface focus:outline-none focus:ring-1 focus:ring-terracotta"
                     >
                       {ALL_ROLE_VALUES.map(r => (<option key={r} value={r}>{r}</option>))}
                     </select>
@@ -456,12 +456,12 @@ export function MasterAdminView() {
                         value={newDivCode}
                         onChange={e => setNewDivCode(e.target.value)}
                         placeholder="Division code"
-                        className="border border-border rounded-[6px] px-2 py-1.5 text-xs text-text bg-surface focus:outline-none focus:ring-1 focus:ring-[#c96442] w-32"
+                        className="border border-border rounded-[6px] px-2 py-1.5 text-xs text-text bg-surface focus:outline-none focus:ring-1 focus:ring-terracotta w-32"
                       />
                     )}
                     <button
                       onClick={() => handleAddRole(u.user_id)}
-                      className="text-xs font-semibold text-[#faf9f5] bg-[#c96442] px-3 py-1.5 rounded-[6px] hover:bg-[#b5593b] transition-colors"
+                      className="text-xs font-semibold text-ivory bg-terracotta px-3 py-1.5 rounded-[6px] hover:bg-terracotta-hover transition-colors"
                     >
                       Assign
                     </button>
@@ -484,7 +484,7 @@ export function MasterAdminView() {
       <Card className="p-0 overflow-hidden">
         <details className="group/divs">
         <summary className="px-6 py-4 flex items-center justify-between gap-3 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden group-open/divs:border-b group-open/divs:border-border">
-          <h2 className="text-base font-semibold text-[#4d4c48] uppercase tracking-wide">Division Strength</h2>
+          <h2 className="text-base font-semibold text-charcoal-warm uppercase tracking-wide">Division Strength</h2>
           <span className="flex items-center gap-2 text-xs text-text-muted">
             {divisions.length} divisions
             <ChevronDown size={16} className="transition-transform group-open/divs:rotate-180" />
@@ -493,7 +493,7 @@ export function MasterAdminView() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-[#f5f4ed]">
+              <tr className="bg-parchment">
                 <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-text-muted">Code</th>
                 <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-text-muted">Name</th>
                 <th className="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-widest text-text-muted">Current</th>
@@ -502,19 +502,19 @@ export function MasterAdminView() {
                 <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-text-muted">HoD</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#f0eee6]">
+            <tbody className="divide-y divide-border-cream">
               {divisions.map(d => {
                 const fill = d.divSanctionedstrength > 0
                   ? Math.round((d.divCurrentStrength / d.divSanctionedstrength) * 100)
                   : 0;
                 return (
-                  <tr key={d.divCode} className="hover:bg-[#f5f4ed] transition-colors">
-                    <td className="px-6 py-3 font-mono text-xs text-[#c96442] font-semibold">{d.divCode}</td>
+                  <tr key={d.divCode} className="hover:bg-parchment transition-colors">
+                    <td className="px-6 py-3 font-mono text-xs text-terracotta font-semibold">{d.divCode}</td>
                     <td className="px-6 py-3 text-text">{d.divName}</td>
                     <td className="px-6 py-3 text-right font-semibold text-text">{d.divCurrentStrength}</td>
                     <td className="px-6 py-3 text-right text-text-muted">{d.divSanctionedstrength}</td>
                     <td className="px-6 py-3 text-right">
-                      <span className={`text-xs font-semibold ${fill >= 90 ? 'text-[#16a34a]' : fill >= 75 ? 'text-[#eab308]' : 'text-[#b53333]'}`}>
+                      <span className={`text-xs font-semibold ${fill >= 90 ? 'text-archive-green' : fill >= 75 ? 'text-turmeric' : 'text-error-crimson'}`}>
                         {fill}%
                       </span>
                     </td>

@@ -190,13 +190,13 @@ export function CommitteeFormModal({ isOpen, onClose, committee }: CommitteeForm
 
   // --- Section header ---
   const sectionLabel = (text: string) => (
-    <p className="text-[10px] font-black text-[#c96442] uppercase tracking-widest mb-3">{text}</p>
+    <p className="text-[10px] font-black text-terracotta uppercase tracking-widest mb-3">{text}</p>
   );
 
   // --- Field error helper ---
   const fieldError = (fieldName: string) =>
     errors[fieldName] ? (
-      <p className="text-red-500 text-xs mt-1">{errors[fieldName]}</p>
+      <p className="text-danger text-xs mt-1">{errors[fieldName]}</p>
     ) : null;
 
   return (
@@ -208,13 +208,13 @@ export function CommitteeFormModal({ isOpen, onClose, committee }: CommitteeForm
           <div className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-text-muted mb-1">
-                Name <span className="text-red-500">*</span>
+                Name <span className="text-danger">*</span>
               </label>
               <input
                 type="text"
                 value={name}
                 onChange={e => { setName(e.target.value); setErrors(prev => ({ ...prev, name: '' })); }}
-                className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-[#3898ec] outline-none"
+                className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-focus-blue outline-none"
                 placeholder="e.g., Scientific Advisory Committee"
               />
               {fieldError('name')}
@@ -225,7 +225,7 @@ export function CommitteeFormModal({ isOpen, onClose, committee }: CommitteeForm
               <select
                 value={committeeType}
                 onChange={e => setCommitteeType(e.target.value as typeof committeeType)}
-                className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-[#3898ec] outline-none appearance-none"
+                className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-focus-blue outline-none appearance-none"
               >
                 {COMMITTEE_TYPES.map(t => (
                   <option key={t} value={t}>{t}</option>
@@ -235,13 +235,13 @@ export function CommitteeFormModal({ isOpen, onClose, committee }: CommitteeForm
 
             <div>
               <label className="block text-xs font-semibold text-text-muted mb-1">
-                Mandate <span className="text-red-500">*</span>
+                Mandate <span className="text-danger">*</span>
               </label>
               <textarea
                 value={mandate}
                 onChange={e => { setMandate(e.target.value); setErrors(prev => ({ ...prev, mandate: '' })); }}
                 rows={3}
-                className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-[#3898ec] outline-none resize-none"
+                className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-focus-blue outline-none resize-none"
                 placeholder="Describe the committee's purpose and responsibilities..."
               />
               {fieldError('mandate')}
@@ -250,13 +250,13 @@ export function CommitteeFormModal({ isOpen, onClose, committee }: CommitteeForm
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-text-muted mb-1">
-                  Formed Date <span className="text-red-500">*</span>
+                  Formed Date <span className="text-danger">*</span>
                 </label>
                 <input
                   type="date"
                   value={formedDate}
                   onChange={e => { setFormedDate(e.target.value); setErrors(prev => ({ ...prev, formedDate: '' })); }}
-                  className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-[#3898ec] outline-none"
+                  className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-focus-blue outline-none"
                 />
                 {fieldError('formedDate')}
               </div>
@@ -266,7 +266,7 @@ export function CommitteeFormModal({ isOpen, onClose, committee }: CommitteeForm
                 <select
                   value={status}
                   onChange={e => setStatus(e.target.value as typeof status)}
-                  className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-[#3898ec] outline-none appearance-none"
+                  className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-focus-blue outline-none appearance-none"
                 >
                   {COMMITTEE_STATUSES.map(s => (
                     <option key={s} value={s}>{s}</option>
@@ -283,12 +283,12 @@ export function CommitteeFormModal({ isOpen, onClose, committee }: CommitteeForm
           <div className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-text-muted mb-1">
-                Chairperson <span className="text-red-500">*</span>
+                Chairperson <span className="text-danger">*</span>
               </label>
               <select
                 value={chairpersonId}
                 onChange={e => { setChairpersonId(e.target.value); setErrors(prev => ({ ...prev, chairpersonId: '' })); }}
-                className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-[#3898ec] outline-none appearance-none"
+                className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-focus-blue outline-none appearance-none"
               >
                 <option value="">— Select Chairperson —</option>
                 {sortedStaff.map(s => (
@@ -300,12 +300,12 @@ export function CommitteeFormModal({ isOpen, onClose, committee }: CommitteeForm
 
             <div>
               <label className="block text-xs font-semibold text-text-muted mb-1">
-                Secretary <span className="text-red-500">*</span>
+                Secretary <span className="text-danger">*</span>
               </label>
               <select
                 value={secretaryId}
                 onChange={e => { setSecretaryId(e.target.value); setErrors(prev => ({ ...prev, secretaryId: '' })); }}
-                className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-[#3898ec] outline-none appearance-none"
+                className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:ring-2 focus:ring-focus-blue outline-none appearance-none"
               >
                 <option value="">— Select Secretary —</option>
                 {sortedStaff.map(s => (
@@ -325,7 +325,7 @@ export function CommitteeFormModal({ isOpen, onClose, committee }: CommitteeForm
 
         {/* --- Submit Error --- */}
         {submitError && (
-          <div role="alert" className="bg-[#f5e8e8] border border-[#e8c8c8] text-[#b53333] px-4 py-3 rounded-lg text-sm">
+          <div role="alert" className="bg-badge-danger-bg border border-danger/30 text-error-crimson px-4 py-3 rounded-lg text-sm">
             {submitError}
           </div>
         )}
@@ -338,18 +338,18 @@ export function CommitteeFormModal({ isOpen, onClose, committee }: CommitteeForm
                 <button
                   type="button"
                   onClick={() => setShowDeleteConfirm(true)}
-                  className="px-4 py-2 text-sm border border-[#e8c8c8] text-[#b53333] rounded-lg hover:bg-[#f5e8e8] transition-colors"
+                  className="px-4 py-2 text-sm border border-danger/30 text-error-crimson rounded-lg hover:bg-badge-danger-bg transition-colors"
                 >
                   Delete Committee
                 </button>
               ) : (
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-[#b53333]">Are you sure?</span>
+                  <span className="text-sm text-error-crimson">Are you sure?</span>
                   <button
                     type="button"
                     onClick={handleDelete}
                     disabled={submitting}
-                    className="px-3 py-1.5 text-sm bg-[#b53333] text-white rounded-lg hover:bg-[#9a2b2b] transition-colors disabled:opacity-50"
+                    className="px-3 py-1.5 text-sm bg-error-crimson text-ivory rounded-lg hover:bg-danger transition-colors disabled:opacity-50"
                   >
                     {submitting ? 'Deleting...' : 'Yes, Delete'}
                   </button>
@@ -377,7 +377,7 @@ export function CommitteeFormModal({ isOpen, onClose, committee }: CommitteeForm
               type="button"
               onClick={handleSubmit}
               disabled={submitting}
-              className="px-5 py-2 text-sm bg-[#c96442] text-white rounded-lg hover:bg-[#b55a3a] transition-colors disabled:opacity-50"
+              className="px-5 py-2 text-sm bg-terracotta text-ivory rounded-lg hover:bg-terracotta-hover transition-colors disabled:opacity-50"
             >
               {submitting ? 'Saving...' : isEdit ? 'Update' : 'Create'}
             </button>

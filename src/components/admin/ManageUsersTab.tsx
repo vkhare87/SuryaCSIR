@@ -176,7 +176,7 @@ export function ManageUsersTab() {
                     <div className="flex flex-wrap gap-1.5 mt-2">
                       {u.roles.length === 0 && <span className="text-xs text-text-muted">No roles</span>}
                       {u.roles.map((r) => (
-                        <span key={r} className={`text-xs rounded-full px-2 py-0.5 ${r === u.active_role ? 'bg-[#c96442] text-white' : 'bg-surface-hover text-text-muted'}`}>
+                        <span key={r} className={`text-xs rounded-full px-2 py-0.5 ${r === u.active_role ? 'bg-terracotta text-ivory' : 'bg-surface-hover text-text-muted'}`}>
                           {r}
                         </span>
                       ))}
@@ -227,7 +227,7 @@ export function ManageUsersTab() {
                       <button
                         onClick={() => save(u)}
                         disabled={saving === u.user_id}
-                        className="px-4 py-2 bg-[#c96442] text-white rounded-lg text-sm font-medium hover:bg-[#b5593b] transition-colors disabled:opacity-50"
+                        className="px-4 py-2 bg-terracotta text-ivory rounded-lg text-sm font-medium hover:bg-terracotta-hover transition-colors disabled:opacity-50"
                       >
                         {saving === u.user_id ? 'Saving…' : 'Save changes'}
                       </button>

@@ -219,7 +219,7 @@ export default function Intelligence() {
           href={`https://doi.org/${p.doi}`}
           target="_blank"
           rel="noreferrer"
-          className="text-[#c96442] hover:underline flex items-center gap-1 text-xs"
+          className="text-terracotta hover:underline flex items-center gap-1 text-xs"
           onClick={(e) => e.stopPropagation()}
         >
           <ExternalLink size={12} />
@@ -267,7 +267,7 @@ export default function Intelligence() {
   // -------------------------------------------------------------------------
 
   const inputCls =
-    'w-full px-3 py-2 bg-surface-hover border border-border rounded-lg text-sm text-text outline-none focus:ring-2 focus:ring-[#c96442] focus:border-[#c96442]';
+    'w-full px-3 py-2 bg-surface-hover border border-border rounded-lg text-sm text-text outline-none focus:ring-2 focus:ring-terracotta focus:border-terracotta';
 
   // -------------------------------------------------------------------------
   // Render
@@ -284,13 +284,13 @@ export default function Intelligence() {
         <div className="flex bg-surface border border-border p-1 rounded-xl">
           <button
             onClick={() => setActiveTab('publications')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'publications' ? 'bg-[#c96442] text-white' : 'text-text-muted hover:text-text'}`}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'publications' ? 'bg-terracotta text-ivory' : 'text-text-muted hover:text-text'}`}
           >
             Publications
           </button>
           <button
             onClick={() => setActiveTab('ipr')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'ipr' ? 'bg-[#c96442] text-white' : 'text-text-muted hover:text-text'}`}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'ipr' ? 'bg-terracotta text-ivory' : 'text-text-muted hover:text-text'}`}
           >
             IP Intelligence
           </button>
@@ -303,7 +303,7 @@ export default function Intelligence() {
         <StatCard
           title="Avg Impact Factor"
           value={avgImpactFactor.toFixed(2)}
-          valueColor="text-emerald-500"
+          valueColor="text-archive-green"
           icon={<Award />}
         />
       </div>
@@ -344,7 +344,7 @@ export default function Intelligence() {
               placeholder="Search..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 pr-4 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm w-full"
+              className="pl-9 pr-4 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-focus-blue outline-none text-sm w-full"
             />
           </div>
           <div className="flex items-center gap-3">
@@ -601,7 +601,7 @@ export default function Intelligence() {
                 </Button>
               ) : (
                 <div className="flex items-center gap-3">
-                  <span className="text-sm text-rose-600">Are you sure?</span>
+                  <span className="text-sm text-danger">Are you sure?</span>
                   <Button
                     type="button"
                     variant="danger"
@@ -747,7 +747,7 @@ export default function Intelligence() {
                 </Button>
               ) : (
                 <div className="flex items-center gap-3">
-                  <span className="text-sm text-rose-600">Are you sure?</span>
+                  <span className="text-sm text-danger">Are you sure?</span>
                   <Button
                     type="button"
                     variant="danger"

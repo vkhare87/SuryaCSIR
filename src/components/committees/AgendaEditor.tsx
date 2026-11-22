@@ -36,7 +36,7 @@ const AgendaItemRow: FC<AgendaItemRowProps> = ({ item, index, onDelete }) => {
       <span className="flex-1 text-sm text-text">{item.description}</span>
       <button
         onClick={() => onDelete(item.id)}
-        className="text-text-muted hover:text-red-500"
+        className="text-text-muted hover:text-danger"
       >
         <X size={14} />
       </button>
@@ -79,7 +79,7 @@ export function AgendaEditor({ items, onSave, canEdit }: AgendaEditorProps) {
         {canEdit && (
           <button
             onClick={() => setEditMode(true)}
-            className="mt-3 flex items-center gap-1.5 text-xs text-[#c96442]"
+            className="mt-3 flex items-center gap-1.5 text-xs text-terracotta"
           >
             <Pencil size={12} /> Edit Agenda
           </button>
@@ -140,7 +140,7 @@ export function AgendaEditor({ items, onSave, canEdit }: AgendaEditorProps) {
           onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); }}
           className="flex-1 px-3 py-2 bg-surface border border-border rounded-lg text-sm"
         />
-        <button onClick={handleAdd} className="p-2 text-[#c96442]">
+        <button onClick={handleAdd} className="p-2 text-terracotta">
           <Plus size={16} />
         </button>
       </div>
@@ -154,7 +154,7 @@ export function AgendaEditor({ items, onSave, canEdit }: AgendaEditorProps) {
         </button>
         <button
           onClick={handleSave}
-          className="px-3 py-1.5 text-sm bg-[#c96442] text-white rounded-lg flex items-center gap-1"
+          className="px-3 py-1.5 text-sm bg-terracotta text-ivory rounded-lg flex items-center gap-1"
         >
           <Check size={14} /> Save
         </button>

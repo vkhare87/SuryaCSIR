@@ -70,11 +70,11 @@ export function RoleFeatureEditor() {
                     disabled={saving === path || killed}
                     onClick={() => toggle(path)}
                     className={`relative w-10 h-[22px] rounded-full transition-colors shrink-0 disabled:opacity-40 ${
-                      on ? 'bg-[#16a34a]' : 'bg-surface-hover border border-border'
+                      on ? 'bg-archive-green' : 'bg-surface-hover border border-border'
                     }`}
                   >
                     <span
-                      className={`absolute top-[3px] w-4 h-4 rounded-full bg-white shadow transition-all ${
+                      className={`absolute top-[3px] w-4 h-4 rounded-full bg-surface-raised shadow transition-all ${
                         on ? 'left-[22px]' : 'left-[3px]'
                       }`}
                     />
@@ -86,7 +86,7 @@ export function RoleFeatureEditor() {
                     <Badge variant={on ? 'success' : 'danger'}>{on ? 'ON' : 'OFF'}</Badge>
                   )}
                   {savedFlash === path && (
-                    <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">Saved</span>
+                    <span className="text-[11px] font-medium text-archive-green">Saved</span>
                   )}
                 </div>
               );

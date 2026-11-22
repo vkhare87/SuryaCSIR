@@ -175,15 +175,15 @@ export function SystemAdminView() {
           </p>
         </div>
         <div className="flex items-center gap-2 text-xs">
-          <Wifi size={14} className={isBackendProvisioned ? 'text-[#16a34a]' : 'text-[#b0aea5]'} />
-          <span className={isBackendProvisioned ? 'text-[#16a34a] font-semibold' : 'text-text-muted'}>
+          <Wifi size={14} className={isBackendProvisioned ? 'text-archive-green' : 'text-warm-silver'} />
+          <span className={isBackendProvisioned ? 'text-archive-green font-semibold' : 'text-text-muted'}>
             {isBackendProvisioned ? 'Connected to Supabase' : 'Demo mode (mock data)'}
           </span>
         </div>
       </div>
 
       {dataError && (
-        <div className="rounded-lg border border-[#fca5a5] bg-[#fde2e2] px-4 py-3 text-xs text-[#991b1b]">
+        <div className="rounded-lg border border-danger/30 bg-badge-danger-bg px-4 py-3 text-xs text-badge-danger-fg">
           Data load error: {dataError}
         </div>
       )}
@@ -239,7 +239,7 @@ export function SystemAdminView() {
         {seesPms && (
         <Card className="space-y-4">
           <div>
-            <h2 className="text-base font-semibold text-[#4d4c48] uppercase tracking-wide">PMS Reports by Status</h2>
+            <h2 className="text-base font-semibold text-charcoal-warm uppercase tracking-wide">PMS Reports by Status</h2>
             <p className="text-xs text-text-muted mt-1">Distribution across the appraisal state machine</p>
           </div>
           <div className="h-64">
@@ -262,7 +262,7 @@ export function SystemAdminView() {
 
         <Card className="space-y-4">
           <div>
-            <h2 className="text-base font-semibold text-[#4d4c48] uppercase tracking-wide">Role Distribution</h2>
+            <h2 className="text-base font-semibold text-charcoal-warm uppercase tracking-wide">Role Distribution</h2>
             <p className="text-xs text-text-muted mt-1">Active role assignments across users</p>
           </div>
           <div className="h-64">
@@ -285,7 +285,7 @@ export function SystemAdminView() {
       <Card className="space-y-4">
         <div className="flex items-end justify-between">
           <div>
-            <h2 className="text-base font-semibold text-[#4d4c48] uppercase tracking-wide">Helpdesk Volume by Category</h2>
+            <h2 className="text-base font-semibold text-charcoal-warm uppercase tracking-wide">Helpdesk Volume by Category</h2>
             <p className="text-xs text-text-muted mt-1">All-time tickets per category</p>
           </div>
           <Bell size={14} className="text-text-muted" />
@@ -307,8 +307,8 @@ export function SystemAdminView() {
       {/* ── Division strength table ──────────────────────────────── */}
       {canAccess('/divisions') && (
       <Card className="p-0 overflow-hidden">
-        <div className="px-6 py-4 border-b border-[#f0eee6]">
-          <h2 className="text-base font-semibold text-[#4d4c48] uppercase tracking-wide">Division Strength</h2>
+        <div className="px-6 py-4 border-b border-border-cream">
+          <h2 className="text-base font-semibold text-charcoal-warm uppercase tracking-wide">Division Strength</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -322,19 +322,19 @@ export function SystemAdminView() {
                 <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-text-muted">HoD</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#f0eee6]">
+            <tbody className="divide-y divide-border-cream">
               {divisions.map(d => {
                 const fill = d.divSanctionedstrength > 0
                   ? Math.round((d.divCurrentStrength / d.divSanctionedstrength) * 100)
                   : 0;
                 return (
                   <tr key={d.divCode} className="hover:bg-background transition-colors">
-                    <td className="px-6 py-3 font-mono text-xs text-[#c96442] font-semibold">{d.divCode}</td>
+                    <td className="px-6 py-3 font-mono text-xs text-terracotta font-semibold">{d.divCode}</td>
                     <td className="px-6 py-3 text-text">{d.divName}</td>
                     <td className="px-6 py-3 text-right font-semibold text-text">{d.divCurrentStrength}</td>
                     <td className="px-6 py-3 text-right text-text-muted">{d.divSanctionedstrength}</td>
                     <td className="px-6 py-3 text-right">
-                      <span className={`text-xs font-semibold ${fill >= 90 ? 'text-[#16a34a]' : fill >= 75 ? 'text-[#eab308]' : 'text-[#b53333]'}`}>
+                      <span className={`text-xs font-semibold ${fill >= 90 ? 'text-archive-green' : fill >= 75 ? 'text-turmeric' : 'text-error-crimson'}`}>
                         {fill}%
                       </span>
                     </td>
@@ -350,18 +350,18 @@ export function SystemAdminView() {
 
       {/* ── Recent audit log ─────────────────────────────────────── */}
       <Card className="p-0 overflow-hidden">
-        <div className="px-6 py-4 border-b border-[#f0eee6] flex items-center justify-between">
-          <h2 className="text-base font-semibold text-[#4d4c48] uppercase tracking-wide">Recent System Activity</h2>
+        <div className="px-6 py-4 border-b border-border-cream flex items-center justify-between">
+          <h2 className="text-base font-semibold text-charcoal-warm uppercase tracking-wide">Recent System Activity</h2>
           <span className="text-xs text-text-muted">{auditLog.length} events</span>
         </div>
         {auditLog.length === 0 ? (
           <div className="p-8 text-center text-sm text-text-muted">No activity recorded yet.</div>
         ) : (
-          <ul className="divide-y divide-[#f0eee6]">
+          <ul className="divide-y divide-border-cream">
             {auditLog.slice(0, 10).map(entry => (
               <li key={entry.id} className="px-6 py-3 flex items-center justify-between text-sm">
                 <div className="flex items-center gap-3">
-                  <Activity size={14} className="text-[#c96442]" />
+                  <Activity size={14} className="text-terracotta" />
                   <div>
                     <div className="text-text font-medium">{entry.action.replace(/_/g, ' ')}</div>
                     <div className="text-[10px] text-text-muted font-mono">
@@ -381,10 +381,10 @@ export function SystemAdminView() {
 
       {/* ── Backend health card ──────────────────────────────────── */}
       <Card className="space-y-3">
-        <h2 className="text-base font-semibold text-[#4d4c48] uppercase tracking-wide">Backend Health</h2>
+        <h2 className="text-base font-semibold text-charcoal-warm uppercase tracking-wide">Backend Health</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
           <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-surface-hover">
-            <Database size={18} className={isBackendProvisioned ? 'text-[#16a34a]' : 'text-text-muted'} />
+            <Database size={18} className={isBackendProvisioned ? 'text-archive-green' : 'text-text-muted'} />
             <div>
               <div className="font-semibold text-text">Database</div>
               <div className="text-[11px] text-text-muted">
@@ -393,14 +393,14 @@ export function SystemAdminView() {
             </div>
           </div>
           <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-surface-hover">
-            <Shield size={18} className="text-[#16a34a]" />
+            <Shield size={18} className="text-archive-green" />
             <div>
               <div className="font-semibold text-text">RLS Policies</div>
               <div className="text-[11px] text-text-muted">48 policies enforced</div>
             </div>
           </div>
           <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-surface-hover">
-            <Activity size={18} className="text-[#16a34a]" />
+            <Activity size={18} className="text-archive-green" />
             <div>
               <div className="font-semibold text-text">PMS Workflow</div>
               <div className="text-[11px] text-text-muted">{openCycle ? `Cycle: ${openCycle.name}` : 'No open cycle'}</div>

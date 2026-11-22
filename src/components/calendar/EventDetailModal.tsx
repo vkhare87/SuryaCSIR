@@ -81,7 +81,7 @@ export function EventDetailModal({
   }
 
   return (
-    <div ref={panelRef} role="dialog" aria-modal="true" aria-label="Event details" tabIndex={-1} className="outline-none fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+    <div ref={panelRef} role="dialog" aria-modal="true" aria-label="Event details" tabIndex={-1} className="outline-none fixed inset-0 z-50 flex items-center justify-center bg-near-black/50">
       <div className="bg-surface border border-border rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-4 border-b border-border">
           <div className="flex items-center gap-2">
@@ -122,7 +122,7 @@ export function EventDetailModal({
                 href={teamsUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 bg-[#c96442] text-white px-3 py-1.5 rounded-md text-sm hover:bg-[#b5593b]"
+                className="inline-flex items-center gap-2 bg-terracotta text-ivory px-3 py-1.5 rounded-md text-sm hover:bg-terracotta-hover"
               >
                 <ExternalLink size={14} />
                 Join Meeting
@@ -148,7 +148,7 @@ export function EventDetailModal({
             {isMeeting && (
               <Link
                 to={`/committees/${event.source.committee_id}/meetings/${event.source.id}`}
-                className="inline-flex items-center gap-2 text-sm text-[#c96442] hover:underline"
+                className="inline-flex items-center gap-2 text-sm text-terracotta hover:underline"
                 onClick={handleClose}
               >
                 Open in Committees <ExternalLink size={12} />
@@ -158,7 +158,7 @@ export function EventDetailModal({
             {isAction && event.source.meeting_id && (
               <Link
                 to="/committees"
-                className="inline-flex items-center gap-2 text-sm text-[#c96442] hover:underline"
+                className="inline-flex items-center gap-2 text-sm text-terracotta hover:underline"
                 onClick={handleClose}
               >
                 Go to Committees <ExternalLink size={12} />
@@ -170,7 +170,7 @@ export function EventDetailModal({
                 <Link
                   to="/admin/holidays"
                   onClick={handleClose}
-                  className="inline-flex items-center gap-2 text-sm text-[#c96442] hover:underline"
+                  className="inline-flex items-center gap-2 text-sm text-terracotta hover:underline"
                 >
                   Manage in Holidays Admin <ExternalLink size={12} />
                 </Link>
@@ -198,7 +198,7 @@ export function EventDetailModal({
                         await onDelete(event.source.id);
                         handleClose();
                       }}
-                      className="text-sm bg-rose-500 text-white px-3 py-1.5 rounded-md hover:bg-rose-600"
+                      className="text-sm bg-danger text-ivory px-3 py-1.5 rounded-md hover:bg-danger"
                     >
                       Confirm Delete
                     </button>
@@ -206,7 +206,7 @@ export function EventDetailModal({
                 ) : (
                   <button
                     onClick={() => setConfirmingDelete(true)}
-                    className="inline-flex items-center gap-1 text-sm text-rose-500 hover:bg-rose-500/10 px-3 py-1.5 rounded-md"
+                    className="inline-flex items-center gap-1 text-sm text-danger hover:bg-danger/10 px-3 py-1.5 rounded-md"
                   >
                     <Trash2 size={14} /> Delete
                   </button>

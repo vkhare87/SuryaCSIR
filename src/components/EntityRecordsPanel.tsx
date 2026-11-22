@@ -44,11 +44,11 @@ function DeleteConfirmModal({
 }) {
   const panelRef = useDialog<HTMLDivElement>(true, onCancel);
   return (
-    <div ref={panelRef} role="dialog" aria-modal="true" aria-label="Confirm delete" tabIndex={-1} className="outline-none fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+    <div ref={panelRef} role="dialog" aria-modal="true" aria-label="Confirm delete" tabIndex={-1} className="outline-none fixed inset-0 z-50 flex items-center justify-center p-4 bg-near-black/40 backdrop-blur-sm">
       <div className="bg-surface border border-border rounded-2xl shadow-xl w-full max-w-sm p-6">
         <div className="flex items-start gap-3 mb-5">
-          <div className="w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center shrink-0">
-            <Trash2 size={18} className="text-rose-600" />
+          <div className="w-10 h-10 rounded-full bg-badge-danger-bg flex items-center justify-center shrink-0">
+            <Trash2 size={18} className="text-danger" />
           </div>
           <div>
             <h3 className="text-base font-semibold text-text">Delete Record?</h3>
@@ -69,7 +69,7 @@ function DeleteConfirmModal({
           <button
             onClick={onConfirm}
             disabled={deleting}
-            className="flex items-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold rounded-lg transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-danger hover:bg-danger text-ivory text-sm font-semibold rounded-lg transition-colors disabled:opacity-50"
           >
             {deleting ? <RefreshCw size={13} className="animate-spin" /> : <Trash2 size={13} />}
             {deleting ? 'Deleting…' : 'Delete'}
@@ -219,7 +219,7 @@ export function EntityRecordsPanel({ type }: EntityRecordsPanelProps) {
               placeholder={`Search ${FILE_TYPE_LABELS[type].toLowerCase()}…`}
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 bg-surface border border-border rounded-lg text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-[#c96442]/30"
+              className="w-full pl-9 pr-4 py-2 bg-surface border border-border rounded-lg text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-terracotta/30"
             />
           </div>
           <button
@@ -232,7 +232,7 @@ export function EntityRecordsPanel({ type }: EntityRecordsPanelProps) {
           </button>
           <button
             onClick={() => setEditRecord(null)}
-            className="flex items-center gap-2 px-4 py-2 bg-[#c96442] hover:bg-[#b5593b] text-white text-sm font-semibold rounded-lg transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-terracotta hover:bg-terracotta-hover text-ivory text-sm font-semibold rounded-lg transition-colors"
           >
             <Plus size={14} /> New Record
           </button>
@@ -240,7 +240,7 @@ export function EntityRecordsPanel({ type }: EntityRecordsPanelProps) {
 
         {/* Status */}
         {error && (
-          <div role="alert" className="flex items-center gap-2 px-4 py-3 bg-rose-50 border border-rose-200 rounded-xl text-sm text-rose-700">
+          <div role="alert" className="flex items-center gap-2 px-4 py-3 bg-badge-danger-bg border border-danger/30 rounded-xl text-sm text-badge-danger-fg">
             <AlertTriangle size={14} className="shrink-0" />
             {error}
           </div>
@@ -280,8 +280,8 @@ export function EntityRecordsPanel({ type }: EntityRecordsPanelProps) {
                           {f.label}
                           {sort?.col === f.column ? (
                             sort.dir === 'asc'
-                              ? <ChevronUp size={12} className="text-[#c96442]" />
-                              : <ChevronDown size={12} className="text-[#c96442]" />
+                              ? <ChevronUp size={12} className="text-terracotta" />
+                              : <ChevronDown size={12} className="text-terracotta" />
                           ) : (
                             <ChevronUp size={12} className="opacity-0 group-hover:opacity-30" />
                           )}
@@ -312,14 +312,14 @@ export function EntityRecordsPanel({ type }: EntityRecordsPanelProps) {
                         <div className="flex items-center gap-1 justify-end">
                           <button
                             onClick={() => setEditRecord(row)}
-                            className="p-1.5 rounded-md hover:bg-[#c96442]/10 text-text-muted hover:text-[#c96442] transition-colors"
+                            className="p-1.5 rounded-md hover:bg-terracotta/10 text-text-muted hover:text-terracotta transition-colors"
                             title="Edit"
                           >
                             <Edit2 size={14} />
                           </button>
                           <button
                             onClick={() => setDeleteTarget(row)}
-                            className="p-1.5 rounded-md hover:bg-rose-50 text-text-muted hover:text-rose-600 transition-colors"
+                            className="p-1.5 rounded-md hover:bg-badge-danger-bg text-text-muted hover:text-danger transition-colors"
                             title="Delete"
                           >
                             <Trash2 size={14} />
