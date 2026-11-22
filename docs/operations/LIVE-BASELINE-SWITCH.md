@@ -62,15 +62,24 @@ Take a backup first. The free plan has no point-in-time restore. The third file 
 migration history, which the first two do not include.
 
 ```powershell
-supabase db dump --linked -f backup-2026-11-22-schema.sql
+supabase db dump --linked --schema public -f backup-2026-11-22-schema.sql
 ```
 
 ```powershell
-supabase db dump --linked --data-only -f backup-2026-11-22-data.sql
+supabase db dump --linked --data-only --schema public -f backup-2026-11-22-data.sql
 ```
 
 ```powershell
 supabase db dump --linked --data-only --schema supabase_migrations -f backup-2026-11-22-history.sql
+```
+
+Save the storage file rules too. Most of them call functions in `public`, so
+the last-resort restore below would lose them, and the dumps above leave out the
+`storage` schema. This only reads (connection string: Dashboard → Connect):
+
+```powershell
+psql -X -At "<connection string>" -o backup-2026-11-22-storage-policies.sql -c "SELECT string_agg(format('DROP POLICY IF EXISTS %I ON storage.objects; CREATE POLICY %I ON storage.objects AS %s FOR %s TO %s%s%s;', policyname, policyname, permissive, cmd, array_to_string(roles, ', '), CASE WHEN qual IS NOT NULL THEN ' USING (' || qual || ')' ELSE '' END, CASE WHEN with_check IS NOT NULL THEN ' WITH CHECK (' || with_check || ')' ELSE '' END), E'
+' ORDER BY policyname) FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects'"
 ```
 
 Open the history file and check it lists the 102 old versions. If it is empty,
@@ -179,16 +188,26 @@ Supabase branch first; it has not been run on live.
 1. Keep users out.
 2. Empty the app schema and load the old schema and data:
 
+   Each command stops at the first error and runs as one transaction. If one
+   fails, stop there: do not go on to the history steps.
+
    ```powershell
-   psql "<connection string>" -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public; GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;"
+   psql -X -v ON_ERROR_STOP=1 "<connection string>" -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public; GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;"
    ```
 
    ```powershell
-   psql "<connection string>" -f backup-2026-11-22-schema.sql
+   psql -X -v ON_ERROR_STOP=1 --single-transaction "<connection string>" -f backup-2026-11-22-schema.sql
    ```
 
    ```powershell
-   psql "<connection string>" -f backup-2026-11-22-data.sql
+   psql -X -v ON_ERROR_STOP=1 --single-transaction "<connection string>" -f backup-2026-11-22-data.sql
+   ```
+
+   `DROP SCHEMA public CASCADE` also removed the storage file rules that call
+   `public` functions. Put them back:
+
+   ```powershell
+   psql -X -v ON_ERROR_STOP=1 --single-transaction "<connection string>" -f backup-2026-11-22-storage-policies.sql
    ```
 
 3. Remove the new scheduled job: `SELECT cron.unschedule('amc-expiry-sweep');`
@@ -197,7 +216,7 @@ Supabase branch first; it has not been run on live.
    `applied`, with the copy step above. You can also load `backup-2026-11-22-history.sql` after
    `TRUNCATE supabase_migrations.schema_migrations;`.
 5. `supabase migration list --linked` must show only the old 102 versions on the remote.
-6. Ask Claude to compare live with the backup. Read only.
+6. Ask Claude to compare live with the backup, storage file rules included. Read only.
 
 ## Not fixed by the switch (follow-ups)
 
