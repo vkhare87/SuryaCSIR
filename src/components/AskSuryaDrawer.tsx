@@ -145,7 +145,7 @@ export default function AskSuryaDrawer() {
       </header>
       <div className="flex flex-col flex-1 min-h-0 gap-3 px-4 py-3">
         {/* Scope + full view bar */}
-        <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center justify-between gap-2 flex-wrap shrink-0">
           {activeEntity ? (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-terracotta/12 text-terracotta px-2.5 py-1 text-xs font-medium">
               Scoped to {activeEntity.type}: <span className="font-mono">{activeEntity.id}</span>
@@ -171,31 +171,30 @@ export default function AskSuryaDrawer() {
           </Link>
         </div>
 
-        <p className="text-[11px] text-text-muted -mt-2">Out-of-scope requests are recorded.</p>
-
-        {/* Starter prompts when empty */}
-        {turns.length === 0 && !loading && (
-          <div className="space-y-2">
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-text-muted">
-              Suggested questions
-            </p>
-            <div className="space-y-1.5">
-              {starters.map(prompt => (
-                <button
-                  key={prompt}
-                  type="button"
-                  onClick={() => void runQuery(prompt)}
-                  className="w-full text-left px-3 py-2.5 rounded-xl bg-surface border border-border text-xs text-text hover:border-terracotta/50 hover:bg-surface-hover transition-all"
-                >
-                  {prompt}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+        <p className="text-[11px] text-text-muted -mt-2 shrink-0">Out-of-scope requests are recorded.</p>
 
         {/* Conversation */}
         <div aria-live="polite" aria-busy={loading} className="flex-1 overflow-y-auto space-y-3 pr-1">
+          {/* Starter prompts when empty */}
+          {turns.length === 0 && !loading && (
+            <div className="space-y-2">
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-text-muted">
+                Suggested questions
+              </p>
+              <div className="space-y-1.5">
+                {starters.map(prompt => (
+                  <button
+                    key={prompt}
+                    type="button"
+                    onClick={() => void runQuery(prompt)}
+                    className="w-full text-left px-3 py-2.5 rounded-xl bg-surface border border-border text-xs text-text hover:border-terracotta/50 hover:bg-surface-hover transition-all"
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           {turns.map((turn, idx) => (
             <Card key={idx} className="p-4 space-y-3">
               <div className="flex items-start justify-between gap-2">

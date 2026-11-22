@@ -14,8 +14,9 @@
 --      PCT filing has its own schedule. Add a jurisdiction column when one
 --      appears in the IP register.
 --    * Fellowship end: told 180 days ahead while the thesis is not yet
---      submitted: the supervisor, the co-supervisor and the head of the
---      student's division.
+--      submitted (not submitted, viva, defended, awarded or discontinued):
+--      the supervisor, the co-supervisor and the head of the student's
+--      division.
 --    The due date is in each dedupe key, so a renewal paid (next year) or a
 --    fellowship extended (new date) earns a fresh notice.
 -- 3. staff_handover(staff) and leaving_staff(months) — what a person holds
@@ -77,7 +78,7 @@ BEGIN
             UNION
             SELECT h.user_id FROM heads h WHERE h.division_code = s."DivisionCode") w
      WHERE s.fellowship_end BETWEEN public.ist_today() AND public.ist_today() + 180
-       AND coalesce(s."CurrentStatus", '') !~* '(thesis submitted|viva|awarded)'
+       AND coalesce(s."CurrentStatus", '') !~* '(thesis submitted|viva|defended|awarded|discontinued)'
     ON CONFLICT DO NOTHING;
     GET DIAGNOSTICS v_m = ROW_COUNT;
     RETURN v_n + v_m;

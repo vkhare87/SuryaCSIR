@@ -1,6 +1,6 @@
 // @vitest-environment node
 // Patent renewal and fellowship-end alerts, and the leaver list (20261122000007).
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest';
 import type { PGlite } from '@electric-sql/pglite';
 import { as, migratedDb } from './pgliteHarness';
 
@@ -38,6 +38,7 @@ beforeAll(async () => {
     INSERT INTO public.phd_students ("EnrollmentNo", "StudentName", "DivisionCode", supervisor_staff_id, cosupervisor_staff_id, "CurrentStatus", fellowship_end) VALUES
       ('E-SOON', 'Asha',  'D1', 'R-SUP', 'R-CO', 'Ongoing',          public.ist_today() + 90),
       ('E-DONE', 'Bela',  'D1', 'R-SUP', NULL,   'Thesis Submitted', public.ist_today() + 90),
+      ('E-DEF',  'Devi',  'D1', 'R-SUP', NULL,   'Defended',         public.ist_today() + 90),
       ('E-FAR',  'Chand', 'D1', 'R-SUP', NULL,   'Ongoing',          public.ist_today() + 400);
     INSERT INTO public.equipment ("UInsID", "Name", "Division", owner_user_id) VALUES ('R-EQ', 'SEM', 'D1', '${U.sup}');
     INSERT INTO public.projects ("ProjectID", "ProjectNo", "ProjectName", "DivisionCode", pi_staff_id) VALUES
@@ -53,15 +54,23 @@ beforeAll(async () => {
 afterAll(async () => { await db?.close(); });
 
 describe('renewal_watch_sweep', () => {
-  it('tells inventors and the division head about a granted patent whose renewal falls within 60 days', async () => {
+  // Each test starts from one fresh sweep, so any test can run on its own.
+  beforeEach(async () => {
+    await db.exec(`
+      DELETE FROM public.notifications WHERE kind IN ('patent-renewal', 'fellowship-end');
+      UPDATE public.phd_students SET fellowship_end = public.ist_today() + 90 WHERE "EnrollmentNo" = 'E-SOON';
+    `);
     await db.query(`SELECT public.renewal_watch_sweep()`);
+  });
+
+  it('tells inventors and the division head about a granted patent whose renewal falls within 60 days', async () => {
     expect(await told('patent-renewal')).toEqual([
       { user_id: U.hod, title: 'Patent renewal due: Foam panel' },
       { user_id: U.inventor, title: 'Patent renewal due: Foam panel' },
     ]);
   });
 
-  it('tells supervisors and the head about a fellowship ending within 180 days before submission', async () => {
+  it('tells supervisors and the head about a fellowship ending within 180 days before submission, not after submission or defence', async () => {
     expect(await told('fellowship-end')).toEqual([
       { user_id: U.hod, title: 'Fellowship ends soon: Asha' },
       { user_id: U.sup, title: 'Fellowship ends soon: Asha' },
@@ -88,6 +97,7 @@ describe('leaver list', () => {
       expect.stringMatching(/^ACTION_ITEM:/),
       'INSTRUMENT:R-EQ',
       'PROJECT:R-P1',
+      'STUDENT:E-DEF',
       'STUDENT:E-DONE',
       'STUDENT:E-FAR',
       'STUDENT:E-SOON',
@@ -97,7 +107,7 @@ describe('leaver list', () => {
   it('lists people leaving within the window with their item count', async () => {
     const rows = (await db.query<{ staff_id: string; reason: string; items: number }>(
       `SELECT staff_id, reason, items FROM public.leaving_staff(12)`)).rows;
-    expect(rows).toEqual([{ staff_id: 'R-SUP', reason: 'Retirement', items: 6 }]);
+    expect(rows).toEqual([{ staff_id: 'R-SUP', reason: 'Retirement', items: 7 }]);
   });
 
   it('runs for a signed-in head under their own row-level security', async () => {

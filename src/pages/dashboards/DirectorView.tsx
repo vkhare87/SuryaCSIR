@@ -97,7 +97,7 @@ export function DirectorView() {
       .then(([active, outlay, usedPct]) => { if (live) setMoney({ active, outlay, usedPct }); })
       .catch(err => { console.error('Director metrics failed', err); if (live) setMoney({ active: null, outlay: null, usedPct: null }); });
     return () => { live = false; };
-  }, []);
+  }, [projects]);
   const operationalEquipment = useMemo(
     () => equipment.filter((e) => !/down|fault|non/i.test(e.WorkingStatus)).length,
     [equipment],
