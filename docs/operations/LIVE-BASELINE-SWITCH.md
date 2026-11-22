@@ -71,9 +71,15 @@ SELECT jobname, schedule, active FROM cron.job ORDER BY 1;
 
 If the list has a job outside that window, pick a window that misses it.
 
-If you may need the last-resort restore under **Undo**, practise it first on a
-Supabase branch or a new project that is not live. Run steps 0–5 there, then the restore. Check
-the schema, data, migration history, storage file rules and scheduled jobs.
+Right before the backup, check that no job is still running. It only reads, and
+it must return no rows:
+
+```sql
+SELECT j.jobname, d.start_time FROM cron.job_run_details d JOIN cron.job j USING (jobid) WHERE d.status = 'running';
+```
+
+If the switch runs past 00:30 UTC, the jobs write as usual. That is fine for
+every path under **Undo**, because none of them reloads the backup into live.
 
 Take a backup first. The free plan has no point-in-time restore. The third file saves the
 migration history, which the first two do not include.
@@ -89,28 +95,6 @@ supabase db dump --linked --data-only --schema public -f backup-2026-11-22-data.
 ```powershell
 supabase db dump --linked --data-only --schema supabase_migrations -f backup-2026-11-22-history.sql
 ```
-
-Save the storage file rules too. Most of them call functions in `public`, so
-the last-resort restore below would lose them, and the dumps above leave out the
-`storage` schema. This only reads (connection string: Dashboard → Connect):
-
-```powershell
-psql -X -At "<connection string>" -o backup-2026-11-22-storage-policies.sql -c "SELECT string_agg(format('DROP POLICY IF EXISTS %I ON storage.objects; CREATE POLICY %I ON storage.objects AS %s FOR %s TO %s%s%s;', policyname, policyname, permissive, cmd, array_to_string(roles, ', '), CASE WHEN qual IS NOT NULL THEN ' USING (' || qual || ')' ELSE '' END, CASE WHEN with_check IS NOT NULL THEN ' WITH CHECK (' || with_check || ')' ELSE '' END), E'
-' ORDER BY policyname) FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects'"
-```
-
-Check the export worked. Each command above must end without an error. The
-file must hold one `DROP POLICY` line per storage rule:
-
-```powershell
-(Select-String -Path backup-2026-11-22-storage-policies.sql -Pattern '^DROP POLICY IF EXISTS').Count
-```
-
-```sql
-SELECT count(*) FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects';
-```
-
-The two numbers must match (18 on 2026-11-22). If they do not, stop and run the export again.
 
 Open the history file and check it lists the 102 old versions. If it is empty,
 run `SELECT version FROM supabase_migrations.schema_migrations ORDER BY 1;` in
@@ -211,42 +195,17 @@ git status supabase/migrations
 The files before it are applied, and `liveSwitch.db.test.ts` shows they leave
 the right schema. Fix the cause in a new commit, then run `supabase db push --linked` again.
 
-**After step 5, back to the old state (last resort).** This needs `psql` and the
-database connection string (Dashboard → Connect). Try it on a new project or a
-Supabase branch first; it has not been run on live.
+**After step 5, back to the old state (last resort).** Do not reload the
+backup into live. Clearing `public` there also removes objects that the backups do not hold, such as the storage
+file rules and the sign-up trigger on `auth.users`. Instead:
 
-1. Keep users out.
-2. Empty the app schema and load the old schema and data:
+1. Make a new Supabase project.
+2. Load the backups into it: the schema, then the data, then the history.
+3. Check it there, and ask Claude to compare it with the backup (read only).
+4. Point the app at it: change `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
 
-   Each command stops at the first error and runs as one transaction. If one
-   fails, stop there: do not go on to the history steps.
-
-   ```powershell
-   psql -X -v ON_ERROR_STOP=1 "<connection string>" -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public; GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;"
-   ```
-
-   ```powershell
-   psql -X -v ON_ERROR_STOP=1 --single-transaction "<connection string>" -f backup-2026-11-22-schema.sql
-   ```
-
-   ```powershell
-   psql -X -v ON_ERROR_STOP=1 --single-transaction "<connection string>" -f backup-2026-11-22-data.sql
-   ```
-
-   `DROP SCHEMA public CASCADE` also removed the storage file rules that call
-   `public` functions. Put them back:
-
-   ```powershell
-   psql -X -v ON_ERROR_STOP=1 --single-transaction "<connection string>" -f backup-2026-11-22-storage-policies.sql
-   ```
-
-3. Remove the new scheduled job: `SELECT cron.unschedule('amc-expiry-sweep');`
-4. Put the history back. Mark every new version `reverted`: `20261121000001`–`15`,
-   `20261122000001`–`05`, and any file pushed later. Then mark the old 102 versions
-   `applied`, with the copy step above. You can also load `backup-2026-11-22-history.sql` after
-   `TRUNCATE supabase_migrations.schema_migrations;`.
-5. `supabase migration list --linked` must show only the old 102 versions on the remote.
-6. Ask Claude to compare live with the backup, storage file rules included. Read only.
+On a paid plan, Dashboard → Database → Backups can restore the whole project
+in place instead.
 
 ## Not fixed by the switch (follow-ups)
 
