@@ -8,6 +8,79 @@
 -- Rerun    : Idempotent (CREATE OR REPLACE / IF NOT EXISTS / DROP POLICY IF EXISTS)
 -- ============================================================
 
+-- ── 0. Live switch: drop PR #32's home objects (2026-11-22) ──────────────
+-- Live ran PR #32's home migrations (now in migrations_archive/2026-11-21,
+-- 20261114120001–07). They made work_priorities, notices, notice_reads,
+-- general_meetings, general_meeting_invitees, delegation_orders and
+-- delegation_lines in a shape that Stages 3 and 4 replace. Those stages use
+-- CREATE TABLE IF NOT EXISTS, so on live they would keep the old shape.
+-- The tables were empty on live on 2026-11-22; the guard stops here if any
+-- has rows since. On a fresh database none of this exists: no change.
+-- Tested by scripts/db/liveSwitch.db.test.ts.
+DO $$
+DECLARE
+    t text;
+    n bigint;
+BEGIN
+    FOREACH t IN ARRAY ARRAY['work_priorities', 'notices', 'notice_reads', 'general_meetings',
+                             'general_meeting_invitees', 'delegation_orders', 'delegation_lines'] LOOP
+        IF to_regclass('public.' || t) IS NOT NULL THEN
+            -- Held to commit, so no row can arrive between the count and the drop.
+            EXECUTE format('LOCK TABLE public.%I IN ACCESS EXCLUSIVE MODE', t);
+            EXECUTE format('SELECT count(*) FROM public.%I', t) INTO n;
+            IF n > 0 THEN
+                RAISE EXCEPTION 'reconcile: public.% has % rows; move them before the switch', t, n;
+            END IF;
+        END IF;
+    END LOOP;
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public'
+                 AND table_name = 'project_staff_persons' AND column_name = 'user_id') THEN
+        LOCK TABLE public.project_staff_persons IN ACCESS EXCLUSIVE MODE;
+        EXECUTE 'SELECT count(*) FROM public.project_staff_persons WHERE user_id IS NOT NULL' INTO n;
+        IF n > 0 THEN
+            RAISE EXCEPTION 'reconcile: % project staff records are linked to a login; keep the link before the switch', n;
+        END IF;
+    END IF;
+END;
+$$;
+
+DROP TABLE IF EXISTS public.notice_reads, public.notices,
+                     public.general_meeting_invitees, public.general_meetings,
+                     public.delegation_lines, public.delegation_orders,
+                     public.work_priorities;
+DROP FUNCTION IF EXISTS public.priority_answer(uuid, boolean, date);
+DROP FUNCTION IF EXISTS public.priority_done(uuid);
+DROP FUNCTION IF EXISTS public.priority_may_pin(uuid);
+DROP FUNCTION IF EXISTS public.priority_notify(uuid, uuid, text, text, text);
+DROP FUNCTION IF EXISTS public.priority_pin(uuid, text, text, date, text, text, text);
+DROP FUNCTION IF EXISTS public.priority_push_back(uuid, text, date);
+DROP FUNCTION IF EXISTS public.priority_seen(uuid);
+DROP FUNCTION IF EXISTS public.priority_withdraw(uuid);
+DROP FUNCTION IF EXISTS public.notice_caller_divisions();
+DROP FUNCTION IF EXISTS public.notice_caller_issues_all();
+DROP FUNCTION IF EXISTS public.notice_issue(text, text, text, text[], boolean, date, date, uuid);
+DROP FUNCTION IF EXISTS public.notice_mark_read(uuid, boolean);
+DROP FUNCTION IF EXISTS public.notice_read_counts(uuid);
+DROP FUNCTION IF EXISTS public.general_meeting_busy(uuid[], timestamptz, timestamptz);
+DROP FUNCTION IF EXISTS public.general_meeting_caller_invited(uuid);
+DROP FUNCTION IF EXISTS public.general_meeting_cancel(uuid);
+DROP FUNCTION IF EXISTS public.general_meeting_create(text, timestamptz, timestamptz, text, text, text, uuid[]);
+DROP FUNCTION IF EXISTS public.general_meeting_reply(uuid, text);
+DROP FUNCTION IF EXISTS public.delegation_issue(text, jsonb, date);
+DROP FUNCTION IF EXISTS public.delegation_is_floor(text);
+DROP FUNCTION IF EXISTS public.decision_authority(text, text, numeric, uuid);
+
+
+-- PR #32's project-staff self read: the policy goes back to the baseline
+-- text before its helper and the login link are dropped.
+DROP POLICY IF EXISTS "project_engagements_select" ON public.project_engagements;
+CREATE POLICY "project_engagements_select" ON public.project_engagements FOR SELECT TO authenticated
+    USING (public.project_staff_caller_keeps() OR public.caller_sees_all_personnel()
+           OR public.project_caller_is_party(project_id));
+DROP FUNCTION IF EXISTS public.project_staff_link_user(uuid, uuid);
+DROP FUNCTION IF EXISTS public.project_staff_caller_person();
+ALTER TABLE public.project_staff_persons DROP COLUMN IF EXISTS user_id;
+
 -- ── 1. Per-division freshness attribution (Item 0.4) ──────────────────────
 
 ALTER TABLE public.import_events

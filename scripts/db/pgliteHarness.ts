@@ -63,14 +63,13 @@ CREATE SCHEMA cron;
 CREATE FUNCTION cron.schedule(text, text, text) RETURNS bigint LANGUAGE sql AS $$ SELECT 1::bigint $$;
 `;
 
-/** Fresh database with every migration applied. ~seconds; share per test file. */
-export async function migratedDb(): Promise<PGlite> {
+/** Database with the given migration files applied in this order (paths from the repo root). */
+export async function dbWith(files: string[]): Promise<PGlite> {
   const db = await PGlite.create({ extensions: { pgcrypto, uuid_ossp } });
   await db.exec(SUPABASE_SHIM);
   await db.exec(`SET search_path = public, extensions`);
-  const dir = join(ROOT, 'supabase/migrations');
-  for (const file of readdirSync(dir).filter(f => f.endsWith('.sql')).sort()) {
-    const sql = readFileSync(join(dir, file), 'utf-8')
+  for (const file of files) {
+    const sql = readFileSync(join(ROOT, file), 'utf-8')
       .replace(/CREATE EXTENSION IF NOT EXISTS pg_cron;/gi, '-- pg_cron: shimmed');
     try {
       await db.exec(sql);
@@ -79,6 +78,17 @@ export async function migratedDb(): Promise<PGlite> {
     }
   }
   return db;
+}
+
+/** The files in supabase/migrations, in the order they apply. */
+export function migrationFiles(): string[] {
+  return readdirSync(join(ROOT, 'supabase/migrations')).filter(f => f.endsWith('.sql')).sort()
+    .map(f => `supabase/migrations/${f}`);
+}
+
+/** Fresh database with every migration applied. ~seconds; share per test file. */
+export async function migratedDb(): Promise<PGlite> {
+  return dbWith(migrationFiles());
 }
 
 /** Run `fn` as a signed-in user, the way PostgREST does (role + JWT claims). */
