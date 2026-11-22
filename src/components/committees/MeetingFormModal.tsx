@@ -56,6 +56,7 @@ export function MeetingFormModal({ isOpen, onClose, committeeId, meeting }: Meet
     setAgendaProposer('');
     setErrors({});
     setSubmitError(null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only on open or id change; a data refresh must not wipe edits
   }, [isOpen, meeting?.id]);
 
   // --- Validation ---

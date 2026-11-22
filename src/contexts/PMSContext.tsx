@@ -235,6 +235,7 @@ export function PMSProvider({ children }: { children: ReactNode }) {
     } finally {
       if (isCurrent()) setIsLoading(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- rolesKey re-triggers load: RLS scopes PMS rows by role
   }, [provisioned, userId, rolesKey]);
 
   useEffect(() => { void loadData(); }, [loadData]);

@@ -79,6 +79,7 @@ export function CommitteeFormModal({ isOpen, onClose, committee }: CommitteeForm
     setErrors({});
     setSubmitError(null);
     setShowDeleteConfirm(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only on open or id change; a data refresh must not wipe edits
   }, [isOpen, committee?.id]);
 
   // --- Validation ---

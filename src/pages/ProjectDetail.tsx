@@ -70,6 +70,7 @@ export default function ProjectDetail() {
       if (reqId !== fileReqRef.current || id !== activeIdRef.current) return;
       setFileError(friendlyError(e));
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- refetch when the signed-in user changes (RLS scopes the file)
   }, [id, userId]);
   useEffect(() => {
     activeIdRef.current = id;
