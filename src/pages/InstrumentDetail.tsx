@@ -7,11 +7,12 @@ import { InstrumentForm } from '../components/InstrumentForm';
 import { RequestUpdateButton } from '../components/RequestUpdateButton';
 import { RelatedRail, type RailSection } from '../components/RelatedRail';
 import { UsageLogPanel } from '../components/UsageLogPanel';
+import { Dossier } from '../components/layout/Dossier';
 import { amcStatus, AMC_CARD_COLORS, AMC_TEXT_COLORS, findStaffByName } from '../utils/dateUtils';
 import { equipmentStatusClass } from '../utils/equipmentStatus';
 import { useBack } from '../utils/useBack';
 import {
-  ArrowLeft, MapPin, Wrench, CalendarClock, AlertTriangle,
+  MapPin, Wrench, CalendarClock, AlertTriangle,
   CheckCircle2, Clock, Package, DollarSign, Users, FlaskConical,
   Edit,
 } from 'lucide-react';
@@ -84,60 +85,19 @@ export default function InstrumentDetail() {
   const manager = findStaffByName(staff, instrument.IndenterName);
   const operator = findStaffByName(staff, instrument.OperatorName);
 
-  return (
-    <div className="space-y-6">
-      {/* Back nav */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={goBack}
-            aria-label="Back"
-            className="p-2 hover:bg-surface-hover rounded-full transition-colors text-text-muted hover:text-text"
-          >
-            <ArrowLeft size={20} />
-          </button>
-          <div>
-            <h1 className="text-2xl font-[500] text-text font-serif">Instrument Profile</h1>
-            <p className="text-text-muted text-sm">Scientific Instrument Record</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <RelatedRail sections={relatedSections} />
-          <RequestUpdateButton
-            domain="equipment"
-            recordRef={instrument.UInsID}
-            divisionCode={instrument.Division || null}
-            record={instrument}
-            defaultTitle={`Update instrument ${instrument.Name}`}
-          />
-          {isAdmin && (
-            <button
-              onClick={() => setEditOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 text-sm border border-border rounded-lg hover:bg-surface-hover transition-colors text-text"
-            >
-              <Edit size={14} />
-              Edit
-            </button>
-          )}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-        {/* LEFT COLUMN */}
-        <div className="lg:col-span-1 space-y-4">
-
+  const aside = (
+        <>
           {/* Identity card */}
-          <Card className="border-t-4 border-[#c96442] relative overflow-hidden pt-6">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-[#d97757]/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
+          <Card className="border-t-4 border-terracotta relative overflow-hidden pt-6">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-coral/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
             <div className="flex flex-col items-center text-center space-y-3 z-10 relative">
               <div className="w-16 h-16 rounded-full bg-surface-hover border-4 border-background flex items-center justify-center ring-2 ring-border">
-                <FlaskConical size={28} className="text-[#c96442]" />
+                <FlaskConical size={28} className="text-terracotta" />
               </div>
               <div>
                 <h2 className="text-lg font-[500] text-text font-serif leading-snug">{instrument.Name}</h2>
                 {instrument.instrument_code && (
-                  <p className="text-xs font-mono text-[#c96442] mt-1">{instrument.instrument_code}</p>
+                  <p className="text-xs font-mono text-terracotta mt-1">{instrument.instrument_code}</p>
                 )}
                 <div className="mt-2 flex justify-center gap-2 flex-wrap">
                   <Badge variant={statusVariant(instrument.WorkingStatus)}>
@@ -154,7 +114,7 @@ export default function InstrumentDetail() {
 
           {/* Identification card */}
           <Card>
-            <div className="flex items-center gap-2 text-[10px] font-semibold text-[#c96442] uppercase tracking-[0.2em] mb-3">
+            <div className="flex items-center gap-2 text-[10px] font-semibold text-terracotta uppercase tracking-[0.2em] mb-3">
               <Package size={13} />
               Identification
             </div>
@@ -181,15 +141,14 @@ export default function InstrumentDetail() {
               <div className={`text-xs mt-1 ${AMC_TEXT_COLORS[amc]}`}>End date: {instrument.amc_end_date}</div>
             )}
           </div>
+        </>
+  );
 
-        </div>
-
-        {/* RIGHT COLUMN */}
-        <div className="lg:col-span-2 space-y-5">
-
+  const details = (
+        <>
           {/* Location card */}
           <Card>
-            <div className="flex items-center gap-2 text-[10px] font-semibold text-[#c96442] uppercase tracking-[0.2em] mb-3">
+            <div className="flex items-center gap-2 text-[10px] font-semibold text-terracotta uppercase tracking-[0.2em] mb-3">
               <MapPin size={13} />
               Location
             </div>
@@ -201,27 +160,10 @@ export default function InstrumentDetail() {
             <InfoRow label="End Use"      value={instrument.EndUse} />
           </Card>
 
-          {/* Procurement card */}
-          <Card>
-            <div className="flex items-center gap-2 text-[10px] font-semibold text-[#c96442] uppercase tracking-[0.2em] mb-3">
-              <DollarSign size={13} />
-              Procurement
-            </div>
-            <InfoRow label="Procurement Date" value={instrument.procurement_date} />
-            <InfoRow
-              label="Purchase Cost"
-              value={instrument.purchase_cost != null
-                ? `₹ ${instrument.purchase_cost.toLocaleString('en-IN')}`
-                : undefined}
-            />
-            <InfoRow label="Indenter / Manager" value={instrument.IndenterName} />
-            <InfoRow label="Justification"      value={instrument.Justification} />
-          </Card>
-
           {/* People card */}
           <Card className="p-0 overflow-hidden">
             <div className="p-4 border-b border-border bg-surface flex items-center gap-2">
-              <Users size={16} className="text-[#c96442]" />
+              <Users size={16} className="text-terracotta" />
               <h3 className="text-sm font-[500] text-text font-serif">Associated Personnel</h3>
             </div>
             <div className="divide-y divide-border">
@@ -236,11 +178,11 @@ export default function InstrumentDetail() {
                       to={`/staff/${member.ID}`}
                       className="flex items-center gap-2 flex-1 group"
                     >
-                      <div className="w-8 h-8 rounded-full bg-[#c96442]/10 flex items-center justify-center font-bold text-sm text-[#c96442] shrink-0">
+                      <div className="w-8 h-8 rounded-full bg-terracotta/10 flex items-center justify-center font-bold text-sm text-terracotta shrink-0">
                         {member.Name.charAt(0)}
                       </div>
                       <div>
-                        <div className="text-sm font-medium text-text group-hover:text-[#c96442] transition-colors">{member.Name}</div>
+                        <div className="text-sm font-medium text-text group-hover:text-terracotta transition-colors">{member.Name}</div>
                         <div className="text-xs text-text-muted">{member.Designation}</div>
                       </div>
                     </Link>
@@ -257,20 +199,70 @@ export default function InstrumentDetail() {
           {/* Remark */}
           {instrument.Remark && (
             <Card>
-              <div className="flex items-center gap-2 text-[10px] font-semibold text-[#c96442] uppercase tracking-[0.2em] mb-2">
+              <div className="flex items-center gap-2 text-[10px] font-semibold text-terracotta uppercase tracking-[0.2em] mb-2">
                 <Wrench size={13} />
                 Remark
               </div>
               <p className="text-sm text-text-muted leading-relaxed">{instrument.Remark}</p>
             </Card>
           )}
+        </>
+  );
 
-        </div>
-      </div>
+  const procurement = (
+          <Card>
+            <div className="flex items-center gap-2 text-[10px] font-semibold text-terracotta uppercase tracking-[0.2em] mb-3">
+              <DollarSign size={13} />
+              Procurement
+            </div>
+            <InfoRow label="Procurement Date" value={instrument.procurement_date} />
+            <InfoRow
+              label="Purchase Cost"
+              value={instrument.purchase_cost != null
+                ? `₹ ${instrument.purchase_cost.toLocaleString('en-IN')}`
+                : undefined}
+            />
+            <InfoRow label="Indenter / Manager" value={instrument.IndenterName} />
+            <InfoRow label="Justification"      value={instrument.Justification} />
+          </Card>
+  );
 
+  return (
+    <>
+      <Dossier
+        kicker="Instrument"
+        title={instrument.Name}
+        subtitle={instrument.instrument_code || instrument.UInsID}
+        onBack={goBack}
+        askAbout={{ type: 'instrument', id: instrument.UInsID }}
+        actions={<>
+          <RelatedRail sections={relatedSections} />
+          <RequestUpdateButton
+            domain="equipment"
+            recordRef={instrument.UInsID}
+            divisionCode={instrument.Division || null}
+            record={instrument}
+            defaultTitle={`Update instrument ${instrument.Name}`}
+          />
+          {isAdmin && (
+            <button
+              onClick={() => setEditOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 text-sm border border-border rounded-lg hover:bg-surface-hover transition-colors text-text"
+            >
+              <Edit size={14} />
+              Edit
+            </button>
+          )}
+        </>}
+        aside={aside}
+        tabs={[
+          { key: 'details', label: 'Details', content: details },
+          { key: 'procurement', label: 'Procurement', content: procurement },
+        ]}
+      />
       {editOpen && (
         <InstrumentForm instrument={instrument} onClose={() => setEditOpen(false)} />
       )}
-    </div>
+    </>
   );
 }

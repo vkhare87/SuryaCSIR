@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { render, renderHook, screen, waitFor, act } from '@testing-library/react';
 import { DataProvider, useData } from './DataContext';
 
 const { from, auth, push, tableRows } = vi.hoisted(() => {
-  const tableRows: Record<string, () => Promise<{ data: unknown[]; error: null }>> = {};
+  const tableRows: Record<string, () => Promise<{ data: unknown[]; error: { message: string; code?: string } | null }>> = {};
   const from = vi.fn((table: string) => {
     const builder: Record<string, unknown> = {};
     for (const m of ['select', 'order', 'eq', 'neq', 'not', 'limit', 'upsert']) builder[m] = () => builder;
@@ -199,5 +199,118 @@ describe('DataProvider boot load and scoping (BUG-12)', () => {
       await userAPromise;
     });
     expect(screen.getByTestId('milestones').textContent).toBe('M-user-b');
+  });
+});
+
+describe('DataProvider two-wave loading', () => {
+  const pushToast = push;
+  const held = new Map<string, { resolve: (v: { data: unknown[]; error: null }) => void; fallback: () => Promise<{ data: unknown[]; error: { message: string; code?: string } | null }> }>();
+
+  const requested = (table: string) => from.mock.calls.some(([t]) => t === table);
+
+  const hold = (table: string) => {
+    const prev = tableRows[table];
+    let first = true;
+    tableRows[table] = () => {
+      if (first) {
+        first = false;
+        return new Promise(resolve => {
+          held.set(table, {
+            resolve,
+            fallback: prev ?? (async () => ({ data: [], error: null })),
+          });
+        });
+      }
+      return Promise.resolve({ data: [], error: null });
+    };
+  };
+
+  const release = (table: string) => {
+    const entry = held.get(table);
+    if (!entry) return;
+    held.delete(table);
+    void entry.fallback().then(res => entry.resolve({ data: res.data, error: null }));
+  };
+
+  const failTable = (table: string, message: string) => {
+    tableRows[table] = async () => ({ data: [], error: { message } });
+  };
+
+  const switchAccount = (id: string, rerender: () => void) => {
+    for (const k of Object.keys(tableRows)) delete tableRows[k];
+    auth.current = { ...auth.current, user: { id } };
+    rerender();
+  };
+
+  beforeEach(() => {
+    from.mockClear();
+    push.mockClear();
+    held.clear();
+    for (const k of Object.keys(tableRows)) delete tableRows[k];
+    auth.current = {
+      user: { id: 'u1' },
+      isAuthenticated: true,
+      role: 'Director',
+      roles: ['Director'],
+      divisionCode: null,
+    };
+    tableRows.divisions = async () => ({
+      data: [
+        { divCode: 'MSE', divName: 'MSE' },
+        { divCode: 'CMD', divName: 'CMD' },
+      ],
+      error: null,
+    });
+    tableRows.staff = async () => ({
+      data: [{ ID: 'S1', Name: 'A', Division: 'MSE' }],
+      error: null,
+    });
+    tableRows.projects = async () => ({
+      data: [{ ProjectID: 'P1', ProjectNo: 'GAP-1', DivisionCode: 'MSE' }],
+      error: null,
+    });
+    tableRows.committees = async () => ({
+      data: [{ id: 'C1', name: 'RC' }],
+      error: null,
+    });
+  });
+
+  it('shows divisions, staff and projects before the second wave settles', async () => {
+    hold('committees');
+    const { result } = renderHook(() => useData(), { wrapper: DataProvider });
+    await waitFor(() => expect(result.current.divisions.length).toBe(2));
+    expect(result.current.projects.length).toBe(1);
+    expect(result.current.isLoading).toBe(true);
+    expect(requested('committees')).toBe(true);
+    release('committees');
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+  });
+
+  it('does not request second-wave tables until the first wave has answered', async () => {
+    hold('staff');
+    const { result } = renderHook(() => useData(), { wrapper: DataProvider });
+    await waitFor(() => expect(requested('divisions')).toBe(true));
+    expect(requested('committees')).toBe(false);
+    release('staff');
+    await waitFor(() => expect(requested('committees')).toBe(true));
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+  });
+
+  it('still runs the second wave and ends loading when a first-wave table errors', async () => {
+    failTable('staff', 'boom');
+    const { result } = renderHook(() => useData(), { wrapper: DataProvider });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(requested('committees')).toBe(true);
+    expect(pushToast).toHaveBeenCalledWith(expect.stringContaining('1 table(s) failed'), 'warning');
+  });
+
+  it('drops second-wave rows when the account changes between waves', async () => {
+    hold('committees');
+    const { result, rerender } = renderHook(() => useData(), { wrapper: DataProvider });
+    await waitFor(() => expect(result.current.divisions.length).toBe(2));
+    switchAccount('other-user', rerender);
+    release('committees');
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.committees).toEqual([]);
   });
 });

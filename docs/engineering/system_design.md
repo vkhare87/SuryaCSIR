@@ -109,9 +109,11 @@ sequenceDiagram
   SPA->>API: POST /query/stream<br/>Bearer user JWT + context_entity
   API->>API: parse_bearer -> verify_token -> scoped_client(JWT)
   API->>PG: select route_labels (recent admin labels)
-  API->>LLM: route(question, CATALOG [18 fns], few-shots) [call 1]
-  LLM-->>API: {route, function, params}
+  API->>LLM: route(question, CATALOG, few-shots)      [call 1]
+  LLM-->>API: {route, function, params, topic, subject}
   API->>API: function ∈ CATALOG? else fall back to document
+  API->>PG: caller_roles(), caller_staff_id() (scope_of)
+  API->>API: verdict(roles, topic, subject) — refuse → fixed line, no reads
 
   alt structured / hybrid
     API->>PG: whitelisted analytics query (incl. metric registry, RLS-scoped)
@@ -132,6 +134,14 @@ sequenceDiagram
   API->>PG: insert query_log (route, latency, citations)
   SPA-->>U: answer + citations → signed Storage URL
 ```
+
+**Scope guard.** `rag/scope.py` maps held roles × topic × subject to `full`, `totals` or
+`refuse`. `refuse` returns the fixed refusal and logs a strike (`out_of_scope`). `totals`
+serves only the four counts over read-all tables (`analytics.AGGREGATE`); anything else is
+refused without a strike (`totals_only`). An `unknown` label never refuses. RLS stays the
+lock: the guard decides refusal copy and strikes, not data access. The daily
+`ask_scope_sweep()` tells HRAdmin about more than 5 strikes by one person in a day.
+Design: `docs/superpowers/specs/2026-11-15-ask-surya-scope-guard-design.md`.
 
 Refusal is the default, not the exception. Any of the following yields the literal string
 _"Not found in institute documents."_ with zero citations: no collections picked, no

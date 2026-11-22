@@ -1,8 +1,8 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import AskSurya from './AskSurya';
-import { scheduleBrief } from '../lib/ask/client';
+import { scheduleBrief, askSuryaStream, fetchAskHistory, setQuestionPinned } from '../lib/ask/client';
 
 const { ANSWER } = vi.hoisted(() => ({
   ANSWER: {
@@ -21,6 +21,9 @@ vi.mock('../lib/ask/client', () => ({
   sendFeedback: vi.fn(),
   scheduleBrief: vi.fn(async () => undefined),
   parseAskEntity: () => null,
+  fetchAskHistory: vi.fn(async () => ({ recent: [], frequent: [], saved: [] })),
+  setQuestionPinned: vi.fn(async () => undefined),
+  SAVED_LIMIT: 20,
 }));
 
 vi.mock('../contexts/AuthContext', () => ({
@@ -72,5 +75,68 @@ describe('AskSurya scheduled briefs', () => {
 
     expect(await screen.findByText(/weekly brief saved/i)).toBeTruthy();
     expect(scheduleBrief).toHaveBeenCalledWith('u-1', 'Which projects end this year?');
+  });
+});
+
+describe('AskSurya question history', () => {
+  const ONE = { recent: [{ id: 'r1', question: 'How many projects?', pinned: false }], frequent: [], saved: [] };
+  beforeEach(() => {
+    vi.mocked(fetchAskHistory).mockReset().mockResolvedValue(ONE);
+    vi.mocked(askSuryaStream).mockClear();
+    vi.mocked(setQuestionPinned).mockClear();
+  });
+
+  it('shows the recorded-requests notice', async () => {
+    render(<MemoryRouter><AskSurya /></MemoryRouter>);
+    expect(await screen.findByText('Out-of-scope requests are recorded.')).toBeTruthy();
+  });
+
+  it('clicking a recent question asks it again', async () => {
+    render(<MemoryRouter><AskSurya /></MemoryRouter>);
+    fireEvent.click(await screen.findByRole('button', { name: 'How many projects?' }));
+    await waitFor(() => expect(askSuryaStream).toHaveBeenCalledWith('How many projects?', [], expect.any(Function), null));
+  });
+
+  it('asking from history keeps a half-typed draft', async () => {
+    render(<MemoryRouter><AskSurya /></MemoryRouter>);
+    const box = screen.getByRole('textbox', { name: 'Ask SURYA a question' }) as HTMLInputElement;
+    fireEvent.change(box, { target: { value: 'my draft' } });
+    fireEvent.click(await screen.findByRole('button', { name: 'How many projects?' }));
+    await waitFor(() => expect(askSuryaStream).toHaveBeenCalled());
+    await screen.findByText(/licensed for 300,000/);
+    expect(box.value).toBe('my draft');
+  });
+
+  it('pin button saves the question and reloads history', async () => {
+    render(<MemoryRouter><AskSurya /></MemoryRouter>);
+    fireEvent.click(await screen.findByRole('button', { name: 'Save question: How many projects?' }));
+    await waitFor(() => expect(setQuestionPinned).toHaveBeenCalledWith('r1', true));
+    await waitFor(() => expect(fetchAskHistory).toHaveBeenCalledTimes(2));
+  });
+
+  it('saving is disabled at 20 saved questions', async () => {
+    const saved = Array.from({ length: 20 }, (_, i) => ({ id: `s${i}`, question: `saved ${i}`, pinned: true }));
+    vi.mocked(fetchAskHistory).mockResolvedValue({ ...ONE, saved });
+    render(<MemoryRouter><AskSurya /></MemoryRouter>);
+    const save = await screen.findByRole('button', { name: 'Save question: How many projects?' });
+    expect((save as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Remove saved question: saved 0' }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('a history load failure leaves the page usable', async () => {
+    vi.mocked(fetchAskHistory).mockRejectedValue(new Error('down'));
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    render(<MemoryRouter><AskSurya /></MemoryRouter>);
+    await waitFor(() => expect(errSpy).toHaveBeenCalled());
+    expect(screen.getByRole('button', { name: /^ask$/i })).toBeTruthy();
+    expect(screen.queryByRole('alert')).toBeNull();
+    errSpy.mockRestore();
+  });
+
+  it('an empty history shows no panel headings', async () => {
+    vi.mocked(fetchAskHistory).mockResolvedValue({ recent: [], frequent: [], saved: [] });
+    render(<MemoryRouter><AskSurya /></MemoryRouter>);
+    await waitFor(() => expect(fetchAskHistory).toHaveBeenCalled());
+    expect(screen.queryByText('Recent')).toBeNull();
   });
 });
