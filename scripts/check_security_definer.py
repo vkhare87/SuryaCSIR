@@ -120,6 +120,7 @@ EXEMPT: dict[str, str] = {
     "project_change_log": "trigger on project_change_requests; writes the timeline. EXECUTE revoked (20261112000001)",
     "project_completion_log": "trigger on project_completion_reports; writes the timeline. EXECUTE revoked (20261112000002)",
     "amc_expiry_sweep": "scheduled sweep (pg_cron, no caller): tells the instrument owner and the head of division about an AMC near its end. EXECUTE revoked from clients (20261122000001)",
+    "home_overdue_sweep": "scheduled sweep (pg_cron, no caller): tells the head of division about a progress report 7 days late. EXECUTE revoked from clients (20261122000004)",
     "ask_scope_sweep": "scheduled sweep (pg_cron, no caller): tells HRAdmin about more than 5 out-of-scope Ask SURYA refusals in a day. EXECUTE revoked from clients (20261122000002)",
     "project_caller_is_party": (
         "caller-identity resolver: is the caller PI, author or co-PI of this "
@@ -185,6 +186,11 @@ EXEMPT: dict[str, str] = {
     "coi_caller_chairs": "caller-identity resolver: is the caller chair or convener of this meeting's committee. Keyed on caller_staff_id(); answers only about the caller (20261112000013)",
     "profile_consistency_sweep": "weekly cron job; reads every profile to raise requests. EXECUTE revoked from client roles (20261112000012)",
     "contribution_target_can_see": "internal scope check called only by a trigger; EXECUTE revoked from client roles",
+    "caller_consents_to_file": (
+        "RLS predicate helper for publication_files_select; checks only whether "
+        "caller_staff_id() has a row in publication_author_consents for p_file_id "
+        "without recursing into publication_author_consents RLS."
+    ),
 }
 
 

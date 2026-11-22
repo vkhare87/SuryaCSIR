@@ -27,7 +27,7 @@ _TABLE_ORDER_KEY = {
     # Enterprise P6 / P7 tables (20261113000006, …07).
     "metrics": "key",
     "expertise_terms": "id",
-    "staff_expertise": "staff_id",
+    "staff_expertise": ("staff_id", "term_id"),
 }
 
 
@@ -42,7 +42,9 @@ def _safe_or_token(value: str) -> bool:
 def _rows(client, table, columns, build_query=None):
     if table not in _TABLE_ORDER_KEY:
         raise ValueError(f"Missing deterministic order key for table {table!r}")
-    order_col = _TABLE_ORDER_KEY[table]
+    order_cols = _TABLE_ORDER_KEY[table]
+    if isinstance(order_cols, str):
+        order_cols = (order_cols,)
     q = client.table(table).select(columns)
     can_filter = build_query is not None and hasattr(q, "eq")
     if can_filter:
@@ -57,9 +59,10 @@ def _rows(client, table, columns, build_query=None):
             page_q = client.table(table).select(columns)
             if can_filter:
                 page_q = build_query(page_q)
+        for col in order_cols:
+            page_q = page_q.order(col)
         batch = (
-            page_q.order(order_col)
-            .range(page * _PAGE_SIZE, (page + 1) * _PAGE_SIZE - 1)
+            page_q.range(page * _PAGE_SIZE, (page + 1) * _PAGE_SIZE - 1)
             .execute()
             .data
             or []
@@ -368,6 +371,8 @@ def _expertise_succession_risk(params, client) -> Answer:
         dob = _parse_date(r.get("DOB"))
         areas = areas_of(r)
         retire_on = _add_years(dob, _RETIREMENT_AGE) if dob else None
+        if retire_on and retire_on < today:
+            continue
         if retire_on and today <= retire_on <= horizon:
             retiring.append((r, retire_on, areas))
         else:
