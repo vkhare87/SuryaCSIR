@@ -80,7 +80,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          # A fixed version skips the unauthenticated "latest release" lookup,
+          # which hit GitHub's rate limit; v2 keeps the CLI's v2 defaults.
+          version: 2.122.0
 
       # Boots Postgres + GoTrue + Storage, applies supabase/migrations/* in
       # order, then supabase/seed/* (config.toml [db.seed]). The auth and
