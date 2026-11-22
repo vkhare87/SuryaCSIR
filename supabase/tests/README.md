@@ -13,8 +13,9 @@ was three lines of SQL. Policies need their own tests.
 
 ### Running
 
-Requires a scratch database with all migrations applied. Not run in CI yet
-(see `docs/history/ARCHITECTURE-REMEDIATION.md`, A7).
+Requires a scratch database with all migrations applied. Executed in CI's `db`
+job (`.github/workflows/ci.yml`) and in `npm test` via `scripts/db/pms.db.test.ts`
+against the consolidated 8-file baseline + seed.
 
 ```bash
 supabase db reset

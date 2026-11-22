@@ -1,5 +1,5 @@
 # Technology Stack
-_Last updated: 2026-08-08_
+_Last updated: 2026-11-21_
 
 Versions only. Architecture is in [architecture_addendum.md](architecture_addendum.md);
 setup is in [development_guide.md](development_guide.md).
@@ -29,7 +29,10 @@ setup is in [development_guide.md](development_guide.md).
 | Icons | lucide-react | ^0.577.0 |
 | Class composition | clsx + tailwind-merge | ^2.1.1 / ^3.5.0 |
 | PDF export | @react-pdf/renderer | ^4.5.1 |
-| Excel parsing | xlsx | ^0.18.5 |
+| Browser PDF parsing | pdfjs-dist | 5.4.296 |
+| Client-side OCR | tesseract.js + `@tesseract.js-data/eng` | 7.0.0 / 1.0.0 (`scripts/copy-ocr-assets.mjs` copies runtime assets) |
+| Typography | `@fontsource-variable/fraunces`, `@fontsource/inter`, `@fontsource/ibm-plex-mono`, `@fontsource/tiro-devanagari-sanskrit` | ^5.3.0 |
+| Excel parsing | xlsx (SheetJS tarball) | 0.20.3 (`cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz`) |
 | CSV parsing | papaparse | ^5.5.3 |
 | Schema validation | zod | ^4.3.6 |
 
@@ -51,10 +54,10 @@ Python 3.10+ without the WDAC concerns that affect `rag/`.
 
 | Tool | Config |
 |------|--------|
-| Vite | `vite.config.ts` — plugins: `@vitejs/plugin-react`, `@tailwindcss/vite`. **No `tailwind.config.js`** — Tailwind 4 config lives here plus CSS variables in `src/index.css` |
+| Vite | `vite.config.ts` — plugins: `@vitejs/plugin-react`, `@tailwindcss/vite`. `predev` and `prebuild` run `node scripts/copy-ocr-assets.mjs`. **No `tailwind.config.js`** — Tailwind 4 config lives here plus CSS variables in `src/index.css` |
 | TypeScript | `tsconfig.json` (references), `tsconfig.app.json`, `tsconfig.node.json` |
 | ESLint 9 | `eslint.config.js` flat config: `typescript-eslint`, `react-hooks`, `react-refresh`, plus design-token rules with a shrinking debt list (`eslint.design-debt.json`) |
-| Tests | Vitest ^4.1.5 + `@testing-library/react` ^16.3.2 + jsdom ^29.1.1 — 66 files, 652 tests |
+| Tests | Vitest ^4.1.5 + `@testing-library/react` ^16.3.2 + jsdom ^29.1.1 — 148 files, 1,297 tests (includes 29 PGlite DB/RLS test files in `scripts/db/` via `@electric-sql/pglite` 0.5.8) |
 | Scripts | tsx ^4.22.3 (`npm run sync:irins`) |
 | CI | `.github/workflows/ci.yml` — four jobs: `spa`, `rag`, `ingest`, `db` (real Supabase stack + RLS suites) |
 | No Prettier | Formatting is not tool-enforced |
@@ -89,6 +92,7 @@ Python 3.10+ without the WDAC concerns that affect `rag/`.
 VITE_SUPABASE_URL=       # Supabase project URL
 VITE_SUPABASE_ANON_KEY=  # anon/public key
 VITE_RAG_URL=            # Ask SURYA base URL; "/rag" behind the nginx proxy
+VITE_DEV_LOGIN=          # Optional ("1" in .env.local only): enables dev offline admin@dev.local; never set in production
 ```
 
 Fallback: the Setup Wizard stores the first two in `localStorage`

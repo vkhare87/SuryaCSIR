@@ -12,6 +12,8 @@ import { MinutesEditor } from '../../components/committees/MinutesEditor';
 import { DocumentUploader } from '../../components/committees/DocumentUploader';
 import { ActionItemModal } from '../../components/committees/ActionItemModal';
 import { DeclarationsPanel } from '../../components/committees/DeclarationsPanel';
+import { MeetingLivePanel } from '../../components/committees/MeetingLivePanel';
+import { MinutesWorkflowPanel } from '../../components/committees/MinutesWorkflowPanel';
 import type { ActionItem } from '../../types';
 import { useBack } from '../../utils/useBack';
 import {
@@ -109,7 +111,11 @@ export default function MeetingDetail() {
 
   // --- Permissions ---
 
-  const canAgendaEdit = !!(user && committee && canWriteMinutes(user, committee));
+  const myStaffId = useMemo(
+    () => staff.find((s) => s.user_id === user?.id)?.ID ?? null,
+    [staff, user?.id],
+  );
+  const canAgendaEdit = !!(user && committee && canWriteMinutes(user, committee, myStaffId));
   const canUpload = !!(user && canUploadDocuments(user));
 
   // --- Helpers ---
@@ -250,6 +256,18 @@ export default function MeetingDetail() {
         <DeclarationsPanel meeting={meeting} committee={committee}
           members={committeeMembers.filter(m => m.committee_id === committee.id)} staff={staff} />
       )}
+
+      {committee && (
+        <MeetingLivePanel
+          meeting={meeting}
+          committee={committee}
+          members={committeeMembers.filter(m => m.committee_id === committee.id)}
+          staff={staff}
+          canRun={canAgendaEdit}
+        />
+      )}
+
+      <MinutesWorkflowPanel meetingId={meeting.id} canRun={canAgendaEdit} />
 
       {/* --- Section 2: Agenda Items --- */}
       <Card className="p-4">

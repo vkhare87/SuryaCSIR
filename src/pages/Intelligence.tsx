@@ -27,7 +27,7 @@ import {
 import { friendlyError } from '../lib/errors';
 
 export default function Intelligence() {
-  const { scientificOutputs, ipIntelligence, projects, techTransfers, refreshSlice } = useData();
+  const { scientificOutputs, ipIntelligence, projects, techTransfers, refreshSlice, isLoading, error } = useData();
   const toast = useToast();
   const [activeTab, setActiveTab] = useState<'publications' | 'ipr'>('publications');
   const [searchTerm, setSearchTerm] = useState('');
@@ -394,7 +394,14 @@ export default function Intelligence() {
         </div>
 
         {activeTab === 'publications' ? (
-          scientificOutputs.length === 0 ? (
+          !isLoading && error && scientificOutputs.length === 0 ? (
+            <EmptyState
+              variant="error"
+              title="Couldn't load publications"
+              description={error}
+              className="h-64 m-4"
+            />
+          ) : scientificOutputs.length === 0 ? (
             <EmptyState
               icon={BarChart3}
               title="No publications"
@@ -424,7 +431,14 @@ export default function Intelligence() {
             />
           )
         ) : (
-          ipIntelligence.length === 0 ? (
+          !isLoading && error && ipIntelligence.length === 0 ? (
+            <EmptyState
+              variant="error"
+              title="Couldn't load IP records"
+              description={error}
+              className="h-64 m-4"
+            />
+          ) : ipIntelligence.length === 0 ? (
             <EmptyState
               icon={FileText}
               title="No patents or IP records"

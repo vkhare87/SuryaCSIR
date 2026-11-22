@@ -55,9 +55,11 @@ export default function Lessons() {
         </select>
       </div>
 
-      {error && <p role="alert" className="text-sm text-danger">{error}</p>}
+      {error && rows !== null && rows.length > 0 && <p role="alert" className="text-sm text-danger">{error}</p>}
       {rows === null ? (
         <p className="text-sm text-text-muted">Loading…</p>
+      ) : rows.length === 0 && error ? (
+        <EmptyState variant="error" title="Couldn't load lessons" description={error} />
       ) : shown.length === 0 ? (
         <EmptyState icon={Lightbulb} title={rows.length === 0 ? 'No lessons yet' : 'Nothing matches'}
           description={rows.length === 0 ? 'Lessons appear here once a project\'s completion report is approved.' : 'Try fewer or different words.'} />

@@ -9,6 +9,8 @@ import {
   detectColumnMappings,
   validateRows,
   pushToSupabase,
+  resolveImportDivisions,
+  attributeImportDivisions,
   FIELD_META,
   type FileType,
   type RowValidationResult,
@@ -46,7 +48,7 @@ interface ImportFlowProps {
 }
 
 export function ImportFlow({ type, showTypePicker = false, initialFile, onComplete }: ImportFlowProps) {
-  const { refreshData } = useData();
+  const { refreshData, projects, staff } = useData();
   const { user } = useAuth();
   const { push: pushToast } = useToast();
 
@@ -245,16 +247,24 @@ export function ImportFlow({ type, showTypePicker = false, initialFile, onComple
   const handleConfirmImport = async () => {
     if (!supabase) return;
     setIsCommitting(true);
-    const result = await pushToSupabase(supabase, TABLE_NAMES[effectiveType], parsedData, (msg) => console.log(msg));
+    const resolvedData = resolveImportDivisions(parsedData, effectiveType, projects, staff);
+    const result = await pushToSupabase(supabase, TABLE_NAMES[effectiveType], resolvedData, (msg) => console.log(msg));
     setCommitResult(result);
 
     if (result.upserted > 0 && user) {
-      const { error: eventErr } = await supabase.from('import_events').insert({
-        file_type: effectiveType,
-        row_count: result.upserted,
-        uploaded_by: user.id,
-        uploaded_by_email: user.email,
-      });
+      const attributions = attributeImportDivisions(resolvedData, effectiveType, projects, staff);
+      const rowsToLog = attributions.length > 0
+        ? attributions
+        : [{ division_code: null, row_count: result.upserted }];
+      const { error: eventErr } = await supabase.from('import_events').insert(
+        rowsToLog.map((a) => ({
+          file_type: effectiveType,
+          row_count: a.row_count,
+          division_code: a.division_code,
+          uploaded_by: user.id,
+          uploaded_by_email: user.email,
+        })),
+      );
       if (eventErr) pushToast(`Import saved, but the upload log failed: ${friendlyError(eventErr)}`, 'warning');
     }
 

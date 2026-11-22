@@ -17,6 +17,7 @@ import { ROLE_LABELS } from '../../constants/access';
 import { pageTrail } from '../../utils/pageTrail';
 import { useDialog } from '../../utils/useDialog';
 import { ErrorBoundary, PageErrorCard } from '../ErrorBoundary';
+import { OfflineServiceBanner } from '../ui/OfflineServiceBanner';
 
 // UserAccount carries no display name, so derive from the email local part:
 // "khare.vivek87@…" → "KV", "vkhare@…" → "VK".
@@ -174,6 +175,8 @@ export function Layout() {
               </div>
           </div>
         </header>
+
+        <OfflineServiceBanner />
 
         {/* Error Banner */}
         {error && (

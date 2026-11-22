@@ -4,7 +4,8 @@ The folder map and "where things live" cheatsheet now live in
 **[architecture_addendum.md §4](engineering/architecture_addendum.md#4-folder-structure)**.
 
 This file was last accurate on 2026-04-30 and had since drifted badly — it described a
-single `00000000000000_init.sql` migration (there are 31), listed roughly a third of the
+single `00000000000000_init.sql` migration (now consolidated into an 8-file domain
+baseline in `supabase/migrations/`), listed roughly a third of the
 current pages, and predated `src/lib/`, `src/hooks/`, `src/constants/`, `rag/`, and
 `ingest/` entirely. It was merged and corrected on 2026-08-08 rather than maintained in
 two places.

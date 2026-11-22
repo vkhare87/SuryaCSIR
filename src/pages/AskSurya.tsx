@@ -1,12 +1,14 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Sparkles, Send, ThumbsUp, ThumbsDown, FileText, CalendarClock } from 'lucide-react';
+import { Sparkles, Send, ThumbsUp, ThumbsDown, FileText, CalendarClock, Pin } from 'lucide-react';
 import { Card, Badge } from '../components/ui/Cards';
 import { Sheet } from '../components/ui/Sheet';
+import { OfflineServiceBanner } from '../components/ui/OfflineServiceBanner';
 import { useAuth } from '../contexts/AuthContext';
 import { askSuryaStream, parseAskEntity, sendFeedback, scheduleBrief } from '../lib/ask/client';
 import type { AskAnswer } from '../lib/ask/client';
 import { citationHref } from '../lib/ask/citations';
+import { extractChartData, loadPinnedQueries, savePinnedQueries, type PinnedAskQuery } from '../lib/ask/stage7';
 import { friendlyError } from '../lib/errors';
 
 const HISTORY_TURNS = 3;
@@ -36,6 +38,20 @@ export default function AskSurya() {
   const [error, setError] = useState('');
   const [source, setSource] = useState<SourceView | null>(null);
   const [sourceLoading, setSourceLoading] = useState(false);
+  const [pinned, setPinned] = useState<PinnedAskQuery[]>([]);
+
+  useEffect(() => {
+    if (user?.id) {
+      void loadPinnedQueries(user.id).then(setPinned).catch(() => {});
+    }
+  }, [user?.id]);
+
+  const pinQuestion = async (q: string) => {
+    if (!user?.id || pinned.some((p) => p.question === q)) return;
+    const next = [{ id: crypto.randomUUID(), question: q, pinnedAt: new Date().toISOString() }, ...pinned].slice(0, 6);
+    setPinned(next);
+    await savePinnedQueries(user.id, next).catch(() => {});
+  };
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -149,6 +165,38 @@ export default function AskSurya() {
           </div>
           <p className="text-sm leading-relaxed text-text whitespace-pre-wrap">{turn.answer.answer}</p>
 
+          {(() => {
+            const pts = extractChartData(turn.answer.answer);
+            if (pts.length === 0) return null;
+            const maxVal = Math.max(...pts.map((p) => p.value), 1);
+            return (
+              <div className="rounded-lg border border-border bg-background p-3 space-y-1.5">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">Structured Breakdown</p>
+                {pts.map((pt) => (
+                  <div key={pt.label} className="flex items-center gap-2 text-xs">
+                    <span className="w-28 truncate text-text-muted">{pt.label}</span>
+                    <div className="flex-1 h-2 rounded bg-surface overflow-hidden">
+                      <div className="h-full bg-terracotta" style={{ width: `${Math.round((pt.value / maxVal) * 100)}%` }} />
+                    </div>
+                    <span className="font-mono tabular-nums text-text">{pt.value}</span>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+
+          {user && (
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => void pinQuestion(turn.question)}
+                className="inline-flex items-center gap-1 text-xs text-text-muted hover:text-text"
+              >
+                <Pin size={12} /> Pin query
+              </button>
+            </div>
+          )}
+
           {turn.answer.citations.length > 0 && (
             <div className="space-y-1 border-t border-border pt-3">
               <div className="text-xs font-medium uppercase tracking-wide text-text-muted">Sources</div>
@@ -183,6 +231,23 @@ export default function AskSurya() {
         <Card className="p-5">
           <p className="text-sm leading-relaxed text-text whitespace-pre-wrap">{streamText}</p>
         </Card>
+      )}
+
+      <OfflineServiceBanner />
+
+      {pinned.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {pinned.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => setQuestion(p.question)}
+              className="px-2.5 py-1 rounded-full border border-border bg-surface text-xs text-text-muted hover:text-text"
+            >
+              {p.question}
+            </button>
+          ))}
+        </div>
       )}
 
       {entity && (

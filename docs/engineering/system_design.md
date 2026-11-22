@@ -4,7 +4,7 @@ _Runtime behaviour: request flows, workflows, state machines, deployment, failur
 and scaling. Structural decomposition lives in
 [architecture_addendum.md](architecture_addendum.md); interfaces in
 [api_spec.md](api_spec.md); schema in [database_design.md](database_design.md).
-Current as of 2026-08-08._
+Current as of 2026-11-21._
 
 ---
 
@@ -28,8 +28,8 @@ graph TB
 
   subgraph Cloud["Supabase — hosted"]
     GT["GoTrue Auth"]
-    PG[("PostgreSQL 17<br/>65 tables · RLS<br/>~85 functions")]
-    ST["Storage<br/>documents · annexures<br/>proposal-documents · committee-docs"]
+    PG[("PostgreSQL 17<br/>121 tables · 8 views · RLS<br/>310 functions")]
+    ST["Storage (7 buckets)<br/>documents · annexures · signatures<br/>proposal-documents · committee-docs<br/>project-documents · awp-pdfs"]
   end
 
   subgraph Ext["External"]
@@ -105,16 +105,16 @@ sequenceDiagram
   participant LLM as Ollama
   participant PG as PostgreSQL
 
-  U->>SPA: question
-  SPA->>API: POST /query/stream<br/>Bearer <user JWT>
-  API->>API: parse_bearer → verify_token → scoped_client(JWT)
+  U->>SPA: question (optional context_entity)
+  SPA->>API: POST /query/stream<br/>Bearer user JWT + context_entity
+  API->>API: parse_bearer -> verify_token -> scoped_client(JWT)
   API->>PG: select route_labels (recent admin labels)
-  API->>LLM: route(question, CATALOG, few-shots)      [call 1]
+  API->>LLM: route(question, CATALOG [18 fns], few-shots) [call 1]
   LLM-->>API: {route, function, params}
   API->>API: function ∈ CATALOG? else fall back to document
 
   alt structured / hybrid
-    API->>PG: whitelisted analytics query (RLS-scoped)
+    API->>PG: whitelisted analytics query (incl. metric registry, RLS-scoped)
     PG-->>API: rows → formatted Answer
   end
 
@@ -285,25 +285,35 @@ picture finalized by `pms_finalize_senior_report`.
 ```mermaid
 stateDiagram-v2
   [*] --> DRAFT
-  DRAFT --> SUBMITTED: proposal_submit (PI)
-  SUBMITTED --> UNDER_REVIEW: proposal_set_under_review (admin)
-  UNDER_REVIEW --> REVISION_REQUESTED: proposal_request_revision
-  UNDER_REVIEW --> REJECTED: proposal_reject
-  UNDER_REVIEW --> RECOMMENDED: proposal_recommend
-  REVISION_REQUESTED --> SUBMITTED: proposal_submit (PI resubmits)
-  RECOMMENDED --> APPROVED: proposal_approve(amount, date)
-  APPROVED --> OM_ISSUED: proposal_issue_om(om_no, om_date, doc)
-  OM_ISSUED --> LINKED: proposal_link_project(project_no)
-  OM_ISSUED --> ARCHIVED: proposal_archive
+  DRAFT --> SUBMITTED: proposal_submit (PI; readiness + signed scan; opens review round)
+  SUBMITTED --> UNDER_REVIEW: proposal_record_step APPROVE (PME_VETTING / FINANCE)
+  SUBMITTED --> RECOMMENDED: proposal_record_step APPROVE (when step moves to RECOMMENDED)
+  UNDER_REVIEW --> RECOMMENDED: proposal_record_step APPROVE (REVIEW_COMMITTEE / DIRECTOR_FORWARD / HQ_*)
+  UNDER_REVIEW --> APPROVED: proposal_record_step APPROVE (DIRECTOR_APPROVAL / COMPETENT_AUTHORITY)
+  RECOMMENDED --> APPROVED: proposal_record_step APPROVE (final track step)
+  SUBMITTED --> REVISION_REQUESTED: proposal_record_step RETURN
+  UNDER_REVIEW --> REVISION_REQUESTED: proposal_record_step RETURN
+  RECOMMENDED --> REVISION_REQUESTED: proposal_record_step RETURN
+  REVISION_REQUESTED --> SUBMITTED: proposal_submit (PI resubmits; opens new round)
+  SUBMITTED --> REJECTED: proposal_record_step REJECT
+  UNDER_REVIEW --> REJECTED: proposal_record_step REJECT
+  RECOMMENDED --> REJECTED: proposal_record_step REJECT
+  APPROVED --> LINKED: proposal_sanction (PME; creates projects row + budget + slots)
+  OM_ISSUED --> LINKED: proposal_sanction (legacy OM_ISSUED proposals)
   REJECTED --> [*]
-  ARCHIVED --> [*]
   LINKED --> [*]
 ```
 
-Editable only in `DRAFT` and `REVISION_REQUESTED` (`EDITABLE_STATUSES`). Admin-permitted
-next states are declared once in `NEXT_ADMIN_TRANSITIONS`
-(`src/lib/proposals/constants.ts`) and mirrored by the RPC guards. Every transition writes
-`proposal_status_history` with `from_status`, `to_status`, payload, and actor.
+Editable only in `DRAFT` and `REVISION_REQUESTED` (`EDITABLE_STATUSES`). Drafts are readable
+only by the creator, PI, and named co-PIs (`proposals_can_read`). On `proposal_submit`,
+`proposal_open_round()` generates ordered `proposal_review_steps` for the proposal's track
+(`ULIP`/`OLP`: `PME_VETTING → REVIEW_COMMITTEE → DIRECTOR_APPROVAL`; `HQ`: `PME_VETTING →
+FINANCE → DIRECTOR_FORWARD → HQ_SCREENING → HQ_EXPERT → COMPETENT_AUTHORITY`; `EFP`:
+`PME_VETTING → FINANCE → DIRECTOR_FORWARD → COMPETENT_AUTHORITY`). Each step is recorded
+sequentially against a signed scan by a non-party via `proposal_record_step`; every transition
+writes `proposal_status_history`. The six earlier single-admin RPCs (`proposal_set_under_review`,
+`proposal_request_revision`, `proposal_reject`, `proposal_recommend`, `proposal_approve`,
+`proposal_issue_om`) have `EXECUTE` revoked from `authenticated`.
 
 ### 4.3 Project progress report — `project_reports.status`
 
@@ -489,6 +499,105 @@ follows automatically. `entity_timeline.acted_as` names the capacity on the day 
 day of the month just ended; `metric-digest` on Monday 02:00 UTC posts the weekly numbers.
 A pack "as on D" reads only the snapshot rows for D.
 
+### 4.16 Project lifecycle stage — `projects.stage`
+
+```mermaid
+stateDiagram-v2
+  [*] --> SANCTIONED: proposal_sanction / legacy entry
+  SANCTIONED --> ACTIVE: project_record_receipt (first release)
+  ACTIVE --> ON_HOLD: project_slot_record (decision = HOLD)
+  ON_HOLD --> ACTIVE: project_slot_record (CONTINUE / GO / CONDITIONAL_GO)
+  SANCTIONED --> CLOSING: project_completion_save (PI starts report)
+  ACTIVE --> CLOSING: project_completion_save
+  ON_HOLD --> CLOSING: project_completion_save
+  CLOSING --> CLOSED: project_completion_record_step (final APPROVE)
+  SANCTIONED --> FORECLOSED: project_change_apply (FORECLOSURE)
+  ACTIVE --> FORECLOSED: project_change_apply (FORECLOSURE)
+  ON_HOLD --> FORECLOSED: project_change_apply (FORECLOSURE)
+  CLOSING --> FORECLOSED: project_change_apply (FORECLOSURE)
+  CLOSED --> ARCHIVED: project_archive (PME publishes PDF)
+  FORECLOSED --> ARCHIVED: project_archive (PME)
+  ARCHIVED --> [*]
+```
+
+Once `ARCHIVED`, `projects_archived_readonly` rejects all further row modifications.
+
+### 4.17 Project change request — `project_change_requests.status`
+
+```mermaid
+stateDiagram-v2
+  [*] --> DRAFT: project_change_save (PI / PME)
+  DRAFT --> SUBMITTED: project_change_submit (signed request + CSIR rules check)
+  SUBMITTED --> UNDER_REVIEW: project_change_record_step APPROVE (non-final step)
+  SUBMITTED --> RETURNED: project_change_record_step RETURN
+  UNDER_REVIEW --> RETURNED: project_change_record_step RETURN
+  RETURNED --> SUBMITTED: project_change_submit (new round)
+  SUBMITTED --> REJECTED: project_change_record_step REJECT
+  UNDER_REVIEW --> REJECTED: project_change_record_step REJECT
+  SUBMITTED --> APPROVED: project_change_record_step APPROVE (final step -> project_change_apply)
+  UNDER_REVIEW --> APPROVED: project_change_record_step APPROVE (final step -> project_change_apply)
+  DRAFT --> WITHDRAWN: project_change_withdraw
+  RETURNED --> WITHDRAWN: project_change_withdraw
+  SUBMITTED --> WITHDRAWN: project_change_withdraw
+  APPROVED --> [*]
+  REJECTED --> [*]
+  WITHDRAWN --> [*]
+```
+
+Six request kinds (`TIME_OVERRUN`, `RCE`, `REPHASING`, `REAPPROPRIATION`, `REALLOCATION`, `FORECLOSURE`); prohibitions (e.g., no Capital/Revenue swap, no rephasing travel/manpower) are enforced on submit and re-checked on final approval.
+
+### 4.18 Project completion report — `project_completion_reports.status`
+
+```mermaid
+stateDiagram-v2
+  [*] --> DRAFT: project_completion_save (PI; moves project to CLOSING)
+  DRAFT --> SUBMITTED: project_completion_submit (compiles statement + annexures)
+  SUBMITTED --> UNDER_REVIEW: project_completion_record_step APPROVE (non-final step)
+  SUBMITTED --> RETURNED: project_completion_record_step RETURN
+  UNDER_REVIEW --> RETURNED: project_completion_record_step RETURN
+  RETURNED --> SUBMITTED: project_completion_submit (new round)
+  SUBMITTED --> APPROVED: project_completion_record_step APPROVE (final -> project CLOSED)
+  UNDER_REVIEW --> APPROVED: project_completion_record_step APPROVE (final -> project CLOSED)
+  APPROVED --> [*]
+```
+
+Approved reports feed `project_lessons` (institute-wide memory gated by `caller_is_verified()`).
+
+### 4.19 Annual Work Plan (Part V) — `pms_awps.status`
+
+```mermaid
+stateDiagram-v2
+  [*] --> DRAFT: pms_awp_save_draft
+  DRAFT --> WITH_RO: pms_awp_submit (<= May 15 IST) / pms_awp_forward_blank
+  DRAFT --> WITH_DIRECTOR: pms_awp_submit (when Director is RO)
+  WITH_RO --> WITH_RVO: pms_awp_ro_review
+  WITH_RO --> WITH_DIRECTOR: pms_awp_ro_review (when Director is RvO)
+  WITH_RVO --> WITH_DIRECTOR: pms_awp_rvo_review
+  WITH_RO --> RETURNED: pms_awp_return
+  WITH_RVO --> RETURNED: pms_awp_return
+  WITH_DIRECTOR --> RETURNED: pms_awp_return
+  RETURNED --> WITH_RO: pms_awp_submit
+  RETURNED --> WITH_DIRECTOR: pms_awp_submit (when Director is RO)
+  WITH_DIRECTOR --> APPROVED: pms_awp_director_decide (ACCEPTED / MODIFIED)
+  APPROVED --> [*]
+```
+
+HR PDF/OCR imports (`pms_awp_import`) enter directly at `WITH_RO`, `WITH_DIRECTOR`, or `APPROVED`. Approved AWPs support revisions (`pms_awp_request_revision` → `pms_awp_decide_revision` `PENDING → APPROVED | REJECTED`) through September 30 IST.
+
+### 4.20 Publication file — `publication_files.status`
+
+```mermaid
+stateDiagram-v2
+  [*] --> DRAFT: publication_file_create
+  DRAFT --> ETHICS_CHECK: publication_move (author records similarity_pct)
+  ETHICS_CHECK --> DRAFT: publication_move (clearer returns)
+  ETHICS_CHECK --> CLEARED: publication_move (HoD/DivHead/Director issues comm no)
+  CLEARED --> SUBMITTED: publication_move (requires all in-house author consents)
+  SUBMITTED --> ACCEPTED: publication_move
+  ACCEPTED --> PUBLISHED: publication_move (creates scientific_outputs + links authors)
+  PUBLISHED --> [*]
+```
+
 ## 5. Deployment
 
 ```mermaid
@@ -537,11 +646,12 @@ the service key.
 `VITE_RAG_URL=/rag` and no CORS is involved in production. `CORS_ORIGINS` exists only for
 split-port development.
 
-**Deployment order** (full detail in [deploy/README.md](../../deploy/README.md)):
+**Deployment order** (full detail in [deploy/README.md](../../deploy/README.md), with three
+environment profiles under `deploy/profiles/` — `laptop`, `institute-server`, and `cloud`):
 `supabase db push` → allow native DLLs past WDAC → install Python 3.12 + venv + Ollama +
 Tesseract → write env files → `preflight.py --worker` and `--api` (fix every `[FAIL]`) →
-NSSM-register both services → `npm ci && npm run build` → copy `dist/` → nginx → smoke
-checklist.
+NSSM-register both services + Windows Task Scheduler hourly `worker.py --briefs` →
+`npm ci && npm run build` → copy `dist/` → nginx → smoke checklist.
 
 **Rollback.** The SPA is static files: keep the previous `dist/` and swap the directory.
 Services roll back by pointing NSSM at a previous checkout. Database migrations are

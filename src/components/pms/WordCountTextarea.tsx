@@ -29,11 +29,11 @@ export function WordCountTextarea({ value, onChange, maxWords, placeholder, clas
         placeholder={placeholder}
         className={clsx(
           'w-full border rounded-lg px-3 py-2 text-sm bg-background text-text resize-y',
-          over ? 'border-rose-400 focus:ring-rose-400' : 'border-border',
+          over ? 'border-danger focus:ring-danger' : 'border-border',
           className,
         )}
       />
-      <p className={clsx('text-xs text-right', over ? 'text-rose-600' : 'text-text-muted')}>
+      <p className={clsx('text-xs text-right', over ? 'text-danger' : 'text-text-muted')}>
         {count} / {maxWords} words{over ? ' — over limit' : ''}
       </p>
     </div>

@@ -44,7 +44,7 @@ const STATUS_TO_VARIANT: Record<VacancyApplication['status'], 'info' | 'warning'
 };
 
 export default function Recruitment() {
-  const { vacancyAdvertisements, vacancyApplications, isLoading } = useData();
+  const { vacancyAdvertisements, vacancyApplications, isLoading, error } = useData();
   const { hasPermission } = useAuth();
   const canManage = hasPermission(['HRAdmin', 'SystemAdmin', 'MasterAdmin']);
   const [searchTerm, setSearchTerm] = useState('');
@@ -106,7 +106,7 @@ export default function Recruitment() {
         </div>
         {canManage && (
           <div className="flex gap-2">
-            <button className="bg-[#c96442] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#b5593b] transition-colors flex items-center gap-2">
+            <button className="bg-terracotta text-ivory px-4 py-2 rounded-lg text-sm font-medium hover:bg-terracotta-hover transition-colors flex items-center gap-2">
               <UserPlus size={16} />
               New Vacancy
             </button>
@@ -114,7 +114,13 @@ export default function Recruitment() {
         )}
       </div>
 
-      {!isLoading && vacancyAdvertisements.length === 0 ? (
+      {!isLoading && error && vacancyAdvertisements.length === 0 ? (
+        <EmptyState
+          variant="error"
+          title="Couldn't load vacancy advertisements"
+          description={error}
+        />
+      ) : !isLoading && vacancyAdvertisements.length === 0 ? (
         <EmptyState
           icon={Megaphone}
           title="No active vacancies"
@@ -179,7 +185,7 @@ export default function Recruitment() {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Search..."
-                  className="pl-8 pr-3 py-1.5 bg-surface border border-border rounded-md text-xs outline-none focus:ring-1 focus:ring-[#3898ec]"
+                  className="pl-8 pr-3 py-1.5 bg-surface border border-border rounded-md text-xs outline-none focus:ring-1 focus:ring-focus-blue"
                 />
               </div>
             </div>
@@ -199,7 +205,7 @@ export default function Recruitment() {
                     <div className="min-w-0">
                       <div className="font-semibold text-text truncate" title={v.title}>{v.title}</div>
                       <div className="text-xs text-text-muted mt-0.5 flex items-center gap-2 flex-wrap">
-                        <span className="text-[#c96442] font-mono">{v.id}</span>
+                        <span className="text-terracotta font-mono">{v.id}</span>
                         <span>•</span>
                         <span>{v.designation}</span>
                         <span>•</span>
@@ -223,7 +229,7 @@ export default function Recruitment() {
                       </div>
                       <ChevronRight
                         size={16}
-                        className="text-text-muted group-hover:text-[#c96442] transition-colors translate-x-0 group-hover:translate-x-1"
+                        className="text-text-muted group-hover:text-terracotta transition-colors translate-x-0 group-hover:translate-x-1"
                       />
                     </div>
                   </div>
@@ -243,7 +249,7 @@ export default function Recruitment() {
                 const vacancy = vacancyAdvertisements.find(v => v.id === p.vacancyId);
                 return (
                   <div key={p.id} className="flex items-center gap-3 p-3 rounded-xl border border-border bg-surface-hover">
-                    <div className="w-10 h-10 rounded-full bg-[#c96442]/10 flex items-center justify-center font-bold text-[#c96442] text-xs">
+                    <div className="w-10 h-10 rounded-full bg-terracotta/10 flex items-center justify-center font-bold text-terracotta text-xs">
                       {p.candidateName.split(' ').map(n => n[0]).join('').slice(0, 2)}
                     </div>
                     <div className="min-w-0">
@@ -260,7 +266,7 @@ export default function Recruitment() {
               })}
             </div>
           )}
-          <button className="w-full mt-6 py-2 border border-dashed border-border rounded-lg text-xs font-medium text-text-muted hover:text-[#c96442] hover:border-[#c96442] transition-all">
+          <button className="w-full mt-6 py-2 border border-dashed border-border rounded-lg text-xs font-medium text-text-muted hover:text-terracotta hover:border-terracotta transition-all">
             View All Candidates
           </button>
         </Card>

@@ -82,6 +82,18 @@ EXEMPT: dict[str, str] = {
         "Whether the write happens at all is decided by the table's RLS "
         "(HRAdmin/SystemAdmin/MasterAdmin) before this runs."
     ),
+    "resolve_unique_staff_id": (
+        "internal trigger/backfill helper: resolves an unambiguous display name to "
+        "staff.\"ID\". EXECUTE revoked from client roles (20261121000009)."
+    ),
+    "committee_memberships_sync_leads": (
+        "trigger on committee_memberships; keeps committees.chairperson_id/secretary_id "
+        "in step with active seat rows. Membership writes are gated by RLS."
+    ),
+    "action_items_sync_staff_id": (
+        "trigger on action_items; caches assigned_staff_id from unique_staff_names "
+        "on write. Action item writes are gated by RLS."
+    ),
     "projects_resync_child_keys": (
         "trigger on projects; relinks or unlinks child rows when a project number "
         "becomes unique or shared. The projects write is gated by its RLS; "

@@ -81,7 +81,7 @@ export function TabsTrigger({ value, className, disabled, children }: TabsTrigge
       onClick={() => setValue(value)}
       className={clsx(
         'px-4 py-1.5 text-sm font-medium rounded-[8px] transition-colors',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3898ec]',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-blue',
         active
           ? 'bg-background text-text shadow-[0px_0px_0px_1px_var(--color-border)]'
           : 'text-text-muted hover:text-text hover:bg-surface-hover',

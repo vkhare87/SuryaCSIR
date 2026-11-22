@@ -40,7 +40,7 @@ const STATUS_VARIANT: Record<TicketStatus, 'info' | 'warning' | 'success' | 'neu
 };
 
 export default function TicketList() {
-  const { tickets, staff, isLoading } = useData();
+  const { tickets, staff, isLoading, error } = useData();
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -260,7 +260,15 @@ export default function TicketList() {
         </div>
       )}
 
-      {!isLoading && visibleTickets.length === 0 && (
+      {!isLoading && error && visibleTickets.length === 0 && (
+        <EmptyState
+          variant="error"
+          title="Couldn't load tickets"
+          description={error}
+        />
+      )}
+
+      {!isLoading && !error && visibleTickets.length === 0 && (
         <EmptyState
           icon={TicketIcon}
           title="No tickets yet"

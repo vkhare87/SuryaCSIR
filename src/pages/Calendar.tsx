@@ -94,7 +94,7 @@ function holidayToEvent(h: Holiday): CalEvent {
 export default function Calendar() {
   const {
     meetings, actionItems, calendarEvents, holidays, projects, staff, divisions,
-    isLoading, refreshCalendar,
+    isLoading, error, refreshCalendar,
   } = useData();
   const { user, activeRole } = useAuth();
   const { push: pushToast } = useToast();
@@ -317,7 +317,13 @@ export default function Calendar() {
         })}
       </div>
 
-      {!isLoading && isEmpty ? (
+      {!isLoading && error && isEmpty ? (
+        <EmptyState
+          variant="error"
+          title="Couldn't load calendar events"
+          description={error}
+        />
+      ) : !isLoading && isEmpty ? (
         <EmptyState
           icon={CalendarDays}
           title="No events yet"

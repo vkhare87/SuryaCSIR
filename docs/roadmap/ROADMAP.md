@@ -7,6 +7,10 @@ packages that make sense to take up together. Created 2026-08-08._
 packages in whatever sequence suits you; §7 offers ready-made phase compositions if you
 want a starting point, and §6 shows what genuinely blocks what.
 
+> **Executing unfinished work step-by-step?** Use [EXECUTION-PLAN.md](EXECUTION-PLAN.md)
+> (current as of `2026-11-21`), which filters out shipped Project Lifecycle (`PL0`–`PL7`) and
+> Enterprise (`P1`–`P9`) items and sequences all remaining work into Stages 0–8 with tracking checkboxes.
+
 **Sources merged** (kept in full under [`sources/`](sources/) — this document is the index
 and the frame, they carry the implementation detail):
 

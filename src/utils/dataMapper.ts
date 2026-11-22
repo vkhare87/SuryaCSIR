@@ -258,6 +258,12 @@ export const mapCommitteeRow = (row: any): Committee => ({
   status: row.status || 'Active',
   formed_date: row.formed_date || '',
   created_at: row.created_at || '',
+  confidentiality: row.confidentiality || 'institute',
+  parent_committee_id: row.parent_committee_id ?? null,
+  rule_key: row.rule_key ?? null,
+  sign_policy: row.sign_policy || 'CHAIR_SECRETARY',
+  dissolved_on: row.dissolved_on ?? null,
+  dissolution_ref: row.dissolution_ref ?? null,
 });
 
 export const mapCommitteeMemberRow = (row: any): CommitteeMember => ({
@@ -278,6 +284,14 @@ export const mapMeetingRow = (row: any): Meeting => ({
   created_at: row.created_at || '',
   teams_url: row.teams_url ?? null,
   pamphlet_url: row.pamphlet_url ?? null,
+  stage: row.stage || 'PLANNED',
+  meeting_no: row.meeting_no ?? null,
+  starts_at: row.starts_at ?? null,
+  ends_at: row.ends_at ?? null,
+  mode: row.mode || 'IN_PERSON',
+  term_id: row.term_id ?? null,
+  adjourned_from_id: row.adjourned_from_id ?? null,
+  notice_days: row.notice_days ?? null,
 });
 
 export const mapAgendaItemRow = (row: any): AgendaItem => ({
@@ -287,6 +301,11 @@ export const mapAgendaItemRow = (row: any): AgendaItem => ({
   description: row.description || '',
   proposed_by: row.proposed_by || '',
   status: row.status || 'Pending',
+  item_type: row.item_type || 'OTHER',
+  title: row.title || '',
+  presenter_staff_id: row.presenter_staff_id ?? null,
+  minutes_allotted: row.minutes_allotted ?? null,
+  proposal_state: row.proposal_state || 'ACCEPTED',
 });
 
 export const mapActionItemRow = (row: any): ActionItem => ({
@@ -295,10 +314,12 @@ export const mapActionItemRow = (row: any): ActionItem => ({
   source: row.source || 'meeting',
   task: row.task || '',
   assigned_to: row.assigned_to || '',
+  assigned_staff_id: row.assigned_staff_id ?? null,
   deadline: row.deadline || '',
   status: row.status || 'Pending',
   completed_at: row.completed_at || null,
   notes: row.notes || '',
+  priority: row.priority || 'NORMAL',
 });
 
 export const mapMeetingDocumentRow = (row: any): MeetingDocument => ({
@@ -377,6 +398,7 @@ export const mapImportEventRow = (row: any): ImportEvent => ({
   id: String(row.id || ''),
   file_type: row.file_type || '',
   row_count: parseInt(row.row_count || '0', 10),
+  division_code: row.division_code ?? null,
   uploaded_by: row.uploaded_by || '',
   uploaded_by_email: row.uploaded_by_email || '',
   uploaded_at: row.uploaded_at || '',

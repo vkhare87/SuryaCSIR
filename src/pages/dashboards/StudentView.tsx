@@ -1,198 +1,140 @@
-import { useMemo } from 'react';
-import { BookOpen, Briefcase, GraduationCap, CheckCircle2, Circle, Clock, Mail, Phone, UserRound } from 'lucide-react';
-import { useData } from '../../contexts/DataContext';
+import { useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
+import { ArrowRight, CheckCircle2, GraduationCap, Shield } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useData } from '../../contexts/DataContext';
+import { useHome } from '../../contexts/HomeContext';
 import { Card } from '../../components/ui/Cards';
-import { KpiCard } from '../../components/ui/KpiCard';
-import type { PhDMilestoneName } from '../../types';
-
-// Canonical PhD milestone order (matches the phd_milestones CHECK constraint).
-const MILESTONE_ORDER: PhDMilestoneName[] = [
-  'Joining', 'Coursework', 'Comprehensive Exam', 'Registration',
-  'Synopsis Submission', 'Thesis Submission', 'Viva Voce', 'Degree Awarded',
-];
+import { DoFirstStrip } from '../../components/home/common/DoFirstStrip';
+import { PHD_MILESTONE_ORDER } from '../../lib/phd/progress';
 
 export function StudentView() {
-  const { phDStudents, projects, staff, phdMilestones } = useData();
   const { user } = useAuth();
-  const nowMs = useMemo(() => new Date().getTime(), []);
+  const { phDStudents, phdMilestones, scientificOutputs } = useData();
+  const { ownStaff, greeting, doNext, registerClaimedKeys } = useHome();
 
-  // Match PhD record by email — students are linked by email in phDStudents or staff table
-  // Fallback: show all PhD records if no match (guest-like view)
-  const ownStaff = staff.find(s => s.Email === user?.email);
-  const ownPhD = phDStudents.find(
-    p => p.StudentName === ownStaff?.Name
-  );
+  useEffect(() => {
+    registerClaimedKeys(doNext ? [doNext.id] : []);
+  }, [doNext, registerClaimedKeys]);
 
-  const supervisorRecord = ownPhD
-    ? staff.find(s => s.Name === ownPhD.SupervisorName)
-    : null;
+  // Match strictly to the caller's own PhD record (never show other students)
+  const ownStudent = useMemo(() => {
+    if (!ownStaff && !user?.email) return null;
+    const nameKey = ownStaff?.Name?.trim().toLowerCase();
+    return phDStudents.find((s) => (
+      nameKey ? s.StudentName.trim().toLowerCase() === nameKey : false
+    )) ?? null;
+  }, [phDStudents, ownStaff, user?.email]);
 
-  const linkedProject = ownPhD?.ProjectNo
-    ? projects.find(p => p.ProjectNo === ownPhD.ProjectNo)
-    : null;
-
-  // Own milestones, ordered by the canonical PhD sequence.
-  const ownMilestones = ownPhD
-    ? phdMilestones
-        .filter(m => m.enrollmentNo === ownPhD.EnrollmentNo)
-        .sort((a, b) => MILESTONE_ORDER.indexOf(a.milestone) - MILESTONE_ORDER.indexOf(b.milestone))
-    : [];
-
-  if (!ownPhD) {
-    return (
-      <div className="space-y-8 pb-12">
-        <div>
-          <h1 className="text-3xl font-[500] text-[#141413] uppercase tracking-tight font-serif">
-            Student Dashboard
-          </h1>
-        </div>
-        <div className="bg-[#faf9f5] border border-[#f0eee6] rounded-[12px] p-8 text-center">
-          <p className="text-sm font-medium text-[#4d4c48]">
-            No PhD enrollment record linked to this account.
-          </p>
-          <p className="text-xs text-[#87867f] mt-2">
-            Contact your supervisor or System Admin to link your record.
-          </p>
-        </div>
-      </div>
+  const ownMilestones = useMemo(() => {
+    if (!ownStudent) return [];
+    const byName = new Map(
+      phdMilestones
+        .filter((m) => m.enrollmentNo === ownStudent.EnrollmentNo)
+        .map((m) => [m.milestone, m]),
     );
-  }
+    return PHD_MILESTONE_ORDER.map((label) => ({
+      label,
+      entry: byName.get(label) ?? null,
+    }));
+  }, [phdMilestones, ownStudent]);
+
+  const ownPapers = useMemo(() => {
+    const name = ownStudent?.StudentName || ownStaff?.Name;
+    if (!name) return [];
+    const low = name.toLowerCase();
+    return scientificOutputs.filter((o) => o.authors.some((a) => a.toLowerCase().includes(low)));
+  }, [scientificOutputs, ownStudent, ownStaff]);
 
   return (
-    <div className="space-y-8 pb-12">
-      <div>
-        <h1 className="text-3xl font-[500] text-[#141413] uppercase tracking-tight font-serif">
-          My PhD Dashboard
-        </h1>
-        <p className="text-[#87867f] mt-1 text-sm font-medium">
-          {ownPhD.StudentName} — Enrollment {ownPhD.EnrollmentNo}
-        </p>
-      </div>
+    <div className="space-y-6 pb-12">
+      <section aria-label="Student greeting" className="space-y-1">
+        <h1 className="text-xl sm:text-2xl font-[500] font-serif text-text leading-snug">{greeting}</h1>
+        {ownStudent && (
+          <p className="text-xs text-text-muted font-mono tabular-nums">
+            {ownStudent.EnrollmentNo} · Supervisor: {ownStudent.SupervisorName || 'Unassigned'}
+          </p>
+        )}
+      </section>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <KpiCard
-          label="Current Status"
-          value={ownPhD.CurrentStatus}
-          icon={<GraduationCap size={18} />}
-          sublabel="PhD progress"
-        />
-        <KpiCard
-          label="Specialization"
-          value={ownPhD.Specialization || '—'}
-          icon={<BookOpen size={18} />}
-          sublabel="Research area"
-        />
-        <KpiCard
-          label="Fellowship"
-          value={ownPhD.FellowshipDetails || '—'}
-          icon={<Briefcase size={18} />}
-          sublabel="Funding"
-        />
-      </div>
+      <DoFirstStrip />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="p-6 space-y-4">
-          <h2 className="text-base font-semibold text-[#4d4c48] uppercase tracking-wide">Enrollment Details</h2>
-          <dl className="space-y-3 text-sm">
-            {[
-              ['Enrollment No', ownPhD.EnrollmentNo],
-              ['Thesis Title', ownPhD.ThesisTitle || '—'],
-              ['Supervisor', ownPhD.SupervisorName],
-              ['Co-Supervisor', ownPhD.CoSupervisorName || '—'],
-              ['Division', supervisorRecord?.Division ?? '—'],
-            ].map(([label, value]) => (
-              <div key={label} className="flex gap-4">
-                <dt className="text-[11px] font-semibold text-[#87867f] uppercase tracking-widest w-32 shrink-0">{label}</dt>
-                <dd className="text-[#4d4c48] font-medium">{value}</dd>
-              </div>
-            ))}
-          </dl>
+      {/* Single next item */}
+      {doNext && (
+        <Card className="p-5 flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-xs uppercase tracking-wider text-text-muted font-semibold">Do this next</p>
+            <p className="text-base font-medium text-text truncate">{doNext.label}</p>
+            <p className="text-xs text-text-muted truncate">{doNext.detail}</p>
+          </div>
+          <Link
+            to={doNext.link}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-terracotta hover:bg-terracotta-hover text-ivory text-sm font-semibold shrink-0"
+          >
+            Open <ArrowRight size={15} />
+          </Link>
         </Card>
+      )}
 
-        {supervisorRecord && (
-          <Card className="p-6 space-y-4">
-            <h2 className="text-base font-semibold text-[#4d4c48] uppercase tracking-wide flex items-center gap-2">
-              <UserRound size={16} className="text-[#c96442]" /> Supervisor Contact
-            </h2>
-            <div className="space-y-1">
-              <p className="text-sm font-semibold text-[#141413]">{supervisorRecord.Name}</p>
-              <p className="text-xs text-[#87867f]">{supervisorRecord.Designation} · Division {supervisorRecord.Division}</p>
-            </div>
-            <dl className="space-y-2 text-sm">
-              {supervisorRecord.Email && (
-                <div className="flex items-center gap-2">
-                  <Mail size={13} className="text-[#87867f] shrink-0" />
-                  <dd className="text-[#4d4c48]">{supervisorRecord.Email}</dd>
-                </div>
-              )}
-              {supervisorRecord.Ext && (
-                <div className="flex items-center gap-2">
-                  <Phone size={13} className="text-[#87867f] shrink-0" />
-                  <dd className="text-[#4d4c48]">Ext. {supervisorRecord.Ext}</dd>
-                </div>
-              )}
-            </dl>
-          </Card>
-        )}
-
-        {linkedProject && (
-          <Card className="p-6 space-y-4">
-            <h2 className="text-base font-semibold text-[#4d4c48] uppercase tracking-wide">Linked Project</h2>
-            <dl className="space-y-3 text-sm">
-              {[
-                ['Project No', linkedProject.ProjectNo],
-                ['Project Name', linkedProject.ProjectName],
-                ['Status', linkedProject.ProjectStatus],
-                ['PI', linkedProject.PrincipalInvestigator],
-                ['Division', linkedProject.DivisionCode],
-              ].map(([label, value]) => (
-                <div key={label} className="flex gap-4">
-                  <dt className="text-[11px] font-semibold text-[#87867f] uppercase tracking-widest w-32 shrink-0">{label}</dt>
-                  <dd className="text-[#4d4c48] font-medium">{value}</dd>
-                </div>
-              ))}
-            </dl>
-          </Card>
-        )}
-      </div>
-
-      {/* Milestone timeline */}
-      <Card className="p-6 space-y-4">
-        <h2 className="text-base font-semibold text-[#4d4c48] uppercase tracking-wide">Milestone Progress</h2>
-        {ownMilestones.length === 0 ? (
-          <p className="text-xs text-[#87867f] italic">No milestones recorded yet. Your supervisor updates these as you progress.</p>
+      {/* Thesis road */}
+      <Card className="p-4 space-y-3">
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+          <GraduationCap size={14} /> My thesis road
+        </h2>
+        {!ownStudent || ownMilestones.every((m) => !m.entry) ? (
+          <p className="text-xs text-text-muted">
+            No thesis milestones have been recorded on your enrolment yet. Your supervisor or PME updates these gates as you progress.
+          </p>
         ) : (
-          <ol className="relative border-l border-[#f0eee6] ml-3 space-y-6">
-            {ownMilestones.map(m => {
-              const done = Boolean(m.completedDate);
-              const overdue = !done && m.dueDate ? Date.parse(m.dueDate) < nowMs : false;
-              const Icon = done ? CheckCircle2 : overdue ? Clock : Circle;
-              const tone = done ? 'text-[#16a34a]' : overdue ? 'text-[#c96442]' : 'text-[#b0aea5]';
+          <ul className="space-y-2">
+            {ownMilestones.map(({ label, entry }) => {
+              const done = Boolean(entry?.completedDate);
               return (
-                <li key={m.id} className="ml-6">
-                  <span className={`absolute -left-3 flex items-center justify-center w-6 h-6 rounded-full bg-[#faf9f5] ${tone}`}>
-                    <Icon size={16} />
+                <li key={label} className="flex items-center justify-between gap-3 text-xs border-b border-border pb-2 last:border-0 last:pb-0">
+                  <span className="flex items-center gap-2 text-text">
+                    <CheckCircle2 size={14} className={done ? 'text-archive-green' : 'text-border'} />
+                    {label}
                   </span>
-                  <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
-                    <span className="text-sm font-semibold text-[#141413]">{m.milestone}</span>
-                    {done ? (
-                      <span className="text-[11px] text-[#16a34a] font-medium">Completed {m.completedDate}</span>
-                    ) : m.dueDate ? (
-                      <span className={`text-[11px] font-medium ${overdue ? 'text-[#c96442]' : 'text-[#87867f]'}`}>
-                        {overdue ? 'Overdue' : 'Due'} {m.dueDate}
-                      </span>
-                    ) : (
-                      <span className="text-[11px] text-[#87867f]">Pending</span>
-                    )}
-                  </div>
-                  {m.remarks && <p className="text-[11px] text-[#87867f] mt-0.5">{m.remarks}</p>}
+                  <span className="font-mono tabular-nums text-text-muted">
+                    {entry?.completedDate ? `Done ${entry.completedDate}` : entry?.dueDate ? `Due ${entry.dueDate}` : 'Upcoming'}
+                  </span>
                 </li>
               );
             })}
-          </ol>
+          </ul>
         )}
       </Card>
+
+      {/* Work record & Need something */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card className="p-4 space-y-2">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-text-muted">My work record</h2>
+          <p className="text-lg font-mono tabular-nums text-text">
+            {ownPapers.length} <span className="text-xs font-sans text-text-muted">indexed publication{ownPapers.length === 1 ? '' : 's'}</span>
+          </p>
+          <p className="text-xs text-text-muted">
+            <Link to="/me" className="underline hover:text-text">Open my profile</Link>
+          </p>
+        </Card>
+
+        <Card className="p-4 space-y-3">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-text-muted">Need something?</h2>
+          <div className="flex flex-wrap gap-2">
+            <Link to="/helpdesk/new?key=letter" className="px-3 py-1.5 rounded-lg border border-border text-xs font-medium text-text hover:bg-surface-hover">
+              Bonafide letter
+            </Link>
+            <Link to="/helpdesk/new?key=leave" className="px-3 py-1.5 rounded-lg border border-border text-xs font-medium text-text hover:bg-surface-hover">
+              Ask leave
+            </Link>
+            <Link
+              to="/helpdesk/new?key=complaint"
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border text-xs font-medium text-text hover:bg-surface-hover"
+            >
+              <Shield size={12} /> Talk to someone, in private
+            </Link>
+          </div>
+        </Card>
+      </div>
     </div>
   );
 }

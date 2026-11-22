@@ -1,7 +1,7 @@
 # SURYA — Development Guide
 
 _How to set up, build, test, review, and ship changes to SURYA. This document also serves
-as the project's contributing guide. Current as of 2026-08-08._
+as the project's contributing guide. Current as of 2026-11-21._
 
 Read alongside [CLAUDE.md](../../CLAUDE.md) (project rules), [DESIGN.md](../../DESIGN.md) (read
 before any visual change), and [coding_standards.md](coding_standards.md).
@@ -53,14 +53,23 @@ a deploy profile or the build machine's environment (SEC-07).
 
 ### 1.3 Database
 
+`supabase/migrations/` holds the consolidated 8-file 2026-11-21 domain baseline
+(`20261121000001`–`20261121000008`), covering all 121 `public` tables, 8 views, 310
+functions, 301 policies, 7 storage buckets, and 7 `pg_cron` jobs. Pre-checkpoint migrations
+are archived for reference only under `supabase/migrations_archive/2026-11-21/`.
+
 ```bash
 supabase link --project-ref <ref>
-supabase db push          # applies every unapplied migration, in order
+supabase db push          # fresh environments: applies the 8-file baseline + any newer migrations
 supabase config push      # applies the [auth] block from supabase/config.toml
 ```
 
+> **Already-provisioned remote databases:** do not re-run the consolidated 2026-11-21
+> baseline on an existing remote DB. Reconcile migration history using
+> `supabase migration repair` per [supabase/ops/README.md](../../supabase/ops/README.md).
+
 Then bootstrap: run `supabase/seed/*.sql`, create the first user via Dashboard →
-Authentication → Users, and promote them per `supabase/ops/README.md`.
+Authentication → Users, and promote them per [supabase/ops/README.md](../../supabase/ops/README.md).
 
 For a full local stack:
 
@@ -88,6 +97,7 @@ cp .env.example .env
 
 python -m pytest                # all offline: FakeLLM + NullOCR, no network
 python worker.py --once         # single ingestion pass
+python worker.py --briefs       # run scheduled Ask SURYA briefs & post notifications
 uvicorn api:app --port 8000     # the query API
 ```
 
@@ -114,15 +124,16 @@ unset to disable a source.
 
 | Command | Does |
 |---|---|
-| `npm run dev` | Vite dev server with HMR |
-| `npm run build` | `tsc -b && vite build` → `dist/`. **This is the real typecheck** |
+| `npm run dev` | Runs `predev` (`node scripts/copy-ocr-assets.mjs`), then starts Vite dev server with HMR |
+| `npm run build` | Runs `prebuild` (`node scripts/copy-ocr-assets.mjs`), then `tsc -b && vite build` → `dist/`. **This is the real typecheck** |
 | `npm run lint` | ESLint over the whole repo |
-| `npm test` | `vitest run` — 66 files, 652 tests, ~27 s |
+| `node scripts/update-design-debt.mjs` | Checks/updates the shrinking design-token debt baseline (`eslint.design-debt.json`) |
+| `npm test` | `vitest run` — 148 files, 1,297 tests (includes 29 PGlite DB/RLS test files in `scripts/db/*.db.test.ts`; no Docker needed) |
 | `npm run test:watch` | Vitest watch mode |
 | `npm run preview` | Serve the production build |
 | `npm run sync:irins` | `tsx scripts/irins/sync.ts` |
 | `python -m pytest` (in `rag/` or `ingest/`) | Python suites |
-| `python scripts/check_security_definer.py` | Authorization-block audit over all migrations |
+| `python scripts/check_security_definer.py` | Authorization-block & `search_path` audit over all migrations |
 
 > **`npx tsc --noEmit` passes vacuously** on this repo because of the project-references
 > layout. Use `npm run build` when you need a genuine typecheck.
@@ -162,7 +173,7 @@ The loop, in order. Skipping steps is how the 2026-07-25 audit findings got in.
                          .claude/skills/* for PMS, RLS, or new UI primitives
 2. Write the test      → the failing test comes first for pure logic
 3. Implement           → smallest change that passes
-4. npm test            → all 652 green
+4. npm test            → all 1,297 green (incl. 29 PGlite DB/RLS test files)
 5. npm run lint        → zero errors (design-token rules are errors outside the debt list)
 6. npm run build       → the real typecheck
 7. Verify in the app   → npm run dev, exercise the actual path
@@ -173,11 +184,11 @@ The loop, in order. Skipping steps is how the 2026-07-25 audit findings got in.
 
 | Kind of code | Test it | Why |
 |---|---|---|
-| `src/lib/**` domain logic | **Always.** Co-located `*.test.ts` | Pure, fast, no mocks needed. This is where the coverage lives |
+| `src/lib/**` domain logic | **Always.** Co-located `*.test.ts` | Pure, fast, no mocks needed. This is where the coverage lives. Changes to `ACCESS_MAP` are guarded by `src/lib/access/roleFeatures.test.ts` against [role_features.md](role_features.md) |
 | `src/utils/*.ts` helpers | Always | Same |
 | UI primitives (`components/ui/`) | Yes — `@testing-library/react` + jsdom | `DataTable`, `EmptyState`, `Tabs`, `SpecSection`, `StatusSeal` are covered |
 | Pages | Rarely | Thin by design; logic belongs in `lib/` where it can be tested properly |
-| RPCs and RLS policies | `supabase/tests/rls_{positive,negative}.sql`, run by CI's `db` job | A 652-test TypeScript suite cannot catch three lines of bad SQL. That is not hypothetical — a full privilege-escalation path shipped exactly that way |
+| RPCs and RLS policies | `scripts/db/*.db.test.ts` (PGlite on `npm test`) + `supabase/tests/rls_{positive,negative}.sql` (CI `db` job) | Unit TS tests cannot catch three lines of bad SQL. That is not hypothetical — a full privilege-escalation path shipped exactly that way |
 | `rag/` modules | `rag/tests/test_*.py`, against `FakeLLM` / `NullOCR` / `FakeDB` | Offline, no network, no model |
 | Retrieval quality | `rag/eval/run_eval.py` against `gold.jsonl`; `rag/eval/bench_local.py` for model comparison | Behavioural, not unit — run before changing a model or a prompt |
 
@@ -188,7 +199,7 @@ suite.** Both a positive (the right person can) and a negative (the wrong person
 
 | Task | Steps |
 |---|---|
-| **Page/route** | `src/pages/<Page>.tsx` → lazy import + `<Route>` in `App.tsx` → `ACCESS_MAP` + `FEATURE_LABELS` in `src/constants/access.ts` → nav entry in `Sidebar`. `/add-page` scaffolds this |
+| **Page/route** | `src/pages/<Page>.tsx` → lazy import + `<Route>` in `App.tsx` → `ACCESS_MAP` + `FEATURE_LABELS` in `src/constants/access.ts` → nav entry in `Sidebar` → document via [FEATURES.md §9 Quick Update Checklist](FEATURES.md#9-quick-update-checklist). `/add-page` scaffolds code |
 | **Domain entity** | Type → mock → mapper → `DataContext` → `dataMigration.ts` mapping, plus a migration with RLS and a grant |
 | **Migration** | `supabase/migrations/<YYYYMMDDHHMMSS>_<name>.sql`. RLS enabled, explicit policies, explicit grant, authorization block in any `SECURITY DEFINER` function. `/new-migration` scaffolds it |
 | **Workflow transition** | New RPC — never `UPDATE` a status column from the client |
@@ -241,8 +252,7 @@ Before requesting review, and again as the reviewer:
 
 **Security — non-negotiable**
 - [ ] Every new table has RLS enabled, explicit policies, **and** a grant
-- [ ] Every new `SECURITY DEFINER` function opens with an authorization block, or is listed
-      in `scripts/check_security_definer.py`'s `EXEMPT` map **with a stated reason**
+- [ ] Every new `SECURITY DEFINER` function uses `$$` dollar-quoting, pins `SET search_path`, and opens with an authorization block (or is listed in `scripts/check_security_definer.py`'s `EXEMPT` map **with a stated reason**)
 - [ ] Any `p_actor_id` / `p_author_id` / `p_submitted_by` parameter is asserted equal to
       `auth.uid()`
 - [ ] Every plpgsql `IF NOT (...)` guard touching a nullable column is wrapped in

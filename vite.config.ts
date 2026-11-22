@@ -2,6 +2,8 @@ import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
+process.env.VITEST_SKIP_INSTALL_CHECKS ??= '1'
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [

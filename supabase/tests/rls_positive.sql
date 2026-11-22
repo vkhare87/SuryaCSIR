@@ -360,7 +360,7 @@ BEGIN
 
     UPDATE public.user_profiles up
        SET must_change_password = true,
-           password_fingerprint = encode(digest(u.encrypted_password, 'sha256'), 'hex')
+           password_fingerprint = encode(extensions.digest(u.encrypted_password, 'sha256'), 'hex')
       FROM auth.users u
      WHERE u.id = up.user_id
        AND up.user_id = 'aaaaaaaa-0000-0000-0000-000000000001';

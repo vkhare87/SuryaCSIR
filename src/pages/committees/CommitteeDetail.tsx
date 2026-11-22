@@ -151,8 +151,9 @@ export default function CommitteeDetail() {
 
   // --- Permission Flags ---
 
+  const myStaffId = staff.find((s) => s.user_id === user?.id)?.ID ?? null;
   const showEdit = user && canEditCommittee(user);
-  const showScheduleMeeting = user && canScheduleMeeting(user, committee);
+  const showScheduleMeeting = user && canScheduleMeeting(user, committee, myStaffId);
   const showManageMembers = user && canManageMembers(user);
 
   const statusBadgeVariant = (s: string): 'success' | 'warning' | 'danger' | 'info' | 'neutral' => {

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { RequestUpdateButton } from './RequestUpdateButton';
-import { FIELD_META } from '../utils/dataMigration';
+import { FIELD_META } from '../utils/fileTypes';
 import { createContributionRequest } from '../lib/contributions/api';
 
 vi.mock('../lib/contributions/api', () => ({

@@ -1,6 +1,5 @@
 import { supabase } from '../../utils/supabaseClient';
-import { TABLE_NAMES } from '../../utils/dataMigration';
-import type { FileType } from '../../utils/fileTypes';
+import { TABLE_NAMES, type FileType } from '../../utils/fileTypes';
 import { friendlyError } from '../errors';
 
 export type WriteResult = { ok: true } | { ok: false; error: string };

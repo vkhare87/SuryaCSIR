@@ -10,7 +10,7 @@ import { Card, Badge } from './ui/Cards';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
 import { UserPicker } from './ui/UserPicker';
-import { generateTemplate, FILE_TYPE_LABELS, type FileType } from '../utils/dataMigration';
+import { FILE_TYPE_LABELS, type FileType } from '../utils/fileTypes';
 import { domainUploadLedger, type UploadStatus } from '../lib/divisions/uploadFreshness';
 import { setDataSteward, removeDataSteward } from '../lib/contributions/api';
 import { DATA_ADMINS } from '../constants/access';
@@ -31,7 +31,8 @@ const STATUS_CLASS: Record<UploadStatus, string> = {
 
 const inputCls = 'w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm text-text focus:ring-2 focus:ring-brand-blue outline-none';
 
-function downloadTemplate(type: FileType, format: 'xlsx' | 'csv') {
+async function downloadTemplate(type: FileType, format: 'xlsx' | 'csv') {
+  const { generateTemplate } = await import('../utils/dataMigration');
   const blob = generateTemplate(type, format);
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');

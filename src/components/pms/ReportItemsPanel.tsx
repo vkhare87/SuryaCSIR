@@ -17,11 +17,15 @@ const STATE_BADGE: Record<string, { label: string; variant: 'success' | 'warning
   EDITED: { label: 'Edited', variant: 'success' }, ADDED: { label: 'Added', variant: 'info' }, REMOVED: { label: 'Removed', variant: 'neutral' },
 };
 
-function ItemLink({ item }: { item: PmsReportItem }) {
+export function ItemLink({ item }: { item: PmsReportItem }) {
   if (!item.link) return <span className="text-text">{item.text}</span>;
-  return /^https?:\/\//.test(item.link)
-    ? <a href={item.link} target="_blank" rel="noreferrer" className="text-text hover:text-terracotta hover:underline">{item.text}</a>
-    : <Link to={item.link} className="text-text hover:text-terracotta hover:underline">{item.text}</Link>;
+  if (/^https?:\/\//i.test(item.link)) {
+    return <a href={item.link} target="_blank" rel="noreferrer" className="text-text hover:text-terracotta hover:underline">{item.text}</a>;
+  }
+  if (/^\/([^/\\]|$)/.test(item.link)) {
+    return <Link to={item.link} className="text-text hover:text-terracotta hover:underline">{item.text}</Link>;
+  }
+  return <span className="text-text">{item.text}</span>;
 }
 
 /**

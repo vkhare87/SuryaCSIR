@@ -32,7 +32,7 @@ const DIVISION_TABS = ['detail', 'analytics'] as const;
 export default function Divisions() {
   const {
     divisions, staff, projects, equipment, scientificOutputs, ipIntelligence,
-    mous, techTransfers, phDStudents, isLoading,
+    mous, techTransfers, phDStudents, isLoading, error,
   } = useData();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
@@ -207,6 +207,16 @@ export default function Divisions() {
       </div>
     );
   };
+
+  if (!isLoading && error && divisions.length === 0) {
+    return (
+      <EmptyState
+        variant="error"
+        title="Couldn't load divisions"
+        description={error}
+      />
+    );
+  }
 
   if (!isLoading && divisions.length === 0) {
     return (

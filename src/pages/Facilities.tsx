@@ -71,7 +71,7 @@ function AmcBadge({ dateStr }: { dateStr?: string }) {
 const ADMIN_ROLES = ['SystemAdmin', 'MasterAdmin', 'HRAdmin'] as const;
 
 export default function Facilities() {
-  const { equipment, labs, staff, isLoading } = useData();
+  const { equipment, labs, staff, isLoading, error } = useData();
   const { user, hasPermission } = useAuth();
   const canUpload = hasPermission(['HRAdmin', 'SystemAdmin', 'MasterAdmin']);
   const navigate = useNavigate();
@@ -383,7 +383,13 @@ export default function Facilities() {
 
         <TabsContent value="table" className="mt-4 space-y-3">
           <FilterChip filter={filter} onClear={clearFilter} labelMap={EQUIPMENT_DIM_LABELS} />
-          {!isLoading && equipment.length === 0 ? (
+          {!isLoading && error && equipment.length === 0 ? (
+            <EmptyState
+              variant="error"
+              title="Couldn't load equipment records"
+              description={error}
+            />
+          ) : !isLoading && equipment.length === 0 ? (
             <EmptyState
               icon={Wrench}
               title="No equipment registered"

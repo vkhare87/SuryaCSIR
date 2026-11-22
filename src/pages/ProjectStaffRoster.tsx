@@ -26,7 +26,7 @@ const FACET_LABEL: Record<Facet['dim'], string> = {
 };
 
 export default function ProjectStaffRoster() {
-  const { projectStaff, divisions } = useData();
+  const { projectStaff, divisions, isLoading, error } = useData();
   const { user } = useAuth();
   const keeps = !!user && ['PME', 'HRAdmin', 'MasterAdmin'].some(r => user.roles.includes(r as never));
   const [activeTab, setActiveTab] = useUrlTab(ROSTER_TABS);
@@ -161,7 +161,13 @@ export default function ProjectStaffRoster() {
           </div>
 
           <Card className="p-0 overflow-hidden">
-            {projectStaff.length === 0 ? (
+            {!isLoading && error && projectStaff.length === 0 ? (
+              <EmptyState
+                variant="error"
+                title="Couldn't load project staff records"
+                description={error}
+              />
+            ) : projectStaff.length === 0 ? (
               <EmptyState
                 icon={UsersRound}
                 title="No project staff records"

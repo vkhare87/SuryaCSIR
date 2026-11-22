@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Card, Badge } from '../../components/ui/Cards';
 import { CardSkeleton } from '../../components/ui/Skeleton';
 import { Button } from '../../components/ui/Button';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { InsightsStrip } from '../../components/viz/InsightsStrip';
 import { KpiTile } from '../../components/viz/KpiTile';
 import { MiniDonut } from '../../components/viz/MiniDonut';
@@ -35,7 +36,7 @@ import { canCreateCommittee } from '../../lib/committees/permissions';
 import { CommitteeFormModal } from '../../components/committees/CommitteeFormModal';
 
 export default function CommitteeList() {
-  const { committees, meetings, actionItems, isLoading } = useData();
+  const { committees, meetings, actionItems, isLoading, error } = useData();
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -197,8 +198,17 @@ export default function CommitteeList() {
         </div>
       )}
 
+      {/* Error State */}
+      {!isLoading && error && committees.length === 0 && (
+        <EmptyState
+          variant="error"
+          title="Couldn't load committees"
+          description={error}
+        />
+      )}
+
       {/* Empty State */}
-      {!isLoading && committees.length === 0 && (
+      {!isLoading && !error && committees.length === 0 && (
         <div className="flex flex-col items-center justify-center min-h-[50vh] text-center space-y-4">
           <Building2 size={48} className="text-text-muted" />
           <p className="text-text-muted">No committees configured yet.</p>
