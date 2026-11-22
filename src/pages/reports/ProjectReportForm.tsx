@@ -81,7 +81,7 @@ export default function ProjectReportForm() {
       <button onClick={() => navigate('/reports')} className="flex items-center gap-1 text-sm text-text-muted hover:text-text">
         <ArrowLeft size={16} /> Back
       </button>
-      <h1 className="page-title">{isEdit ? 'Edit' : 'New'} Progress Report</h1>
+      <h1 className="text-2xl font-semibold text-text">{isEdit ? 'Edit' : 'New'} Progress Report</h1>
 
       <form onSubmit={onSubmit} className="space-y-5">
         <Card className="p-5 space-y-4">

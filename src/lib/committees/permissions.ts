@@ -18,13 +18,14 @@ export function canDeleteCommittee(user: UserAccount): boolean {
   return user.activeRole === 'MasterAdmin';
 }
 
-export function canScheduleMeeting(user: UserAccount, committee: Committee): boolean {
+export function canScheduleMeeting(user: UserAccount, committee: Committee, staffId?: string | null): boolean {
   if ((ADMIN_ROLES as readonly string[]).includes(user.activeRole)) return true;
+  if (staffId && (staffId === committee.chairperson_id || staffId === committee.secretary_id)) return true;
   return user.id === committee.chairperson_id || user.id === committee.secretary_id;
 }
 
-export function canWriteMinutes(user: UserAccount, committee: Committee): boolean {
-  return canScheduleMeeting(user, committee);
+export function canWriteMinutes(user: UserAccount, committee: Committee, staffId?: string | null): boolean {
+  return canScheduleMeeting(user, committee, staffId);
 }
 
 export function canEditActionItems(user: UserAccount): boolean {

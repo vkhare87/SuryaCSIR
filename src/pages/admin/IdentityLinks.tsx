@@ -18,6 +18,13 @@ const KIND_LABEL: Record<string, string> = {
   'staff.user_id': 'Staff without a login',
 };
 
+const LINKABLE_TABLE_KINDS = new Set([
+  'projects.PrincipalInvestigator',
+  'phd_students.SupervisorName',
+  'phd_students.CoSupervisorName',
+  'project_staff.StaffName',
+]);
+
 export default function IdentityLinks() {
   const { staff, scientificOutputs, ipIntelligence, identityLinkGaps, setIdentityLink, runIdentityAutolink } = useData();
   const { push } = useToast();
@@ -42,18 +49,21 @@ export default function IdentityLinks() {
   ]), [scientificOutputs, ipIntelligence]);
 
   // --- 2. Likely people for each name (same match the server counts) ---
+  const gapKey = (g: IdentityLinkGap) => `${g.kind}:${g.recordId}:${g.pos ?? g.name}`;
   const candidates = useMemo(() => new Map(gaps.map(g => [
-    `${g.kind}:${g.recordId}:${g.pos}`,
+    gapKey(g),
     staff.filter(s => personNamesMatch(s.Name, g.name)),
   ])), [gaps, staff]);
 
   const link = async (g: IdentityLinkGap, staffId: string) => {
-    if (g.pos === null || !staffId) return;
-    const key = `${g.kind}:${g.recordId}:${g.pos}`;
+    const canLink = g.pos !== null || LINKABLE_TABLE_KINDS.has(g.kind);
+    if (!canLink || !staffId) return;
+    const key = gapKey(g);
     setBusy(key);
     try {
-      await setIdentityLink(g.kind as 'OUTPUT' | 'IP', g.recordId, g.pos, staffId);
-      setGaps(prev => prev.filter(x => `${x.kind}:${x.recordId}:${x.pos}` !== key));
+      await setIdentityLink(g.kind, g.recordId, g.pos, staffId);
+      setGaps(prev => prev.filter(x => gapKey(x) !== key));
+      await load();
     } catch (err) { push(friendlyError(err), 'error'); }
     finally { setBusy(''); }
   };
@@ -69,7 +79,7 @@ export default function IdentityLinks() {
     <div className="space-y-8 pb-12">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="page-title flex items-center gap-3">
+          <h1 className="text-3xl font-[500] text-text uppercase tracking-tight font-serif flex items-center gap-3">
             <Link2 size={26} className="text-terracotta" /> People Links
           </h1>
           <p className="text-text-muted mt-1 text-sm font-medium">
@@ -84,14 +94,18 @@ export default function IdentityLinks() {
       {error && <p className="text-sm text-badge-danger-fg">{error}</p>}
 
       <Card className="p-0 overflow-hidden">
-        <table className="ledger w-full text-sm">
+        <table className="w-full text-sm">
           <thead className="text-xs text-text-muted uppercase tracking-wide border-b border-border">
             <tr><th className="text-left px-6 py-3">Where</th><th className="text-left px-3 py-3">Name</th><th className="text-left px-3 py-3">Record</th><th className="text-left px-6 py-3">Who is it?</th></tr>
           </thead>
           <tbody className="divide-y divide-border">
             {gaps.map((g, i) => {
-              const key = `${g.kind}:${g.recordId}:${g.pos}`;
-              const people = candidates.get(key) ?? [];
+              const key = gapKey(g);
+              const matched = candidates.get(key) ?? [];
+              const isTableLink = LINKABLE_TABLE_KINDS.has(g.kind);
+              const canPick = g.pos !== null || isTableLink;
+              const matchedIds = new Set(matched.map(s => s.ID));
+              const otherStaff = isTableLink ? staff.filter(s => !matchedIds.has(s.ID)) : [];
               return (
                 <tr key={`${key}:${i}`}>
                   <td className="px-6 py-2"><Badge variant="neutral">{KIND_LABEL[g.kind] ?? g.kind}</Badge></td>
@@ -100,14 +114,19 @@ export default function IdentityLinks() {
                     <span className="font-mono">{g.recordId}</span>{titles.get(`${g.kind}:${g.recordId}`) ? ` · ${titles.get(`${g.kind}:${g.recordId}`)}` : ''}
                   </td>
                   <td className="px-6 py-2">
-                    {g.pos === null ? (
-                      <span className="text-xs text-text-muted">{g.candidates > 1 ? `${g.candidates} staff share this name — fix in Data Management` : 'Fix in Data Management'}</span>
+                    {!canPick ? (
+                      <span className="text-xs text-text-muted">Link login in Access Requests / Manage Users</span>
                     ) : (
                       <select aria-label={`Staff member for ${g.name}`} disabled={busy === key} defaultValue=""
                         onChange={e => void link(g, e.target.value)}
                         className="rounded-lg border border-border bg-surface px-2 py-1 text-sm text-text">
                         <option value="" disabled>Choose…</option>
-                        {people.map(s => <option key={s.ID} value={s.ID}>{s.Name} · {s.ID}{s.Division ? ` · ${s.Division}` : ''}</option>)}
+                        {matched.map(s => <option key={s.ID} value={s.ID}>{s.Name} · {s.ID}{s.Division ? ` · ${s.Division}` : ''}</option>)}
+                        {otherStaff.length > 0 && (
+                          <optgroup label="All staff">
+                            {otherStaff.map(s => <option key={s.ID} value={s.ID}>{s.Name} · {s.ID}{s.Division ? ` · ${s.Division}` : ''}</option>)}
+                          </optgroup>
+                        )}
                       </select>
                     )}
                   </td>

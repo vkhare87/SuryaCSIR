@@ -1,5 +1,5 @@
 // @vitest-environment node
-// Roadmap WP-2 A1 — the owner and the head are told when an AMC nears its end (20261116000001).
+// Roadmap WP-2 A1 — the owner and the head are told when an AMC nears its end (20261122000001).
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { PGlite } from '@electric-sql/pglite';
 import { as, migratedDb } from './pgliteHarness';

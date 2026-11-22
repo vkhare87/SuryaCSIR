@@ -13,6 +13,7 @@ export interface DomainUpload {
   status: UploadStatus;
   owners: DataSteward[];
   ownerStatus: 'owned' | 'no-owner';
+  divisionsUploaded: string[];
 }
 
 /**
@@ -45,11 +46,14 @@ function statusFor(daysSinceUpload: number | null, cadenceDays: number): UploadS
  * records inside it". A steward row's cadence overrides the default; the
  * smallest cadence among a domain's stewards wins. */
 export function domainUploadLedger(
-  events: ImportEvent[], stewards: DataSteward[], now: Date = new Date(),
+  events: ImportEvent[], stewards: DataSteward[], now: Date = new Date(), divisionCode: string | null = null,
 ): DomainUpload[] {
   return (Object.keys(FILE_TYPE_LABELS) as FileType[]).map((domain) => {
-    const latest = events
-      .filter((e) => e.file_type === domain)
+    const domainEvents = events.filter((e) => e.file_type === domain);
+    const scopedEvents = divisionCode
+      ? domainEvents.filter((e) => !e.division_code || e.division_code === divisionCode)
+      : domainEvents;
+    const latest = [...scopedEvents]
       .sort((a, b) => b.uploaded_at.localeCompare(a.uploaded_at))[0] ?? null;
 
     let daysSinceUpload: number | null = null;
@@ -59,7 +63,13 @@ export function domainUploadLedger(
       daysSinceUpload = Math.max(0, Math.floor(ms / 86_400_000));
     }
 
-    const owners = stewards.filter((s) => s.domain === domain);
+    const divisionsUploaded = Array.from(
+      new Set(domainEvents.map((e) => e.division_code).filter((d): d is string => Boolean(d))),
+    ).sort();
+
+    const owners = stewards.filter(
+      (s) => s.domain === domain && (!divisionCode || !s.divisionCode || s.divisionCode === divisionCode),
+    );
     const cadenceDays = owners.length
       ? Math.min(...owners.map((s) => s.cadenceDays))
       : CADENCE_DAYS[domain];
@@ -73,6 +83,7 @@ export function domainUploadLedger(
       status: statusFor(daysSinceUpload, cadenceDays),
       owners,
       ownerStatus: owners.length ? 'owned' : 'no-owner',
+      divisionsUploaded,
     };
   });
 }

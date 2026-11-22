@@ -1,107 +1,87 @@
-import { describe, expect, it } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import type { MyAction } from '../dashboard/myActions';
-import { classify, countByGroup } from './classify';
-import { doNext, quickWins, rankActions } from './doNext';
-import { daysUntil, doneToday, istIso, localIso, mergeSeen, weekStrip } from './today';
-import { countWord, greeting } from './greeting';
+import { classifyAction, summarizeByGroup } from './classify';
+import { canSnoozeForTomorrow, pickDoNext, rankHomeActions } from './doNext';
+import { computeTodayProgress } from './today';
+import { buildGreetingSentence } from './greeting';
+import { filterUnclaimed } from './claimedKeys';
 
-const NOW = new Date(2026, 10, 13, 9, 0); // Fri 13 Nov 2026, local
-const act = (id: string, kind: MyAction['kind'], due: string | null): MyAction =>
-  ({ id, kind, due, label: id, detail: '', link: '/' });
+const base = (over: Partial<MyAction>): MyAction => ({
+  id: 'a1',
+  kind: 'ticket',
+  label: 'Test',
+  detail: 'Detail',
+  due: null,
+  link: '/work',
+  ...over,
+});
 
-describe('classify', () => {
-  it('puts each kind in a group with an estimate', () => {
-    expect(classify(act('a', 'progress-report', null))).toEqual({ group: 'research', minutes: 30 });
-    expect(classify(act('a', 'action-item', null)).group).toBe('committee');
-  });
-  it('counts by group', () => {
-    expect(countByGroup([act('a', 'proposal', null), act('b', 'ticket', null), act('c', 'pms-draft', null)]))
-      .toEqual({ research: 1, admin: 2, committee: 0 });
+describe('home/classify', () => {
+  it('groups action kinds and marks <= 2 minute confirmations as quick wins', () => {
+    const cls = classifyAction(base({ kind: 'action-item' }));
+    expect(cls.group).toBe('committee');
+    expect(cls.minutes).toBe(2);
+    expect(cls.quickWin).toBe(true);
+
+    const prog = classifyAction(base({ kind: 'progress-report' }));
+    expect(prog.group).toBe('research');
+    expect(prog.quickWin).toBe(false);
+
+    expect(summarizeByGroup([cls, prog])).toEqual({ research: 1, admin: 0, committee: 1 });
   });
 });
 
-describe('rankActions', () => {
-  const ranked = rankActions([
-    act('undated', 'proposal', null),
-    act('later', 'pms-draft', '2026-11-30'),
-    act('overdue', 'progress-report', '2026-11-09'),
-    act('sameDayLong', 'pms-draft', '2026-11-20'),
-    act('sameDayShort', 'ticket', '2026-11-20'),
-  ], NOW);
-  it('orders overdue, then by due date, then undated; ties to the shorter job', () => {
-    expect(ranked.map(a => a.id)).toEqual(['overdue', 'sameDayShort', 'sameDayLong', 'later', 'undated']);
+describe('home/doNext', () => {
+  it('ranks priorities first, then overdue, then soonest due, then shorter estimate', () => {
+    const today = '2026-11-22';
+    const items = [
+      classifyAction(base({ id: 'later-long', kind: 'progress-report', due: '2026-11-25' })), // 15m
+      classifyAction(base({ id: 'later-short', kind: 'action-item', due: '2026-11-25' })),    // 2m
+      classifyAction(base({ id: 'overdue', kind: 'ticket', due: '2026-11-20' })),
+      { ...classifyAction(base({ id: 'pri', kind: 'ticket', due: '2026-11-28' })), priority: true },
+    ];
+    const ranked = rankHomeActions(items, new Set(), today);
+    expect(ranked.map((r) => r.id)).toEqual(['pri', 'overdue', 'later-short', 'later-long']);
+    expect(pickDoNext(items, new Set(), today)?.id).toBe('pri');
   });
-  it('does not change the input', () => {
-    const input = [act('b', 'proposal', null), act('a', 'ticket', '2026-11-01')];
-    rankActions(input, NOW);
-    expect(input[0].id).toBe('b');
+
+  it('allows snoozing future non-priority items but refuses overdue, due-today, and priority items', () => {
+    const today = '2026-11-22';
+    const future = classifyAction(base({ id: 'f', due: '2026-11-25' }));
+    const dueToday = classifyAction(base({ id: 't', due: '2026-11-22' }));
+    const pri = { ...future, id: 'p', priority: true };
+
+    expect(canSnoozeForTomorrow(future, today)).toBe(true);
+    expect(canSnoozeForTomorrow(dueToday, today)).toBe(false);
+    expect(canSnoozeForTomorrow(pri, today)).toBe(false);
+
+    const ranked = rankHomeActions([future, dueToday, pri], new Set(['f', 't', 'p']), today);
+    expect(ranked.map((r) => r.id)).toEqual(['p', 't']);
   });
 });
 
-describe('doNext and quickWins', () => {
-  const ranked = rankActions([act('quick', 'contract-end', '2026-11-10'), act('work', 'proposal', '2026-11-20')], NOW);
-  it('keeps two-minute items as quick wins', () => {
-    expect(quickWins(ranked).map(a => a.id)).toEqual(['quick']);
+describe('home/today & greeting', () => {
+  it('computes done today ring totals cleanly', () => {
+    expect(computeTodayProgress(5, ['a', 'b', 'a'])).toEqual({ done: 2, total: 7, pending: 5, pct: 29 });
+    expect(computeTodayProgress(0, [])).toEqual({ done: 0, total: 0, pending: 0, pct: 100 });
   });
-  it('picks the first item that is not a quick win', () => {
-    expect(doNext(ranked)?.id).toBe('work');
-  });
-  it('falls back to a quick win, then to nothing', () => {
-    expect(doNext([act('quick', 'contract-end', null)])?.id).toBe('quick');
-    expect(doNext([])).toBeNull();
+
+  it('builds natural sentence with unlinked staff fallback', () => {
+    const morning = new Date(2026, 10, 22, 9, 0, 0);
+    expect(buildGreetingSentence(null, 0, 0, morning)).toMatch(/not linked to a staff record/);
+    expect(buildGreetingSentence('Dr. Rao', 3, 1, morning)).toBe('Good morning, Dr. Rao. 3 things are left today.');
+    expect(buildGreetingSentence('Dr. Rao', 0, 2, morning)).toBe('Good morning, Dr. Rao. All 2 items cleared today.');
   });
 });
 
-describe('today', () => {
-  it('formats a local date', () => {
-    expect(localIso(NOW)).toBe('2026-11-13');
-  });
-  it('counts days, negative when past', () => {
-    expect(daysUntil('2026-11-19', NOW)).toBe(6);
-    expect(daysUntil('2026-11-09', NOW)).toBe(-4);
-  });
-  it('counts items seen today that are closed now', () => {
-    expect(doneToday(['a', 'b', 'c'], ['b'])).toBe(2);
-    expect(doneToday([], ['b'])).toBe(0);
-  });
-  it('merges seen ids without repeats', () => {
-    expect(mergeSeen(['a'], ['a', 'b'])).toEqual(['a', 'b']);
-  });
-  it('builds seven days from today and places marks', () => {
-    const cells = weekStrip([
-      { date: '2026-11-13', mark: 'deadline' },
-      { date: '2026-11-13', mark: 'deadline' },
-      { date: '2026-11-19', mark: 'meeting' },
-      { date: '2026-11-20', mark: 'holiday' }, // outside the strip
-    ], NOW);
-    expect(cells).toHaveLength(7);
-    expect(cells[0]).toMatchObject({ iso: '2026-11-13', letter: 'F', isToday: true });
-    expect(cells[0].marks.deadline).toBe(2);
-    expect(cells[6].marks.meeting).toBe(1);
-    expect(cells.reduce((n, c) => n + c.marks.holiday, 0)).toBe(0);
-  });
-});
-
-describe('greeting', () => {
-  it('uses words for small counts', () => {
-    expect(countWord(7)).toBe('Seven');
-    expect(countWord(40)).toBe('40');
-  });
-  it('says what is left and what is overdue', () => {
-    expect(greeting({ name: 'Dr. Rao', hour: 9, left: 7, overdue: 2 }))
-      .toBe('Good morning, Dr. Rao. Seven things are left. Two are overdue.');
-    expect(greeting({ name: 'Dr. Rao', hour: 14, left: 1, overdue: 1 }))
-      .toBe('Good afternoon, Dr. Rao. One thing is left. One is overdue.');
-  });
-  it('has a plain sentence for an empty day and for no linked staff row', () => {
-    expect(greeting({ name: '', hour: 19, left: 0, overdue: 0 })).toBe('Good evening. Nothing is waiting on you.');
-  });
-});
-
-describe('istIso', () => {
-  it('gives the India date whatever the browser time zone', () => {
-    // 20:00 UTC on 15 Nov is 01:30 on 16 Nov in India; a browser in London or New York still says 15 Nov.
-    expect(istIso(new Date('2026-11-15T20:00:00Z'))).toBe('2026-11-16');
-    expect(istIso(new Date('2026-11-15T18:29:00Z'))).toBe('2026-11-15');
+describe('home/claimedKeys', () => {
+  it('omits items already shown in the role half and reports hiddenCount', () => {
+    const res = filterUnclaimed(
+      [{ id: '1' }, { id: '2' }, { id: '3' }],
+      (x) => x.id,
+      new Set(['1', '3']),
+    );
+    expect(res.visible).toEqual([{ id: '2' }]);
+    expect(res.hiddenCount).toBe(2);
   });
 });

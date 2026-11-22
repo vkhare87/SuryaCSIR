@@ -63,20 +63,20 @@ export function PendingAccessView() {
       <div className="max-w-lg w-full space-y-8">
         <div className="text-center space-y-3">
           <div className="flex justify-center">
-            <div className="w-20 h-20 rounded-full bg-background border border-border flex items-center justify-center text-terracotta">
+            <div className="w-20 h-20 rounded-full bg-[#f5f4ed] border border-[#f0eee6] flex items-center justify-center text-[#c96442]">
               {pending ? <Clock size={36} /> : <Send size={32} />}
             </div>
           </div>
-          <h1 className="page-title">
+          <h1 className="text-3xl font-[500] text-[#141413] uppercase tracking-tight font-serif">
             {pending ? 'Request Submitted' : 'Request Access'}
           </h1>
-          <div className="h-1 w-16 bg-terracotta rounded-full mx-auto" />
+          <div className="h-1 w-16 bg-[#c96442] rounded-full mx-auto" />
         </div>
 
         {user?.email && (
-          <div className="bg-background border border-border rounded-[12px] px-6 py-3 flex items-center gap-3">
-            <Mail size={16} className="text-text-muted shrink-0" />
-            <span className="text-sm text-text-muted font-medium">{user.email}</span>
+          <div className="bg-[#f5f4ed] border border-[#f0eee6] rounded-[12px] px-6 py-3 flex items-center gap-3">
+            <Mail size={16} className="text-[#87867f] shrink-0" />
+            <span className="text-sm text-[#4d4c48] font-medium">{user.email}</span>
           </div>
         )}
 
@@ -124,13 +124,13 @@ export function PendingAccessView() {
                 className="mt-2 w-full bg-surface border border-border rounded-lg px-3 py-2 text-sm" />
             </div>
             <button onClick={submit} disabled={submitting}
-              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-terracotta text-ivory rounded-lg text-sm font-medium hover:bg-terracotta-hover transition-colors disabled:opacity-60">
+              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#c96442] text-white rounded-lg text-sm font-medium hover:bg-[#b5593b] transition-colors disabled:opacity-60">
               {submitting ? 'Submitting…' : <><Send size={14} /> Submit request</>}
             </button>
           </div>
         )}
 
-        <p className="text-[10px] text-text-muted uppercase tracking-widest text-center flex items-center justify-center gap-1">
+        <p className="text-[10px] text-[#b0aea5] uppercase tracking-widest text-center flex items-center justify-center gap-1">
           <CheckCircle2 size={11} /> CSIR-AMPRI — access granted by a system administrator
         </p>
       </div>

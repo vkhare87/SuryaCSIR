@@ -71,6 +71,7 @@ export const ACCESS_MAP = {
   // steering research (the view behind it is institute-wide).
   '/lessons':                 ['Director', ...DIV_MANAGERS, 'Scientist', 'Technician', 'FinanceAdmin', ...PME, ...MASTER] as Role[],
   '/committees':              STAFF,
+  '/rooms':                   [...PMS_AUTHORS, ...MASTER] as Role[],
   '/helpdesk':                ALL_ROLES,
   '/pms':                     [...PMS_AUTHORS, 'EmpoweredCommittee', ...HR] as Role[],
   '/pms/cycles':              HR,
@@ -127,6 +128,7 @@ export const FEATURE_LABELS: Record<AccessPath, string> = {
   '/portfolio':               'Project Portfolio',
   '/lessons':                 'Lessons Learned',
   '/committees':              'Committees',
+  '/rooms':                   'Rooms & Bookings',
   '/helpdesk':                'Helpdesk',
   '/pms':                     'Performance Mgmt',
   '/pms/cycles':              'PMS Cycles',

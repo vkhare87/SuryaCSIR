@@ -1,1099 +1,499 @@
 # SURYA — Database Design
 
-_Complete schema reference for the PostgreSQL 17 database. Supersedes `docs/DATA-MODEL.md`,
-which now points here. Current as of 2026-11-11 (56 migrations, 92 tables in `public`)._
+_Consolidated checkpoint baseline: 2026-11-21 (8-file domain baseline `20261121000001`–`20261121000008`, 121 tables in `public`, 8 views, 310 functions, 77 triggers, 301 RLS policies across `public` and `storage.objects`, 7 private storage buckets, 6 sequences, 7 `pg_cron` jobs)._
 
-Companions: [api_spec.md](api_spec.md) (how the schema is called),
-[system_design.md](system_design.md) (state machines),
-[architecture_addendum.md](architecture_addendum.md) (why it is shaped this way).
+> **Authoritative sources.** Physical schema and policies live in [supabase/migrations/](../../supabase/migrations/). Operational runbooks live in [supabase/ops/README.md](../../supabase/ops/README.md), workflow state machines in [system_design.md §4](system_design.md#4-state-machines), and PostgREST/RPC contracts in [api_spec.md](api_spec.md).
 
 ---
 
 ## 1. Conventions
 
-**Two naming worlds, deliberately.**
-
-| Domain | Casing | Reason |
-|---|---|---|
-| HR analytics (`divisions`, `staff`, `projects`, `project_staff`, `phd_students`, `equipment`, `contract_staff`) | Quoted **CamelCase** — `"divCode"`, `"DOJ"`, `"CompletioDate"` | Columns mirror the source Excel headers one-for-one. Import is a rename map, not a transformation. `"CompletioDate"` is a typo **in the source**, preserved on purpose |
-| Everything else (PMS, committees, helpdesk, proposals, calendar, documents, RAG) | `snake_case` | Fresh schema, no legacy source |
-
-The mapper layer (`src/utils/dataMapper.ts`) is where quoted CamelCase becomes a TypeScript
-entity. Renaming the HR columns is a coordinated DB-migration + code-change task and is
-out of scope; see [architecture_addendum.md §13](architecture_addendum.md#13-known-architectural-debt).
-
-**Dates.** HR tables store dates as `text` because the source spreadsheets carry three
-formats (`28.12.1970`, `28/12/1970`, `1970-12-28`). `parseDate` (`src/utils/dateUtils.ts`)
-and `analytics._parse_date` both handle all three. Every non-HR table uses real `date` /
-`timestamptz`.
-
-**Keys.** HR tables use natural text keys from the source data (`staff."ID"`,
-`projects."ProjectID"`, `divisions."divCode"`). Everything else uses
-`uuid PRIMARY KEY DEFAULT gen_random_uuid()`.
-
-**RLS is mandatory.** Every table in `public` has `ENABLE ROW LEVEL SECURITY` and at least
-one explicit policy. A new table without both is a defect.
-
-**Grants are schema.** RLS is consulted only after the role holds table privileges, so a
-policy without a `GRANT` is dead code. `20260726000004_baseline_grants.sql` owns grants and
-asserts its own outcome. Never add a blanket `GRANT ALL` elsewhere — it silently undoes the
-column-level narrowings on `user_roles` / `user_profiles`.
+- **Primary keys.** Native SURYA modules use `uuid DEFAULT gen_random_uuid()`. Legacy HR/spreadsheet tables retain quoted CamelCase string keys (`divisions."divCode"`, `staff."ID"`, `projects."ProjectID"`, `phd_students."EnrollmentNo"`, `equipment."UInsID"`, `contract_staff."id"`, `project_staff."id"`). Six append-only event/log tables use `bigint` sequence keys (`ai_action_log_id_seq`, `irins_sync_log_id_seq`, `project_events_id_seq`, `proposal_status_history_id_seq`, `recruitment_events_id_seq`, `sanctioned_post_events_id_seq`). Registry and reference catalogs use domain text codes (`project_schemes.code`, `metrics.key`, `project_stage_items.item_key`, `pms_pen_picture_items.item_key`, `feature_controls.feature_key`, `collection_indexes.collection_key`).
+- **Timestamps and Indian Standard Time.** All timestamps are `timestamp with time zone DEFAULT now()`. Business-day checks run in IST via `ist_today()` (`(now() AT TIME ZONE 'Asia/Kolkata')::date`); Indian financial years (`YYYY-YY`, Apr–Mar) derive from `fiscal_year_of(date)`.
+- **Row-Level Security and least-privilege ACLs.**
+  - All **121** `public` tables have `ENABLE ROW LEVEL SECURITY` active (`283` policies in `public`, `18` policies on `storage.objects` = `301` policies).
+  - Stage 01 (`20261121000001`) sets default privileges revoking `PUBLIC`/`anon` table, sequence, and function access and granting `authenticated`/`service_role` defaults without `TRUNCATE`, `TRIGGER`, or `REFERENCES`.
+  - Stage 08 (`20261121000008`) narrows privileges explicitly:
+    - **Column-narrowed writes (`UPDATE` restricted):** `user_profiles` (`active_role`, `last_seen_at`), `notifications` (`status`, `updated_at`), and `proposal_review_comments` (`resolved_at` only; table grant is `ardm` = SELECT/INSERT/DELETE/REFERENCES).
+    - **Limited-command grants:** `user_roles` (`rm` — read/references only; role changes strictly via `admin_set_user_roles` / `approve_access_request`), `feature_grants` (`ardm` — no UPDATE), `scheduled_queries` (`ard` — owner read/insert/delete), `project_documents` (`arm` — append-only).
+    - **RPC-only / trigger-only tables (`authenticated` has `SELECT` only, `r` or `rm`):** `acting_assignments`, `ai_action_log`, `audit_log`, `coi_declarations`, `contribution_requests`, `contribution_request_events`, `csir_rules`, `data_stewards`, `equipment_usage_log`, `ip_inventors`, `metric_snapshots`, `metrics`, `output_authors`, `pms_awps`, `pms_awp_revisions`, `pms_condonations`, `pms_panel_scores`, `pms_part1`, `pms_pen_picture_items`, `pms_report_items`, `project_budget_lines`, `project_change_requests`, `project_change_steps`, `project_completion_reports`, `project_completion_steps`, `project_engagements`, `project_events`, `project_expenditure`, `project_fund_receipts`, `project_ip_agreements`, `project_labs`, `project_milestones`, `project_review_slots`, `project_selections`, `project_staff_leave`, `project_staff_persons`, `project_stage_deliverables`, `project_stage_items`, `proposal_review_steps`, `proposal_versions`, `publication_files`, `publication_author_consents`, `recruitment_events`, `sanctioned_posts`, `sanctioned_post_events`, `staff_career_events`, `staff_profile_changes`, `tickets`, `ticket_responses`, `ticket_events`.
+  - **Function execution boundary:** `40` internal/trigger/cron/retired functions have `EXECUTE` revoked from `PUBLIC` and `authenticated` and restricted to `service_role`. Every `SECURITY DEFINER` function pins `SET search_path = public` (or explicit schema) and opens with an authorization check, verified statically by `scripts/check_security_definer.py`.
+- **No direct FKs on legacy HR names.** Because imported spreadsheets carry display names rather than IDs, legacy text columns (`"DivisionCode"`, `"PrincipalInvestigator"`, `"ProjectNo"`) are paired with resolved indexed keys (`pi_staff_id`, `supervisor_staff_id`, `cosupervisor_staff_id`, `project_id`) maintained automatically by database triggers.
+- **Structural vs. operational seeds.** Five reference tables are populated by the consolidated baseline itself (`csir_rules`: 17 rows, `metrics`: 12 rows, `pms_pen_picture_items`: 15 rows, `project_schemes`: 4 rows, `project_stage_items`: 9 rows). Operational defaults live in `supabase/seed/` (`01_helpdesk_routing.sql`: 8 rows, `02_appraisal_cycle.sql`: 1 row).
 
 ---
 
-## 2. Entity relationship overview
+## 2. Entity-Relationship Diagrams
 
-Seventy-three tables in eight domains. The diagram shows the load-bearing relationships;
-per-table detail follows in §3.
-
-### 2.1 Identity and HR core
+### 2.1 Identity, RBAC & HR Workforce
 
 ```mermaid
 erDiagram
-  auth_users ||--o{ user_roles : "holds"
-  auth_users ||--|| user_profiles : "has"
-  auth_users ||--o{ access_requests : "requests"
-  auth_users |o--o| staff : "linked by staff_id"
+  auth_users ||--o{ user_roles : "user_id"
+  auth_users ||--|| user_profiles : "user_id"
+  auth_users ||--o{ access_requests : "user_id"
+  auth_users ||--o{ feature_grants : "user_id"
+  auth_users ||--o{ notifications : "user_id"
+  notifications |o--o{ ai_action_log : "notification_id"
+  auth_users ||--o{ acting_assignments : "acting_user_id"
+  divisions |o--o{ acting_assignments : "division_code"
 
-  divisions ||--o{ staff : "Division"
-  divisions ||--o{ projects : "DivisionCode"
-  divisions ||--o{ phd_students : "DivisionCode"
-  divisions ||--o{ equipment : "Division"
   divisions ||--o{ labs : "div_code"
-  divisions ||--o{ scientific_outputs : "division_code"
-  divisions ||--o{ ip_intelligence : "division_code"
-  divisions ||--o{ vacancy_advertisements : "division_code"
+  divisions |o--o{ sanctioned_posts : "division_code"
+  staff |o--o| sanctioned_posts : "holder_staff_id"
+  sanctioned_posts ||--o{ sanctioned_post_events : "post_id"
+  staff |o--o| auth_users : "user_id"
+  staff ||--o{ staff_career_events : "staff_id"
+  staff ||--o{ staff_profile_changes : "staff_id"
+  staff ||--o{ staff_expertise : "staff_id"
+  expertise_terms ||--o{ staff_expertise : "term_id"
+  expertise_terms |o--o{ expertise_terms : "parent_id / merged_into"
 
-  staff ||--o{ staff : "ReportingID"
-  staff ||--o{ contract_staff : "AttachedToStaffID"
-  projects ||--o{ project_staff : "ProjectNo"
-  projects ||--o{ phd_students : "ProjectNo"
-  phd_students ||--o{ phd_milestones : "enrollment_no"
-  labs ||--o{ equipment : "lab_id"
-  vacancy_advertisements ||--o{ vacancy_posts : "advertisement_id"
-  staff ||--o| irins_profiles : "VidwanID"
+  labs |o--o{ equipment : "lab_id"
+  equipment ||--o{ equipment_usage_log : "equipment_id"
+  scientific_outputs ||--o{ output_authors : "output_id"
+  scientific_outputs |o--o| publication_files : "output_id"
+  publication_files ||--o{ publication_author_consents : "file_id"
+  ip_intelligence ||--o{ ip_inventors : "ip_id"
+  staff |o--o{ phd_students : "supervisor / cosupervisor"
 ```
 
-### 2.2 PMS
+### 2.2 PMS & Annual Work Plans
 
 ```mermaid
 erDiagram
-  appraisal_cycles ||--o{ pms_reports : "cycle_id"
-  appraisal_cycles ||--o{ pms_evaluation_committees : "cycle_id"
+  appraisal_cycles ||--o{ pms_reports : "cycle_id (RESTRICT)"
+  appraisal_cycles ||--o{ pms_evaluation_committees : "cycle_id (RESTRICT)"
   appraisal_cycles ||--o{ pms_empowered_committee_members : "cycle_id"
   appraisal_cycles ||--o{ pms_grievance_members : "cycle_id"
 
-  pms_reports ||--o{ pms_report_sections : "report_id"
-  pms_reports ||--o{ pms_annexures : "report_id"
-  pms_reports ||--o{ pms_awp_activities : "report_id"
-  pms_reports ||--o{ pms_evaluations : "report_id"
-  pms_reports ||--|| pms_committee_decisions : "report_id"
-  pms_reports ||--o| pms_representations : "report_id"
-  pms_reports ||--o{ pms_notifications : "report_id"
-
   pms_evaluation_committees ||--o{ pms_evaluation_committee_members : "committee_id"
-  auth_users ||--o{ pms_reports : "scientist_id"
-  auth_users ||--o{ pms_evaluations : "evaluator_id"
+  pms_evaluation_committees |o--o{ pms_reports : "committee_id"
+
+  pms_reports ||--o| pms_part1 : "report_id"
+  pms_reports ||--o{ pms_report_sections : "report_id"
+  pms_reports ||--o{ pms_report_items : "report_id"
+  pms_reports ||--o{ pms_annexures : "report_id"
+  pms_reports ||--o{ pms_evaluations : "report_id (RESTRICT)"
+  pms_reports ||--o| pms_panel_scores : "report_id (RESTRICT)"
+  pms_reports ||--o| pms_committee_decisions : "report_id (RESTRICT)"
+  pms_reports ||--o| pms_representations : "report_id"
+  pms_reports ||--o| pms_condonations : "report_id"
+  pms_reports ||--o{ pms_notifications : "report_id"
+  pms_reports ||--o{ pms_awp_activities : "report_id (legacy)"
+
+  staff ||--o{ pms_awps : "staff_id (RESTRICT)"
+  pms_awps ||--o{ pms_awp_revisions : "awp_id"
 ```
 
-### 2.3 Research operations and institutional workflow
+### 2.3 Projects, Proposals, Lifecycle (PL0–PL7) & Engagement
 
 ```mermaid
 erDiagram
+  project_schemes |o--o{ proposals : "track"
+  project_schemes |o--o{ projects : "track"
+  committees |o--o{ project_schemes : "review_committee_id"
+
   proposals ||--o{ proposal_copis : "proposal_id"
+  proposals ||--o{ proposal_budget_lines : "proposal_id"
   proposals ||--o{ proposal_documents : "proposal_id"
+  proposals ||--o{ proposal_notes : "proposal_id"
+  proposals ||--o{ proposal_review_comments : "proposal_id"
+  proposals ||--o{ proposal_review_steps : "proposal_id"
   proposals ||--o{ proposal_status_history : "proposal_id"
-  proposals |o--o| projects : "linked_project_no"
+  proposals ||--o{ proposal_versions : "proposal_id"
+  proposals |o--o| projects : "proposal_id / project_id"
+  projects |o--o{ proposals : "parent_project_id"
 
-  projects ||--o{ project_reports : "project_no"
+  projects ||--o{ project_labs : "project_id"
+  projects ||--o{ project_budget_lines : "project_id"
+  projects ||--o{ project_fund_receipts : "project_id"
+  projects ||--o{ project_expenditure : "project_id"
+  projects ||--o{ project_milestones : "project_id"
+  projects ||--o{ project_review_slots : "project_id"
+  projects |o--o{ project_reports : "project_id"
   project_reports ||--o{ project_report_history : "report_id"
+  projects ||--o{ project_change_requests : "project_id"
+  project_change_requests ||--o{ project_change_steps : "change_id"
+  projects ||--o| project_completion_reports : "project_id"
+  project_completion_reports ||--o{ project_completion_steps : "report_id"
+  projects ||--o{ project_documents : "project_id"
+  projects ||--o{ project_events : "project_id"
+  projects ||--o{ project_ip_agreements : "project_id"
+  projects ||--o{ project_stage_deliverables : "project_id"
+  project_stage_items ||--o{ project_stage_deliverables : "item_key"
 
+  projects ||--o{ project_selections : "project_id"
+  project_staff_persons ||--o{ project_engagements : "person_id"
+  projects ||--o{ project_engagements : "project_id"
+  project_selections |o--o{ project_engagements : "selection_id"
+  project_engagements ||--o{ project_staff_leave : "engagement_id"
+  project_staff_persons |o--o{ project_staff : "person_id"
+```
+
+### 2.4 Committees, Operations, Metrics & RAG
+
+```mermaid
+erDiagram
   committees ||--o{ committee_members : "committee_id"
   committees ||--o{ meetings : "committee_id"
   meetings ||--o{ agenda_items : "meeting_id"
-  meetings ||--o{ action_items : "meeting_id"
+  meetings |o--o{ action_items : "meeting_id"
   meetings ||--o{ meeting_documents : "meeting_id"
+  meetings ||--o{ coi_declarations : "meeting_id"
 
   tickets ||--o{ ticket_responses : "ticket_id"
   tickets ||--o{ ticket_events : "ticket_id"
-  helpdesk_routing ||--o{ tickets : "category routing"
+  helpdesk_routing ||--o{ tickets : "category"
 
-  mous |o--o| projects : "linked_project_no"
-  tech_transfers |o--o| projects : "linked_project_no"
-  tech_transfers |o--o| ip_intelligence : "linked_ip_id"
-```
+  divisions |o--o{ vacancy_advertisements : "division_code"
+  vacancy_advertisements ||--o{ vacancy_posts : "advertisement_id"
+  sanctioned_posts |o--o{ vacancy_posts : "sanctioned_post_id"
+  vacancy_advertisements ||--o{ vacancy_applications : "advertisement_id"
+  vacancy_posts |o--o{ vacancy_applications : "post_id"
+  vacancy_advertisements ||--o{ recruitment_events : "advt_id"
 
-### 2.4 Documents, RAG, and ingestion
+  contribution_requests ||--o{ contribution_request_events : "request_id"
+  metrics ||--o{ metric_snapshots : "metric_key"
 
-```mermaid
-erDiagram
   auth_users ||--o{ documents : "owner_id"
   documents ||--o| doc_indexes : "document_id"
   documents ||--o{ doc_pages : "document_id"
-  documents }o--|| collection_indexes : "entity_type = collection_key"
   auth_users ||--o{ query_log : "user_id"
   query_log ||--o| route_labels : "query_id"
-  harvested_imports }o--o| divisions : "division_code"
-  ingest_sender_map }o--|| divisions : "division_code"
-  import_field_mappings }o--o| auth_users : "confirmed_by"
+  auth_users ||--o{ scheduled_queries : "owner"
 ```
 
 ---
 
-## 3. Tables
+## 3. Schema by Consolidated Baseline Stage
 
-Notation: **PK** primary key · **FK** foreign key · **U** unique · `?` nullable.
-
-### 3.1 Identity and RBAC — `20260712000002_auth_rbac.sql`
-
-#### `user_roles` — composite roles
-| Column | Type | Notes |
-|---|---|---|
-| `user_id` | `uuid` | **PK** (composite), FK → `auth.users` ON DELETE CASCADE |
-| `role` | `text` | **PK** (composite). CHECK ∈ the 15 roles (`PME` added by `20261110000001`) |
-| `division_code` | `text?` | NULL for cross-division roles |
-| `must_change_password` | `boolean` | default `true` |
-
-Composite PK `(user_id, role)` is what makes multi-role possible: one user can hold
-`Scientist` and `DivisionHead` simultaneously.
-**Index:** `user_roles_division_code_idx (division_code)`.
-**RLS:** own rows readable; admins read all; **writes via `admin_set_user_roles` only**. The
-grant is column-narrowed — this table is the privilege-escalation surface, and a blanket
-`GRANT ALL` here re-opens it.
-
-#### `user_profiles` — active role and settings
-| Column | Type | Notes |
-|---|---|---|
-| `user_id` | `uuid` | **PK**, FK → `auth.users` |
-| `email` | `text?` | copied from `auth.users` |
-| `must_change_password` | `boolean` | default `true` |
-| `active_role` | `text?` | drives the dashboard; validated against held roles by `user_profiles_validate_active_role` |
-| `last_seen_at` | `timestamptz?` | |
-| `preferences` | `jsonb` | default `{}`; merged via `merge_user_preferences` (added `20260714000001`) |
-| `password_fingerprint` | `text?` | lets `clear_must_change_password` refuse an unchanged password (added `20260725000001`) |
-
-**Trigger:** `handle_new_auth_user` on `auth.users` INSERT creates the `DefaultUser` role
-row and this profile row.
-
-#### `access_requests`
-| Column | Type | Notes |
-|---|---|---|
-| `id` | `uuid` | **PK** |
-| `user_id` | `uuid` | FK → `auth.users` CASCADE |
-| `email`, `justification` | `text` | |
-| `requested_roles` | `text[]` | |
-| `requested_division` | `text?` | |
-| `status` | `text` | `PENDING` \| `APPROVED` \| `REJECTED` |
-| `review_note` | `text?` | |
-| `reviewed_by` | `uuid?` | FK → `auth.users` |
-| `reviewed_at`, `created_at` | `timestamptz` | |
-
-**Index:** `access_requests_one_pending` — **partial unique** on `(user_id) WHERE status='PENDING'`.
-One open request per user, enforced by the database rather than the form.
-
-#### `pms_audit_logs`
-`(id uuid PK, user_id uuid, action text, entity_type text, entity_id uuid, details jsonb, created_at)`.
-Append-only; written by RPCs only. **Index:** `(entity_type, entity_id)`.
-
-### 3.2 HR core — `20260712000003_hr_core.sql`
-
-> Quoted CamelCase throughout. Cross-table references are **conventional, not FK-enforced**,
-> because the source spreadsheets contain names rather than keys.
-
-#### `divisions`
-`"divCode"` **PK** · `"divName"` · `"divDescription"` · `"divResearchAreas"` · `"divHoD"` ·
-`"divHoDID"` (→ `staff."ID"`) · `"divSanctionedstrength"` `integer` ·
-`"divCurrentStrength"` `integer` · `"divStatus"`.
-
-#### `staff`
-`"ID"` **PK** · `"LabCode"` · `"EmployeeType"` · `"Name"` · `"Designation"` · `"Group"` ·
-`"Division"` (→ `divisions."divCode"`) · `"DoAPP"` · `"DOJ"` · `"DOB"` · `"Cat"` ·
-`"AppointmentType"` · `"Level"` · `"CoreArea"` · `"Expertise"` · `"Email"` · `"Ext"` ·
-`"VidwanID"` · `"ReportingID"` (self-reference) · `"HighestQualification"` · `"Gender"`.
-Plus `user_id uuid?` FK → `auth.users` (added `20260725000005`) — the link that lets RLS
-scope a logged-in user to their own staff record.
-
-#### `projects`
-`"ProjectID"` **PK** · `"ProjectNo"` · `"ProjectName"` · `"FundType"` · `"SponsorerType"` ·
-`"SponsorerName"` · `"ProjectCategory"` · `"ProjectStatus"` · `"StartDate"` ·
-`"CompletioDate"` *(sic)* · `"SanctionedCost"` · `"UtilizedAmount"` ·
-`"PrincipalInvestigator"` (name string) · `"DivisionCode"` · `"Extension"` ·
-`"ApprovalAuthority"`. Plus `pi_staff_id text?` FK → `staff."ID"` — the resolved key
-alongside the legacy name string.
-
-> `"SanctionedCost"` / `"UtilizedAmount"` are `text`, not numeric — the source carries
-> "12.5 lakhs", "—", and blanks. `parseCost` (`src/utils/parseCost.ts`) and
-> `analytics._num` normalize; `analytics._recorded` distinguishes "zero spent" from
-> "figure not supplied", which is not the same answer.
-
-#### `project_staff`
-`"id"` **PK** · `"StaffName"` · `"Designation"` · `"RecruitmentCycle"` ·
-`"DateOfJoining"` · `"DateOfProjectDuration"` · `"ProjectNo"` · `"PIName"` · `"DivisionCode"`.
-
-#### `phd_students`
-`"EnrollmentNo"` **PK** · `"StudentName"` · `"Specialization"` · `"SupervisorName"` ·
-`"CoSupervisorName"` · `"FellowshipDetails"` · `"CurrentStatus"` · `"ThesisTitle"` ·
-`"ProjectNo"` · `"DivisionCode"`. Plus `supervisor_staff_id` / `cosupervisor_staff_id`
-`text?` FK → `staff."ID"` ON DELETE SET NULL — added `20260718000003` so a supervisor can
-see their own scholars under RLS.
-
-#### `phd_milestones`
-`(id uuid PK, enrollment_no text, milestone text, due_date date?, completed_date date?, remarks text?, created_at)`.
-`milestone` ∈ Joining · Coursework · Comprehensive Exam · Registration · Synopsis Submission
-· Thesis Submission · Viva Voce · Degree Awarded. **U** `(enrollment_no, milestone)`.
-**Index:** `(enrollment_no)`.
-
-#### `equipment`
-`"UInsID"` **PK** · `"Name"` · `"EndUse"` · `"Division"` · `"IndenterName"` ·
-`"OperatorName"` · `"Location"` · `"WorkingStatus"` · `"Movable"` ·
-`"RequirementInstallation"` · `"Justification"` · `"Remark"`, plus typed operational
-columns: `instrument_code`, `serial_number`, `manufacturer`, `year_of_manufacture int`,
-`lab_id uuid` FK → `labs`, `owner_user_id uuid` FK → `auth.users`, `amc_end_date date`,
-`purchase_cost numeric(14,2)`, `procurement_date date`.
-**Indexes:** `(owner_user_id)`, `(lab_id)`, `(amc_end_date)`.
-
-#### `labs`
-`(id uuid PK, lab_code text U, lab_name text, div_code text FK → divisions, created_at)`.
-
-#### `contract_staff`
-`"id"` **PK** · `"Name"` · `"Designation"` · `"Division"` · `"DateOfJoining"` ·
-`"ContractEndDate"` · `"LabCode"` · `"DateOfBirth"` · `"AttachedToStaffID"` (→ `staff."ID"`).
-
-#### `scientific_outputs`
-`(id text PK, title text, authors text[], journal text, year int, doi text?, impact_factor float?, citation_count int?, division_code text)`.
-
-#### `ip_intelligence`
-`(id text PK, title text, type text, status text, filing_date text, grant_date text?, inventors text[], division_code text)`.
-`type` ∈ Patent · Copyright · Design · Trademark. `status` ∈ Filed · Published · Granted.
-
-#### `mous`
-`(id uuid PK, partner_name, partner_type, purpose, signed_date date?, valid_until date?, status, division_code?, linked_project_no?, remarks?, created_at, updated_at)`.
-`partner_type` ∈ Academic · Industry · Government · International · Other.
-`status` ∈ Active · Expired · Under Renewal · Terminated.
-**Indexes:** `(status)`, `(valid_until)` — the second powers the "expiring within 90 days" query.
-
-#### `tech_transfers`
-`(id uuid PK, technology_title, licensee, licensee_type, agreement_type, agreement_date date?, value_lakhs numeric(12,2) ≥0, status, linked_project_no?, linked_ip_id?, division_code?, remarks?, created_at, updated_at)`.
-`status` ∈ Under Negotiation · Signed · Active · Completed · Terminated.
-**Indexes:** `(status)`, `(division_code)`.
-
-#### `vacancy_advertisements` / `vacancy_posts`
-Advertisement: `(id text PK, title, advt_no?, issue_date date?, division_code FK, status, description?, closing_date date?, created_by uuid FK, created_at, staff_category, drive_stage)`.
-`status` ∈ Draft · Open · Published · Closed · Cancelled.
-`staff_category` ∈ Permanent · Project.
-`drive_stage` ∈ Advertised · Applications Closed · Screening · Interviews · Selection ·
-Offers Issued · Joined · Closed.
-Post: `(id text PK, advertisement_id FK CASCADE, post_code?, designation?, discipline?, no_of_positions int?, pay_level?, age_limit?, qualifications?, status?, created_at)`.
-**Indexes:** `vacancy_advertisements(status)`, `vacancy_posts(advertisement_id)`.
-
-#### `irins_profiles` / `irins_sync_log`
-`irins_profiles(vidwan_id text PK, profile_data jsonb, synced_at)` — external scientist
-profile cache keyed by `staff."VidwanID"`.
-`irins_sync_log(id bigserial PK, triggered_by, started_at, completed_at?, status, total_scientists, succeeded, failed, error_details jsonb?)`.
-**Index:** `(started_at DESC)`.
-
-### 3.3 PMS — `20260712000004_pms.sql` (+ `20260726000001_pms_senior_track.sql`)
-
-#### `appraisal_cycles`
-`(id uuid PK, name text, start_date date, end_date date, status text, created_at)`.
-`status` ∈ `OPEN` \| `CLOSED` \| `ARCHIVED`. All four PMS deadlines derive from
-`extract(year FROM end_date)`.
-
-#### `pms_reports`
-| Column | Type | Notes |
-|---|---|---|
-| `id` | `uuid` | **PK** |
-| `cycle_id` | `uuid` | FK → `appraisal_cycles` ON DELETE **RESTRICT** — a cycle with reports cannot be deleted |
-| `scientist_id` | `uuid` | → `auth.users` |
-| `status` | `text` | 7 values, see [system_design §4.1](system_design.md#41-pms-report--pms_reportsstatus) |
-| `track` | `text` | `STANDARD` \| `ANNEXURE_I` \| `ANNEXURE_II`, default `STANDARD`; set by the `pms_set_report_track` trigger from designation |
-| `period_from`, `period_to` | `date?` | lifted from the wizard's period section |
-| `self_score` | `integer?` | CHECK 0–100 |
-| `submitted_at` | `timestamptz?` | |
-| `signature_url` | `text?` | |
-| `previous_pms_submitted_on_time` | `boolean?` | Part I |
-| `previous_pms_submission_date` | `date?` | Part I |
-| `duty_days` | `integer?` | CHECK ≥ 0; < 90 blocks appraisal |
-| `system_remark` | `text?` | auto-set on `NOT_ASSESSED` / non-submission |
-| `score_communicated_at` | `timestamptz?` | anchors the 15-day representation window |
-| `non_submission_certificate_path` | `text?` | |
-| `created_at`, `updated_at` | `timestamptz` | |
-
-**U** `(cycle_id, scientist_id)`. **Indexes:** `(cycle_id)`, `(scientist_id)`.
-**Triggers:** `pms_set_report_track`, `pms_set_updated_at`, `pms_block_locked_cycle_reports`.
-
-#### `pms_report_sections`
-`(id uuid PK, report_id FK CASCADE, section_key text, data jsonb, updated_at)`, **U**
-`(report_id, section_key)`. One JSONB blob per proforma section. Section keys are declared
-in `src/lib/pms/constants.ts` — 15 for the standard track, ~25 for Annexure-I, and a
-separate set for Annexure-II. JSONB is the right shape here: the proformas are
-government-defined forms that change between guideline revisions, and modelling each as
-columns would mean a migration per revision.
-
-#### `pms_annexures`
-`(id uuid PK, report_id FK CASCADE, file_name, file_path, file_size bigint, mime_type, uploaded_at)`.
-`file_path` is a Supabase Storage path in the `annexures` bucket, gated by
-`pms_owns_report_path` / `pms_can_read_report_path`.
-
-#### `pms_evaluation_committees` / `pms_evaluation_committee_members`
-Committee: `(id uuid PK, name, description?, cycle_id FK RESTRICT, tier text?, created_at)`,
-**U** `(name, cycle_id)`. `tier` ∈ `I` (Sci B/C/D) \| `II` (E) \| `III` (F).
-Member: `(id uuid PK, committee_id FK CASCADE, user_id uuid, role text)`, **U**
-`(committee_id, user_id)`. `role` ∈ `REPORTING_OFFICER` \| `REVIEWING_OFFICER` \| `EC_MEMBER`.
-Validity — odd member count with all three roles present — is `pms_committee_panel_valid`.
-
-#### `pms_empowered_committee_members`
-`(id uuid PK, cycle_id FK CASCADE, user_id uuid, is_chairman boolean)`, **U** `(cycle_id, user_id)`.
-Valid = 3, 5, or 7 ordinary members plus exactly one Chairman (`pms_empowered_committee_valid`).
-
-#### `pms_grievance_members`
-`(id uuid PK, cycle_id FK CASCADE, user_id uuid)`, **U** `(cycle_id, user_id)`. Five-member
-independent Grievance Redressal Committee per cycle.
-
-#### `pms_evaluations`
-`(id uuid PK, report_id FK RESTRICT, evaluator_id uuid, status text, scores jsonb, comments text?, total_score int? CHECK 0–100, reasons_for_outstanding?, reasons_below_threshold?, suggestions_for_improvement?, created_at, updated_at)`,
-**U** `(report_id, evaluator_id)`. `status` ∈ `PENDING` \| `IN_PROGRESS` \| `COMPLETED`.
-**Index:** `(report_id)`.
-**Trigger:** `pms_check_evaluation_complete` — when the last evaluation for a report reaches
-`COMPLETED`, the report advances to `EMPOWERED_COMMITTEE_REVIEW`.
-
-#### `pms_committee_decisions`
-`(id uuid PK, report_id FK RESTRICT **U**, decided_by uuid, final_score int? CHECK 0–100, justification text CHECK length ≥ 50, reasons_for_outstanding?, reasons_below_threshold?, suggestions_for_improvement?, pen_picture jsonb, created_at)`.
-`pen_picture` (added `20260726000001`) carries the categorical outcome for Annexure-I/II
-reports, which have no numeric score.
-
-#### `pms_awp_activities`
-`(id uuid PK, report_id FK CASCADE, nature_of_activity text, role text, time_committed_percentage numeric(5,2) CHECK 0–100, milestones jsonb, created_at, updated_at)`.
-Legacy in-report Part V list; standard track only. **Index:** `(report_id)`. Superseded
-by `pms_awps` (no longer written by the wizard; kept so earlier reports still display).
-
-#### `pms_awps` — `20261021000002_pms_awp.sql`
-Part V Annual Work Plan, one row per scientist per reporting year:
-`(id uuid PK, staff_id text FK staff."ID" RESTRICT, scientist_user_id uuid?, reporting_year text CHECK '^\d{4}-\d{2}$', status text, part_a jsonb, activity_split jsonb, projects jsonb, objectives jsonb, development jsonb, institutional_work text, other text, reporting_officer_id text?, reviewing_officer_id text?, ro_verdict?, ro_reasons?, ro_at?, rvo_remarks?, rvo_at?, director_decision?, director_remarks?, approved_at?, approved_by?, communicated_at?, return_reasons?, source text, source_pdf_path?, submitted_at?, created_at, updated_at)`,
-**UNIQUE** `(staff_id, reporting_year)`. Keyed on staff, not auth user, so imported AWPs of
-staff without a login have a home. `status` ∈ `DRAFT` \| `WITH_RO` \| `WITH_RVO` \|
-`WITH_DIRECTOR` \| `RETURNED` \| `APPROVED`; `source` ∈ `ONLINE` \| `IMPORTED` \|
-`BLANK_FORWARDED`. RO defaults to `staff."ReportingID"` (fallback division `divHoDID`), RvO
-to the Director's staff row (admin override). Full rows are read via `pms_awp_can_read()` (owner,
-RO/RvO, Director, admin); committees get `pms_awp_for_report()`, which strips confidential
-projects server-side. `scientist_user_id` follows `staff.user_id` (trigger). Writes only through
-the `pms_awp_*` RPCs.
-Not under the Nov 30 lock. Source PDFs in private bucket `awp-pdfs`.
-
-#### `pms_awp_revisions`
-`(id uuid PK, awp_id FK CASCADE, initiated_by uuid, reasons text CHECK length ≥ 20, before jsonb, after jsonb, status text, decided_by?, decided_at?, decision_remarks?, created_at)`.
-§5.E.a.vii revisions (first six months, Director approves). RPC-written only.
-
-#### `pms_representations`
-`(id uuid PK, report_id FK CASCADE **U**, scientist_id uuid, grounds text CHECK length ≥ 20, submitted_at, status text, resolution text?, resolved_by uuid?, resolved_at?)`.
-`status` ∈ `PENDING` \| `RESOLVED`. Written only by
-`pms_submit_representation` / `pms_resolve_representation`.
-
-#### `pms_notifications`
-`(id uuid PK, user_id uuid, type, title, body, report_id FK CASCADE?, read boolean, created_at)`.
-INSERT via `SECURITY DEFINER` RPCs only. **Index:** `(user_id)`.
-
-### 3.4 Committees and helpdesk — `20260712000005_committees_helpdesk.sql`
-
-#### `committees`
-`(id uuid PK, name, committee_type, mandate, chairperson_id text → staff."ID", secretary_id text → staff."ID", status, formed_date date, created_at)`.
-`committee_type` ∈ Standing · AdHoc · Review · Advisory. `status` ∈ Active · Inactive.
-**Index:** `(status)`.
-
-#### `committee_members`
-`(id uuid PK, committee_id FK CASCADE, staff_id text, role text)`.
-`role` ∈ Member · Invitee · ExternalExpert. **Indexes:** `(committee_id)`, `(staff_id)`.
-
-#### `meetings`
-`(id uuid PK, committee_id FK CASCADE, meeting_date date, venue, title, summary, status, teams_url?, pamphlet_url?, created_at)`.
-`status` ∈ Scheduled · Completed · Cancelled. **Indexes:** `(committee_id)`, `(meeting_date)`.
-
-#### `agenda_items`
-`(id uuid PK, meeting_id FK CASCADE, sequence int, description, proposed_by text, status)`.
-`status` ∈ Pending · Discussed · Deferred. **Index:** `(meeting_id)`.
-
-#### `action_items`
-`(id uuid PK, meeting_id FK SET NULL?, source text, task, assigned_to text, deadline date, status, completed_at?, notes)`.
-`source` ∈ meeting · manual. `status` ∈ Pending · InProgress · Completed.
-**Indexes:** `(meeting_id)`, `(assigned_to)`, `(status)`.
-
-#### `meeting_documents`
-`(id uuid PK, meeting_id FK CASCADE, file_name, storage_path, uploaded_at)`. **Index:** `(meeting_id)`.
-
-#### `tickets`
-`(id uuid PK, token text U, subject, category, urgency, description, submitted_by, assigned_to?, status, created_at, updated_at, resolved_at?)`.
-Actor columns migrated `text` → `uuid` in `20260725000004` so the audit actor is a real
-identity rather than a client-supplied staff string.
-**Indexes:** `(submitted_by)`, `(assigned_to)`, `(status)`, `(token)`.
-
-#### `ticket_responses` / `ticket_events`
-Responses: `(id uuid PK, ticket_id FK CASCADE, author_id, message, created_at)`.
-Events: `(id uuid PK, ticket_id FK CASCADE, event_type, actor_id, details jsonb, created_at)`.
-`event_type` ∈ Created · Assigned · StatusChanged · Resolved · Closed · Reopened.
-**Indexes:** `(ticket_id)` on both.
-
-#### `helpdesk_routing`
-`(id uuid PK, category text U, target_type text, target_id text)`.
-`target_type` ∈ division · role; `target_id` is a `divisions."divCode"` or a role name.
-Seeded by `supabase/seed/01_helpdesk_routing.sql`. **Index:** `(category)`.
-
-#### `audit_log`
-`(id uuid PK, entity_type, entity_id uuid, action, actor_id text, changes jsonb, created_at)`.
-`entity_type` ∈ committee · meeting · action_item · ticket · ticket_response ·
-calendar_event · holiday. `action` ∈ created · updated · deleted · status_changed.
-Written by the `audit_row_change` trigger. **Indexes:** `(entity_type, entity_id)`, `(created_at)`.
-
-### 3.5 Proposals and progress reports — `20260712000006_proposals_reports.sql`
-
-#### `proposals`
-| Group | Columns |
-|---|---|
-| Identity | `id uuid PK`, `proposal_code text U` (assigned by `proposals_set_code` trigger), `title`, `acronym?` |
-| Classification | `domain_theme`, `fund_type`, `sponsor_type`, `sponsor_name`, `project_category` |
-| Plan | `proposed_start_date date`, `proposed_duration_months int CHECK > 0`, `requested_budget numeric(14,2) CHECK ≥ 0` |
-| People | `pi_user_id uuid FK → auth.users`, `pi_name`, `division_code` |
-| Content | `abstract`, `problem_statement`, `objectives`, `expected_outcomes`, `current_trl smallint? CHECK 1–9`, `target_trl smallint? CHECK 1–9` |
-| Workflow | `status` (10 values), `review_body?`, `review_sent_date date?`, `revision_notes?`, `rejection_reason?` |
-| Outcome | `sanctioned_amount numeric(14,2)?`, `sanction_date date?`, `om_number?`, `om_date date?`, `linked_project_no?`, `archived boolean` |
-| Audit | `created_at`, `updated_at`, `submitted_at?`, `created_by FK`, `last_status_change_by FK?`, `last_status_change_at?` |
-
-**Indexes:** `(pi_user_id)`, `(division_code)`, `(status)`, `(created_at DESC)`.
-
-#### `proposal_copis` / `proposal_documents` / `proposal_status_history`
-Co-PIs: `(proposal_id FK CASCADE, staff_id text, staff_name text)` — **PK** `(proposal_id, staff_id)`.
-Documents: `(id uuid PK, proposal_id FK CASCADE, doc_type text, storage_path, file_name, file_size int?, uploaded_at, uploaded_by FK)`.
-`doc_type` ∈ `signed_proposal` \| `om_document`. **Index:** `(proposal_id)`.
-History: `(id bigserial PK, proposal_id FK CASCADE, from_status?, to_status, payload jsonb?, changed_by FK, changed_at)`.
-
-#### `project_reports`
-`(id uuid PK, project_no text, project_name text, division_code?, period_type, period_label, due_date date?, status, objectives_progress, milestones, expenditure_summary, outcomes, remarks, review_notes?, reviewed_by FK?, reviewed_at?, submitted_by FK, submitted_at?, created_at, updated_at)`.
-`period_type` ∈ `Q` \| `H` \| `Y`. `status` ∈ `DRAFT` \| `SUBMITTED` \| `UNDER_REVIEW` \|
-`REVISION_REQUESTED` \| `REVIEWED`. **Index:** `(project_no)`.
-
-#### `project_report_history`
-`(id uuid PK, report_id FK CASCADE, from_status?, to_status, payload jsonb, changed_by FK, changed_at)`.
-
-### 3.6 Calendar and recruitment — `20260712000007_calendar_recruitment.sql`
-
-#### `calendar_events`
-`(id uuid PK, title, event_date date, event_kind, location, teams_url?, pamphlet_url?, description, visibility, division_code?, created_by FK, created_at, updated_at)`.
-`event_kind` ∈ Custom · Pamphlet · Announcement. `visibility` ∈ OrgWide · Division · Personal.
-**Constraint** `calendar_events_division_required`: `visibility <> 'Division' OR division_code IS NOT NULL`
-— a division event cannot exist without a division, enforced by the database rather than
-the form.
-Calendar also **derives** events that are not rows: meeting dates, PMS deadlines, MoU
-expiries, AMC expiries and contract ends are computed by `src/lib/calendar/deriveEvents.ts`.
-
-#### `holidays`
-`(id uuid PK, holiday_date date, name, holiday_type, year int, created_by FK?, created_at)`,
-**U** `(holiday_date, name)`. `holiday_type` ∈ Gazetted · Restricted · Institute.
-
-### 3.7 Documents and RAG — `20260712000008_rag_documents.sql`
-
-#### `documents` — unified registry and ingest queue
-| Column | Type | Notes |
-|---|---|---|
-| `id` | `uuid` | **PK** |
-| `entity_type` | `text` | `proposal` \| `meeting` \| `pms_report` \| `publication` \| `staff_profile` \| `project_report` \| … Doubles as the RAG **collection key** |
-| `entity_id` | `text` | parent PK as text — HR and PMS key types differ |
-| `doc_type` | `text` | module subtype (`signed_proposal`, `annexure`, `minutes`) |
-| `title`, `file_name`, `mime_type` | `text` | |
-| `storage_bucket`, `storage_path` | `text` | Files stay in their module buckets |
-| `file_size` | `bigint` | |
-| `owner_id` | `uuid` | FK → `auth.users` |
-| `division_code` | `text?` | |
-| `access_tier` | `text` | `institute` \| `division` \| `owner` \| `confidential` |
-| `ingest_status` | `text` | `pending` \| `processing` \| `indexed` \| `failed` \| `skipped` |
-| `ingest_error` | `text?` | |
-| `ingest_attempts` | `int` | bounds retries at 3, then dead-letters |
-| `content_hash` | `text?` | SHA-256, added by `20260719000002` for capture dedupe |
-| `created_at` | `timestamptz` | |
-
-**Indexes:** `(entity_type, entity_id)`; **partial** `(created_at) WHERE ingest_status='pending'`
-— the queue index, so the worker's claim scans only pending rows;
-**unique** `(storage_bucket, storage_path)` — one registry row per stored object.
-
-#### `doc_indexes`
-`(document_id uuid PK FK CASCADE, tree jsonb, model text, page_count int, built_at)`.
-One PageIndex tree per document. `model` records which LLM built it, so
-`worker.py --reindex-model` can requeue everything not built by the current model.
-
-#### `doc_pages`
-`(document_id uuid FK CASCADE, page int, text text)` — **PK** `(document_id, page)`.
-The evidence layer: `retrieval._context` fetches the picked nodes' page spans from here.
-
-#### `query_log`
-`(id uuid PK, user_id uuid FK DEFAULT auth.uid(), question, mode, answer, citations jsonb, feedback smallint? CHECK ∈ (-1,1), latency_ms int?, created_at)`,
-plus decision-trace columns from `20260714000002`: `route`, `function_name`,
-`function_params jsonb`, `refusal_reason`, `catalog_version`, and `pinned boolean NOT NULL
-DEFAULT false` (`20261115000001`, a saved question).
-`refusal_reason`: `no_grounded_answer` (honest miss), `out_of_scope` (scope guard refused —
-a **strike**), `totals_only` (only a total was allowed and none could be served — not a strike),
-`scope_unavailable` (the caller's roles or name could not be read — not a strike),
-`self_unsure` (refused, but the question names the asker or says "my" — not a strike).
-**Index:** `(user_id, created_at DESC)`; partial `query_log_strikes_idx (user_id, created_at)
-WHERE refusal_reason = 'out_of_scope'`. RLS: own rows (SystemAdmin / MasterAdmin read all).
-**Grants:** `authenticated` may UPDATE only `(feedback, pinned)`; the migration asserts that
-`refusal_reason` is not updatable, so a person cannot erase their own strikes.
-**`ask_scope_sweep()`** (cron `ask-scope-sweep`, 07:20 IST, `SECURITY DEFINER`, EXECUTE
-revoked from clients): a person with more than 5 strikes on the previous IST day → one
-`notifications` row (`kind 'ask-scope'`) per HRAdmin, deduped per person per day. The body is
-name · count · day; the question text is never copied.
-
-#### `collection_indexes`
-`(collection_key text PK, title, summary, document_count int, model, built_at)`.
-`collection_key` equals `documents.entity_type`. Rebuilt by
-`worker.py --build-collections` or automatically after any pass that indexed documents.
-
-#### `route_labels`
-`(query_id uuid PK FK → query_log CASCADE, question, correct_route text, created_at)`.
-`correct_route` ∈ structured · document · hybrid. The 8 most recent become few-shot
-examples in the routing prompt — a human-in-the-loop quality feedback path.
-
-### 3.8 Administration and ingestion
-
-| Table | Migration | Shape |
-|---|---|---|
-| `feature_controls` | `20260718000002` | `(feature_key text PK, enabled boolean, disabled_roles text[], note?, updated_by FK?, updated_at)`. `feature_key` is an `ACCESS_MAP` path. MasterAdmin-writable runtime kill-switches |
-| `import_events` | `20260719000001` | `(id uuid PK, file_type, row_count int, uploaded_by FK, uploaded_by_email, uploaded_at)` — data-freshness provenance |
-| `harvested_imports` | `20260719000002` | `(id uuid PK, file_name, source ∈ folder\|mail, source_identifier, division_code?, storage_bucket, storage_path, file_size bigint, content_hash, status ∈ pending\|reviewed\|discarded, landed_at, reviewed_by?, reviewed_at?)`. **Unique** `(content_hash)`; **partial index** `(landed_at) WHERE status='pending'` |
-| `ingest_sender_map` | `20260719000002` | `(email text PK, division_code, created_at)` — maps a mail sender to a division |
-| `import_field_mappings` | `20260719000003` | `(id uuid PK, file_type, header_fingerprint text, mapping jsonb, confirmed_by FK, confirmed_at, use_count int)`. Fingerprint = SHA-256 of sorted normalized headers; remembers a human-confirmed mapping so the same layout needs no model call again |
-
-
-### 3.8a Project lifecycle foundations — `20261110000001_pme_role.sql`, `20261110000002_project_lifecycle_foundations.sql`
-
-Phase `PL0` of [`../roadmap/sources/PROJECT-LIFECYCLE-PLAN.md`](../roadmap/sources/PROJECT-LIFECYCLE-PLAN.md).
-
-#### `project_schemes` — tracks
-`(code text PK, name, leader_user_id uuid? FK → auth.users SET NULL, review_committee_id uuid? FK → committees SET NULL, created_at, updated_at)`.
-Ships with `ULIP` and `HQ` (structural rows, inserted by the migration). `leader_user_id` is
-the scheme leader (ULIP: Head RPBD) — a setting, not a role.
-**RLS:** verified users read; MasterAdmin writes.
-
-#### Columns added to `projects`
-| Column | Type | Notes |
-|---|---|---|
-| `stage` | `text?` | CHECK ∈ `SANCTIONED` \| `ACTIVE` \| `ON_HOLD` \| `CLOSING` \| `CLOSED` \| `ARCHIVED` \| `FORECLOSED`. NULL = the status text maps to no stage |
-| `track` | `text?` | FK → `project_schemes(code)`. Backfilled only from an unambiguous number prefix; otherwise NULL for PME to set |
-| `sanctioned_cost` | `numeric?` | Typed twin of `"SanctionedCost"` |
-| `start_date`, `end_date` | `date?` | Typed twins of `"StartDate"`, `"CompletioDate"` |
-
-`trg_projects_derive_columns` (BEFORE INSERT OR UPDATE) keeps each pair in step: a changed
-`stage` rewrites `"ProjectStatus"` to its label; a changed status text re-derives `stage`
-(`project_stage_of_status` — `Ongoing` and `Active` are both `ACTIVE`); the text columns the
-importer writes are otherwise left as entered. The same vocabulary lives in
-`src/lib/projects/stage.ts`. **Indexes:** `("ProjectNo")` (non-unique), `(stage)`.
-
-#### `project_id` beside every project number
-`proposals`, `project_reports`, `project_staff`, `phd_students`, `mous`, `tech_transfers`
-each gain `project_id text? FK → projects("ProjectID") SET NULL`, indexed. `"ProjectNo"` is **not
-unique** — one umbrella number covers several work packages — so `sync_project_key`
-(BEFORE INSERT OR UPDATE, SECURITY DEFINER) fills `project_id` only when exactly one project
-carries the number, and leaves a shared number unlinked. `projects_resync_child_keys`
-(AFTER INSERT OR UPDATE OF "ProjectNo" on `projects`) keeps that true as projects arrive:
-a number that becomes unique links its unlinked children, one that becomes shared (1 → 2)
-unlinks them — so the result does not depend on upload order.
-
-#### `proposals.track`
-`text? FK → project_schemes(code)`.
-
-### 3.8b Proposal workspace — `20261110000003_proposal_workspace.sql`
-
-Phase `PL1`. On `proposals`, every content column except `title` and `pi_name` is now
-nullable (completeness is `proposal_submit`'s job — see api_spec B.3), and
-`submitted_version_id uuid? FK → proposal_versions SET NULL` is added.
-`proposals_set_code` is now SECURITY DEFINER: under the inserter's RLS it could not see
-other people's proposals and reissued `PROP-<year>-0001`.
-
-#### `proposal_notes` — the PI's private scratch
-`(id uuid PK, proposal_id FK CASCADE, author_id uuid FK → auth.users CASCADE DEFAULT auth.uid(), body text CHECK non-blank, used_in text? CHECK ∈ abstract | problem_statement | objectives | expected_outcomes, used_at?, created_at, updated_at)`.
-**Index:** `(proposal_id, created_at DESC)`.
-**RLS:** author only, all four commands; insert only onto a proposal the author created.
-No co-PI, PME, reviewer or admin policy exists, at any stage.
-
-#### `proposal_versions`
-`(id uuid PK, proposal_id FK CASCADE, version_no int, label text, kind text CHECK ∈ manual | submitted, snapshot jsonb, created_by FK, created_at)`. **Unique** `(proposal_id, version_no)`.
-`snapshot` = `{"proposal": <the row>, "copis": [{staff_id, staff_name}]}`.
-**RLS:** the creator reads all; anyone else who may read the proposal reads `submitted`
-versions only. No client writes — `proposal_save_version`, `proposal_restore_version` and
-`proposal_submit` write through the internal `proposal_snapshot_version`.
-
-### 3.8c Proposal review chain and sanction — `20261111000001_proposal_review_chain.sql`
-
-Phase `PL2`. `proposals` gains `category_code` (CHECK ∈ FIR, FBR, NCP, FTT, FTC, MMP, FCP, HCP,
-IST — guidelines §2.1). `projects` gains `proposal_id` (unique when set), `sanction_ref`,
-`sanction_date`. `proposal_documents.doc_type` adds `quotation`, `step_scan`, `sanction_order`.
-
-| Table | Shape | Writes |
-|---|---|---|
-| `proposal_budget_lines` | `(id, proposal_id FK CASCADE, fiscal_year CHECK 'YYYY-YY', head CHECK ∈ EQUIPMENT · WORKS · MANPOWER · CONSUMABLES · TA_INDIA · TA_ABROAD · CONTINGENCY · OUTSOURCING · OTHER, item, amount numeric ≥ 0, created_at)` | Author, directly, while `DRAFT` \| `REVISION_REQUESTED`. A trigger keeps `proposals.requested_budget` = their sum |
-| `proposal_review_steps` | `(id, proposal_id FK CASCADE, round, seq, kind, status ∈ PENDING · DONE · RETURNED · REJECTED · SKIPPED, decided_by, decided_at, notes, document_id FK proposal_documents, meeting_id FK meetings)`, unique `(proposal_id, round, seq)` | RPCs only |
-| `proposal_review_comments` | `(id, proposal_id FK CASCADE, section ∈ idea · plan · team · budget · documents, body, author_id, created_at, resolved_at)` | Reviewers insert while in review; the author of a comment may withdraw it while unresolved; the PI writes `resolved_at` only (column grant) |
-| `project_budget_lines` | `(id, project_id FK projects CASCADE, fiscal_year, head, item, amount, source, created_at)` | `proposal_sanction` only |
-
-**Steps per track** (`proposal_step_kinds`): ULIP — PME_VETTING → REVIEW_COMMITTEE →
-DIRECTOR_APPROVAL. HQ — PME_VETTING → FINANCE → DIRECTOR_FORWARD → HQ_SCREENING → HQ_EXPERT →
-COMPETENT_AUTHORITY. Who may record each: `proposal_caller_may_act(proposal, kind)` — never
-the PI, author or a co-PI. Each submission opens a new round.
-
-### 3.8d Project execution — `20261111000002_project_execution.sql`
-
-Phase `PL3`. Every table below is readable by whoever may see the project (projects RLS
-inside an `EXISTS`), and written only through RPCs unless stated.
-
-| Table | Shape | Writes |
-|---|---|---|
-| `project_documents` | `(id, project_id FK CASCADE, doc_type ∈ receipt_order · expenditure_statement · milestone_evidence · other, storage_path, file_name, file_size, uploaded_by, uploaded_at)`. Bucket `project-documents`, path `{project_id}/{doc_type}/…` | Client insert: the project office, or the PI for `milestone_evidence`. No update or delete |
-| `project_fund_receipts` | `(id, project_id, received_on, fiscal_year, amount ≠ 0, head?, source, order_no, order_date?, ifd_file_no?, ifd_date?, document_id, notes?, reverses_id UNIQUE?, recorded_by, recorded_at)` | `project_record_receipt`, `project_reverse_entry` |
-| `project_expenditure` | `(id, project_id, fiscal_year, period ∈ Q1–Q4 · H1 · H2 · FY, head, amount ≠ 0, document_id, notes?, reverses_id UNIQUE?, recorded_by, recorded_at)` | `project_record_expenditure`, `project_reverse_entry` |
-| `project_milestones` | `(id, project_id, title, target_date, status ∈ PROPOSED · PLANNED · REPORTED · ACHIEVED · DROPPED, achieved_on?, report_note?, document_id?, decision_note?, created_by, created_at, updated_at)` | `project_milestone_add` / `_report` / `_decide` |
-| `project_events` | `(id bigserial, project_id, at, actor?, kind, summary, ref_id?)` | Triggers only (`project_log_event` on projects, receipts, expenditure, milestones, documents) |
-
-The ledger is **append-only**: no client may update or delete it, PME included. A wrong
-entry is corrected by `project_reverse_entry`, which inserts the negated row with
-`reverses_id`; an entry can be reversed once and a reversal cannot itself be reversed.
-`project_expenditure_sync_utilized` keeps `projects."UtilizedAmount"` equal to the ledger on
-projects created by sanction (legacy rows keep their imported figure). `scientific_outputs`,
-`ip_intelligence` and `equipment` gain `project_id` (FK SET NULL).
-
-### 3.9 Data operations — `20261101000001_contribution_requests.sql`
-
-All three tables are **read-only to clients** (`GRANT SELECT` to `authenticated`, nothing
-else; the migration asserts it). Every write goes through the RPCs in
-[api_spec.md §B.8](api_spec.md#b8-data-operations--contribution-requests). `domain` on both
-`data_stewards` and `contribution_requests` is `CHECK`ed to exactly the client `FileType`
-keys: `divisions` · `staff` · `projects` · `projectStaff` · `phd` · `equipment` ·
-`contractStaff`.
-
-#### `data_stewards` — who keeps each data domain current
-`(id uuid PK, domain text, division_code text?, user_id uuid FK auth.users CASCADE, kind text, cadence_days int CHECK > 0 DEFAULT 90, created_at)`,
-**UNIQUE NULLS NOT DISTINCT** `(domain, division_code, user_id)`. `kind` ∈ `accountable` \|
-`steward`. `division_code` NULL = domain-wide. Routing (`contribution_steward_for`) prefers a
-division row over domain-wide, `steward` over `accountable`, then the oldest. Institute-readable
-(`USING (true)`) — ownership is operational metadata, same tier as `import_events`. Written
-by `data_steward_set` / `data_steward_remove` (admin only).
-
-#### `contribution_requests` — a small owned ask: "confirm / fill this"
-`(id uuid PK, domain text, record_ref text?, division_code text?, title text CHECK btrim ≠ '', reason text DEFAULT '', link text?, requested_by uuid?, assignee_id uuid?, delegate_id uuid?, status text DEFAULT 'open', due_date date?, prefill jsonb DEFAULT '{}', response jsonb?, dedupe_key text U?, created_at, updated_at, resolved_at?)`.
-`status` ∈ `open` \| `prepared` \| `submitted` \| `needs_clarification` \| `blocked` \|
-`done` \| `declined` ([system_design.md §4.8](system_design.md#48-contribution-request--contribution_requestsstatus)).
-The three people columns are FKs to `auth.users` **ON DELETE SET NULL**, so removing a login
-never erases what was asked and answered. `requested_by` NULL = raised by the sweep;
-`assignee_id` NULL = unowned (Unowned tab on `/work`). `link` is a relative app path only:
-`CHECK (link ~ '^/([^/\]|$)' AND link !~ '[[:cntrl:]]')` — `/x` yes; `//x`, `/\x`,
-`https://x` no, and no control characters (browsers strip TAB/LF/CR, so `/<TAB>/evil` would
-open `//evil`). `dedupe_key` is set only by the sweep (`stale:<domain>:<division|*>:<import id|none>`).
-`record_ref` is the target row's primary key (`PK_FIELD` in `src/lib/data/entityWrite.ts`).
-A request **never writes a canonical table**: on accept the client applies `response` with
-the same RLS-gated update the edit modal uses, then calls `accept`.
-**SELECT:** requester, assignee, delegate, a reviewer (`contribution_is_reviewer`: requester,
-admin, or a steward covering the domain/division), the Director, or a division manager for
-their own `division_code`.
-**Indexes:** `(assignee_id, status)`, `(delegate_id, status)`, `(domain, division_code)`.
-`updated_at` via the `set_updated_at` trigger.
-
-#### `contribution_request_events` — append-only audit
-`(id uuid PK, request_id FK CASCADE, actor_id uuid FK auth.users SET NULL?, action text, from_status text?, to_status text, note text?, payload jsonb DEFAULT '{}', created_at)`.
-One row per create and per `contribution_request_act` call; `actor_id` NULL = the sweep.
-`payload` carries the prefill on `created`, the response on `submit`, and
-`{"self_review": true}` when the assignee accepted their own update. Readable exactly when the
-parent request is. **Index:** `(request_id, created_at)`.
-
-**Sweep.** `contribution_requests_sweep()` (pg_cron `contribution-requests-sweep`, `45 1 * * *`
-= 07:15 IST, after the notifications sweep) raises one `Refresh <domain> data` request per
-`(domain, division)` that has a `steward` row and whose latest `import_events` row is missing
-or older than the shortest `cadence_days` there — and only when no earlier refresh request for
-that scope is still open. Cron-only: `EXECUTE` revoked from client roles.
+Notation: **PK** primary key · **FK** foreign key · **U** unique constraint/index · `?` nullable. All **121** tables are grouped below in exact migration creation order (`20261121000001`–`20261121000008`).
 
 ---
 
-### 3.8e Project monitoring — `20261111000003_project_monitoring.sql`
+### 3.1 Extensions, Helpers & CSIR Rules — `20261121000001_extensions_helpers.sql` (1 table)
 
-Phase `PL4`. The schedule is **derived, not entered**: a project's reviews and reports are
-generated from its track, category and dates, so a report nobody wrote is overdue without
-anyone having created a record for it.
+Installs `uuid-ossp`, `pgcrypto`, and `pg_cron`; establishes restrictive default ACLs; defines four foundational helpers (`ist_today()`, `person_name_key(text)`, `pms_set_updated_at()`, `set_updated_at()`); and creates the effective-dated institutional rule store:
 
-| Table / view | Shape | Writes |
+- **`csir_rules`** (`RLS`, 1 SELECT policy; RPC-written via `csir_rule_set`, read by `csir_rule(key, on)`):
+  `(id uuid PK, rule_key text, value jsonb, unit text?, effective_from date, effective_to date?, source_ref text, verified boolean DEFAULT false, note text?, created_by uuid? FK auth.users SET NULL, created_at timestamptz)`.
+  **U** `(rule_key, effective_from)`. **CHECK:** non-blank `rule_key`/`source_ref`; `effective_to IS NULL OR effective_to >= effective_from`.
+  Seeded with **17** initial CSIR/PMS rules (`verified = false`) covering major equipment threshold (₹5,00,000), RCE DG limit (20%), committee minutes windows, CPD half-yearly due dates, project-staff tenure/leave/relaxation/quorum limits, and PMS 2026 pay-level/committee-tier mappings.
+
+---
+
+### 3.2 Identity & RBAC — `20261121000002_auth_rbac.sql` (8 tables)
+
+| Table | PK & Key Columns | Constraints, Indexes & Governance Notes |
 |---|---|---|
-| `project_review_slots` | `(id, project_id FK CASCADE, kind ∈ PROGRESS_REPORT · REVIEW_COMMITTEE · RESEARCH_COUNCIL · TASK_FORCE · MONITORING_COMMITTEE · STAGE_GATE · CALLED_REVIEW, body, period_label, period_end, due_date, generated, status ∈ PENDING · DONE · CANCELLED, meeting_id?, held_on?, decision?, outcome?, minutes_days?, minutes_due?, minutes_document_id?, report_id?, notes?, recorded_by?, recorded_at?)`, `UNIQUE (project_id, kind, period_end)` | `project_generate_slots` (trigger), the RPCs below. Clients: SELECT only, through projects RLS |
-| `project_portfolio` (view, `security_invoker`) | one row per running project: `elapsed_pct, sanctioned_cost, received, spent, milestones_total, milestones_achieved, overdue, minutes_overdue, next_due, last_report_on, last_decision` | read-only |
+| **`user_roles`** | **PK** `(user_id uuid FK auth.users CASCADE, role text)`, `division_code text?`, `must_change_password boolean DEFAULT true` | **CHECK** `role` ∈ 15 canonical roles (`Director`, `DivisionHead`, `Scientist`, `Technician`, `HRAdmin`, `FinanceAdmin`, `SystemAdmin`, `MasterAdmin`, `DefaultUser`, `HOD`, `Student`, `ProjectStaff`, `Guest`, `EmpoweredCommittee`, `PME`). **Index:** `(division_code)`. **Grant:** `rm` (SELECT/REFERENCES only); mutated exclusively via `admin_set_user_roles` / `approve_access_request`. |
+| **`user_profiles`** | **PK** `user_id uuid FK auth.users CASCADE`, `email text?`, `must_change_password boolean DEFAULT true`, `active_role text?`, `last_seen_at timestamptz?`, `preferences jsonb DEFAULT '{}'`, `password_fingerprint text?` | **Trigger:** `trg_user_profiles_validate_active_role` validates `active_role` against `user_roles`; `handle_new_auth_user` (on `auth.users`) provisions `DefaultUser` + profile. **Grant:** `ardm` + column `UPDATE` restricted to `(active_role, last_seen_at)`. |
+| **`acting_assignments`** | **PK** `id uuid`, `role text`, `division_code text? FK divisions SET NULL`, `principal_user_id uuid? FK auth.users SET NULL`, `acting_user_id uuid FK auth.users CASCADE`, `from_on date`, `to_on date`, `order_ref text`, `created_by uuid?`, `created_at timestamptz` | **CHECK:** `role` ∈ `HOD \| DivisionHead \| Director`; `(role = 'Director') = (division_code IS NULL)`; `to_on >= from_on`; non-blank `order_ref`. **Indexes:** `(acting_user_id, from_on, to_on)` + FK indexes. `SELECT`-only to clients; `caller_has_role()` / `caller_in_division()` honour active assignments. |
+| **`access_requests`** | **PK** `id uuid`, `user_id uuid FK auth.users CASCADE`, `email text?`, `requested_roles text[]`, `requested_division text?`, `justification text`, `status text DEFAULT 'PENDING'`, `review_note text?`, `reviewed_by uuid?`, `reviewed_at timestamptz?`, `created_at timestamptz` | **CHECK:** `status` ∈ `PENDING \| APPROVED \| REJECTED`. **Partial unique:** `access_requests_one_pending (user_id) WHERE status = 'PENDING'`; partial pending queue index on `(created_at)`. |
+| **`feature_controls`** | **PK** `feature_key text`, `enabled boolean DEFAULT true`, `disabled_roles text[] DEFAULT '{}'`, `note text?`, `updated_by uuid?`, `updated_at timestamptz` | `feature_key` matches `ACCESS_MAP` path. **Trigger:** `trg_feature_controls_updated_at`. Runtime kill-switch readable by all authenticated users, writable by MasterAdmin. |
+| **`feature_grants`** | **PK** `(user_id uuid FK auth.users CASCADE, feature_key text)`, `note text?`, `granted_by uuid?`, `created_at timestamptz` | Per-user runtime access exception (`useAccess()` / `Access` management). **Grant:** `ardm` (no UPDATE). |
+| **`notifications`** | **PK** `id uuid`, `user_id uuid FK auth.users CASCADE`, `kind text`, `severity text DEFAULT 'info'`, `title text`, `body text`, `link text?`, `source text DEFAULT 'rule'`, `dedupe_key text`, `status text DEFAULT 'open'`, `proposed_action jsonb?`, `created_at`, `updated_at` | **U** `(user_id, dedupe_key)`. **CHECK:** `severity` ∈ `info \| warning \| critical`; `source` ∈ `rule \| agent`; `status` ∈ `open \| read \| accepted \| dismissed`. **Indexes:** `(user_id, created_at DESC)`, partial open index. **Trigger:** `notifications_set_updated_at`. **Grant:** `r` + column `UPDATE` on `(status, updated_at)`. Agent suggestions accept atomically via `notification_accept`. |
+| **`audit_log`** | **PK** `id uuid`, `entity_type text`, `entity_id uuid`, `action text`, `actor_id text`, `changes jsonb`, `created_at timestamptz` | **CHECK:** `entity_type` ∈ `committee \| meeting \| action_item \| ticket \| ticket_response \| calendar_event \| holiday`; `action` ∈ `created \| updated \| deleted \| status_changed`. **Indexes:** `(created_at DESC, id)`, `(created_at)`, `(entity_type, entity_id)`. Trigger-written, `SELECT`-only for admins. |
 
-- **Plan.** `project_slot_plan(track, category)`: progress report half-yearly (due 15 days
-  after the half year); ULIP review committee or HQ Research Council half-yearly; HQ Task
-  Force quarterly for MMP/FBR/NCP/FIR/FTT/FTC (half-yearly for FCP), minutes within 7 days;
-  external monitoring committee for FBR/NCP/FIR; stage gates for MMP/FTT/FTC.
-- **Regeneration.** `trg_projects_regenerate_slots` fires on a change to stage, track,
-  dates, status, category or number, deletes the untouched generated `PENDING` slots and
-  rebuilds them. Held, scheduled, report-answered and called reviews are kept.
-- **Reports answer slots.** `project_reports.slot_id` (set by `project_reports_take_slot`);
-  `project_reports_answer_slot` marks the slot `DONE` once the report is submitted.
-- **Agenda link.** `agenda_items.subject_type ∈ project_review · proposal`, `subject_id`.
-- `project_documents.doc_type` adds `minutes`. `project_log_event` also logs review
-  scheduling, outcomes, minutes and called reviews to the timeline.
+---
 
-### 3.8f Project change requests — `20261112000001_project_change_requests.sql`
+### 3.3 HR, Workforce, Facilities & Scientific Outputs — `20261121000003_hr_workforce.sql` (28 tables)
 
-Phase `PL5`. Guidelines §6.4 (foreclosure, time and cost overrun) and §7.2 (rephasing,
-re-appropriation, reallocation).
+#### Core HR & Organisational Structure (10 tables)
 
-| Table | Shape | Writes |
+- **`divisions`**: `"divCode" text PK`, `"divName"`, `"divDescription"`, `"divResearchAreas"`, `"divHoD"`, `"divHoDID"`, `"divSanctionedstrength" int`, `"divCurrentStrength" int`, `"divStatus"`. (Live UI computes sanctioned/filled/vacant counts dynamically from `division_strength` view.)
+- **`staff`**: `"ID" text PK`, legacy CamelCase columns (`"LabCode"`, `"EmployeeType"`, `"Name"`, `"Designation"`, `"Group"`, `"Division"`, `"DoAPP"`, `"DOJ"`, `"DOB"`, `"Cat"`, `"AppointmentType"`, `"Level"`, `"CoreArea"`, `"Expertise"`, `"Email"`, `"Ext"`, `"VidwanID"`, `"ReportingID"`, `"HighestQualification"`, `"Gender"`) plus `user_id uuid? FK auth.users SET NULL`, `orcid text?`, and typed dates (`doj_date date?`, `dob_date date?`, `doapp_date date?`).
+  - **Indexes:** `staff_division_idx`, `staff_email_lower_idx (lower("Email"))`, `staff_name_key_idx (person_name_key("Name"))`, partial `staff_reporting_id_idx`, partial unique `staff_user_id_key`.
+  - **Triggers:** `trg_staff_typed_dates`, `trg_pms_awp_sync_staff_user`. **RLS:** `staff_select_own_supervisor` lets staff see their own reporting officer row too.
+- **`sanctioned_posts`**: `id uuid PK`, `post_code text U`, `staff_group`, `level?`, `designation`, `discipline?`, `division_code? FK divisions SET NULL`, `category?`, `state` (`FILLED \| VACANT \| ADVERTISED \| ABEYANCE \| ABOLISHED`), `holder_staff_id? FK staff SET NULL`, `vacant_since date?`, `sanction_ref?`, `created_at`. **CHECK:** `(state = 'FILLED') = (holder_staff_id IS NOT NULL)`. **Partial unique:** `sanctioned_posts_one_post_per_holder`. RPC-only writes (`post_create/fill/vacate/set_state`).
+- **`sanctioned_post_events`**: `id bigint PK` (`sanctioned_post_events_id_seq`), `post_id FK CASCADE`, `at`, `actor FK SET NULL`, `from_state?`, `to_state`, `staff_id?`, `effective_on?`, `order_ref?`, `note?`.
+- **`staff_career_events`**: `id uuid PK`, `staff_id FK CASCADE`, `kind` (`APPOINTMENT \| PROMOTION \| TRANSFER \| DEPUTATION \| TRAINING \| ASSESSMENT \| RETIREMENT`), `effective_on date`, `detail jsonb`, `order_ref?`, `source` (`IMPORT \| MANUAL`), `created_by?`, `created_at`. **U** `(staff_id, kind, effective_on)`. Joins `entity_timeline`.
+- **`staff_profile_changes`**: `id uuid PK`, `staff_id FK CASCADE`, `user_id?`, `changes jsonb`, `changed_at`. Written only by `update_own_profile` (whitelisted to `Expertise`, `CoreArea`, `Ext`, `orcid`, `VidwanID`). Joins `entity_timeline`.
+- **`expertise_terms`**: `id uuid PK`, `label`, `kind` (`MATERIAL \| TECHNIQUE \| APPLICATION`), `theme_code` (`01`–`09`), `parent_id FK SET NULL`, `status` (`ACTIVE \| MERGED`), `merged_into FK SET NULL`, `created_by?`, `created_at`. **CHECK:** `(status = 'MERGED') = (merged_into IS NOT NULL)`. **Partial unique:** `expertise_terms_label_key` on `lower(btrim(label)) WHERE status = 'ACTIVE'`. Curated by HR/MasterAdmin/staff stewards.
+- **`staff_expertise`**: **PK** `(staff_id FK CASCADE ON UPDATE CASCADE, term_id FK CASCADE)`, `source` (`SELF \| SUGGESTED`), `confirmed_at?`, `added_by DEFAULT auth.uid()`. Partial index on `term_id WHERE confirmed_at IS NOT NULL`.
+- **`contract_staff`**: `"id" text PK`, `"Name"`, `"Designation"`, `"Division"`, `"DateOfJoining"`, `"ContractEndDate"`, `"LabCode"`, `"DateOfBirth"`, `"AttachedToStaffID"`, plus trigger-derived `joined_on`, `ends_on`, `born_on` (`trg_contract_staff_typed_dates`).
+- **`phd_students`** & **`phd_milestones`**:
+  - `phd_students`: `"EnrollmentNo" text PK`, `"StudentName"`, `"Specialization"`, `"SupervisorName"`, `"CoSupervisorName"`, `"FellowshipDetails"`, `"CurrentStatus"`, `"ThesisTitle"`, `"ProjectNo"`, `"DivisionCode"`, plus trigger-synced `supervisor_staff_id`, `cosupervisor_staff_id` (FK `staff`), `project_id` (FK `projects`).
+  - `phd_milestones`: `id uuid PK`, `enrollment_no`, `milestone` (`Joining \| Coursework \| Comprehensive Exam \| Registration \| Synopsis Submission \| Thesis Submission \| Viva Voce \| Degree Awarded`), `due_date?`, `completed_date?`, `remarks?`, `created_at`. **U** `(enrollment_no, milestone)`.
+
+#### Project Personnel & Scholars (4 tables)
+
+- **`project_staff`**: `"id" text PK`, `"StaffName"`, `"Designation"`, `"RecruitmentCycle"`, `"DateOfJoining"`, `"DateOfProjectDuration"`, `"ProjectNo"`, `"PIName"`, `"DivisionCode"`, plus `staff_id FK staff SET NULL`, `project_id FK projects SET NULL`, `person_id FK project_staff_persons SET NULL`, and typed dates `joined_on`, `project_ends_on`. Triggers: `trg_project_staff_typed_dates`, `trg_project_staff_staff_key`, `trg_project_staff_project_key`.
+- **`project_staff_persons`**: `id uuid PK`, `name`, `born_on?`, `category?` (`GEN \| SC \| ST \| OBC \| EWS \| PwBD`), `gender?`, `phd_registered_on?`, `thesis_submitted_on?`, `abroad_last_5y boolean DEFAULT false`, `antecedents_verified_on?`, `created_at`. **CHECK:** `thesis_submitted_on IS NULL OR phd_registered_on IS NOT NULL`.
+- **`project_engagements`**: `id uuid PK`, `person_id FK CASCADE`, `project_id FK CASCADE`, `position_code`, `from_on date`, `to_on date` (`>= from_on`), `emoluments numeric(12,2)?`, `selection_id FK project_selections SET NULL`, `legacy_project_staff_id?`, `created_by?`, `created_at`. Created only after `project_engagement_check` passes all CSIR §3.3 rules.
+- **`project_staff_leave`**: `id uuid PK`, `engagement_id FK CASCADE`, `kind` (`PAID \| MATERNITY \| PATERNITY \| OTHER`), `from_on date`, `to_on date`, `recorded_by?`, `recorded_at`.
+
+#### Labs & Equipment (3 tables)
+
+- **`labs`**: `id uuid PK`, `lab_code text U`, `lab_name`, `div_code FK divisions`, `created_at`.
+- **`equipment`**: `"UInsID" text PK`, 11 legacy CamelCase columns (`"Name"`, `"EndUse"`, `"Division"`, `"IndenterName"`, `"OperatorName"`, `"Location"`, `"WorkingStatus"`, `"Movable"`, `"RequirementInstallation"`, `"Justification"`, `"Remark"`), plus `instrument_code`, `serial_number`, `manufacturer`, `year_of_manufacture int`, `lab_id FK labs`, `owner_user_id FK auth.users`, `amc_end_date date`, `purchase_cost numeric(14,2)`, `procurement_date date`, `project_id FK projects SET NULL`. Indexes on `owner_user_id`, `lab_id`, `amc_end_date`, `project_id`.
+- **`equipment_usage_log`**: `id uuid PK`, `equipment_id FK CASCADE`, `used_on date`, `hours numeric(5,2)` (`0 < hours <= 24`), `user_staff_id? FK staff SET NULL`, `project_id? FK projects SET NULL`, `purpose` (non-blank), `logged_by FK auth.users`, `logged_at`. Append-only via `equipment_log_usage`.
+
+#### Research Outputs, IP, Identity Links, IRINS, MoUs, Tech Transfers & Publication Clearance (11 tables)
+
+- **`scientific_outputs`**: `id text PK`, `title`, `authors text[]`, `journal`, `year int`, `doi?`, `impact_factor float?`, `citation_count int?`, `division_code`, `project_id? FK projects SET NULL`. **Trigger:** `trg_scientific_outputs_authors` keeps `output_authors` in step.
+- **`output_authors`**: **PK** `(output_id FK CASCADE, pos > 0)`, `author_name`, `staff_id? FK staff SET NULL`, `link_source` (`auto \| manual`), `confirmed_by?`, `confirmed_at?`.
+- **`ip_intelligence`**: `id text PK`, `title`, `type` (`Patent \| Copyright \| Design \| Trademark`), `status` (`Filed \| Published \| Granted`), `filing_date text`, `grant_date text?`, `inventors text[]`, `division_code`, `project_id? FK projects SET NULL`. **Trigger:** `trg_ip_intelligence_inventors`.
+- **`ip_inventors`**: **PK** `(ip_id FK CASCADE, pos > 0)`, `author_name`, `staff_id? FK staff SET NULL`, `link_source` (`auto \| manual`), `confirmed_by?`, `confirmed_at?`.
+- **`irins_profiles`** & **`irins_sync_log`**: Cached Vidwan researcher JSON (`vidwan_id text PK`, `profile_data jsonb`, `synced_at`) and sync run ledger (`id bigint PK` via `irins_sync_log_id_seq`, `triggered_by`, `started_at`, `completed_at?`, `status`, `total_scientists`, `succeeded`, `failed`, `error_details jsonb?`).
+- **`mous`**: `id uuid PK`, `partner_name`, `partner_type` (`Academic \| Industry \| Government \| International \| Other`), `purpose`, `signed_date?`, `valid_until?`, `status` (`Active \| Expired \| Under Renewal \| Terminated`), `division_code?`, `linked_project_no?`, `remarks?`, `project_id? FK projects SET NULL`, `created_at`, `updated_at`. Indexes on `status`, `valid_until`, `project_id`.
+- **`tech_transfers`**: `id uuid PK`, `technology_title`, `licensee`, `licensee_type` (`Industry \| Startup \| PSU \| Government \| Other`), `agreement_type` (`License \| Know-how Transfer \| Joint Development \| Consultancy \| Sponsored`), `agreement_date?`, `value_lakhs numeric(12,2) >= 0`, `status` (`Under Negotiation \| Signed \| Active \| Completed \| Terminated`), `linked_project_no?`, `linked_ip_id?`, `division_code?`, `remarks?`, `project_id? FK projects SET NULL`, `created_at`, `updated_at`.
+- **`publication_files`** & **`publication_author_consents`**: Pre-submission manuscript ethics/plagiarism workflow (`DRAFT → ETHICS_CHECK → CLEARED → SUBMITTED → ACCEPTED → PUBLISHED`). `publication_files` holds `id uuid PK`, `output_id? FK scientific_outputs SET NULL`, `title`, `division_code`, `communication_no text? U` (`AMPRI/<year>/<serial>`), `similarity_pct numeric(5,2)` (`0–100`), `similarity_report_document_id? FK documents SET NULL`, `journal?`, `year?`, `doi?`, `status`, `created_by`, `created_at`, `cleared_by?`, `cleared_at?`, `submitted_at?`, `published_at?`. `publication_author_consents` holds PK `(file_id FK CASCADE, pos > 0)`, `name`, `staff_id?`, `contribution?`, `consented_at?`.
+
+---
+
+### 3.4 PMS & Annual Work Plans — `20261121000004_pms_awp.sql` (21 tables)
+
+| Table | Purpose, Keys & Invariants |
+|---|---|
+| **`appraisal_cycles`** | `(id uuid PK, name, start_date date, end_date date > start_date, status ∈ OPEN\|CLOSED\|ARCHIVED)`. **CHECK:** `EXTRACT(month FROM end_date) = 3` (March cycle end). **Partial unique:** at most one `OPEN` cycle. Four deadlines derive from `end_date` year (`SELF_APPRAISAL` May 15, `EC_COMPLETION` Jun 30, `EMPOWERED_COMPLETION` Jul 31, `SYSTEM_LOCK` Nov 30). |
+| **`pms_reports`** | **U** `(cycle_id RESTRICT, scientist_id RESTRICT)`. Stores `status` (7 states), `track` (`STANDARD \| ANNEXURE_I \| ANNEXURE_II`, trigger-set from designation), `proforma_version` (`LEGACY \| 2026`), `questionnaire_b boolean`, `committee_id?`, `period_from/to`, `self_score` (`0–100`), `duty_days >= 0`, `score_communicated_at?` (anchors 15-day window), `deemed_accepted_at?`, `non_submission_certificate_path?`. **6 triggers** enforce track/questionnaire assignment, owner column guard, 2026 column lock, Nov 30 system lock (`trg_lock_pms_reports`), and `updated_at`. |
+| **`pms_part1`** | **PK** `report_id FK CASCADE`, `data jsonb`, `prefilled_by?`, `prefilled_at?`, `discrepancy?`, `discrepancy_at?`, `verified_by?`, `verified_at?`. Establishment-verified Part I snapshot from HR data. Locked by `trg_lock_pms_part1`. |
+| **`pms_report_sections`** | **U** `(report_id FK CASCADE, section_key)`. Flexible JSONB container per proforma section. Triggers: lock + `updated_at`. |
+| **`pms_report_items`** | `id uuid PK`, **U** `(report_id FK CASCADE, section, source_record_type, source_record_id)`. `section` ∈ `PROJECT \| OUTPUT \| IP \| TECH_TRANSFER \| STUDENT \| COMMITTEE \| OTHER`; `state` ∈ `PREFILLED \| CONFIRMED \| EDITED \| ADDED \| REMOVED`; `link` CHECK `^(/\|https://)`. Non-owners see confirmed/edited/added items only. |
+| **`pms_annexures`** | `id uuid PK`, `report_id FK CASCADE`, `file_name`, `file_path`, `file_size`, `mime_type`, `uploaded_at`. Points to private `annexures` bucket. |
+| **`pms_evaluation_committees`** | `id uuid PK`, **U** `(name, cycle_id FK RESTRICT)`, `tier` (`I \| II \| III \| IV`). |
+| **`pms_evaluation_committee_members`** | `id uuid PK`, **U** `(committee_id FK CASCADE, user_id FK RESTRICT)`, `role` (`REPORTING_OFFICER \| REVIEWING_OFFICER \| EC_MEMBER`). Panel validity checked by `pms_committee_panel_valid`. |
+| **`pms_evaluations`** | `id uuid PK`, **U** `(report_id FK RESTRICT, evaluator_id FK RESTRICT)`, `status` (`PENDING \| IN_PROGRESS \| COMPLETED`), `scores jsonb`, `pen_picture jsonb`, `total_score 0–100`, `reasons_for_outstanding?`, `reasons_below_threshold?`, `suggestions_for_improvement?`. **5 triggers** enforce identity, lock, 2026 single-panel guard (`trg_pms_evaluations_guard_2026`), and automatic transition to `EMPOWERED_COMMITTEE_REVIEW` when the last legacy evaluation finishes. |
+| **`pms_panel_scores`** | **PK** `report_id FK RESTRICT`, `committee_id`, `score 0–100`, reasons/suggestions, `pen_picture jsonb`, non-blank `integrity`, `adverse_remarks?`, `critical_assessment?`, `remarks?`, `quorum_present`, `members_total`, `signed_scan_path?`, `recorded_by`, `recorded_at`. 2026 single panel-score model (`pms_record_panel_score`). |
+| **`pms_pen_picture_items`** | **PK** `item_key`, `group_code` (`A\|B\|C`), `group_name`, `label`, `sort smallint`. **Seeded with 15 behavioural items** (5 each in Groups A, B, C) verified against CSIR PMS 2026 Guidelines. |
+| **`pms_empowered_committee_members`** | `id uuid PK`, **U** `(cycle_id FK CASCADE, user_id FK RESTRICT)`, `is_chairman boolean`. |
+| **`pms_committee_decisions`** | `id uuid PK`, **U** `report_id FK RESTRICT`, `decided_by`, `final_score 0–100?`, `justification` (`>= 50` chars trimmed), `ec_action?` (`CONCUR \| UPGRADE \| DOWNGRADE`), `panel_score?`, `general_comments?`, `critical_assessment?`, `quorum_present?`, `members_total?`. Trigger `trg_pms_decisions_require_action` enforces `ec_action` on 2026 reports. |
+| **`pms_representations`** | `id uuid PK`, **U** `report_id FK CASCADE`, `scientist_id FK RESTRICT`, `grounds` (`>= 20` chars trimmed), `status` (`PENDING \| RESOLVED`), `resolution?`, `resolved_by?`, `resolved_at?`. |
+| **`pms_grievance_members`** | `id uuid PK`, **U** `(cycle_id FK CASCADE, user_id FK RESTRICT)`. |
+| **`pms_condonations`** | **PK** `report_id FK CASCADE`, `condoned_until date`, `reason` (`>= 20` chars), `condoned_by`, `created_at`. |
+| **`pms_notifications`** | `id uuid PK`, `user_id FK auth.users CASCADE`, `type`, `title`, `body`, `report_id? FK CASCADE`, `read boolean DEFAULT false`, `created_at`. Partial unread index on `(user_id, created_at DESC) WHERE NOT read`. |
+| **`pms_audit_logs`** | `id uuid PK`, `user_id`, `action`, `entity_type`, `entity_id uuid`, `details jsonb`, `created_at`. Indexes on `(created_at DESC, id)`, `(entity_type, entity_id)`, `(user_id, created_at DESC)`. |
+| **`pms_awps`** | `id uuid PK`, **U** `(staff_id FK staff RESTRICT, reporting_year ~ '^\d{4}-\d{2}$')`. `status` (`DRAFT \| WITH_RO \| WITH_RVO \| WITH_DIRECTOR \| RETURNED \| APPROVED`); JSONB sections (`part_a`, `activity_split`, `projects`, `objectives`, `development`); `reporting_officer_id`, `reviewing_officer_id`, verdicts/remarks, `source` (`ONLINE \| IMPORTED \| BLANK_FORWARDED`), `source_pdf_path`. Not subject to Nov 30 lock; confidential projects redacted server-side in `pms_awp_for_report()`. |
+| **`pms_awp_activities`** | `id uuid PK`, `report_id FK CASCADE`, `nature_of_activity`, `role`, `time_committed_percentage 0–100`, `milestones jsonb`. Legacy in-report Part V storage retained for historical display. |
+| **`pms_awp_revisions`** | `id uuid PK`, `awp_id FK CASCADE`, `initiated_by FK RESTRICT`, `reasons >= 20`, `before jsonb`, `after jsonb`, `status` (`PENDING \| APPROVED \| REJECTED`), `decided_by?`, `decided_at?`, `decision_remarks?`. |
+
+---
+
+### 3.5 Committees, COI & Helpdesk — `20261121000005_committees_helpdesk.sql` (11 tables)
+
+- **`committees`**: `id uuid PK`, `name`, `committee_type` (`Standing \| AdHoc \| Review \| Advisory`), `mandate`, `chairperson_id`, `secretary_id`, `status` (`Active \| Inactive`), `formed_date date`, `confidentiality` (`institute \| members \| confidential`), `parent_committee_id?`, `rule_key?`, `sign_policy` (`CHAIR_SECRETARY \| ALL_PRESENT`), `dissolved_on?`, `dissolution_ref?`, `created_at`. Trigger `committees_audit`.
+- **`committee_members`**: `id uuid PK`, `committee_id FK CASCADE`, `staff_id`, `role` (`Member \| Invitee \| ExternalExpert`).
+- **`committee_terms`**, **`committee_memberships`**, **`external_members`**, **`committee_events`** (`20261121000010_committee_foundations.sql`): Term-scoped constitution (`term_no`, `from_on`, `to_on`, `quorum_min`, `quorum_needs_chair`, `cadence_months`, `status`), typed seats (`CHAIRPERSON \| MEMBER_SECRETARY \| CONVENER \| MEMBER \| EXTERNAL_EXPERT \| NOMINEE \| INVITEE`) synchronized back to `committees` via `trg_committee_memberships_sync_leads`, external member directory, and append-only `committee_events` (RPC-only insert).
+- **`meetings`**: `id uuid PK`, `committee_id FK CASCADE`, `term_id? FK committee_terms`, `meeting_date date`, `meeting_no?`, `starts_at?`, `ends_at?`, `mode` (`IN_PERSON \| ONLINE \| HYBRID`), `venue`, `title`, `summary`, `stage` (11 states from `PLANNED` to `CONFIRMED` / `POSTPONED` / `CANCELLED` / `ADJOURNED`), `status` (`Scheduled \| Completed \| Cancelled`), `adjourned_from_id?`, `notice_days?`, `teams_url?`, `pamphlet_url?`, `created_at`. Triggers: `meetings_audit`, `trg_meetings_sync_status_from_stage`.
+- **`agenda_items`**: `id uuid PK`, `meeting_id FK CASCADE`, `sequence int`, `item_type` (`CONFIRM_MINUTES \| ACTION_TAKEN \| DECISION \| INFORMATION \| OTHER`), `title`, `description`, `proposed_by`, `presenter_staff_id?`, `minutes_allotted?`, `proposal_state` (`PROPOSED \| ACCEPTED \| DECLINED`), `status` (`Pending \| Discussed \| Deferred`), `subject_type?` (`project_review \| proposal \| change_request \| completion_report \| action_item`), `subject_id?`. Partial index `(subject_type, subject_id)`.
+- **`action_items`**: `id uuid PK`, `meeting_id? FK meetings SET NULL`, `agenda_item_id?`, `proceeding_id?`, `source` (`meeting \| manual`), `task`, `assigned_to`, `assigned_staff_id?`, `priority` (`LOW \| NORMAL \| HIGH \| URGENT`), `deadline date`, `status` (`Pending \| InProgress \| Completed \| Blocked \| Dropped \| Verified`), `verified_by?`, `verified_at?`, `extensions int`, `completed_at?`, `notes`. Triggers: `action_items_audit`, `trg_action_items_sync_staff_id`.
+- **`meeting_documents`**: `id uuid PK`, `meeting_id FK CASCADE`, `agenda_item_id?`, `document_id? FK documents`, `file_name`, `storage_path`, `uploaded_at` (private `committee-docs` bucket).
+- **Committee read RLS (`CM0`):** `committees`, `meetings`, `agenda_items`, `meeting_documents`, `committee_members`, `committee_terms`, `committee_memberships`, and `committee_events` enforce `committee_can_read(committee_id)`.
+- **Rooms, Bookings, Hospitality, Common Desk & Role Home Foundations (`20261121000011_stage2_homes_desk_rooms.sql`):** Adds `equipment_in_charge`, `request_norms`, `request_catalog`, `calendar_tokens`, `rooms` (`kind` ∈ `'room' \| 'vehicle' \| 'guest house'`), `module_desks`, `room_bookings` (with `pg_advisory_xact_lock` overlap check), and `hospitality_requests`; extends `calendar_events` (`starts_at`, `ends_at`), `tickets` (`request_key`, `is_confidential`, `against_user_id`), and `project_staff_persons` (`user_id`); and ships `caller_division_codes()`, `division_rollup()`, `my_report_timers()`, `my_engagement()`, `my_day()`, `my_requests()`, `calendar_token_rotate()`, `room_book()`, `room_booking_decide()`, `meeting_schedule()`, `meeting_postpone()`, `hospitality_request_create()`, and `hospitality_request_decide()`.
+- **`coi_declarations`**: `id uuid PK`, **U** `(meeting_id FK CASCADE, member_user_id FK auth.users CASCADE)`, `format` (`F1 \| F2`), `conflict_note?` (required when `format = 'F2'`), `chair_decision?` (`CONTINUE \| RECUSE`, NULL unless `F2`), `decided_by?`, `decided_at?`, `declared_at`. RPC-only writes (`coi_declare`, `coi_chair_decide`).
+- **`tickets`**: `id uuid PK`, `token text U`, `subject`, `category` (8 categories), `urgency` (`Low \| Medium \| High \| Critical`), `description`, `submitted_by uuid FK RESTRICT`, `assigned_to? uuid FK SET NULL`, `status` (`Open \| InProgress \| Resolved \| Closed`), `created_at`, `updated_at`, `resolved_at?`. Triggers: `tickets_audit`, `trg_tickets_updated_at`.
+- **`ticket_responses`**: `id uuid PK`, `ticket_id FK CASCADE`, `author_id uuid FK RESTRICT`, `message`, `created_at`. Trigger: `ticket_responses_audit`.
+- **`ticket_events`**: `id uuid PK`, `ticket_id FK CASCADE`, `event_type` (`Created \| Assigned \| StatusChanged \| Resolved \| Closed \| Reopened`), `actor_id?`, `details jsonb`, `created_at`.
+- **`helpdesk_routing`**: `id uuid PK`, `category text U`, `target_type` (`division \| role`), `target_id`. Seeded by `supabase/seed/01_helpdesk_routing.sql`.
+
+---
+
+### 3.6 Projects, Proposals & Lifecycle (PL0–PL7) — `20261121000006_projects_proposals_lifecycle.sql` (29 tables)
+
+#### Schemes & Master Registries (2 tables)
+
+- **`project_schemes`**: `code text PK`, `name`, `leader_user_id? FK auth.users SET NULL`, `review_committee_id? FK committees SET NULL`, `created_at`, `updated_at`. **Seeded with 4 tracks:** `ULIP`, `HQ`, `EFP`, `OLP`.
+- **`projects`**: `"ProjectID" text PK`, 16 legacy CamelCase HR/finance columns (`"ProjectNo"`, `"ProjectName"`, `"FundType"`, `"SponsorerType"`, `"SponsorerName"`, `"ProjectCategory"`, `"ProjectStatus"`, `"StartDate"`, `"CompletioDate"` *(sic)*, `"SanctionedCost"`, `"UtilizedAmount"`, `"PrincipalInvestigator"`, `"DivisionCode"`, `"Extension"`, `"ApprovalAuthority"`), plus 14 typed/lifecycle columns: `pi_staff_id? FK staff SET NULL`, `stage?` (`SANCTIONED \| ACTIVE \| ON_HOLD \| CLOSING \| CLOSED \| ARCHIVED \| FORECLOSED`), `track? FK project_schemes`, `sanctioned_cost numeric?`, `start_date date?`, `end_date date?`, `proposal_id? FK proposals SET NULL` (partial unique when set), `sanction_ref?`, `sanction_date?`, `legacy_completed_at?`, `legacy_completed_by?`, `theme_code?` (`01`–`09`), `trl_target smallint?` (`1`–`9`), `trl_reached smallint?` (`1`–`9`).
+  - **7 triggers:** `trg_projects_default_authority`, `trg_projects_derive_columns` (bidirectional `stage` ↔ `"ProjectStatus"` sync), `trg_projects_staff_key`, `trg_projects_resync_child_keys` (links child `project_id` iff `"ProjectNo"` is unique), `trg_projects_regenerate_slots`, `trg_projects_log`, and `trg_projects_zz_archived_readonly` (blocks all mutations after `ARCHIVED`).
+
+#### Proposals & Pre-Sanction Chain PL1–PL2 (9 tables)
+
+- **`proposals`**: `id uuid PK`, `proposal_code text U` (`proposals_set_code_trg`, SECURITY DEFINER), `title`, `acronym?`, classification (`domain_theme`, `fund_type`, `sponsor_type`, `sponsor_name`, `project_category`, `category_code` ∈ 9 CSIR codes, `track FK project_schemes`), nullable draft fields (`abstract`, `problem_statement`, `objectives`, `expected_outcomes`, `proposed_start_date`, `proposed_duration_months > 0`, `requested_budget >= 0`, `current_trl`, `target_trl`), people (`pi_user_id`, `pi_name`, `division_code`), workflow (`status` ∈ 10 values, `review_body?`, `review_sent_date?`, `revision_notes?`, `rejection_reason?`, `submitted_version_id?`), sanction (`sanctioned_amount?`, `sanction_date?`, `om_number?`, `om_date?`, `linked_project_no?`, `project_id? FK projects`, `parent_project_id? FK projects`, `archived boolean`), audit timestamps/actors.
+- **`proposal_copis`**: **PK** `(proposal_id FK CASCADE, staff_id)`, `staff_name`.
+- **`proposal_budget_lines`**: `id uuid PK`, `proposal_id FK CASCADE`, `fiscal_year` (`YYYY-YY`), `head` (`EQUIPMENT \| WORKS \| MANPOWER \| CONSUMABLES \| TA_INDIA \| TA_ABROAD \| CONTINGENCY \| OUTSOURCING \| OTHER`), `item`, `amount >= 0`, `created_at`. Trigger `trg_proposal_budget_lines_total` updates `proposals.requested_budget`.
+- **`proposal_documents`**: `id uuid PK`, `proposal_id FK CASCADE`, `doc_type` (`signed_proposal \| om_document \| quotation \| step_scan \| sanction_order`), `storage_path`, `file_name`, `file_size`, `uploaded_at`, `uploaded_by`.
+- **`proposal_notes`**: `id uuid PK`, `proposal_id FK CASCADE`, `author_id FK auth.users CASCADE`, `body` (non-blank), `used_in?` (`abstract \| problem_statement \| objectives \| expected_outcomes`), `used_at?`, timestamps. Author-only RLS (`Select`/`Insert`/`Update`/`Delete` — completely private, never shared).
+- **`proposal_review_comments`**: `id uuid PK`, `proposal_id FK CASCADE`, `section` (`idea \| plan \| team \| budget \| documents`), `body`, `author_id`, `created_at`, `resolved_at?`. Reviewers insert/withdraw; PI may update `resolved_at` only.
+- **`proposal_review_steps`**: `id uuid PK`, **U** `(proposal_id FK CASCADE, round, seq)`, `kind` (8 step kinds: `PME_VETTING`, `FINANCE`, `REVIEW_COMMITTEE`, `DIRECTOR_APPROVAL`, `DIRECTOR_FORWARD`, `HQ_SCREENING`, `HQ_EXPERT`, `COMPETENT_AUTHORITY`), `status` (`PENDING \| DONE \| RETURNED \| REJECTED \| SKIPPED`), `decided_by?`, `decided_at?`, `notes?`, `document_id? FK proposal_documents SET NULL`, `meeting_id? FK meetings SET NULL`.
+- **`proposal_status_history`**: `id bigint PK` (`proposal_status_history_id_seq`), `proposal_id FK CASCADE`, `from_status?`, `to_status`, `payload jsonb?`, `changed_by`, `changed_at`.
+- **`proposal_versions`**: `id uuid PK`, **U** `(proposal_id FK CASCADE, version_no)`, `label`, `kind` (`manual \| submitted`), `snapshot jsonb`, `created_by`, `created_at`.
+
+#### Project Execution, Labs, Finances, Reviews, Changes, Closure & Stage Gates PL3–PL7 (18 tables)
+
+| Table | Purpose, Keys & Invariants |
+|---|---|
+| **`project_labs`** | **PK** `(project_id FK CASCADE, lab_code ~ '^[A-Z][A-Z0-9-]{1,15}$')`, `role` (`NODAL \| PARTICIPATING`), `rc_approval_document_id? FK project_documents SET NULL`. **Partial unique:** `project_labs_one_nodal` (at most one `NODAL` lab per project). |
+| **`project_budget_lines`** | `id uuid PK`, `project_id FK CASCADE`, `fiscal_year`, `head`, `item`, `amount` (`>= 0 OR change_request_id IS NOT NULL`), `source`, `change_request_id? FK project_change_requests`, `lab_code DEFAULT 'AMPRI'`. |
+| **`project_fund_receipts`** | `id uuid PK`, `project_id FK CASCADE`, `received_on date`, `fiscal_year`, `amount <> 0`, `head?`, `source`, `order_no`, `order_date?`, `ifd_file_no?`, `ifd_date?`, `document_id? FK project_documents SET NULL`, `reverses_id? U` (self-FK), `opening_balance boolean`, `lab_code DEFAULT 'AMPRI'`. Append-only ledger (`project_reverse_entry` to reverse once); triggers copy `lab_code` on reversal and log to `project_events`. |
+| **`project_expenditure`** | `id uuid PK`, `project_id FK CASCADE`, `fiscal_year`, `period` (`Q1–Q4 \| H1 \| H2 \| FY`), `head`, `amount <> 0`, `document_id?`, `reverses_id? U`, `opening_balance boolean`, `lab_code DEFAULT 'AMPRI'`. **3 triggers:** reversal lab sync, `project_events` logging, and `trg_project_expenditure_utilized` keeping `projects."UtilizedAmount"` in sync on sanctioned projects. |
+| **`project_milestones`** | `id uuid PK`, `project_id FK CASCADE`, `title`, `target_date date`, `status` (`PROPOSED \| PLANNED \| REPORTED \| ACHIEVED \| DROPPED`), `achieved_on?`, `report_note?`, `document_id?`, `decision_note?`. |
+| **`project_review_slots`** | `id uuid PK`, **U** `(project_id FK CASCADE, kind, period_end)`. `kind` ∈ 7 review/report types (`PROGRESS_REPORT`, `REVIEW_COMMITTEE`, `RESEARCH_COUNCIL`, `TASK_FORCE`, `MONITORING_COMMITTEE`, `STAGE_GATE`, `CALLED_REVIEW`); `decision` ∈ 8 decisions (`CONTINUE`, `CONTINUE_WITH_CHANGES`, `HOLD`, `FORECLOSURE_RECOMMENDED`, `GO`, `CONDITIONAL_GO`, `KILL`, `RECYCLE`); `status` (`PENDING \| DONE \| CANCELLED`); `minutes_days?`, `minutes_due?`, `minutes_document_id?`, `meeting_id?`, `report_id?`. Derived automatically by `project_generate_slots`. |
+| **`project_reports`** & **`project_report_history`** | `project_reports`: `id uuid PK`, `project_no`, `project_name`, `division_code?`, `period_type` (`Q\|H\|Y`), `period_label`, `due_date?`, `status` (`DRAFT \| SUBMITTED \| UNDER_REVIEW \| REVISION_REQUESTED \| REVIEWED`), `project_id? FK projects SET NULL`, `slot_id? FK project_review_slots SET NULL`. Triggers link `project_id`, assign `slot_id`, and close the slot when submitted. `project_report_history`: `(id, report_id FK CASCADE, from_status?, to_status, payload jsonb, changed_by, changed_at)`. |
+| **`project_change_requests`** & **`project_change_steps`** | Requests: `id uuid PK`, `project_id FK CASCADE`, `kind` (`TIME_OVERRUN \| RCE \| REPHASING \| REAPPROPRIATION \| REALLOCATION \| FORECLOSURE`), `status` (7 states), `round`, `justification`, `payload jsonb`, `increase_pct numeric(7,2)?`, `request_document_id?`, `order_no?`, `order_date?`, `ifd_file_no?`, `ifd_date?`, `decision_note?`. Steps: **U** `(change_id FK CASCADE, round, seq)`, `kind` (9 step types), `status` (5 states). Rules enforced via `project_change_deltas` & `csir_rules`. |
+| **`project_completion_reports`** & **`project_completion_steps`** | Completion report: `id uuid PK`, **U** `project_id FK CASCADE`, `status` (`DRAFT \| SUBMITTED \| UNDER_REVIEW \| RETURNED \| APPROVED`), `round`, narrative lessons (`summary`, `objectives_status` ∈ `MET \| PARTLY_MET \| NOT_MET`, `objectives_reason`, `what_worked`, `what_did_not`, `reusable_assets`, `trl_target 1–9`, `trl_reached 1–9`, `recommendations`, `follow_on_ideas`), snapshotted `financial_statement jsonb`, `annexures jsonb`, `document_id?`, `published_document_id? FK documents SET NULL`. Steps: **U** `(report_id FK CASCADE, round, seq)`. |
+| **`project_documents`** | `id uuid PK`, `project_id FK CASCADE`, `doc_type` (11 values: `receipt_order`, `expenditure_statement`, `milestone_evidence`, `minutes`, `change_request`, `change_order`, `completion_report`, `closure_order`, `sanction_order`, `stage_deliverable`, `other`), `storage_path`, `file_name`, `file_size`, `uploaded_by`. Stored in private bucket `project-documents`. |
+| **`project_events`** | `id bigint PK` (`project_events_id_seq`), `project_id FK CASCADE`, `at`, `actor?`, `kind`, `summary`, `ref_id?`. Populated automatically by triggers across projects, receipts, expenditure, milestones, documents, review slots, changes, and closure. |
+| **`project_ip_agreements`** | `id uuid PK`, `project_id FK CASCADE`, `document_id FK project_documents`, `signed_on date`, `recorded_by?`, `recorded_at` (CSIR §6.2 multi-lab IP agreement tracking). |
+| **`project_selections`** | `id uuid PK`, `project_id FK CASCADE`, `position_code`, `mode` (`SELECTION \| WAITLIST \| DIRECT`), `advert_ncs_ref?`, `advert_on?`, `committee jsonb`, `exigency_note?`, `waitlist_valid_until?`, `minutes_document_id? FK project_documents SET NULL`. |
+| **`project_stage_items`** & **`project_stage_deliverables`** | Reference catalog `project_stage_items` (**PK** `item_key`, `stage 1–6`, `label`, `sort` — **seeded with 9 FTT/FTC/MMP items across stages I–VI**) and per-project evidence `project_stage_deliverables` (**PK** `(project_id FK CASCADE, item_key FK project_stage_items)`, `document_id FK project_documents`). |
+
+---
+
+### 3.7 Calendar, Recruitment, Contribution Requests, Metrics & AI Actions — `20261121000007_calendar_recruitment_ops.sql` (16 tables)
+
+- **Calendar (2 tables):**
+  - **`calendar_events`**: `id uuid PK`, `title`, `event_date date`, `event_kind` (`Custom \| Pamphlet \| Announcement`), `location`, `teams_url?`, `pamphlet_url?`, `description`, `visibility` (`OrgWide \| Division \| Personal`), `division_code?`, `created_by`, timestamps. **CHECK:** `visibility <> 'Division' OR division_code IS NOT NULL`.
+  - **`holidays`**: `id uuid PK`, **U** `(holiday_date date, name)`, `holiday_type` (`Gazetted \| Restricted \| Institute`), `year int`.
+- **Recruitment (4 tables):**
+  - **`vacancy_advertisements`**: `id text PK`, `title`, `advt_no?`, `issue_date?`, `division_code? FK divisions`, `status` (`Draft \| Open \| Published \| Closed \| Cancelled`), `closing_date?`, `staff_category` (`Permanent \| Project`), `drive_stage` (8 stages: `Advertised → Closed`). **Trigger** `trg_vacancy_advertisements_stage` prevents direct client edits to `drive_stage` (advance via `recruitment_advance`).
+  - **`vacancy_posts`**: `id text PK`, `advertisement_id FK CASCADE`, `post_code?`, `designation?`, `discipline?`, `no_of_positions?`, `pay_level?`, `age_limit?`, `qualifications?`, `status?` (`Open \| Filled \| Closed \| Cancelled`), `sanctioned_post_id? FK sanctioned_posts SET NULL`.
+  - **`vacancy_applications`**: `id uuid PK`, `advertisement_id FK CASCADE`, `post_id? FK vacancy_posts SET NULL`, `candidate_name`, `email?`, `phone?`, `qualifications?`, `experience?`, `applied_on date`, `status` (`Received \| Shortlisted \| Interviewed \| Selected \| Rejected`), `notes?`.
+  - **`recruitment_events`**: `id bigint PK` (`recruitment_events_id_seq`), `advt_id FK vacancy_advertisements CASCADE`, `at`, `actor?`, `from_stage?`, `to_stage`, `document_id? FK documents SET NULL`, `note?`.
+- **Data Operations & Ingestion (7 tables):**
+  - **`data_stewards`**: `id uuid PK`, **U NULLS NOT DISTINCT** `(domain, division_code, user_id)`, `domain` ∈ 7 `FileType` keys (`divisions`, `staff`, `projects`, `projectStaff`, `phd`, `equipment`, `contractStaff`), `kind` (`accountable \| steward`), `cadence_days > 0 DEFAULT 90`.
+  - **`contribution_requests`**: `id uuid PK`, `domain`, `record_ref?`, `division_code?`, `title` (non-blank), `reason`, `link?` (CHECK relative path `^/([^/\]|$)` without control characters), `requested_by? FK SET NULL`, `assignee_id? FK SET NULL`, `delegate_id? FK SET NULL`, `status` (`open \| prepared \| submitted \| needs_clarification \| blocked \| done \| declined`), `due_date?`, `prefill jsonb`, `response jsonb?`, `dedupe_key text? U`, `created_at`, `updated_at`, `resolved_at?`. Triggers maintain `updated_at` and validate target scope; writes strictly via `contribution_request_create` / `contribution_request_act`.
+  - **`contribution_request_events`**: `id uuid PK`, `request_id FK CASCADE`, `actor_id? FK SET NULL`, `action`, `from_status?`, `to_status`, `note?`, `payload jsonb`, `created_at`. Append-only audit log.
+  - **`import_events`**: `id uuid PK`, `file_type`, `division_code?`, `row_count`, `uploaded_by`, `uploaded_by_email`, `uploaded_at`. Per-division freshness ledger (`import_events_file_type_div_idx`) driving `contribution_requests_sweep()`.
+  - **`harvested_imports`**: `id uuid PK`, `file_name`, `source` (`folder \| mail`), `source_identifier`, `division_code?`, `storage_bucket DEFAULT 'documents'`, `storage_path`, `file_size`, `content_hash` (unique index), `status` (`pending \| reviewed \| discarded`), `landed_at`, `reviewed_by?`, `reviewed_at?`. Partial queue index `harvested_imports_pending_idx`.
+  - **`ingest_sender_map`**: `email text PK`, `division_code`, `created_at`.
+  - **`import_field_mappings`**: `id uuid PK`, **U** `(file_type, header_fingerprint)`, `mapping jsonb`, `confirmed_by`, `confirmed_at`, `use_count int DEFAULT 1`. Caches human-confirmed column mappings across imports.
+- **Metrics & AI Action Log (3 tables):**
+  - **`metrics`**: `key text PK` (`~ '^[a-z_]+$'`), `label`, `definition`, `unit` (`count \| inr \| pct`), `scope_kinds text[]`, `fn regproc` (strict whitelist of `metric_<key>` functions), `owner_role`, `sort smallint`. **Seeded with 12 KPI definitions.**
+  - **`metric_snapshots`**: **PK** `(metric_key FK metrics CASCADE, scope jsonb, as_on date)`, `value numeric?`, `taken_at`. Immutable daily snapshots (`metric_snapshot_run` uses `ON CONFLICT DO NOTHING`).
+  - **`ai_action_log`**: `id bigint PK` (`ai_action_log_id_seq`), `notification_id? FK notifications SET NULL`, `user_id FK auth.users CASCADE`, `action_kind`, `args jsonb`, `outcome` (`DONE \| OPENED`), `at`. Append-only execution ledger for `notification_accept`.
+
+---
+
+### 3.8 Documents, RAG, Scheduled Briefs, Views, RPCs & Security Wiring — `20261121000008_rag_documents_views_rpcs_policies.sql` (7 tables + views/policies/cron)
+
+| Table | Structure, Constraints & Purpose |
+|---|---|
+| **`documents`** | `id uuid PK`, `entity_type`, `entity_id`, `doc_type`, `title`, `storage_bucket`, `storage_path`, `file_name`, `file_size bigint`, `mime_type`, `owner_id FK auth.users`, `division_code?`, `access_tier` (`institute \| division \| owner \| confidential`), `ingest_status` (`pending \| processing \| indexed \| failed \| skipped`), `ingest_error?`, `ingest_attempts int`, `created_at`, `content_hash?`, `processing_started_at?`. **Indexes (12 + guarded trigram):** unique `(storage_bucket, storage_path)`, partial unique `(content_hash)`, partial queues (`ingest_status = 'pending'`, `ingest_status = 'processing'`, `ingest_status = 'failed' AND ingest_attempts < 3`), harvested tier index, entity/division/status/owner indexes, plus guarded GIN `documents_title_trgm_idx` where `pg_trgm` is installed. Gated by `documents_can_read`. |
+| **`doc_indexes`** | **PK** `document_id FK documents CASCADE`, `tree jsonb`, `model`, `page_count int`, `built_at`. PageIndex tree per document; indexed on `model`. |
+| **`doc_pages`** | **PK** `(document_id FK documents CASCADE, page int)`, `text`. Verified page text replaced atomically by `rag_replace_doc_pages` (`service_role` only). |
+| **`collection_indexes`** | **PK** `collection_key`, `title`, `summary`, `document_count int`, `model`, `built_at`. Cross-document collection summaries keyed by `entity_type`. |
+| **`query_log`** | `id uuid PK`, `user_id FK auth.users DEFAULT auth.uid()`, `question`, `mode`, `answer`, `citations jsonb`, `feedback smallint? CHECK ∈ (-1, 1)`, `latency_ms?`, `created_at`, `route?`, `function_name?`, `function_params jsonb?`, `refusal_reason?`, `catalog_version?`. Owner read/insert/feedback-update only. |
+| **`route_labels`** | **PK** `query_id FK query_log CASCADE`, `question`, `correct_route` (`structured \| document \| hybrid`), `created_at`. Admin-inserted human labels used as few-shot routing exemplars. |
+| **`scheduled_queries`** | `id uuid PK`, `owner FK auth.users CASCADE`, `question` (`3–1000` chars trimmed), `cadence` (`daily \| weekly` DEFAULT `weekly`), `last_run_at?`, `last_error?`, `created_at`. Owner-scoped recurring Ask SURYA briefs (`rag/briefs.py` posts digests to `notifications`). |
+
+This final baseline stage also installs all cross-table foreign keys that span earlier stages, creates the **8** analytical/timeline views, creates remaining triggers (**77** total triggers in schema), binds `ENABLE ROW LEVEL SECURITY` and all **301** policies (`public` + `storage.objects`), applies the explicit table/column/function/sequence ACLs, and schedules all **7** `pg_cron` jobs.
+
+---
+
+### 3.9 Views (8)
+
+| View | `security_invoker` | Purpose & Consumers |
 |---|---|---|
-| `project_change_requests` | `(id, project_id, kind ∈ TIME_OVERRUN · RCE · REPHASING · REAPPROPRIATION · REALLOCATION · FORECLOSURE, status ∈ DRAFT · SUBMITTED · UNDER_REVIEW · RETURNED · APPROVED · REJECTED · WITHDRAWN, round, justification, payload jsonb, increase_pct?, request_document_id, order_no?, order_date?, ifd_file_no?, ifd_date?, decision_note?, created_by, created_at, updated_at, submitted_at?, decided_at?)` | RPCs only. Read: the author always; everyone who may see the project once submitted |
-| `project_change_steps` | `(id, change_id FK CASCADE, round, seq, kind ∈ PME_VETTING · FINANCE · REVIEW_COMMITTEE · RESEARCH_COUNCIL · DIRECTOR_APPROVAL · DIRECTOR_FORWARD · MONITORING_COMMITTEE · REVISED_COST_COMMITTEE · COMPETENT_AUTHORITY, status, decided_by?, decided_at?, notes?, document_id?, meeting_id?)`, `UNIQUE (change_id, round, seq)` | `project_change_record_step` |
+| **`division_strength`** | `true` | Sanctioned, filled, vacant, advertised, and oldest vacancy date per `division_code` from `sanctioned_posts`. Drives `DataContext` & Division strength cards. |
+| **`entity_timeline`** | `true` | Unified chronological activity feed across 7 sources (`project_events`, `pms_audit_logs`, `contribution_request_events`, `audit_log`, `staff_profile_changes`, `staff_career_events`, `recruitment_events`), annotated with `acting_capacity()`. |
+| **`project_lessons`** | `false` *(deliberate)* | Institutional lessons from `APPROVED` `project_completion_reports` joined with `projects`, gated explicitly by `WHERE r.status = 'APPROVED' AND caller_is_verified()`. Deliberately exposes approved lessons institute-wide across divisions. |
+| **`project_portfolio`** | `true` (`on`) | One health row per running project (`SANCTIONED`, `ACTIVE`, `ON_HOLD`, `CLOSING`) with `elapsed_pct`, `received`, `spent`, milestone counts, overdue reports/reviews, `next_due`, `last_report_on`, and `last_decision`. |
+| **`staff_link_gaps`** | `true` (`on`) | Unresolved name links across `projects."PrincipalInvestigator"`, `phd_students` supervisors/co-supervisors, `project_staff."StaffName"`, and unlinked `staff.user_id`. |
+| **`staff_project_links`** | `true` | Normalised `(staff_id, project_id, role)` bridge across PI (`projects.pi_staff_id`), Co-PI (`proposal_copis`), and team members (`project_staff`). |
+| **`staff_research_summary`** | `true` | Per-staff rollup of `active_projects`, `as_pi`, `sanctioned_value`, `outputs`, `ip`, `students`, `confirmed_terms`, and `retires_on` (`dob_date + 60 years`). |
+| **`unique_staff_names`** | `true` (`on`) | Helper view returning unique trimmed `staff."Name"` → `staff_id` pairs (`HAVING count(*) = 1`) for unambiguous auto-linking. |
 
-- **Payload** by kind: `{new_end_date}` · `{lines[], new_end_date?}` (the whole revised
-  budget) · `{moves: [{head, from_year, to_year, amount}]}` · `{moves: [{fiscal_year,
-  from_head, to_head, amount}]}` · `{lab, direction, lines[]}` · `{effective_date, cost_benefit}`.
-- **Prohibitions** (`project_change_deltas`, run on submit and again on the last approval):
-  no rephasing of TA or Manpower; rephasing only forward; no Capital ↔ Revenue
-  re-appropriation; TA not augmented; reallocation only on HQ, and money coming in only to
-  heads approved under the project; an RCE must raise the total; and in every case **no
-  year and head may end with less sanctioned than already spent there** (only unspent money
-  moves).
-- **Effect** (`project_change_apply`, internal): signed rows on `project_budget_lines` with
-  `source = 'CHANGE'` and `change_request_id` (the `amount >= 0` check now allows negatives
-  only on such rows); `sanctioned_cost` follows the lines after an RCE or reallocation;
-  new `end_date` / `"CompletioDate"` (the review schedule regenerates); foreclosure sets
-  stage `FORECLOSED` and cancels pending review slots.
-- One request in review per project at a time.
-- `project_documents.doc_type` adds `change_request` (the PI) and `change_order` (step
-  owners: PME, FinanceAdmin, Director, scheme leader — never a party), via
-  `project_caller_may_file`, also used by the storage policy.
-- `projects_select_parties` — new permissive read policy: a project's co-PIs, and the PI
-  named on its proposal, can read it. Before this a co-PI outside the division managers
-  could not open the project at all.
+---
 
-### 3.8g Project closure and memory — `20261112000002_project_closure.sql`
+### 3.10 Private Storage Buckets & `pg_cron` Jobs
 
-Phase `PL6`. Guidelines §8.
+#### Storage Buckets (7 — all `public = false`, 18 `storage.objects` policies)
 
-| Table / view | Shape | Writes |
+| Bucket ID | Purpose | Policies (`storage.objects`) |
 |---|---|---|
-| `project_completion_reports` | `(id, project_id UNIQUE, status ∈ DRAFT · SUBMITTED · UNDER_REVIEW · RETURNED · APPROVED, round, summary, objectives_status ∈ MET · PARTLY_MET · NOT_MET, objectives_reason, what_worked, what_did_not, reusable_assets, trl_target, trl_reached, recommendations, follow_on_ideas, financial_statement jsonb, annexures jsonb, document_id, decision_note, published_document_id → documents, created_by, timestamps)` | RPCs only. Read: whoever may see the project |
-| `project_completion_steps` | `(id, report_id, round, seq, kind, status ∈ PENDING · DONE · RETURNED · SKIPPED, decided_by, decided_at, notes, document_id)` | `project_completion_record_step` |
-| `project_lessons` (view, **not** `security_invoker`) | approved reports' lesson fields with project number, name, division, PI, track, dates | read-only, **every signed-in user** — lessons are institute memory, so this deliberately bypasses projects RLS, and only for approved reports' lesson fields |
+| **`documents`** | Central registry objects, harvested captures, publication similarity reports, recruitment docs | Insert under `{auth.uid()}/%`; Select iff owning `documents` row satisfies `documents_can_read()`; Delete by owner or SystemAdmin/MasterAdmin |
+| **`annexures`** | PMS self-appraisal annexures | Select/Insert/Delete via `pms_can_read_report_path` / `pms_owns_report_path` / `pms_is_admin()` (cannot delete finalized attachments) |
+| **`signatures`** | PMS scanned signatures | Select/Insert/Update via `pms_can_read_report_path` / `pms_owns_report_path` / `pms_is_admin()` |
+| **`proposal-documents`** | Signed proposals, quotations (`>= ₹5L`), review step scans, sanction orders, OMs | Select via `proposals_can_read`; role- & status-gated Insert per `{proposal_id}/{doc_type}/...` |
+| **`project-documents`** | Receipts, expenditure statements, milestone evidence, minutes, change/closure scans, stage deliverables | Select iff project visible; Insert via `project_caller_may_file(project_id, doc_type)` |
+| **`committee-docs`** | Committee & meeting minutes/documents | Select when referenced in `meeting_documents`; Insert by Director / SystemAdmin / MasterAdmin |
+| **`awp-pdfs`** | Imported / archived Annual Work Plan PDFs | Admin insert/delete; readable by PMS admin or when referenced by `pms_awps.source_pdf_path` |
 
-- The first save by the PI moves the project to `CLOSING`. Submission requires the §5.4
-  fields (`project_completion_missing`), the signed report (`completion_report` document)
-  and no change request in review; it snapshots `project_financial_statement` (year ×
-  head allocation vs expenditure, receipts) and `project_completion_annexures` (sanction,
-  approved change orders, minutes of every review held — `missing` where none is on file).
-- Route: ULIP — PME → review committee → Director; HQ — PME → Finance → Research Council
-  (in principle) → Monitoring Committee → DG. Approve or return only. The last approval
-  sets `CLOSED` (a `FORECLOSED` project stays foreclosed).
-- `project_archive` (PME, not a party): `CLOSED` / `FORECLOSED` → `ARCHIVED`, with the
-  published report — a `documents` row (`entity_type = 'project'`, `doc_type =
-  'completion_report'`) uploaded by the same PME, which archiving promotes to the
-  `institute` tier so the RAG worker indexes it. Legacy projects without a proposal are
-  archived without one. `trg_projects_zz_archived_readonly` rejects any change to an
-  archived project.
-- `proposals.parent_project_id` — follow-on lineage.
-- `project_documents.doc_type` adds `completion_report` (PI) and `closure_order` (step owners).
+#### `pg_cron` Scheduled Jobs (7 — scheduled in UTC)
 
-### 3.8h Legacy projects and rollout — `20261112000003_project_legacy_rollout.sql`
+| Job Name | Cron (UTC) | IST Time | Function Invoked |
+|---|---|---|---|
+| `pms-timeline-sweep` | `15 1 * * *` | 06:45 daily | `public.pms_timeline_sweep()` |
+| `notifications-sweep` | `30 1 * * *` | 07:00 daily | `public.notifications_sweep()` |
+| `ai-suggest-sweep` | `30 1 * * *` | 07:00 daily | `public.ai_suggest_sweep()` |
+| `contribution-requests-sweep` | `45 1 * * *` | 07:15 daily | `public.contribution_requests_sweep()` |
+| `profile-consistency-sweep` | `0 2 * * 1` | 07:30 Mon | `public.profile_consistency_sweep()` |
+| `metric-digest` | `0 2 * * 1` | 07:30 Mon | `public.metric_digest_run()` |
+| `metric-snapshot` | `30 0 1 * *` | 06:00 1st monthly | `public.metric_snapshot_run()` |
 
-Phase `PL7` (plan §10). No new tables.
+---
 
-- `project_infer_track(no, category, fund_type)` — `HQ` for an HQ code in the number
-  (`FTT040511`) or the category; `ULIP` for a `ULIP…` number or an in-house marker; else
-  NULL. Applied once to projects with no track.
-- `projects.legacy_completed_at` / `legacy_completed_by`; `project_fund_receipts` and
-  `project_expenditure` gain `opening_balance boolean`; `project_documents.doc_type` adds
-  `sanction_order`.
-- `project_legacy_complete(...)` (PME, not a party): for a running project with no
-  proposal and no money on record — sets track, category, typed dates, sanction reference;
-  inserts budget lines (`source = 'LEGACY'`), receipts dated at each year's end (or the
-  as-of date) and expenditure, all `opening_balance`; cancels generated review slots due
-  before the as-of date; logs a `legacy` timeline event. Once per project.
-- `project_legacy_lessons(project, fields)` (PI or PME): an approved lessons note for a
-  project closed before SURYA, with no approval chain.
-- `project_legacy_pending()` — running legacy projects still to bring in.
-- **Write access:** `projects_write` (HRAdmin / SystemAdmin / MasterAdmin, from the
-  baseline) is replaced by `projects_write_master` (MasterAdmin); PME keeps
-  `projects_write_pme`. Asserted in the migration.
-
-### 3.10 Enterprise base (P1) — `20261112000004`…`20261112000008`
-
-Plan: `docs/superpowers/plans/2026-11-12-enterprise-phases.md` P1.
-
-- **`csir_rules`** (`…04`) — one row per rule value from a date: `rule_key`, `value jsonb`,
-  `unit`, `effective_from`, `effective_to`, `source_ref` (OM paragraph, required),
-  `verified`. `UNIQUE (rule_key, effective_from)`. Read: verified users. No client write.
-  `csir_rule(key, on)` answers for a date and raises when there is no row;
-  `csir_rule_set(...)` (MasterAdmin) closes the open row and appends — rows are never
-  edited. Starting rows from OM 33/2025 are loaded `verified = false` in the migration
-  (readiness and the RCE route need two of them). `proposal_readiness` and
-  `project_change_step_kinds` read `project.major_equipment_threshold_inr` and
-  `project.cost_overrun_dg_limit_pct` instead of literals.
-- **`output_authors`, `ip_inventors`** (`…05`) — one row per name and position (`pos`) of
-  `scientific_outputs.authors` / `ip_intelligence.inventors`, with `staff_id`,
-  `link_source 'auto'|'manual'`, `confirmed_by/at`. Kept in step by a trigger on the
-  arrays: an unchanged name keeps its link. Auto-link only when exactly one staff member
-  has the same `person_name_key()` (same normalisation as `normalizePersonName`). Read
-  wherever the parent is readable; no client write. `staff.orcid` added.
-- **Typed HR dates** (`…06`) — `staff.doj_date/dob_date/doapp_date`,
-  `project_staff.joined_on/project_ends_on`, `contract_staff.joined_on/ends_on/born_on`,
-  recomputed from the text column by `try_parse_date()` on every write. Unparseable = NULL.
-- **`entity_timeline`** view (`…07`, `security_invoker`) — `project_events`,
-  `pms_audit_logs`, `contribution_request_events` and `audit_log` as
-  `(entity_type, entity_id, at, actor_user_id, kind, summary, source)`. There is no HR
-  audit table yet.
-- **`notifications_sweep()`** (`…08`) gains the rules that lived only in
-  `myActions.ts`: progress report due, change and completion steps by desk, completion
-  report due, proposal desk, progress-report review, committee action items, superannuation.
-
-### 3.11 Research profile (P2) — `20261112000010`…`20261112000012`
-
-- **`staff_profile_facts(staff_id, from, to)`** (`…10`, invoker) — one row per record:
-  `(section, record_type, record_id, title, role, date_from, date_to, amount, link)`.
-  Sections `SERVICE`, `PROJECT` (PI by `pi_staff_id`, co-PI by `proposal_copis`, team by
-  `project_staff.staff_id`), `OUTPUT` / `IP` (via `output_authors` / `ip_inventors`),
-  `TECH_TRANSFER` (linked to the person's IP or led projects), `STUDENT`, `COMMITTEE`,
-  `AWP`, `LESSON`, `EQUIPMENT` (`owner_user_id`). Keys only, never names. Returns nothing
-  when the caller may not read the staff row. The date window keeps rows that overlap it;
-  undated rows stay in.
-- **`staff_profile_changes`** (`…11`) — append-only log of `update_own_profile`;
-  `changes jsonb {field: {from, to}}`. Readable with the staff row; no client write.
-  Joins `entity_timeline` as `entity_type = 'staff'`.
-- **`person_name_may_be(a, b)`** (`…12`) — equal `person_name_key`, or one inside the other
-  (both ≥ 3 characters).
-- **`profile_consistency_issues(staff_id)`** (`…12`, invoker) — `IRINS_OUTPUT_NOT_IN_SURYA`,
-  `OUTPUT_AUTHOR_UNLINKED`, `PI_NAME_UNLINKED`, `STUDENT_SUPERVISOR_UNLINKED`,
-  `AWP_PROJECT_NOT_ON_TEAM`. **`profile_consistency_sweep()`** (cron Monday 02:00 UTC) raises
-  one live `contribution_requests` row per person (`domain 'staff'`, `link '/me'`, dedupe
-  `profile:<ID>:<date>`). `contribution_target_can_see` gains: a person may be assigned a
-  request about their own staff row.
-
-### 3.12 Project compliance (P3) — `20261112000013`…`20261112000017`
-
-- **`coi_declarations`** (`…13`) — `(meeting_id, member_user_id)` unique; `format 'F1'|'F2'`,
-  `conflict_note` (required for F2), `chair_decision 'CONTINUE'|'RECUSE'` (F2 only),
-  `decided_by/at`. Read by the member, and the chair and convener (`committees.secretary_id`)
-  of the meeting's committee — `coi_caller_chairs()`. No client write: `coi_declare`,
-  `coi_chair_decide`. A missing declaration is flagged, never blocking.
-- **`project_pack(project, kind, change)`** and **`project_checklist_b(change)`** (`…14`,
-  invoker) — see `api_spec.md`. Next-year demand = next year's sanction − (received − spent),
-  floor 0.
-- **`project_cpd_halfyearly(period_end)`** (`…15`, invoker) — HQ projects running in the
-  six months ending `period_end`: review slots due / held / missed, money to the period end,
-  milestones, progress reports submitted.
-- **`project_stage_items`** (fixed list, stages I–VI) and **`project_stage_deliverables`**
-  `(project_id, item_key)` → `project_documents` (`doc_type 'stage_deliverable'`) (`…16`).
-  `project_category()`; `project_stage_deliverable_record()` (PI or PME; FTT/FTC/MMP only);
-  `project_transfer_gaps()` lists transfers whose project lacks any stage VI paper.
-- **`equipment_usage_log`** (`…17`) — insert-only; `equipment_logbook_required()` = on a project
-  and `purchase_cost` above `csir_rule('project.major_equipment_threshold_inr')`;
-  `equipment_log_usage()` (scientist-in-charge, PI or PME). `pme_compliance_counts()` gives
-  the desk three counts (definer; no declaration content).
-
-### 3.13 PMS 2026 assessment (P4) — `20261112000018`…`20261112000022`
-
-- **`pms_reports`** gains `proforma_version 'LEGACY'|'2026'` (existing rows LEGACY; a report a
-  scientist creates in the app is 2026), `committee_id` (set by `pms_assign_evaluators`),
-  `deemed_accepted_at` (set by the sweep), `questionnaire_b` (set at creation: pay level ≥ 13).
-  None is client-writable.
-- **Annexure-B** (`…18`): `pms_annexure_b_due(cycle, step)`, `pms_timeline_status(cycle)`
-  (nine steps: done / pending / overdue), `pms_delay_report(cycle)`; `pms_timeline_sweep()`
-  daily (cron `pms-timeline-sweep`): deemed acceptance after 15 days, reminders for a
-  representation older than a month and for Empowered Committee work past 31 July.
-- **`pms_part1`** (`…19`): `data jsonb` from the staff record, `discrepancy`, `verified_*`.
-- **2026 rules** (`…20`): `csir_rules` rows `pms.designation_pay_level`,
-  `pms.designation_committee_tier`, `pms.questionnaire_b_min_pay_level` (unverified).
-  `pms_assign_evaluators` refuses a committee of the wrong tier (2026 only).
-  **`pms_panel_scores`** — one row per report (PK `report_id`): score, reasons, pen picture,
-  integrity, adverse remarks, critical assessment, quorum. Members cannot file their own
-  score on a 2026 report (`trg_pms_evaluations_guard_2026`). `pms_committee_decisions` gains
-  `ec_action 'CONCUR'|'UPGRADE'|'DOWNGRADE'`, `panel_score`, `general_comments`,
-  `critical_assessment`, `quorum_present`, `members_total`; a 2026 decision without `ec_action`
-  is refused.
-- **`pms_report_items`** (`…21`): `(report_id, section, source_record_type, source_record_id)`
-  unique; `state 'PREFILLED'|'CONFIRMED'|'EDITED'|'ADDED'|'REMOVED'`; readers other than the
-  scientist see confirmed, edited and added lines only.
-- **`pms_score_history(staff)`** and **`pms_grade(score)`** (`…22`).
-- **Checked against the guideline** (`…24`, CSIR PMS Guidelines 2026): 2026 = standard track
-  only (up to Scientist-F); `pms_panel_scores.integrity` is free text per Appendix-B and
-  `remarks` holds "Remarks by Evaluation Committee"; **`pms_pen_picture_items`** holds the 15
-  behavioural items (A/B/C, five each) and the panel score requires every item rated
-  Excellent / Very Good / Good / Needs to be improved; Part I pre-fill adds e-mail, core subject
-  area, specialisation and Reporting Officer.
-- **`project_category()`** (`…23`) reads the HQ code from the project number when
-  `"ProjectCategory"` holds words ("Mission Mode", "R&D") as on the live data.
-
-### 3.14 Posts and people (P5) — `20261113000001`…`20261113000004`
-
-- **`sanctioned_posts`** (`…01`): `post_code` unique; `staff_group`, `level`, `designation`,
-  `discipline`, `division_code`, `category`, `state 'FILLED'|'VACANT'|'ADVERTISED'|'ABEYANCE'|
-  'ABOLISHED'`, `holder_staff_id` (one post per holder), `vacant_since`, `sanction_ref`.
-  `sanctioned_post_events` append-only. View **`division_strength`** (sanctioned · filled ·
-  vacant · advertised · oldest vacancy). The two integers on `divisions` are no longer read:
-  `DataContext` fills those fields from the view.
-- **Bridge views** (`20261113000011`, both `security_invoker`): **`staff_project_links`**
-  (`staff_id`, `project_id`, `role` — PI from `projects.pi_staff_id`, Co-PI from
-  `proposal_copis`, team from `project_staff`) and **`staff_research_summary`** (one row per
-  readable staff member: `active_projects`, `as_pi`, `sanctioned_value`, `outputs`, `ip`,
-  `students`, `confirmed_terms`, `retires_on`). `staff_workload()` and `expertise_find()` read
-  them; a query that needs a person's counts joins the summary and does not call
-  `staff_profile_facts()` per row. Indexes added: `proposal_copis(staff_id)`,
-  `phd_students(cosupervisor_staff_id)`. `metrics` and `metric_snapshots` are read by verified
-  users only.
-- **`staff_workload(staff)`**, **`workforce_outlook(years)`**, **`staff_career_events`**
-  (`…02`, unique `(staff_id, kind, effective_on)`; joins `entity_timeline`).
-- **Project staff** (`…03`): `project_staff_persons`, `project_selections`
-  (`mode 'SELECTION'|'WAITLIST'|'DIRECT'`, `committee jsonb`), `project_engagements`,
-  `project_staff_leave`; `project_staff.person_id`. Rules read for the day of the decision.
-  `project_staff_tenure_days()` counts each day once and excludes the PhD window.
-  `project_staff_backfill()` links legacy rows whose name is on one row (run once in the
-  migration); `project_staff_legacy_pending()` lists the rest. `…05` makes it also fill
-  `project_id` by `project_no_key()` ("GAP-120" = "GAP0120"; unique match only) and add the
-  missing engagement for already-linked rows.
-- **`recruitment_events`** append-only, `vacancy_posts.sanctioned_post_id`; trigger
-  `trg_vacancy_advertisements_stage` refuses a client write to `drive_stage` (`…04`).
-- **`acting_assignments`** (`…04`): role `HOD|DivisionHead|Director`, division (none for
-  Director), principal, acting user, dates, office order. `caller_has_role()` and
-  `caller_in_division()` honour a running assignment; `entity_timeline.acted_as`.
-
-### 3.15 Expertise (P6) — `20261113000006`
-
-- **`expertise_terms`**: `label` (unique among ACTIVE, case-blind), `kind 'MATERIAL'|'TECHNIQUE'|
-  'APPLICATION'`, `theme_code '01'–'09'` (position in `DOMAIN_THEMES`), `parent_id`,
-  `status 'ACTIVE'|'MERGED'`, `merged_into`. Read: any signed-in user. Write: HR, MasterAdmin,
-  staff-domain data stewards (`caller_is_expertise_curator()`); MERGED only through `expertise_merge`.
-- **`staff_expertise`** PK `(staff_id, term_id)`, `source 'SELF'|'SUGGESTED'`, `confirmed_at`,
-  `added_by`. The person adds and confirms their own; a curator may only insert an unconfirmed
-  SUGGESTED row. Only confirmed rows count in `expertise_find`. Evidence is counted live, not stored.
-
-### 3.16 Metrics (P7) — `20261113000007`
-
-- **`metrics`** (key, label, definition, unit `count|inr|pct`, scope_kinds, `fn regproc`,
-  owner_role, sort): 12 rows, each `fn` is `metric_<key>(scope jsonb) → numeric` (invoker).
-  Scope keys: `division`, `year`, `stage`. Client: SELECT only; rows change only by migration.
-- **`metric_snapshots`** PK `(metric_key, scope, as_on)`: written by `metric_snapshot_run`
-  with `ON CONFLICT DO NOTHING`; no client write. A snapshot never changes.
-- **`projects.theme_code`** (`'01'–'09'`), **`trl_target`**, **`trl_reached`** (1–9), set by
-  `project_set_lens`.
-
-### 3.17 AI actions (P8) — `20261113000008`
-
-- **`ai_action_log`** (notification_id, user_id, action_kind, args, outcome `DONE|OPENED`, at):
-  append-only, written only by `notification_accept`. Read: own rows, or admin.
-- Suggestions are `notifications` rows with `source = 'agent'` and `proposed_action =
-  {kind, label, args}`; kinds `suggest-identity-link`, `suggest-expertise`.
-
-### 3.18 Project breadth (P9) — `20261113000009`
-
-- **`project_schemes`** gains `EFP` (externally funded) and `OLP` (lab seed / own).
-- **`project_labs`** PK `(project_id, lab_code)`, `role 'NODAL'|'PARTICIPATING'` (one nodal),
-  `rc_approval_document_id`. **`lab_code`** (default `AMPRI`) on `project_budget_lines`,
-  `project_fund_receipts`, `project_expenditure`; a reversal copies its original's lab
-  (trigger). **`project_ip_agreements`** (project, document, signed_on).
-- **`publication_files`**: status `DRAFT → ETHICS_CHECK → CLEARED → SUBMITTED → ACCEPTED →
-  PUBLISHED`, `communication_no` unique (`AMPRI/<year>/<serial>`, issued at clearance),
-  `similarity_pct`, `output_id` once published. **`publication_author_consents`** PK
-  `(file_id, pos)`: name, staff_id (NULL = external), contribution, consented_at.
-  Read: the corresponding author, the in-house authors, the division's HoD / Division Head,
-  the Director, MasterAdmin. No client writes.
-
-## 4. Indexing strategy
+## 4. Indexing Strategy
 
 **Principles.**
 
-1. **Index the access path, not the column.** Every index below exists because a specific
-   query or policy uses it, not because a column looked joinable.
-2. **Partial indexes for queues.** `documents_ingest_pending_idx` and
-   `harvested_imports_pending_idx` cover only the pending subset — the worker's claim query
-   never scans indexed history.
-3. **Partial unique for invariants.** `access_requests_one_pending` expresses "at most one
-   open request per user" as an index rather than application logic.
-4. **Unique indexes as contracts.** `documents_bucket_path_idx` guarantees one registry row
-   per stored object; `harvested_imports_hash_idx` is the dedupe key.
-5. **`DESC` where the query is "latest first".** `query_log(user_id, created_at DESC)`,
-   `proposals(created_at DESC)`, `irins_sync_log(started_at DESC)`.
-6. **Primary keys carry the rest.** HR tables are read whole into the client and filtered
-   in memory (`useMemo`), so they need no secondary indexes at the current data volume.
-   If a page moves to server-side filtering, index the filter column then — not before.
+1. **Index the access path, not legacy display columns.** Small imported HR tables load once per session and are filtered in memory; speculative indexes on every CamelCase attribute are avoided, while foreign-key columns, RLS join predicates, and lookup keys carry explicit B-tree indexes.
+2. **Normalised & case-blind functional indexes.** `staff_name_key_idx` indexes `person_name_key("Name")`, `staff_email_lower_idx` indexes `lower("Email")`, and `expertise_terms_label_key` enforces active label uniqueness via `lower(btrim(label))`.
+3. **Trigram search where supported.** Stage 08 conditionally creates the GIN index `documents_title_trgm_idx` (`USING gin (title gin_trgm_ops)`) when `pg_trgm` can be loaded (Postgres production/Docker stacks), skipping cleanly in lightweight embedded test runtimes.
+4. **Partial indexes for queues & invariants.** Queue scans (`documents_ingest_pending_idx`, `documents_ingest_processing_idx`, `documents_failed_retry_idx`, `harvested_imports_pending_idx`, `access_requests_pending_created_idx`, `notifications_user_open_idx`, `pms_notifications_user_unread_idx`) and singleton/sparse invariants (`access_requests_one_pending`, `appraisal_cycles_one_open`, `project_labs_one_nodal`, `projects_proposal_id_key`, `sanctioned_posts_one_post_per_holder`, `staff_user_id_key`) cover only the active subset.
+5. **Immutable deduplication & latest-first ordering.** `documents_bucket_path_idx`, `documents_content_hash_idx`, `harvested_imports_hash_idx`, and `import_field_mappings_fingerprint_idx` enforce uniqueness contracts; log/timeline tables use `DESC` indexes (`audit_log_created_at_idx`, `query_log_user_idx`, `pms_audit_logs_user_created_idx`, `proposals_created_at_idx`, `irins_sync_log_started_idx`).
 
-**Not indexed, on purpose:** the HR CamelCase columns. Adding indexes there would be
-speculative; the tables are small and fully loaded per session.
-
-**Coverage by domain:** identity 3 · HR 11 · PMS 5 · committees/helpdesk 14 ·
-proposals/reports 6 · documents/RAG 4 · ingestion 2 · data operations 4.
+**Secondary index coverage across the 8 stages (276 cataloged indexes + guarded `documents_title_trgm_idx`):**
+Stage 01: `1` · Stage 02: `15` · Stage 03: `62` · Stage 04: `42` · Stage 05: `21` · Stage 06: `85` · Stage 07: `32` · Stage 08: `18` (`+1` guarded GIN when `pg_trgm` is installed).
 
 ---
 
-## 5. Migration strategy
+## 5. Migration Strategy
 
-**The rules, in force since the 2026-07-12 restructure:**
+**Checkpoint consolidation (2026-11-21):**
 
-1. **`supabase db push` is the only sanctioned apply path.** It tracks what has been
-   applied. `supabase db reset` rebuilds locally.
-2. **Never paste SQL into the Dashboard SQL Editor.** That is precisely how the live
-   project silently drifted from the repo before the restructure. This is not a style
-   preference; it is the reason the restructure was needed.
-3. **Never edit a shipped file.** The 8-file baseline (`20260712000001`–`…008`) and every
-   migration after it are immutable once pushed. Corrections ship as new timestamped files.
-4. **Timestamps are `YYYYMMDDHHMMSS`** and must sort after everything already applied. A
-   collision between concurrent branches is resolved by renumbering the unapplied one
-   (this has happened — see `20260726000003` / `20260726000005`).
-5. **New tables ship with RLS enabled, an explicit policy block, and a grant** in the same
-   migration.
-6. **Every `SECURITY DEFINER` function opens with an authorization block.** CI enforces it.
+All 93 migrations accumulated up through November 2026 were consolidated into an 8-file domain baseline (`20261121000001`–`20261121000008`), verified in PGlite against the pre-consolidation catalog with **zero diffs** across all 121 tables, 8 views, 310 functions, 77 triggers, 301 policies, 7 buckets, 6 sequences, 7 cron schedules, and 5 seeded reference tables. Incremental hardening builds on top as timestamped files (`20261121000009_stage0_hardening.sql` adds `import_events.division_code` + `import_events_file_type_div_idx`, updates `contribution_requests_sweep()`, adds `service_role`-only `resolve_unique_staff_id(text)`, backfills unambiguous staff FKs, extends `identity_link_authors()` / `identity_set_link()`, and removes A3b display-name RLS fallback predicates).
 
-**Layout.**
+**Rules:**
+
+1. **`supabase db push` / `supabase db reset` are the only sanctioned apply paths.** Never paste ad-hoc DDL into the Dashboard SQL Editor.
+2. **Never edit a shipped file.** The 8-file baseline (`20261121000001`–`20261121000008`) is immutable once applied. All subsequent schema changes ship as new timestamped `YYYYMMDDHHMMSS_*.sql` migrations sorting after `20261121000008`.
+3. **Upgrading an existing remote project:** environments that previously applied the pre-2026-11-21 migrations do **not** re-run the consolidated baseline; mark historical entries reverted and mark `20261121000001`–`20261121000008` applied via `supabase migration repair` per [supabase/ops/README.md](../../supabase/ops/README.md).
+4. **Every new table ships with RLS enabled, explicit policies, and explicit table/function grants** in the same migration.
+5. **Every `SECURITY DEFINER` function opens with an authorization block and pins `search_path`**, verified by `python scripts/check_security_definer.py` (`181` checked, `44` exempt).
+
+**Layout:**
 
 | Directory | Applied where | Contents |
 |---|---|---|
-| `supabase/migrations/` | Everywhere | 37 files: the 8-file domain baseline + 29 append-only additions |
-| `supabase/migrations_archive/` | **Nowhere** | Pre-2026-07-12 history, reference only |
-| `supabase/seed/` | Every environment | Helpdesk routing defaults, one `OPEN` appraisal cycle |
-| `supabase/mock/` | **Dev only** | 17-file CSIR-AMPRI demo fixture. A mock helpdesk fixture once reached production and had to be removed by hand (`supabase/ops/remove_mock_helpdesk.sql`) — do not apply these to a live project |
-| `supabase/ops/` | On demand | `wipe_data.sql`, cleanup scripts, apply-order runbook |
-| `supabase/tests/` | CI | `rls_positive.sql` / `rls_negative.sql` policy suites |
+| `supabase/migrations/` | Everywhere | 8-file 2026-11-21 domain baseline (`20261121000001`–`20261121000008`) + future append-only migrations |
+| `supabase/migrations_archive/` | **Nowhere** | Pre-2026-07-12 history and `2026-11-21/` archive of the 93 consolidated migrations (reference & regression tests only) |
+| `supabase/seed/` | Every environment | Operational defaults: `01_helpdesk_routing.sql` (8 rows), `02_appraisal_cycle.sql` (1 open cycle) |
+| `supabase/mock/` | **Dev only** | CSIR-AMPRI demo fixture data (never apply to production) |
+| `supabase/ops/` | On demand | Wipe/cleanup scripts and fresh-vs-upgrade apply runbook ([supabase/ops/README.md](../../supabase/ops/README.md)) |
 
-**Baseline stages.** `01` extensions/helpers · `02` auth_rbac · `03` hr_core · `04` pms ·
-`05` committees_helpdesk · `06` proposals_reports · `07` calendar_recruitment ·
-`08` rag_documents. Later stages depend on earlier ones (stage 08 uses
-`proposals_caller_has_role` from stage 06), so order is load-bearing.
-
-**Bootstrap.** Schema → seed → create the first SystemAdmin via Dashboard →
-Authentication → Users → promote per `supabase/ops/README.md`. There is no seeded admin
-account and no hardcoded credential in the schema.
-
-**Project config is versioned too.** `supabase/config.toml` holds auth policy (including
-`secure_password_change`), the PostgREST `max_rows` cap, and the Postgres major version.
-Applied with `supabase config push`. Before it existed, those were unversioned dashboard
-clicks that differed between local and production — one of them was load-bearing for a
-security fix.
-
-**Verification.** CI's `db` job boots a real Supabase stack (Postgres + GoTrue + Storage,
-because the migrations reference `auth.users`, `auth.uid()` and `storage.objects`
-throughout), applies all migrations and seeds, re-runs the reset so a migration failure is
-the failing step, and executes the RLS suites.
+**Verification.** `npm test` runs a **29-file** PGlite DB behavior & RLS suite (`scripts/db/*.db.test.ts`, executing all 8 baseline migrations cleanly from scratch), alongside CI's full Supabase stack reset check and `scripts/check_security_definer.py`.
 
 ---
 
-## 6. Retention and archival
+## 6. Retention & Archival
 
-**Current policy: retain everything.** Nothing is purged automatically, and no table has a
-TTL. For an institutional record of a few hundred staff over a few years this is correct —
-appraisal records, audit trails, and sanction documents have statutory retention
-expectations measured in years, and the storage cost is negligible.
-
-What exists today:
+**Current policy: retain institutional records indefinitely.** Statutory PMS records, sanction orders, project ledgers, procurement logs, and audit trails require multi-year traceability.
 
 | Data | Mechanism | Notes |
 |---|---|---|
-| Appraisal cycles | `status` → `ARCHIVED` | Soft archival; rows stay. `ON DELETE RESTRICT` from `pms_reports` makes hard deletion impossible while reports exist |
-| Proposals | `status` → `ARCHIVED` + `archived boolean` | Soft |
-| Documents | `ingest_status='skipped'`/`'failed'` retained | Registry rows are never auto-deleted; owner or admin may delete explicitly |
-| Audit trails | Append-only, no delete policy | `pms_audit_logs`, `audit_log`, `ticket_events`, `*_status_history`, `contribution_request_events` |
-| Cascade deletes | Child rows follow their parent | e.g. deleting a `documents` row cascades `doc_indexes` + `doc_pages`; deleting a `pms_reports` row cascades sections, annexures, AWP, representations, notifications |
-| Restrict deletes | Parents with history cannot be deleted | `appraisal_cycles`, `pms_evaluations`, `pms_committee_decisions` |
-| Full wipe | `supabase/ops/wipe_data.sql` | Development only |
+| **Archived projects** | `stage = 'ARCHIVED'` + `trg_projects_zz_archived_readonly` | Hard immutability: once archived (via `project_archive` with published completion report), Postgres rejects any update/mutation to the project row |
+| **Appraisal cycles & PMS history** | `status = 'ARCHIVED'` + `ON DELETE RESTRICT` | Cycles with reports or evaluation committees and reports with evaluations/panel scores/decisions cannot be hard-deleted |
+| **AWPs & staff linkage** | `pms_awps.staff_id FK staff("ID") ON DELETE RESTRICT` | Prevents accidental removal of staff records that own work plans |
+| **Metric snapshots** | Daily `metric_snapshots` append (`ON CONFLICT DO NOTHING`) | Historical point-in-time KPI values never overwrite |
+| **Append-only ledgers & logs** | No `UPDATE`/`DELETE` policies for clients | `project_fund_receipts`, `project_expenditure` (reversals only via `reverses_id`), `project_events`, `proposal_status_history`, `project_report_history`, `pms_audit_logs`, `audit_log`, `ticket_events`, `contribution_request_events`, `sanctioned_post_events`, `recruitment_events`, `staff_profile_changes`, `ai_action_log` |
+| **Documents & ingest queue** | `ingest_status = 'failed' \| 'skipped'` retained | Owners/admins may remove documents manually; deleting a `documents` row cascades `doc_indexes` and `doc_pages` |
+| **Dev wipe** | `supabase/ops/wipe_data.sql` | Non-production reset only |
 
-**Planned, not implemented** — write these as new migrations if the need arises, and note
-that none of them can simply `DELETE` past the `RESTRICT` foreign keys:
+**Planned, not implemented** (would require deliberate handling past `RESTRICT` FKs): time-boxed archival/pruning of `query_log` (highest growth table), cold export of old `ARCHIVED` appraisal cycles, and cleanup of `doc_pages` when source documents are withdrawn.
 
-- Time-boxed retention on `query_log` (highest-volume table; grows one row per question).
-- Archival of `doc_pages` for documents whose source file has been withdrawn.
-- Cold-storage export of `ARCHIVED` cycles.
+### Stage 3 Tables (`20261121000012_stage3_priorities_decisions_notices_meetings.sql`)
+- `work_priorities`: senior-pinned priorities (`OPEN`/`DONE`/`WITHDRAWN`, max 3 open per assignee, push-back & answer workflow).
+- `decision_questions` & `decision_audit_log`: clarification Q&A on pending approval items and decision turnaround tracking.
+- `home_snoozes`: per-user "Tomorrow" snooze state for non-priority, non-overdue items.
+- `notices` & `notice_reads`: audience-scoped circulars/office orders with supersession links and read/ack receipts.
+- `agenda_circulations`, `agenda_receipts`, `meeting_attendance`: versioned agenda circulation, member receipt tracking, and quorum-gated attendance sheets.
+
+### Stage 4 Tables (`20261121000013_stage4_signatures_delegation_meetings.sql`)
+- `meeting_proceedings`, `minutes_versions`, `minutes_comments`: committee proceedings, versioned minutes drafts/approvals, and member comments.
+- `signatures`: generic hash-chained attestation/signature ledger with unique verification codes.
+- `delegation_rules`, `director_flags`: Director delegation dial modes/caps, non-delegable floors, and Director hold/audit/callback flags.
+- `general_meetings`: audience-scoped general institute meetings.
+
+### Stage 5 Tables (`20261121000014_stage5_desk_leave_letters_reports.sql`)
+- `instrument_bookings`: equipment slot reservations with advisory-lock clash prevention.
+- `project_leave_requests`, `official_letters`: self-service project staff leave and attested certificates.
+- `dak_letters`, `forms_shelf`, `safety_incidents`: Inward/Outward correspondence register (with `is_hq`), forms catalog, and safety incident log.
+- `division_reports`, `division_report_inputs`, `director_watch_items`: assembled division upward reports and Director watch list.
+
+### Stage 6 Tables (`20261121000015_stage6_depth_polishes.sql`)
+- `technologies`, `technology_events`, `outside_threads`, `outside_contacts`: TRL tracking (evidence-gated) and outside partner collaboration threads.
+- `supervisor_meetings`, `private_grievances`, `equipment_faults`, `meeting_transcripts`: PhD mentoring/grievance privacy isolation, instrument faults, and meeting transcripts.
+- `no_dues_clearances`, `campus_requests`, `proposal_evaluations`, `documents.version`/`supersedes`: exit clearances, campus utilities, rubric scoring, and document versioning.

@@ -71,7 +71,7 @@ function AmcBadge({ dateStr }: { dateStr?: string }) {
 const ADMIN_ROLES = ['SystemAdmin', 'MasterAdmin', 'HRAdmin'] as const;
 
 export default function Facilities() {
-  const { equipment, labs, staff, isLoading } = useData();
+  const { equipment, labs, staff, isLoading, error } = useData();
   const { user, hasPermission } = useAuth();
   const canUpload = hasPermission(['HRAdmin', 'SystemAdmin', 'MasterAdmin']);
   const navigate = useNavigate();
@@ -149,7 +149,7 @@ export default function Facilities() {
           onClick={(ev) => { ev.stopPropagation(); navigate(`/facilities/${e.UInsID}`); }}
           className="text-left group"
         >
-          <div className="font-semibold text-text group-hover:text-terracotta transition-colors">{e.Name}</div>
+          <div className="font-semibold text-text group-hover:text-[#c96442] transition-colors">{e.Name}</div>
           <div className="text-xs text-text-muted mt-0.5 font-mono">
             {e.instrument_code ?? e.UInsID}
             {e.manufacturer && <span className="ml-1.5 text-text-muted/70">· {e.manufacturer}</span>}
@@ -161,7 +161,7 @@ export default function Facilities() {
       header: 'Lab / Location',
       cell: (e: Equipment) => (
         <div className="flex items-start gap-1.5 text-sm text-text-muted">
-          <MapPin size={13} className="mt-0.5 text-terracotta shrink-0" />
+          <MapPin size={13} className="mt-0.5 text-[#c96442] shrink-0" />
           <div>
             {e.lab_id && labMap.get(e.lab_id) && (
               <div className="text-xs font-medium text-text">{labMap.get(e.lab_id)}</div>
@@ -179,14 +179,14 @@ export default function Facilities() {
         return (
           <div className="text-sm">
             {mgrId ? (
-              <button onClick={() => navigate(`/staff/${mgrId}`)} className="text-terracotta hover:underline font-medium text-left">
+              <button onClick={() => navigate(`/staff/${mgrId}`)} className="text-[#c96442] hover:underline font-medium text-left">
                 {e.IndenterName}
               </button>
             ) : (
               <div className="text-text">{e.IndenterName}</div>
             )}
             {opId ? (
-              <button onClick={() => navigate(`/staff/${opId}`)} className="text-xs text-terracotta hover:underline block mt-0.5">
+              <button onClick={() => navigate(`/staff/${opId}`)} className="text-xs text-[#c96442] hover:underline block mt-0.5">
                 Op: {e.OperatorName}
               </button>
             ) : (
@@ -221,7 +221,7 @@ export default function Facilities() {
     {
       header: 'Division',
       accessorKey: 'Division' as const,
-      className: 'text-xs font-bold text-terracotta uppercase',
+      className: 'text-xs font-bold text-[#c96442] uppercase',
     },
   ];
 
@@ -232,7 +232,7 @@ export default function Facilities() {
     else if (cls === 'Under Maintenance') variant = 'warning';
     else if (cls === 'Not Working') variant = 'danger';
     return (
-      <Card className="h-full flex flex-col bg-surface hover:bg-surface-hover hover:border-terracotta/50 transition-colors">
+      <Card className="h-full flex flex-col bg-surface hover:bg-surface-hover hover:border-[#c96442]/50 transition-colors">
         <div className="flex items-start justify-between gap-3 mb-3">
           <div className="min-w-0">
             <h3 className="font-bold text-text truncate" title={e.Name}>{e.Name}</h3>
@@ -247,7 +247,7 @@ export default function Facilities() {
           </div>
           <div className="flex items-center justify-between gap-2">
             <span>Division</span>
-            <span className="text-terracotta font-bold uppercase">{e.Division}</span>
+            <span className="text-[#c96442] font-bold uppercase">{e.Division}</span>
           </div>
           <div className="flex items-center justify-between gap-2">
             <span>AMC End</span>
@@ -263,13 +263,13 @@ export default function Facilities() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="page-title">Instruments</h1>
+          <h1 className="text-2xl font-[500] text-text font-serif">Instruments</h1>
           <p className="text-text-muted mt-1">Scientific instrument inventory and maintenance tracking</p>
         </div>
         {isAdmin && (
           <button
             onClick={() => { setEditTarget(null); setFormOpen(true); }}
-            className="flex items-center gap-2 px-4 py-2 bg-terracotta text-white rounded-lg hover:bg-[#b55a3a] transition-colors text-sm font-medium"
+            className="flex items-center gap-2 px-4 py-2 bg-[#c96442] text-white rounded-lg hover:bg-[#b55a3a] transition-colors text-sm font-medium"
           >
             <Plus size={16} />
             Add Instrument
@@ -327,7 +327,7 @@ export default function Facilities() {
             placeholder="Search name, code, manufacturer..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            className="pl-9 pr-4 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-focus-blue outline-none text-sm w-full sm:w-64"
+            className="pl-9 pr-4 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm w-full sm:w-64"
           />
         </div>
         <div className="relative">
@@ -335,7 +335,7 @@ export default function Facilities() {
           <select aria-label="Filter by status"
             value={statusFilter}
             onChange={e => setStatusFilter(e.target.value)}
-            className="w-full sm:w-auto sm:max-w-xs max-w-full pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-focus-blue outline-none text-sm appearance-none cursor-pointer"
+            className="w-full sm:w-auto sm:max-w-xs max-w-full pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm appearance-none cursor-pointer"
           >
             <option value="ALL">All Status</option>
             <option value="Working">Working</option>
@@ -349,7 +349,7 @@ export default function Facilities() {
           <select aria-label="Filter by division"
             value={divisionFilter}
             onChange={e => setDivisionFilter(e.target.value)}
-            className="w-full sm:w-auto sm:max-w-xs max-w-full pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-focus-blue outline-none text-sm appearance-none cursor-pointer"
+            className="w-full sm:w-auto sm:max-w-xs max-w-full pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm appearance-none cursor-pointer"
           >
             <option value="ALL">All Divisions</option>
             {divisions.map(d => <option key={d} value={d}>{d}</option>)}
@@ -360,7 +360,7 @@ export default function Facilities() {
           <select aria-label="Filter by AMC status"
             value={amcFilter}
             onChange={e => setAmcFilter(e.target.value)}
-            className="w-full sm:w-auto sm:max-w-xs max-w-full pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-focus-blue outline-none text-sm appearance-none cursor-pointer"
+            className="w-full sm:w-auto sm:max-w-xs max-w-full pl-9 pr-8 py-2 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-[#3898ec] outline-none text-sm appearance-none cursor-pointer"
           >
             <option value="ALL">All AMC</option>
             <option value="expired">Expired</option>
@@ -383,7 +383,13 @@ export default function Facilities() {
 
         <TabsContent value="table" className="mt-4 space-y-3">
           <FilterChip filter={filter} onClear={clearFilter} labelMap={EQUIPMENT_DIM_LABELS} />
-          {!isLoading && equipment.length === 0 ? (
+          {!isLoading && error && equipment.length === 0 ? (
+            <EmptyState
+              variant="error"
+              title="Couldn't load equipment records"
+              description={error}
+            />
+          ) : !isLoading && equipment.length === 0 ? (
             <EmptyState
               icon={Wrench}
               title="No equipment registered"

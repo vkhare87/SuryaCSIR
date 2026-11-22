@@ -9,6 +9,7 @@ import {
   validateRows,
   detectColumnMappings,
   resolveImportDivisions,
+  attributeImportDivisions,
   applyColumnMapping,
   parseFileRaw,
   pushToSupabase,
@@ -185,6 +186,45 @@ describe('resolveImportDivisions', () => {
       staff,
     );
     expect(out[0].DivisionCode).toBe('KEEP');
+  });
+});
+
+describe('attributeImportDivisions', () => {
+  const staff = [
+    { ID: 'E1', Name: 'Dr X', Division: 'MSE' },
+    { ID: 'E2', Name: 'Dr Y', Division: 'CSE' },
+  ];
+
+  it('fans out row counts per resolved division and preserves null bucket for unmapped rows', () => {
+    const out = attributeImportDivisions(
+      [
+        { ProjectNo: 'PR1', StaffName: 'S1' },
+        { ProjectNo: 'PR1', StaffName: 'S2' },
+        { ProjectNo: 'PR2', StaffName: 'S3' },
+        { ProjectNo: 'UNKNOWN', StaffName: 'S4' },
+      ],
+      'projectStaff',
+      [
+        { ProjectNo: 'PR1', DivisionCode: 'CSE' },
+        { ProjectNo: 'PR2', DivisionCode: 'MSE' },
+      ],
+      staff,
+    );
+    expect(out).toEqual([
+      { division_code: 'CSE', row_count: 2 },
+      { division_code: 'MSE', row_count: 1 },
+      { division_code: null, row_count: 1 },
+    ]);
+  });
+
+  it('returns a single null-division event for the divisions master domain', () => {
+    const out = attributeImportDivisions(
+      [{ divCode: 'CSE', divName: 'Comp Sci' }, { divCode: 'MSE', divName: 'Materials' }],
+      'divisions',
+      [],
+      staff,
+    );
+    expect(out).toEqual([{ division_code: null, row_count: 2 }]);
   });
 });
 

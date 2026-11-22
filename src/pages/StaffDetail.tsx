@@ -23,7 +23,6 @@ import { friendlyError } from '../lib/errors';
 import { ScoreHistoryCard } from '../components/pms/ScoreHistoryCard';
 import { ExpertisePanel } from '../components/ExpertisePanel';
 import { useBack } from '../utils/useBack';
-import { Section } from '../components/ui/Section';
 import type { ProfileFact, ProfileIssue, StaffMember } from '../types';
 
 const TRAJECTORY_FLAG_LABEL: Record<string, string> = {
@@ -375,9 +374,10 @@ export default function StaffDetail() {
       <DocumentPanel entityType="publication" entityId={member.ID} docType="full_text" accessTier={uploadTier}
         title="Publication Full-Texts" canUpload={isOwn || canEdit} divisionCode={member.Division} />
       {member.VidwanID && (
-        <Section id="staffdetail-research-output-via-irins" title="Research output (via IRINS)" className="p-5">
+        <Card className="p-5">
+          <h3 className="text-base font-[500] text-text font-serif mb-3">Research output (via IRINS)</h3>
           <ScientistProfile vidwanId={member.VidwanID} />
-        </Section>
+        </Card>
       )}
     </>
   );

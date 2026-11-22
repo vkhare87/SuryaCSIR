@@ -39,7 +39,7 @@ export default function Lessons() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="page-title">Lessons learned</h1>
+        <h1 className="text-2xl font-[500] font-serif text-text">Lessons learned</h1>
         <p className="text-sm text-text-muted max-w-2xl">
           What closed projects learned, from their approved completion reports — what worked, what did not, and what a
           future team should know. For questions across reports, ask SURYA.
@@ -55,9 +55,11 @@ export default function Lessons() {
         </select>
       </div>
 
-      {error && <p role="alert" className="text-sm text-danger">{error}</p>}
+      {error && rows !== null && rows.length > 0 && <p role="alert" className="text-sm text-danger">{error}</p>}
       {rows === null ? (
         <p className="text-sm text-text-muted">Loading…</p>
+      ) : rows.length === 0 && error ? (
+        <EmptyState variant="error" title="Couldn't load lessons" description={error} />
       ) : shown.length === 0 ? (
         <EmptyState icon={Lightbulb} title={rows.length === 0 ? 'No lessons yet' : 'Nothing matches'}
           description={rows.length === 0 ? 'Lessons appear here once a project\'s completion report is approved.' : 'Try fewer or different words.'} />

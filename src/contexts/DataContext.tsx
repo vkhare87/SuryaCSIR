@@ -182,8 +182,8 @@ interface DataContextType {
   saveEquipment: (payload: Record<string, unknown>) => Promise<void>;
   /** Names a person must link to a staff record (admins, Director). */
   identityLinkGaps: () => Promise<IdentityLinkGap[]>;
-  /** Link (or, with null, unlink) the name at a position of an output or IP record. */
-  setIdentityLink: (kind: 'OUTPUT' | 'IP', recordId: string, pos: number, staffId: string | null) => Promise<void>;
+  /** Link (or, with null, unlink) a name on an output, IP, or staff-keyed table record. */
+  setIdentityLink: (kind: string, recordId: string, pos: number | null, staffId: string | null) => Promise<void>;
   /** Re-run the automatic one-match linking; returns the number of names linked. */
   runIdentityAutolink: () => Promise<number>;
   error: string | null;
@@ -760,10 +760,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
-  const setIdentityLink = useCallback(async (kind: 'OUTPUT' | 'IP', recordId: string, pos: number, staffId: string | null) => {
+  const setIdentityLink = useCallback(async (kind: string, recordId: string, pos: number | null, staffId: string | null) => {
     if (!supabase) throw new Error('Supabase not configured');
     const { error: err } = await supabase.rpc('identity_set_link', {
-      p_kind: kind, p_record_id: recordId, p_position: pos, p_staff_id: staffId,
+      p_kind: kind, p_record_id: recordId, p_position: pos ?? 0, p_staff_id: staffId,
     });
     if (err) throw err;
   }, []);

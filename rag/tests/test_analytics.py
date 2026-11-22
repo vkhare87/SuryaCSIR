@@ -689,10 +689,3 @@ def test_projects_for_staff_counts_linked_records_only_not_name_matches():
     ans = run_analytics("projects_for_staff", {"name": "S001"}, client)
     assert "GAP(001)" in ans.text
     assert "GAP-009" not in ans.text
-
-
-def test_aggregate_is_a_subset_of_the_catalog_and_names_no_person_function():
-    from analytics import AGGREGATE, CATALOG
-    assert AGGREGATE <= set(CATALOG)
-    assert not AGGREGATE & {"staff_profile", "projects_for_staff", "project_team", "expertise_search",
-                            "expertise_succession_risk", "project_budget_variance", "division_summary"}

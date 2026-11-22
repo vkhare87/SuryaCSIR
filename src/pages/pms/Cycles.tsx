@@ -138,14 +138,14 @@ export default function Cycles() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="page-title">Appraisal Cycles</h1>
+        <h1 className="text-2xl font-serif font-medium text-text">Appraisal Cycles</h1>
         <Button onClick={openCreate}>New Cycle</Button>
       </div>
 
       {cycles.length === 0 ? (
         <p className="text-text-muted text-sm py-8 text-center">No cycles yet.</p>
       ) : (
-        <div className="divide-y divide-border border border-border rounded-xl overflow-hidden bg-surface shadow-[var(--shadow-e1)]">
+        <div className="divide-y divide-border border border-border rounded-2xl overflow-hidden">
           {cycles.map(c => {
             const d = cycleDeadlines(c);
             const fmt = (x: Date) => x.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });

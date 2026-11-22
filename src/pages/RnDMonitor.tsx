@@ -51,7 +51,7 @@ export default function RnDMonitor() {
     <div className="p-6 max-w-6xl mx-auto space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="page-title flex items-center gap-2">
+          <h1 className="flex items-center gap-2 text-2xl font-semibold text-text">
             <Activity className="h-6 w-6 text-text-muted" /> R&amp;D Monitor
           </h1>
           <p className="text-sm text-text-muted">

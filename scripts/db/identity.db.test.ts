@@ -94,3 +94,67 @@ describe('entity timeline', () => {
     expect(rows.map(r => r.kind)).toEqual(['funds', 'review', 'change', 'created']); // 'created' is the insert itself, today
   });
 });
+
+describe('staff link gaps and removal of display-name RLS fallback (A3b / 0.5)', () => {
+  it('resolves unambiguous names via identity_link_authors and ambiguous rows via identity_set_link to drive admin_staff_link_gaps() to zero', async () => {
+    // Link S-K2 to an auth user so only table-link gaps remain under test
+    const uK2 = '7b000000-0000-0000-0000-000000000099';
+    await db.exec(`
+      INSERT INTO auth.users (id, email) VALUES ('${uK2}', 'k2@i');
+      UPDATE public.staff SET user_id = '${uK2}' WHERE "ID" = 'S-K2';
+      INSERT INTO public.projects ("ProjectID", "ProjectNo", "ProjectName", "PrincipalInvestigator", "DivisionCode")
+      VALUES
+        ('PRJ-EXACT', 'P-E1', 'Exact PI',       'Dr. Asha Verma', 'D2'),
+        ('PRJ-NORM',  'P-N1', 'Unstripped PI',  'Asha Verma',     'D2'),
+        ('PRJ-AMBIG', 'P-A1', 'Ambiguous PI',   'Dr. R. Kumar',   'D2');
+      INSERT INTO public.phd_students ("EnrollmentNo", "StudentName", "SupervisorName", "CoSupervisorName", "DivisionCode")
+      VALUES ('PHD-GAP-1', 'Scholar A', 'Dr. R. Kumar', 'Asha Verma', 'D2');
+      INSERT INTO public.project_staff (id, "StaffName", "ProjectNo", "DivisionCode")
+      VALUES ('PS-GAP-1', 'Dr. R. Kumar', 'P-E1', 'D2');
+    `);
+
+    // Exact unique name auto-links on insert via sync_staff_key; honorific variant links via identity_link_authors; ambiguous stays NULL.
+    const prjExact = (await db.query<{ pi_staff_id: string | null }>(`SELECT pi_staff_id FROM projects WHERE "ProjectID" = 'PRJ-EXACT'`)).rows[0];
+    expect(prjExact.pi_staff_id).toBe('S-ASHA');
+
+    const prjNormBefore = (await db.query<{ pi_staff_id: string | null }>(`SELECT pi_staff_id FROM projects WHERE "ProjectID" = 'PRJ-NORM'`)).rows[0];
+    expect(prjNormBefore.pi_staff_id).toBeNull();
+
+    await as(db, U.hr, tx => tx.query(`SELECT identity_link_authors()`));
+    const prjNormAfter = (await db.query<{ pi_staff_id: string | null }>(`SELECT pi_staff_id FROM projects WHERE "ProjectID" = 'PRJ-NORM'`)).rows[0];
+    expect(prjNormAfter.pi_staff_id).toBe('S-ASHA');
+
+    const prjA = (await db.query<{ pi_staff_id: string | null }>(`SELECT pi_staff_id FROM projects WHERE "ProjectID" = 'PRJ-AMBIG'`)).rows[0];
+    expect(prjA.pi_staff_id).toBeNull();
+
+    // Display-name fallback is gone: kumar1 (named 'R. Kumar', in D1) must NOT see PRJ-AMBIG, PHD-GAP-1, or PS-GAP-1 in D2.
+    const visiblePrj = await as(db, U.kumar1, tx => tx.query(`SELECT 1 FROM projects WHERE "ProjectID" = 'PRJ-AMBIG'`));
+    const visiblePhd = await as(db, U.kumar1, tx => tx.query(`SELECT 1 FROM phd_students WHERE "EnrollmentNo" = 'PHD-GAP-1'`));
+    const visiblePs = await as(db, U.kumar1, tx => tx.query(`SELECT 1 FROM project_staff WHERE id = 'PS-GAP-1'`));
+    expect(visiblePrj.rows).toHaveLength(0);
+    expect(visiblePhd.rows).toHaveLength(0);
+    expect(visiblePs.rows).toHaveLength(0);
+
+    // Non-admin cannot link table rows
+    await expect(as(db, U.kumar1, tx => tx.query(`SELECT identity_set_link('projects.PrincipalInvestigator', 'P-A1', 0, 'S-K1')`)))
+      .rejects.toThrow(/not authorized/);
+
+    // Admin links the remaining gaps via identity_set_link
+    await as(db, U.hr, tx => tx.query(`
+      SELECT identity_set_link('projects.PrincipalInvestigator', 'P-A1', 0, 'S-K1'),
+             identity_set_link('phd_students.SupervisorName', 'PHD-GAP-1', 0, 'S-K1'),
+             identity_set_link('project_staff.StaffName', 'PS-GAP-1', 0, 'S-K1');
+    `));
+
+    const remaining = await as(db, U.hr, tx => tx.query(`SELECT * FROM admin_staff_link_gaps()`));
+    expect(remaining.rows).toEqual([]);
+
+    // Once linked to S-K1, kumar1 sees those records cleanly by staff_id.
+    const linkedPrj = await as(db, U.kumar1, tx => tx.query(`SELECT 1 FROM projects WHERE "ProjectID" = 'PRJ-AMBIG'`));
+    const linkedPhd = await as(db, U.kumar1, tx => tx.query(`SELECT 1 FROM phd_students WHERE "EnrollmentNo" = 'PHD-GAP-1'`));
+    const linkedPs = await as(db, U.kumar1, tx => tx.query(`SELECT 1 FROM project_staff WHERE id = 'PS-GAP-1'`));
+    expect(linkedPrj.rows).toHaveLength(1);
+    expect(linkedPhd.rows).toHaveLength(1);
+    expect(linkedPs.rows).toHaveLength(1);
+  });
+});

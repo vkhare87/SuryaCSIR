@@ -1,34 +1,17 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
-  Lock, ArrowRight, Mail, ExternalLink, Newspaper,
-  Eye, EyeOff, Scale, Users, Clock, Map, Compass, BookOpen,
-  FolderX, Layers, Lightbulb, Briefcase, GraduationCap, Microscope, Building2, Sparkles, ChevronDown,
+  Sun, Lock, ArrowRight, Mail, ExternalLink, Newspaper,
+  Eye, Scale, Users, Clock, Map, Compass, BookOpen,
+  FolderX, Layers, Lightbulb, Pause, Play,
 } from 'lucide-react';
 import { ROLE_ROUTES } from '../constants/roleRoutes';
 import { resolvePostLoginPath } from '../lib/auth/postLogin';
 import { NetworkCanvas } from '../components/NetworkCanvas';
 import { useCountUp } from '../utils/useCountUp';
-import { Stagger } from '../components/ui/Stagger';
-// The official marks, trimmed and resized from csir-logo.jpg / ampri-logo.png.
-import csirLogo from '../assets/csir-mark.webp';
-import ampriLogo from '../assets/ampri-mark.webp';
-
-/** Both official marks side by side on a white plate; a logo is never recolored or cropped. */
-function LogoLockup({ className }: { className: string }) {
-  return (
-    <div className="inline-flex items-center gap-4 rounded-2xl bg-white px-5 py-3 shadow-[var(--shadow-e2)]">
-      <img src={csirLogo} alt="CSIR — Council of Scientific and Industrial Research" className={`${className} w-auto object-contain`} />
-      <span className="self-stretch w-px bg-warm-sand" aria-hidden="true" />
-      <img src={ampriLogo} alt="CSIR-AMPRI — Advanced Materials and Processes Research Institute, Bhopal" className={`${className} w-auto object-contain`} />
-    </div>
-  );
-}
-
-// The person who conceived and designed SURYA; shown as the signature on this page.
-const AUTHOR = 'Vivek Khare';
+import csirLogo from '../assets/csir-logo.jpg';
+import ampriLogo from '../assets/ampri-logo.png';
 
 const TAGLINE =
   'One living record of the institute — its people, its work, and what it makes possible.';
@@ -108,122 +91,23 @@ function greeting() {
   return 'Good Evening';
 }
 
-const FIELD = 'w-full pl-12 pr-4 py-3.5 bg-background border border-border rounded-xl outline-none text-text font-medium transition-all placeholder:text-text-muted/70 hover:border-ring-warm focus:ring-2 focus:ring-terracotta/60 focus:border-terracotta';
-const FIELD_LABEL = 'text-xs font-medium text-text-muted ml-1';
-const FIELD_ICON = 'absolute left-4 top-1/2 -translate-y-1/2 text-text-muted group-focus-within:text-terracotta transition-colors';
+const SLIDE_COUNT = 5;
+const SLIDE_INTERVAL_MS = 9000;
 
-const TILE = 'rounded-xl border border-ivory/10 bg-ivory/[0.03]';
-const TILE_HOVER = 'transition-all duration-300 hover:bg-terracotta/10 hover:border-terracotta/40 hover:-translate-y-1';
-const ICON_BOX = 'w-10 h-10 rounded-lg bg-terracotta/20 flex items-center justify-center text-coral shrink-0';
-const KICKER = 'text-[11px] font-semibold text-coral tracking-widest uppercase mb-2';
-const HEADING = 'text-3xl lg:text-4xl font-[500] text-ivory font-serif mb-3';
-const LEAD = 'text-sm text-warm-silver leading-relaxed max-w-2xl';
-
-const STORY = ['What SURYA is', 'The name', 'The concept', 'The leverage', 'The road ahead', 'CSIR today', 'Quick links'];
-
-// What the software holds, said plainly: one line per part of the institute's record.
-const MODULES = [
-  { icon: Users, title: 'People and posts', body: 'Staff, divisions, sanctioned posts, project staff, recruitment.' },
-  { icon: Briefcase, title: 'Projects and proposals', body: 'From a first idea to sanction, progress reports and closure.' },
-  { icon: Scale, title: 'Performance appraisal', body: 'Scientist self-report, evaluation committee, final score.' },
-  { icon: GraduationCap, title: 'PhD scholars', body: 'Each scholar’s road from enrolment to thesis.' },
-  { icon: Microscope, title: 'Instruments', body: 'What the institute owns, who runs it, and whether it works.' },
-  { icon: BookOpen, title: 'Papers and patents', body: 'Publications and IP, linked to the people who made them.' },
-  { icon: Building2, title: 'Committees and helpdesk', body: 'Meetings, decisions, action items and service requests.' },
-  { icon: Sparkles, title: 'Ask SURYA', body: 'Questions answered from institute documents, with the page cited.' },
-];
-
-// The records that circle the sun. Angle in degrees, on three rings.
-const ORBITS = [
-  { r: 118, dur: '50s', nodes: [{ a: 25, label: 'People' }, { a: 205, label: 'Projects' }] },
-  { r: 188, dur: '76s', nodes: [{ a: 80, label: 'Appraisal' }, { a: 200, label: 'Scholars' }, { a: 320, label: 'Instruments' }] },
-  { r: 258, dur: '104s', nodes: [{ a: 10, label: 'Patents' }, { a: 135, label: 'Papers' }, { a: 255, label: 'Committees' }] },
-];
-
-/** The login's signature: the sun, and the institute's records in orbit round it. */
-function SunOrbit({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 600 600" className={className} aria-hidden="true">
-      <defs>
-        <radialGradient id="sun-core" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="#f2b08f" />
-          <stop offset="55%" stopColor="#d97757" />
-          <stop offset="100%" stopColor="#c96442" />
-        </radialGradient>
-        <radialGradient id="sun-halo" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="#c96442" stopOpacity="0.55" />
-          <stop offset="100%" stopColor="#c96442" stopOpacity="0" />
-        </radialGradient>
-      </defs>
-      <circle cx="300" cy="300" r="290" fill="url(#sun-halo)" className="animate-amber-glow" style={{ transformOrigin: '300px 300px' }} />
-      {ORBITS.map(o => (
-        <circle key={o.r} cx="300" cy="300" r={o.r} fill="none" stroke="#faf9f5" strokeOpacity="0.12" strokeDasharray="2 7" />
-      ))}
-      <g className="orbit" style={{ '--orbit': '90s' } as React.CSSProperties}>
-        {Array.from({ length: 12 }, (_, i) => (
-          <line
-            key={i} x1="300" y1="238" x2="300" y2="222" stroke="#d97757" strokeWidth="4" strokeLinecap="round"
-            transform={`rotate(${i * 30} 300 300)`} className="sun-ray" style={{ animationDelay: `${(i % 4) * 0.6}s` }}
-          />
-        ))}
-      </g>
-      <circle cx="300" cy="300" r="48" fill="url(#sun-core)" />
-      {ORBITS.map(o => (
-        <g key={o.r} className="orbit" style={{ '--orbit': o.dur } as React.CSSProperties}>
-          {o.nodes.map(n => {
-            const rad = (n.a * Math.PI) / 180;
-            return (
-              <g key={n.label} transform={`translate(${300 + o.r * Math.cos(rad)} ${300 + o.r * Math.sin(rad)})`}>
-                {/* The clear box keeps the label's centre on the dot, so it stays level as the ring turns. */}
-                <g className="orbit-upright" style={{ '--orbit': o.dur } as React.CSSProperties}>
-                  <rect x="-60" y="-26" width="120" height="52" fill="none" />
-                  <circle r="6" fill="#d97757" />
-                  <circle r="11" fill="none" stroke="#d97757" strokeOpacity="0.35" />
-                  <text y="25" textAnchor="middle" fill="#faf9f5" fillOpacity="0.8" fontSize="13" fontWeight="500">{n.label}</text>
-                </g>
-              </g>
-            );
-          })}
-        </g>
-      ))}
-    </svg>
-  );
-}
-
-/** Desktop only: how much to enlarge the page so it fills a big screen as it fills a 1440×820 one. */
-function useFitScale() {
-  const [scale, setScale] = useState(1);
-  useEffect(() => {
-    const fit = () => setScale(
-      window.innerWidth < 1024 ? 1 : Math.min(1.9, Math.max(0.8, Math.min(window.innerWidth / 1440, window.innerHeight / 820))),
-    );
-    fit();
-    window.addEventListener('resize', fit);
-    return () => window.removeEventListener('resize', fit);
-  }, []);
-  return scale;
-}
-
-const reveal = {
-  initial: { opacity: 0, y: 28 },
-  whileInView: { opacity: 1, y: 0 },
-  viewport: { amount: 0.35, once: false },
-  transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] as const },
-};
+const SLIDE_TITLES = ['SURYA', 'The Concept', 'The Leverage', 'The Road Ahead', 'CSIR Today'];
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
   const [tickerIndex, setTickerIndex] = useState(0);
   const [tickerVisible, setTickerVisible] = useState(true);
-  const [chapter, setChapter] = useState(0);
+  const [slide, setSlide] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const [userPaused, setUserPaused] = useState(false);
   const [reducedMotion] = useState(() => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false);
-  const storyRef = useRef<HTMLDivElement>(null);
-  const scale = useFitScale();
   const { login, isAuthenticated, role } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -241,23 +125,12 @@ export default function Login() {
     return () => { clearInterval(interval); clearTimeout(fade); };
   }, [reducedMotion]);
 
-  // The dot of the chapter in view lights up.
+  // Auto-advance slides; including `slide` in deps resets the timer after a manual jump
   useEffect(() => {
-    const root = storyRef.current;
-    if (!root || !('IntersectionObserver' in window)) return;
-    // Only an entry at or past half visible counts: one callback can carry the
-    // chapter leaving (still intersecting, under half) after the one arriving.
-    const seen = new IntersectionObserver((entries) => {
-      for (const e of entries) if (e.intersectionRatio >= 0.5) setChapter(Number((e.target as HTMLElement).dataset.chapter));
-    }, { threshold: 0.5 });
-    root.querySelectorAll('[data-chapter]').forEach(el => seen.observe(el));
-    return () => seen.disconnect();
-  }, []);
-
-  const goTo = (i: number) => storyRef.current
-    ?.querySelector(`[data-chapter="${i}"]`)
-    // 'instant', not 'auto': 'auto' still follows the container's scroll-smooth class.
-    ?.scrollIntoView({ behavior: reducedMotion ? 'instant' : 'smooth', block: 'start' });
+    if (paused || userPaused || reducedMotion) return;
+    const t = setInterval(() => setSlide(s => (s + 1) % SLIDE_COUNT), SLIDE_INTERVAL_MS);
+    return () => clearInterval(t);
+  }, [paused, userPaused, reducedMotion, slide]);
 
   // Navigate to role-specific dashboard once auth and role are both resolved
   useEffect(() => {
@@ -288,291 +161,333 @@ export default function Login() {
     }
   };
 
-  // One chapter of the story: a full panel on desktop, a plain block on a phone.
-  const chapterProps = (i: number) => ({
-    'data-chapter': i,
-    'aria-label': STORY[i],
-    className: 'relative lg:min-h-full lg:snap-start flex flex-col justify-center px-8 py-8 lg:px-12 lg:py-5',
-  });
-  const zoom = { zoom: scale };
-
-  return (
-    <div className="min-h-screen w-full flex flex-col lg:flex-row bg-background font-sans lg:h-screen lg:overflow-hidden">
-
-      {/* ============ LEFT: the story, one smooth scroll ============ */}
-      <div className="flex-1 min-w-0 bg-near-black flex flex-col lg:h-screen overflow-hidden relative">
-        <NetworkCanvas className="absolute inset-0 w-full h-full pointer-events-none opacity-40" />
-
-        {/* Persistent chrome: branding */}
-        <div className="relative z-20 px-8 pt-8 lg:px-12 lg:pt-10">
-          <div className="flex items-center gap-6" style={zoom}>
-            <LogoLockup className="h-16 lg:h-20" />
-            <div className="hidden md:block">
-              <div className="text-[11px] font-semibold text-coral tracking-widest uppercase">Digital Sun Initiative</div>
-              <div className="text-sm font-medium text-ivory mt-0.5">CSIR-Advanced Materials and Processes Research Institute</div>
-              <div className="text-[11px] font-medium text-warm-silver tracking-wider">Bhopal</div>
-            </div>
+  const slideContent = [
+    /* ---- Slide 1: SURYA hero ---- */
+    <div key="hero" className="relative h-full flex flex-col justify-center">
+      <NetworkCanvas className="absolute inset-0 w-full h-full pointer-events-none opacity-70" />
+      <div className="relative z-10 flex flex-col gap-6">
+        <div className="relative flex items-center gap-6">
+          <div
+            className="absolute -left-16 top-1/2 -translate-y-1/2 w-[480px] h-[480px] rounded-full pointer-events-none animate-amber-glow"
+            style={{ background: 'radial-gradient(circle, rgba(201,100,66,0.45) 0%, rgba(201,100,66,0.12) 35%, transparent 70%)' }}
+          />
+          <h1 className="relative text-7xl lg:text-[9rem] font-[500] text-[#faf9f5] tracking-tight font-serif">SURYA</h1>
+          <div className="relative text-[#d97757] animate-sun">
+            <Sun size={72} strokeWidth={3} />
           </div>
         </div>
 
-        <div
-          ref={storyRef}
-          className="relative z-10 flex-1 min-h-0 lg:overflow-y-auto lg:snap-y lg:snap-mandatory scroll-smooth scrollbar-hide overscroll-contain"
-        >
-          {/* ---- 1. What SURYA is ---- */}
-          <section {...chapterProps(0)}>
-            <SunOrbit className="absolute right-[-14%] top-1/2 -translate-y-1/2 w-[62%] max-h-[115%] aspect-square pointer-events-none hidden lg:block" />
-            <div className="relative z-10 lg:max-w-[60%]"><div style={zoom}>
-              <motion.div initial="hidden" animate="show" variants={{ show: { transition: { staggerChildren: 0.07 } } }}>
-                <div className={KICKER}>The institute management and analytics system of CSIR-AMPRI</div>
-                <h1 className="flex text-7xl lg:text-[6rem] leading-none font-[500] text-ivory tracking-tight font-serif" aria-label="SURYA">
-                  {'SURYA'.split('').map((ch, i) => (
-                    <motion.span
-                      key={i} aria-hidden="true"
-                      variants={{ hidden: { opacity: 0, y: 60, filter: 'blur(12px)' }, show: { opacity: 1, y: 0, filter: 'blur(0px)' } }}
-                      transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                    >{ch}</motion.span>
-                  ))}
-                </h1>
-              </motion.div>
+        <p className="relative max-w-2xl text-sm lg:text-base text-[#d6d4cb] leading-relaxed font-medium border-l-2 border-[#c96442] pl-4">
+          {TAGLINE}
+        </p>
 
-              <p className="mt-4 text-base text-ivory leading-relaxed border-l-2 border-terracotta pl-4">
-                SURYA is where CSIR-AMPRI keeps its working record — people, projects, PhD scholars, instruments,
-                papers and patents — and where the yearly performance appraisal of scientists runs from
-                self-report to final score.
-              </p>
-              <p className="mt-3 text-sm text-warm-silver leading-relaxed">
-                It is for everyone at the institute — leadership, scientists, technical staff, scholars,
-                project staff and the offices. Each person signs in and sees their own part of it.
-              </p>
-
-              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                {MODULES.map(m => {
-                  const Icon = m.icon;
-                  return (
-                    <div key={m.title} title={m.body} className={`flex items-center gap-3 px-3 py-1.5 ${TILE} ${TILE_HOVER}`}>
-                      <Icon size={18} className="text-coral shrink-0" />
-                      <div className="min-w-0">
-                        <div className="text-[13px] font-semibold text-ivory truncate">{m.title}</div>
-                        <div className="text-[11px] text-warm-silver truncate">{m.body}</div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div></div>
-            <button
-              type="button" onClick={() => goTo(1)}
-              className="hidden lg:flex absolute bottom-1 right-12 items-center gap-2 text-[11px] font-medium text-warm-silver hover:text-ivory uppercase tracking-widest"
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-4 max-w-3xl">
+          {ACRONYM.map(item => (
+            <div
+              key={item.letter}
+              className="group flex gap-3 rounded-xl border border-[#faf9f5]/10 bg-[#faf9f5]/[0.03] p-3 transition-all duration-300 hover:bg-[#c96442]/10 hover:border-[#c96442]/40 hover:-translate-y-1 hover:shadow-lg hover:shadow-[#c96442]/10 cursor-default"
             >
-              <ChevronDown size={14} className={reducedMotion ? undefined : 'animate-bounce'} /> Scroll for the idea behind it
-            </button>
-          </section>
-
-          {/* ---- 2. The name ---- */}
-          <section {...chapterProps(1)}>
-            <motion.div {...reveal} className="relative z-10 max-w-3xl" style={zoom}>
-              <div className={KICKER}>The name</div>
-              <h2 className={HEADING}>
-                <span lang="sa" className="text-coral mr-3">सूर्य</span>The sun, and five promises
-              </h2>
-              <p className={`${LEAD} mb-8`}>{TAGLINE}</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {ACRONYM.map(item => (
-                  <div key={item.letter} className={`group flex gap-4 p-4 ${TILE} ${TILE_HOVER}`}>
-                    <div className={`${ICON_BOX} font-serif text-xl transition-colors group-hover:bg-terracotta group-hover:text-ivory`}>{item.letter}</div>
-                    <div>
-                      <div className="text-sm font-semibold text-ivory">{item.title}</div>
-                      <div className="text-xs text-warm-silver leading-relaxed mt-0.5">{item.body}</div>
-                    </div>
-                  </div>
-                ))}
+              <div className="w-9 h-9 rounded-lg bg-[#c96442]/20 flex items-center justify-center text-[#d97757] font-semibold text-lg shrink-0 transition-colors group-hover:bg-[#c96442] group-hover:text-[#faf9f5]">
+                {item.letter}
               </div>
-            </motion.div>
-          </section>
-
-          {/* ---- 3. The concept — an institute that remembers ---- */}
-          <section {...chapterProps(2)}>
-            <motion.div {...reveal} className="relative z-10 max-w-3xl" style={zoom}>
-              <div className={KICKER}>The Concept</div>
-              <h2 className={HEADING}>An institute that remembers</h2>
-              <p className={`${LEAD} mb-8`}>
-                A research institute is more than its buildings — it is decades of people, projects, results,
-                and hard-won know-how. SURYA exists so none of that is ever lost, and all of it is put to work.
-              </p>
-              <div className="space-y-4">
-                {CONCEPT_POINTS.map(p => {
-                  const Icon = p.icon;
-                  return (
-                    <div key={p.title} className={`flex gap-4 p-5 ${TILE}`}>
-                      <div className={ICON_BOX}><Icon size={20} /></div>
-                      <div>
-                        <div className="text-sm font-semibold text-ivory mb-1">{p.title}</div>
-                        <div className="text-xs text-warm-silver leading-relaxed">{p.body}</div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </motion.div>
-          </section>
-
-          {/* ---- 4. The leverage / 5. The road ahead ---- */}
-          {[
-            { i: 3, kicker: 'The Leverage', heading: 'What one trusted record makes possible', items: LEVERAGE,
-              lead: 'When the institute’s work is recorded once, well, and in one place, everything built on top of it gets faster, fairer, and clearer.' },
-            { i: 4, kicker: 'The Road Ahead', heading: 'What one lab starts, thirty-eight can share', items: FUTURE,
-              lead: 'SURYA begins at CSIR-AMPRI. The same idea — an institution that keeps and uses its own record — can serve every laboratory in the CSIR family.' },
-          ].map(c => (
-            <section key={c.i} {...chapterProps(c.i)}>
-              <motion.div {...reveal} className="relative z-10 max-w-3xl" style={zoom}>
-                <div className={KICKER}>{c.kicker}</div>
-                <h2 className={HEADING}>{c.heading}</h2>
-                <p className={`${LEAD} mb-8`}>{c.lead}</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {c.items.map(f => {
-                    const Icon = f.icon;
-                    return (
-                      <div key={f.title} className={`group p-5 ${TILE} ${TILE_HOVER}`}>
-                        <div className={`${ICON_BOX} mb-3 transition-colors group-hover:bg-terracotta group-hover:text-ivory`}><Icon size={20} /></div>
-                        <div className="text-sm font-semibold text-ivory mb-1">{f.title}</div>
-                        <div className="text-xs text-warm-silver leading-relaxed">{f.body}</div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </motion.div>
-            </section>
-          ))}
-
-          {/* ---- 6. CSIR today ---- */}
-          <section {...chapterProps(5)}>
-            <motion.div {...reveal} className="relative z-10 max-w-3xl" style={zoom}>
-              <div className={KICKER}>Council of Scientific and Industrial Research</div>
-              <h2 className={HEADING}>A Nation’s Research Backbone</h2>
-              <p className={LEAD}>
-                CSIR operates 38 national laboratories across India, advancing science from materials and energy to
-                health and aerospace. CSIR-AMPRI, Bhopal anchors advanced materials and processes research.
-              </p>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-8">
-                {CSIR_STATS.map(stat => (
-                  <div key={stat.label} className={`p-4 text-center ${TILE}`}>
-                    <div className="text-3xl font-[600] text-coral font-serif tabular-nums">
-                      {chapter === 5 ? <StatCounter target={stat.target} suffix={stat.suffix} /> : <span>0</span>}
-                    </div>
-                    <div className="text-[10px] text-warm-silver uppercase tracking-widest mt-1">{stat.label}</div>
-                  </div>
-                ))}
-              </div>
-              <div className={`mt-5 px-4 py-3 ${TILE}`}>
-                <div className="text-[10px] font-semibold text-stone-gray uppercase tracking-widest mb-1">Did you know</div>
-                <div
-                  className="text-sm text-ivory/85 leading-relaxed italic transition-opacity duration-300 min-h-[2.75rem]"
-                  style={{ opacity: tickerVisible ? 1 : 0 }}
-                >
-                  {ACHIEVEMENTS[tickerIndex]}
-                </div>
-              </div>
-            </motion.div>
-          </section>
-
-          {/* ---- 7. Quick links ---- */}
-          <section {...chapterProps(6)}>
-            <motion.div {...reveal} className="relative z-10 max-w-4xl" style={zoom}>
-              <div className={KICKER}>Before you sign in</div>
-              <h2 className={HEADING}>Other doors you may need</h2>
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-                <div className="lg:col-span-2 grid grid-cols-2 gap-2">
-                  {QUICK_LINKS.map(link => (
-                    <a
-                      key={link.label} href={link.href} target="_blank" rel="noopener noreferrer"
-                      className={`group flex items-center justify-between gap-2 px-3 py-2.5 ${TILE} transition-all hover:bg-terracotta/10 hover:border-terracotta/40`}
-                    >
-                      <div className="min-w-0">
-                        <div className="text-xs font-semibold text-ivory truncate">{link.label}</div>
-                        <div className="text-[10px] text-stone-gray truncate">{link.sub}</div>
-                      </div>
-                      <ExternalLink size={13} className="text-stone-gray group-hover:text-coral shrink-0 transition-colors" />
-                    </a>
-                  ))}
-                </div>
-                <div>
-                  <div className="text-[10px] font-semibold text-stone-gray uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                    <Newspaper size={12} /> CSIR News
-                  </div>
-                  <div className={`p-3 space-y-3 ${TILE}`}>
-                    {NEWS.map((n, i) => (
-                      <div key={i} className="flex gap-2">
-                        <div className="w-1 shrink-0 rounded-full bg-terracotta/60" />
-                        <p className="text-[11px] text-ivory/85 leading-snug">{n}</p>
-                      </div>
-                    ))}
-                    <a
-                      href="https://csirnews.niscpr.res.in/" target="_blank" rel="noopener noreferrer"
-                      className="flex items-center justify-center gap-1.5 mt-1 rounded-lg border border-terracotta/40 bg-terracotta/10 px-3 py-2 text-[10px] font-semibold text-coral uppercase tracking-widest hover:bg-terracotta/20 transition-colors"
-                    >
-                      View CSIR News Portal <ExternalLink size={11} />
-                    </a>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </section>
-        </div>
-
-        {/* Persistent chrome: signature + chapter dots */}
-        <div className="relative z-20 border-t border-ivory/10 px-8 py-4 lg:px-12">
-          <div className="flex flex-wrap items-center justify-between gap-4" style={zoom}>
-            <div className="flex items-center gap-3">
-              <div className="h-9 w-1 bg-terracotta" />
               <div>
-                <div className="text-[10px] font-medium text-warm-silver uppercase tracking-[0.25em]">Conceptualised and designed by</div>
-                <div className="font-serif italic text-lg leading-tight text-coral">{AUTHOR}</div>
+                <div className="text-[11px] font-semibold text-[#faf9f5] uppercase tracking-wider">{item.title}</div>
+                <div className="text-[10px] text-[#b0aea5] leading-relaxed mt-0.5 opacity-70 group-hover:opacity-100 transition-opacity">{item.body}</div>
               </div>
             </div>
-            <nav aria-label="Chapters" className="hidden lg:flex items-center gap-3">
-              {STORY.map((title, i) => (
-                <button
-                  key={title} type="button" aria-label={title} title={title} aria-current={i === chapter || undefined}
-                  onClick={() => goTo(i)}
-                  className={`relative after:absolute after:-inset-2 h-2 rounded-full transition-all duration-300 ${
-                    i === chapter ? 'w-8 bg-coral' : 'w-2 bg-ivory/25 hover:bg-ivory/50'
-                  }`}
-                />
+          ))}
+        </div>
+      </div>
+    </div>,
+
+    /* ---- Slide 2: The concept — an institute that remembers ---- */
+    <div key="concept" className="relative h-full flex flex-col justify-center">
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-[#c96442]/5 pointer-events-none" />
+      <div className="relative z-10 max-w-3xl">
+        <div className="text-[10px] font-semibold text-[#d97757] tracking-widest uppercase mb-1">The Concept</div>
+        <h2 className="text-3xl lg:text-4xl font-[500] text-[#faf9f5] font-serif mb-3">An institute that remembers</h2>
+        <p className="text-sm text-[#b0aea5] leading-relaxed mb-8 max-w-2xl">
+          A research institute is more than its buildings — it is decades of people, projects, results,
+          and hard-won know-how. SURYA exists so none of that is ever lost, and all of it is put to work.
+        </p>
+
+        <div className="space-y-4">
+          {CONCEPT_POINTS.map(p => {
+            const Icon = p.icon;
+            return (
+              <div key={p.title} className="flex gap-4 rounded-xl border border-[#faf9f5]/10 bg-[#faf9f5]/[0.03] p-5">
+                <div className="w-10 h-10 rounded-lg bg-[#c96442]/20 flex items-center justify-center text-[#d97757] shrink-0">
+                  <Icon size={20} />
+                </div>
+                <div>
+                  <div className="text-sm font-semibold text-[#faf9f5] mb-1">{p.title}</div>
+                  <div className="text-[11px] text-[#b0aea5] leading-relaxed">{p.body}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>,
+
+    /* ---- Slide 3: The leverage ---- */
+    <div key="leverage" className="relative h-full flex flex-col justify-center">
+      <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-[#c96442]/5 rounded-full -translate-x-1/3 translate-y-1/3 pointer-events-none" />
+      <div className="relative z-10 max-w-3xl">
+        <div className="text-[10px] font-semibold text-[#d97757] tracking-widest uppercase mb-1">The Leverage</div>
+        <h2 className="text-3xl lg:text-4xl font-[500] text-[#faf9f5] font-serif mb-3">What one trusted record makes possible</h2>
+        <p className="text-sm text-[#b0aea5] leading-relaxed mb-8">
+          When the institute’s work is recorded once, well, and in one place, everything built on top
+          of it gets faster, fairer, and clearer.
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {LEVERAGE.map(f => {
+            const Icon = f.icon;
+            return (
+              <div
+                key={f.title}
+                className="group rounded-xl border border-[#faf9f5]/10 bg-[#faf9f5]/[0.03] p-5 transition-all duration-300 hover:bg-[#c96442]/10 hover:border-[#c96442]/40 hover:-translate-y-1"
+              >
+                <div className="w-10 h-10 rounded-lg bg-[#c96442]/20 flex items-center justify-center text-[#d97757] mb-3 transition-colors group-hover:bg-[#c96442] group-hover:text-[#faf9f5]">
+                  <Icon size={20} />
+                </div>
+                <div className="text-sm font-semibold text-[#faf9f5] mb-1">{f.title}</div>
+                <div className="text-[11px] text-[#b0aea5] leading-relaxed">{f.body}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>,
+
+    /* ---- Slide 4: Future possibilities for CSIR ---- */
+    <div key="future" className="relative h-full flex flex-col justify-center">
+      <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-[#c96442]/5 rounded-full translate-x-1/3 -translate-y-1/3 pointer-events-none" />
+      <div className="relative z-10 max-w-3xl">
+        <div className="text-[10px] font-semibold text-[#d97757] tracking-widest uppercase mb-1">The Road Ahead</div>
+        <h2 className="text-3xl lg:text-4xl font-[500] text-[#faf9f5] font-serif mb-3">What one lab starts, thirty-eight can share</h2>
+        <p className="text-sm text-[#b0aea5] leading-relaxed mb-8">
+          SURYA begins at CSIR-AMPRI. The same idea — an institution that keeps and uses its own
+          record — can serve every laboratory in the CSIR family.
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {FUTURE.map(f => {
+            const Icon = f.icon;
+            return (
+              <div
+                key={f.title}
+                className="group rounded-xl border border-[#faf9f5]/10 bg-[#faf9f5]/[0.03] p-5 transition-all duration-300 hover:bg-[#c96442]/10 hover:border-[#c96442]/40 hover:-translate-y-1"
+              >
+                <div className="w-10 h-10 rounded-lg bg-[#c96442]/20 flex items-center justify-center text-[#d97757] mb-3 transition-colors group-hover:bg-[#c96442] group-hover:text-[#faf9f5]">
+                  <Icon size={20} />
+                </div>
+                <div className="text-sm font-semibold text-[#faf9f5] mb-1">{f.title}</div>
+                <div className="text-[11px] text-[#b0aea5] leading-relaxed">{f.body}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>,
+
+    /* ---- Slide 5: CSIR today + launchpad ---- */
+    <div key="csir" className="relative h-full flex flex-col justify-center">
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-[#c96442]/5 pointer-events-none" />
+      <div className="relative z-10">
+        <div className="text-[10px] font-semibold text-[#d97757] tracking-widest uppercase mb-1">Council of Scientific & Industrial Research</div>
+        <h2 className="text-3xl lg:text-4xl font-[500] text-[#faf9f5] font-serif mb-2">A Nation’s Research Backbone</h2>
+        <p className="max-w-2xl text-sm text-[#b0aea5] leading-relaxed">
+          CSIR operates 38 national laboratories across India, advancing science from materials and energy to
+          health and aerospace. CSIR-AMPRI, Bhopal anchors advanced materials & processes research.
+        </p>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6 max-w-2xl">
+          {CSIR_STATS.map(stat => (
+            <div key={stat.label} className="rounded-xl border border-[#faf9f5]/10 bg-[#faf9f5]/[0.03] p-4 text-center">
+              <div className="text-2xl font-[600] text-[#d97757] font-serif tabular-nums">
+                <StatCounter target={stat.target} suffix={stat.suffix} />
+              </div>
+              <div className="text-[10px] text-[#b0aea5] uppercase tracking-widest mt-1">{stat.label}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-5 max-w-2xl rounded-xl border border-[#faf9f5]/10 bg-[#faf9f5]/[0.03] px-4 py-3">
+          <div className="text-[9px] font-semibold text-[#87867f] uppercase tracking-widest mb-1">Did you know</div>
+          <div
+            className="text-xs text-[#d6d4cb] leading-relaxed italic transition-opacity duration-300 min-h-[2.5rem]"
+            style={{ opacity: tickerVisible ? 1 : 0 }}
+          >
+            {ACHIEVEMENTS[tickerIndex]}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6 max-w-4xl">
+          <div className="lg:col-span-2">
+            <div className="text-[10px] font-semibold text-[#87867f] uppercase tracking-widest mb-3">Institutional Quick Links</div>
+            <div className="grid grid-cols-2 gap-2">
+              {QUICK_LINKS.map(link => (
+                <a
+                  key={link.label}
+                  href={link.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group flex items-center justify-between gap-2 rounded-lg border border-[#faf9f5]/10 bg-[#faf9f5]/[0.03] px-3 py-2.5 transition-all hover:bg-[#c96442]/10 hover:border-[#c96442]/40"
+                >
+                  <div className="min-w-0">
+                    <div className="text-[11px] font-semibold text-[#faf9f5] truncate">{link.label}</div>
+                    <div className="text-[9px] text-[#87867f] truncate">{link.sub}</div>
+                  </div>
+                  <ExternalLink size={13} className="text-[#87867f] group-hover:text-[#d97757] shrink-0 transition-colors" />
+                </a>
               ))}
-            </nav>
+            </div>
+          </div>
+
+          <div>
+            <div className="text-[10px] font-semibold text-[#87867f] uppercase tracking-widest mb-3 flex items-center gap-1.5">
+              <Newspaper size={12} /> CSIR News
+            </div>
+            <div className="rounded-xl border border-[#faf9f5]/10 bg-[#faf9f5]/[0.03] p-3 space-y-3">
+              {NEWS.map((n, i) => (
+                <div key={i} className="flex gap-2">
+                  <div className="w-1 shrink-0 rounded-full bg-[#c96442]/60" />
+                  <p className="text-[11px] text-[#d6d4cb] leading-snug">{n}</p>
+                </div>
+              ))}
+              <a
+                href="https://csirnews.niscpr.res.in/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-1.5 mt-1 rounded-lg border border-[#c96442]/40 bg-[#c96442]/10 px-3 py-2 text-[10px] font-semibold text-[#d97757] uppercase tracking-widest hover:bg-[#c96442]/20 transition-colors"
+              >
+                View CSIR News Portal <ExternalLink size={11} />
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>,
+  ];
+
+  return (
+    <div className="min-h-screen w-full flex flex-col lg:flex-row bg-[#f5f4ed] font-sans lg:h-screen lg:overflow-hidden">
+
+      {/* ============ LEFT: auto-running slide deck ============ */}
+      <div
+        className="flex-1 bg-[#141413] flex flex-col min-h-[720px] lg:h-screen overflow-hidden"
+        onMouseEnter={() => setPaused(true)}
+        onMouseLeave={() => setPaused(false)}
+      >
+        {/* Persistent chrome: branding */}
+        <div className="flex items-start gap-6 relative z-20 p-10 pb-0 lg:p-12 lg:pb-0">
+          <div className="bg-[#faf9f5] p-3 rounded-xl flex flex-col items-center gap-2 w-28 scale-90 lg:scale-100">
+            <img src={csirLogo} alt="CSIR" className="w-12 h-12 object-contain rounded" />
+            <div className="text-[8px] font-semibold leading-tight text-center text-[#4d4c48] uppercase">Council of Scientific & Industrial Research</div>
+          </div>
+
+          <div className="bg-[#faf9f5] p-3 rounded-xl flex flex-col items-center gap-2 w-28 scale-90 lg:scale-100">
+            <img src={ampriLogo} alt="CSIR-AMPRI" className="w-12 h-12 object-contain" />
+            <div className="text-[8px] font-semibold leading-tight text-center text-[#4d4c48] uppercase">Advanced Materials & Processes Research Institute</div>
+          </div>
+
+          <div className="ml-4 pt-2 hidden md:block">
+            <div className="text-[10px] font-semibold text-[#d97757] tracking-widest uppercase">Digital Sun Initiative</div>
+            <div className="text-[10px] font-medium text-[#b0aea5] tracking-wider">CSIR-AMPRI BHOPAL</div>
+          </div>
+        </div>
+
+        {/* Slide viewport — key remount replays the CSS slide-in animation */}
+        <div className="relative flex-1 min-h-0">
+          <div
+            key={slide}
+            className="absolute inset-0 overflow-y-auto scrollbar-hide p-10 pt-6 lg:p-12 lg:pt-6 animate-slide-in"
+          >
+            {slideContent[slide]}
+          </div>
+        </div>
+
+        {/* Persistent chrome: footer + dot navigation */}
+        <div className="relative z-20 flex items-end justify-between gap-6 border-t border-[#faf9f5]/10 p-10 pt-5 lg:px-12 lg:py-5">
+          <div className="flex items-start gap-4">
+            <div className="h-10 w-1 bg-[#c96442]" />
+            <div>
+              <div className="text-2xl font-[500] text-[#d97757] leading-tight font-serif">सूर्य</div>
+              <div className="text-[10px] font-semibold text-[#b0aea5] tracking-[0.4em] uppercase">The Digital Sun</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            {!reducedMotion && (
+              <button
+                type="button"
+                aria-label={userPaused ? 'Play slides' : 'Pause slides'}
+                aria-pressed={userPaused}
+                onClick={() => setUserPaused(p => !p)}
+                className="p-1 rounded-full text-[#faf9f5]/60 hover:text-[#faf9f5]"
+              >
+                {userPaused ? <Play size={14} /> : <Pause size={14} />}
+              </button>
+            )}
+            {SLIDE_TITLES.map((title, i) => (
+              <button
+                key={title}
+                type="button"
+                aria-label={title}
+                onClick={() => setSlide(i)}
+                className={`relative after:absolute after:-inset-2 h-2 rounded-full transition-all duration-300 ${
+                  i === slide ? 'w-8 bg-[#d97757]' : 'w-2 bg-[#faf9f5]/25 hover:bg-[#faf9f5]/50'
+                }`}
+              />
+            ))}
           </div>
         </div>
       </div>
 
       {/* ============ RIGHT: fixed auth panel ============ */}
-      <div className="order-first lg:order-last lg:w-[clamp(440px,34vw,760px)] lg:shrink-0 lg:h-screen bg-surface flex flex-col items-center justify-center p-8 lg:p-14 relative lg:overflow-y-auto">
-        <div className="w-full max-w-sm" style={zoom}>
-        <Stagger className="space-y-8">
+      <div className="lg:w-[500px] lg:h-screen bg-[#faf9f5] flex flex-col items-center justify-center p-8 lg:p-16 relative lg:overflow-y-auto">
+        <div className="w-full max-w-sm space-y-10">
 
           {/* Header */}
           <div className="flex flex-col items-center text-center">
-            <LogoLockup className="h-24" />
-            <div className="mt-7 font-serif text-5xl leading-none text-terracotta" lang="sa" aria-hidden="true">सूर्य</div>
-            <h2 className="mt-3 text-2xl lg:text-[1.75rem] font-[500] text-text tracking-tight font-serif leading-tight">Sign in to SURYA</h2>
-            <p className="mt-1.5 text-sm text-text-muted">{greeting()}. Use your institute email.</p>
+            <div className="w-20 h-20 bg-[#faf9f5] rounded-[16px] p-3 mb-6 shadow-[0px_0px_0px_1px_#f0eee6] flex items-center justify-center">
+              <img src={ampriLogo} alt="CSIR-AMPRI" className="w-full h-full object-contain" />
+            </div>
+            <h2 className="text-2xl lg:text-[1.75rem] font-[500] text-[#141413] tracking-tight mb-2 font-serif leading-tight">Sign in to SURYA</h2>
+            <div className="flex flex-col items-center">
+              <span className="text-[10px] font-semibold tracking-[0.2em] text-[#87867f] uppercase">Authorized Institutional Access</span>
+              <div className="h-1 w-24 bg-[#c96442] mt-2 rounded-full" />
+            </div>
+
+            {/* Contextual greeting */}
+            <div className="mt-6 w-full rounded-xl border border-[#f0eee6] bg-[#f5f4ed] px-4 py-3">
+              <div className="text-sm font-semibold text-[#141413]">{greeting()}</div>
+              <div className="flex items-center justify-center gap-1.5 mt-1">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full rounded-full bg-[#16a34a] opacity-75 animate-ping" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-[#16a34a]" />
+                </span>
+                <span className="text-[10px] font-medium text-[#87867f] uppercase tracking-widest">CSIR-AMPRI Strategic Network Active</span>
+              </div>
+            </div>
           </div>
 
           {magicLinkSent ? (
             <div className="space-y-6">
               <div className="flex flex-col items-center gap-4 py-6 text-center">
-                <div className="w-16 h-16 rounded-full bg-archive-green/10 border border-archive-green/30 flex items-center justify-center text-archive-green">
+                <div className="w-16 h-16 rounded-full bg-[#f0fdf4] border border-[#bbf7d0] flex items-center justify-center text-[#16a34a]">
                   <Mail size={28} />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-text mb-1">Check your inbox</p>
-                  <p className="text-xs text-text-muted leading-relaxed">
+                  <p className="text-sm font-semibold text-[#141413] mb-1">Check your inbox</p>
+                  <p className="text-xs text-[#87867f] leading-relaxed">
                     A sign-in link has been sent to<br />
-                    <span className="font-semibold text-text">{email}</span>.<br />
+                    <span className="font-semibold text-[#141413]">{email}</span>.<br />
                     Click the link in the email to access SURYA.
                   </p>
                 </div>
-                <p className="text-xs text-text-muted leading-relaxed px-2">
+                <p className="text-[10px] text-[#b0aea5] leading-relaxed px-2">
                   Your account requires a one-time recovery. After signing in via the link,
                   contact your administrator to restore normal password access.
                 </p>
@@ -580,18 +495,18 @@ export default function Login() {
               <button
                 type="button"
                 onClick={() => { setMagicLinkSent(false); setError(''); }}
-                className="w-full py-3 border border-border rounded-xl text-sm font-medium text-text-muted hover:text-text hover:bg-surface-hover transition-colors"
+                className="w-full py-3 border border-[#e5e3dc] rounded-[8px] text-xs font-semibold text-[#87867f] uppercase tracking-widest hover:bg-[#f5f4ed] transition-colors"
               >
                 Back to login
               </button>
             </div>
           ) : (
-          <form onSubmit={handleLogin} className="space-y-6">
-            <div className="space-y-4">
-              <div className="space-y-1.5">
-                <label htmlFor="login-email" className={FIELD_LABEL}>Institute email</label>
+          <form onSubmit={handleLogin} className="space-y-8">
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <label htmlFor="login-email" className="text-[10px] font-semibold text-[#87867f] uppercase tracking-widest ml-1">Institutional Email</label>
                 <div className="relative group">
-                  <div className={FIELD_ICON}>
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#b0aea5] group-focus-within:text-[#c96442] transition-colors">
                     <Mail size={18} />
                   </div>
                   <input
@@ -600,44 +515,35 @@ export default function Login() {
                     autoComplete="username"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className={FIELD}
-                    placeholder="Institute email"
+                    className="w-full pl-12 pr-4 py-4 bg-[#f5f4ed] border border-[#f0eee6] rounded-[12px] focus:ring-2 focus:ring-[#c96442] focus:border-[#c96442] outline-none text-[#141413] font-medium transition-all placeholder:text-[#b0aea5]"
+                    placeholder="Institutional Email"
                     required
                   />
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <label htmlFor="login-password" className={FIELD_LABEL}>Password</label>
+              <div className="space-y-2">
+                <label htmlFor="login-password" className="text-[10px] font-semibold text-[#87867f] uppercase tracking-widest ml-1">Secure Passphrase</label>
                 <div className="relative group">
-                  <div className={FIELD_ICON}>
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#b0aea5] group-focus-within:text-[#c96442] transition-colors">
                     <Lock size={18} />
                   </div>
                   <input
                     id="login-password"
-                    type={showPassword ? 'text' : 'password'}
+                    type="password"
                     autoComplete="current-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className={`${FIELD} pr-12`}
-                    placeholder="Password"
+                    className="w-full pl-12 pr-4 py-4 bg-[#f5f4ed] border border-[#f0eee6] rounded-[12px] focus:ring-2 focus:ring-[#c96442] focus:border-[#c96442] outline-none text-[#141413] font-medium transition-all placeholder:text-[#b0aea5]"
+                    placeholder="Secure Passphrase"
                     required
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(v => !v)}
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
-                    aria-pressed={showPassword}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg text-text-muted hover:text-text hover:bg-surface-hover transition-colors"
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
                 </div>
               </div>
             </div>
 
             {error && (
-              <div role="alert" className="text-sm text-badge-danger-fg bg-badge-danger-bg p-3.5 rounded-xl border border-badge-danger-fg/25">
+              <div role="alert" className="text-xs text-[#b53333] font-bold bg-[#f5e8e8] p-4 rounded-xl border border-[#e8c8c8] animate-shake">
                 {error}
               </div>
             )}
@@ -645,18 +551,18 @@ export default function Login() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-3.5 [background:var(--gradient-brand)] hover:brightness-105 text-ivory rounded-xl font-semibold text-sm flex items-center justify-center gap-3 shadow-[var(--shadow-e2)] transition-all active:scale-[0.98] disabled:opacity-70 group"
+              className="w-full py-4 [background:var(--gradient-brand)] hover:brightness-105 text-[#faf9f5] rounded-lg font-semibold text-sm uppercase tracking-widest flex items-center justify-center gap-3 shadow-[var(--shadow-e2)] transition-all active:scale-[0.98] disabled:opacity-70 group"
             >
-              {isLoading ? 'Signing in…' : 'Sign in'}
+              {isLoading ? 'Signing in…' : 'Sign In'}
               <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
             </button>
           </form>
           )}
 
           {/* Footer Branding */}
-          <div className="pt-2 flex flex-col items-center border-t border-border">
-            
-            <p className="mt-4 text-xs text-text-muted leading-relaxed text-center px-4">
+          <div className="pt-6 flex flex-col items-center">
+            <div className="text-[10px] font-semibold text-[#87867f] tracking-[0.25em] uppercase mb-4">Institutional Reflective Service</div>
+            <p className="text-[10px] text-[#87867f] leading-relaxed text-center font-medium px-4">
               Access to this system is restricted to verified CSIR-AMPRI officials.
               Unauthorized attempts are logged under Govt IT policy.
             </p>
@@ -672,12 +578,11 @@ export default function Login() {
                   window.location.reload();
                 }
               }}
-              className="mt-4 p-2 text-xs text-text-muted hover:text-terracotta transition-colors underline underline-offset-2"
+              className="mt-6 p-2 -m-2 text-xs text-[#b0aea5] hover:text-[#c96442] transition-colors underline underline-offset-2"
             >
               Reset App
             </button>
           </div>
-        </Stagger>
         </div>
       </div>
     </div>

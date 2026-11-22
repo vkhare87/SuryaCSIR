@@ -162,7 +162,7 @@ export default function RagMonitor() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="page-title">RAG Ingestion</h1>
+          <h1 className="text-2xl font-semibold text-text">RAG Ingestion</h1>
           <p className="text-sm text-text-muted">
             Document indexing queue and pipeline health.
             <span className="ml-2">
@@ -342,7 +342,7 @@ export default function RagMonitor() {
         />
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border">
-          <table className="ledger w-full text-sm">
+          <table className="w-full text-sm">
             <thead className="bg-surface text-left text-text-muted">
               <tr>
                 <th className="p-3 font-medium">Title</th>

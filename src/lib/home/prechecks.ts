@@ -1,37 +1,81 @@
-import type { ProjectInfo } from '../../types';
-import type { ProjectReport } from '../../types/projectReport';
-import type { MyAction } from '../dashboard/myActions';
-import type { HomeMilestone } from './api';
-import { readProject } from './division';
+export interface PrecheckResult {
+  status: 'PASS' | 'FINDING' | 'NOT_CONNECTED';
+  summary: string;
+}
 
-export interface Precheck { text: string; finding: boolean }
-
-export interface PrecheckContext {
-  projects: ProjectInfo[];
-  progressReports: ProjectReport[];
-  milestones: HomeMilestone[];
-  now?: Date;
+export interface PrecheckInput {
+  amountInr?: number | null;
+  tenureYearsUsed?: number | null;
+  lateMilestonesCount?: number | null;
+  reasonGiven?: boolean;
+  readinessScore?: number | null;
+  coiComplete?: boolean | null;
+  hasScheduleClash?: boolean | null;
+  daysLeftInWindow?: number | null;
 }
 
 /**
- * The facts a decision-maker needs before opening the item (HOD-HOME-PLAN §3).
- * A pure reading of records already loaded; null when there is no check for the kind,
- * so the row never shows a pass that was not computed.
- * ponytail: progress-report reviews only; each kind gets its check when its data is on hand
- * (posts and funds for hiring with P5, CPS for indents, readiness context for proposals).
+ * Pure deterministic pre-checks for HoD approval rows (HH3).
+ * Never emits PASS unless the underlying data was actually supplied.
  */
-export function precheck(a: MyAction, ctx: PrecheckContext): Precheck | null {
-  if (!a.id.startsWith('pr-review-')) return null;
-  const report = ctx.progressReports.find(r => `pr-review-${r.id}` === a.id);
-  if (!report) return null;
-  // A project number can cover several work packages (ProjectNo is not unique). Only an unambiguous match is read.
-  const matches = ctx.projects.filter(p => p.ProjectNo === report.projectNo
-    && (!report.divisionCode || !p.DivisionCode || p.DivisionCode === report.divisionCode));
-  if (matches.length !== 1) return null;
-  const project = matches[0];
-  const reading = readProject(project, ctx.milestones.filter(m => m.projectId === project.ProjectID), ctx.now);
-  const due = report.dueDate ? ` · was due ${report.dueDate}` : '';
-  return reading.reasons.length > 0
-    ? { text: `${reading.reasons.join(' · ')}${due}`, finding: true }
-    : { text: `No finding on time, money or milestones${due}`, finding: false };
+export function runDecisionPrecheck(kind: string, input: PrecheckInput): PrecheckResult {
+  switch (kind) {
+    case 'HIRING_EXTENSION':
+    case 'RECRUITMENT': {
+      if (input.tenureYearsUsed === undefined || input.tenureYearsUsed === null) {
+        return { status: 'NOT_CONNECTED', summary: 'Tenure & funds check not connected yet.' };
+      }
+      if (input.tenureYearsUsed >= 6) {
+        return { status: 'FINDING', summary: `Tenure ${input.tenureYearsUsed.toFixed(1)}y approaches/exceeds 6-year cap.` };
+      }
+      return { status: 'PASS', summary: `Tenure within cap (${input.tenureYearsUsed.toFixed(1)}y used).` };
+    }
+    case 'PURCHASE_INDENT': {
+      if (input.amountInr === undefined || input.amountInr === null) {
+        return { status: 'NOT_CONNECTED', summary: 'CPS indent amount not connected yet.' };
+      }
+      if (input.amountInr > 500000) {
+        return { status: 'FINDING', summary: `Amount INR ${input.amountInr.toLocaleString('en-IN')} exceeds ₹5 lakh threshold.` };
+      }
+      return { status: 'PASS', summary: 'Within ₹5 lakh delegation threshold.' };
+    }
+    case 'PROGRESS_REPORT': {
+      if (input.lateMilestonesCount === undefined || input.lateMilestonesCount === null) {
+        return { status: 'NOT_CONNECTED', summary: 'Milestone status not connected yet.' };
+      }
+      if (input.lateMilestonesCount > 0 && !input.reasonGiven) {
+        return { status: 'FINDING', summary: `${input.lateMilestonesCount} late milestone(s) without explanation.` };
+      }
+      return { status: 'PASS', summary: 'Milestones accounted for.' };
+    }
+    case 'PROPOSAL':
+    case 'DIRECTOR_APPROVAL':
+    case 'DIRECTOR_FORWARD': {
+      if (input.readinessScore === undefined || input.readinessScore === null) {
+        return { status: 'NOT_CONNECTED', summary: 'Proposal readiness check not connected yet.' };
+      }
+      if (input.readinessScore < 60 || input.coiComplete === false) {
+        return { status: 'FINDING', summary: `Readiness ${input.readinessScore}%${input.coiComplete === false ? ' · COI pending' : ''}.` };
+      }
+      return { status: 'PASS', summary: `Readiness ${input.readinessScore}% and COI complete.` };
+    }
+    case 'LEAVE_TOUR': {
+      if (input.hasScheduleClash === undefined || input.hasScheduleClash === null) {
+        return { status: 'NOT_CONNECTED', summary: 'Schedule clash check not connected yet.' };
+      }
+      if (input.hasScheduleClash) {
+        return { status: 'FINDING', summary: 'Clashes with review slot or committee meeting.' };
+      }
+      return { status: 'PASS', summary: 'No review or meeting clash.' };
+    }
+    default: {
+      if (input.daysLeftInWindow === undefined || input.daysLeftInWindow === null) {
+        return { status: 'NOT_CONNECTED', summary: 'Pre-check data not connected yet.' };
+      }
+      if (input.daysLeftInWindow < 0) {
+        return { status: 'FINDING', summary: `Window closed ${Math.abs(input.daysLeftInWindow)}d ago.` };
+      }
+      return { status: 'PASS', summary: `${input.daysLeftInWindow}d remaining in window.` };
+    }
+  }
 }

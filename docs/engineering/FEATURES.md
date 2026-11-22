@@ -1,551 +1,543 @@
-# SURYA — Feature Reference
+# SURYA — Feature & Functionality Guide
 
-Complete reference of what the app does and how to use each feature. SURYA is the
-institutional management and intelligence portal for CSIR-AMPRI: HR analytics + data
-operations, a multi-stage Performance Management System (PMS), a unified document
-registry, and an AI query layer (Ask SURYA) grounded in institute documents and data.
+_Current as of 2026-11-21._
 
-Every feature below lists **who** can use it (roles) and **how** (route + steps).
-Role gating is enforced three ways: navigation, route guards (`src/constants/access.ts`
-`ACCESS_MAP`), and Postgres Row-Level Security — RLS is the hard gate. The full
-role-by-feature table and the MasterAdmin per-user grants are in [access_matrix.md](access_matrix.md);
-where a **Who** line below disagrees, the matrix wins.
+SURYA is the institutional management, research lifecycle, appraisal, and AI intelligence portal for **CSIR-AMPRI, Bhopal**. It brings together HR records, workforce planning, the full R&D project lifecycle (from idea to closure and archive), performance appraisal (PMS & Annual Work Plans), governance workflows (committees, helpdesk, calendar), and **Ask SURYA** — an on-premise AI query assistant grounded in institute data and documents.
 
-Related docs: [app.md](app.md) (product spec), [database_design.md](database_design.md) (schema),
-[architecture_addendum.md](architecture_addendum.md) (architecture),
-[system_design.md](system_design.md) (flows and state machines),
-[RAG-SETUP-TUTORIAL.md](../operations/RAG-SETUP-TUTORIAL.md) (set up the AI layer),
-[ROADMAP.md](../roadmap/ROADMAP.md) (planned upgrades).
+This file is the **single, human-readable guide to every working capability in SURYA**, written so you can easily review what the app does today and keep it current as new features are added.
+
+> **Related engineering docs:**
+> - Role-by-page permissions table: [access_matrix.md](access_matrix.md) (generated from code) & [role_features.md](role_features.md)
+> - Product vision & non-goals: [app.md](app.md)
+> - System architecture & state machines: [architecture_addendum.md](architecture_addendum.md) · [system_design.md](system_design.md)
+> - Database schema & API reference: [database_design.md](database_design.md) · [api_spec.md](api_spec.md)
+> - Setup & operations: [RAG-SETUP-TUTORIAL.md](../operations/RAG-SETUP-TUTORIAL.md) · [deploy/README.md](../../deploy/README.md) · [ROADMAP.md](../roadmap/ROADMAP.md)
 
 ---
 
-## 1. Platform & Access
+## How to Use & Update This Document
 
-### Login, roles, and role switching
-- **Who:** everyone. **Route:** `/login`.
-- Supabase Auth (email + password). New sign-ups auto-register as `DefaultUser` and
-  land on a pending-access view.
-- A user can hold multiple roles (`user_roles` table); the **active role** drives the
-  current dashboard and nav. Switch roles from the role switcher in the top layout bar.
-- Roles: `Director`, `DivisionHead`, `HOD`, `Scientist`, `Technician`, `HRAdmin`,
-  `FinanceAdmin`, `SystemAdmin`, `MasterAdmin`, `Student`, `ProjectStaff`, `Guest`,
-  `DefaultUser`, `EmpoweredCommittee`, `PME`.
+Each feature below follows the same simple structure:
+- **What it does:** plain-English summary of the user-facing purpose.
+- **Who uses it:** primary roles (for exact per-route permissions, [access_matrix.md](access_matrix.md) is always the authoritative table).
+- **Where to find it:** route path(s) or UI location.
+- **How it works:** step-by-step flow, business rules, PDFs/OCR, notifications, and automations.
 
-### PME desk
-- **Who:** `PME`. **Route:** `/pme`.
-- Work queue for the project monitoring office: proposals awaiting vetting, sanctions
-  awaiting a project record, projects whose status maps to no stage, projects not yet
-  classified as ULIP or HQ scheme. PME edits project records; it is not an admin.
-- A proposal in `DRAFT` is private to its PI and named co-PIs; PME and everyone else
-  see it from submission onward.
-- First phase (`PL0`) of `docs/roadmap/sources/PROJECT-LIFECYCLE-PLAN.md`.
+### Template for adding a new feature in the future
 
-### Access requests
-- **Who:** new users request; `SystemAdmin`/`MasterAdmin` approve. **Route:** `/admin/access-requests`.
-- A `DefaultUser` submits a role request from their pending view; admins approve or
-  reject, which writes `user_roles`.
+When you ship a new feature or modify an existing one, copy this block into the matching domain section below (and update the `Current as of` date at the top):
 
-### Setup wizard & forced password change
-- First-run Supabase credential wizard (dev convenience; `.env` is the production path).
-- Admin-created accounts are forced through `/change-password` on first login.
+```markdown
+### <Feature Name>
+- **What it does:** <1–2 sentences explaining why the feature exists for users.>
+- **Who uses it:** <Roles that author / review / administer / view it.>
+- **Where to find it:** `<Route path or UI location>`
+- **How it works:**
+  - <Step 1: how a user starts or creates a record>
+  - <Step 2: approvals, rules, validations, PDF exports, or notifications>
+  - <Step 3: where the finished data goes (dashboards, Ask SURYA, archive)>
+```
 
-### Accessibility & performance baseline (2026-11-01)
-- Keyboard focus is always visible: an unlayered `:focus-visible` rule in
-  `index.css` overrides `outline-none` on links, buttons and focusable elements.
-- `MotionConfig reducedMotion="user"` (in `main.tsx`) makes every framer-motion
-  animation honor the OS "reduce motion" setting.
-- Overlays use `useDialog` (Escape, focus in/return, `role="dialog"`); search and
-  filter controls carry `aria-label`s. Form fields with visible labels should link
-  them with `htmlFor`/`id` rather than relying on placeholders.
-- Startup bundle stays free of xlsx/papaparse/zod: dashboard code imports upload
-  domain names from `utils/fileTypes.ts`, never from `utils/dataMigration.ts`.
-  Startup JS is ~402 kB gzip (was ~558 kB).
-
-### Command palette, theme, density
-- `Ctrl+K` opens the command palette (navigate anywhere by name).
-- **Record search** (same box): staff, projects, PhD, outputs, IP, equipment and
-  divisions by name **or stable ID** (staff ID, ProjectID, UInsID, instrument code),
-  matched client-side over the RLS-scoped rows `DataContext` already loaded — so it
-  cannot surface or count records the user can't read. Each type is also gated by
-  `canAccess` for its page.
-- **Document titles** via `searchDocuments` (`lib/documents/registry.ts`) — a
-  PostgREST `ilike` on `documents.title`; `documents_can_read` RLS scopes hits.
-  Results open the parent record's page (proposal, progress report, PMS report,
-  meeting) or the file when it has none. Labelled "title match".
-- **Inside-document search** is delegated: the last row hands the query to Ask SURYA
-  (`/ask?q=…`, prefilled, not auto-sent), which answers with page citations.
-- Light/dark theme and UI density toggles live in the layout header; persisted per user.
+> **Quick reminder when updating:** If a new feature also adds a route or role, update `src/constants/access.ts` and regenerate [access_matrix.md](access_matrix.md) + [role_features.md](role_features.md) (`npx vitest run src/lib/access/roleFeatures.test.ts -u`) rather than duplicating full role tables here.
 
 ---
 
-## 2. Dashboards & My Actions
+## Table of Contents
 
-- **Who:** every role gets a scoped dashboard on `/` (e.g. `ScientistView`,
-  `DirectorView` under `src/pages/dashboards/`).
-- **My Actions inbox** sits at the top of each dashboard: pending PMS submissions or
-  evaluations, proposal revisions requested, progress reports due, assigned committee
-  action items, open helpdesk tickets, access requests (admins), data requests to
-  do and updates awaiting your review (see My Work below). Each item deep-links
-  to the owning module.
-
----
-
-## 3. HR Analytics & Data Operations
-
-### Human Capital
-- **Who:** Director, DivisionHead, HOD, HRAdmin, MasterAdmin. **Routes:** `/staff`, `/staff/:id`, `/staff/analytics`.
-- Staff roster with per-person detail (division, designation, expertise, reporting
-  line) and analytics (headcount by division/category/gender, age & tenure profiles).
-
-### Divisions
-- **Route:** `/divisions` (Analytics tab on the page). Division registry + cross-division comparisons.
-
-### Project staff & PhD scholars
-- **Routes:** `/staff/project` (roster + embedded analytics), `/phd` (Analytics tab).
-- PhD tracker includes **milestone tracking** (coursework → synopsis → thesis defence)
-  with due dates, completion flags, and overdue detection. Students see their own slice.
-
-### Recruitment
-- **Who:** HR admins. **Route:** `/recruitment` (Analytics tab).
-- Vacancy advertisements and posts, plus a **recruitment drive funnel**: stage-wise
-  progress (advertised → screening → interview → offer → joined), permanent vs
-  project-staff split.
-
-### Data Management (the data backbone)
-- **Who:** System/Master/HR admins. **Route:** `/data`.
-- Excel/CSV upload with column mapping, validation, and a cleaning UI; Manage Records
-  CRUD for every entity. This is how institutional data enters SURYA.
-- **How:** `/data` → pick entity → upload file → review detected column mappings →
-  fix flagged rows → import. Entity field names intentionally mirror Excel headers.
-- **Freshness ledger** on `/data` shows each domain's last import and its **data stewards**;
-  admins add or remove a steward (domain, optional division, `steward`/`accountable`,
-  refresh cadence in days) inline.
-
-### Contribution requests & My Work (2026-11-01)
-- **Who:** every verified role opens **My Work** (`/work`); Director, DivisionHead, HOD
-  and the data admins (HR/System/Master) raise requests; stewards and admins also see an
-  **Unowned** tab and can claim from it.
-- A contribution request is a small owned ask — "confirm or fix this record". **Request
-  update** on a project or instrument page opens a form (title, reason, due date, optional
-  assignee; the record's current values travel as the prefill). With no assignee it routes
-  to the domain's steward (division steward first), else lands unowned.
-- **How (assignee):** `/work` → To do → open the request → edit the prefilled fields and
-  **Submit update**, or **Still correct**, **Ask for clarification**, **Delegate**, **Not mine**, or
-  **Cannot provide**. A delegate's draft comes back as *Prepared* for the assignee to confirm.
-- **How (reviewer):** To review tab → see the field-by-field diff → **Accept** writes the change
-  to the record through the normal RLS-gated update, then closes the request; or **Return**
-  with a note. The requester or a reviewer can **Withdraw** any open request.
-- A daily sweep (07:15 IST) raises a *Refresh <domain> data* request for each stewarded
-  domain whose last import is older than the steward's cadence — one live request per scope.
-- Every step is audited (`contribution_request_events`, shown as a timeline) and notifies the
-  next person through the bell (`/work?r=<id>` deep-link). Requests never write HR tables
-  themselves. State machine: [system_design.md §4.8](system_design.md#48-contribution-request--contribution_requestsstatus).
-
-### IRINS sync
-- **Route:** `/irins-sync`; CLI `npm run sync:irins`.
-- Mirrors publications/patents/awards metadata from the IRINS research profile system
-  (metadata only — full-text PDFs are uploaded by authors, see Documents).
+1. [Platform, Access & Navigation](#1-platform-access--navigation)
+2. [Role Dashboards, My Work & Notifications](#2-role-dashboards-my-work--notifications)
+3. [Unified Human Resource & Workforce](#3-unified-human-resource--workforce)
+4. [Research Operations & Project Lifecycle](#4-research-operations--project-lifecycle)
+5. [Governance (PMS, AWP, Committees, Helpdesk, Calendar, Audit)](#5-governance)
+6. [Intelligence, Connected Analytics & Ask SURYA](#6-intelligence-connected-analytics--ask-surya)
+7. [Admin, Data Operations, Capture & RAG](#7-admin-data-operations-capture--rag)
+8. [Developer & Operations Commands](#8-developer--operations-commands)
+9. [Quick Update Checklist](#9-quick-update-checklist)
 
 ---
 
-## 4. Research Operations
+## 1. Platform, Access & Navigation
 
-### Projects
-- **Routes:** `/projects`, `/projects/:id` (Analytics tab on the list page).
-- Project registry (fund type, sponsor, sanctioned vs utilized cost, PI, division,
-  status) with analytics.
+### Login, Onboarding & Password Security
+- **What it does:** Authenticates institute staff and routes unprovisioned or new accounts safely before granting access to institutional data.
+- **Who uses it:** Everyone.
+- **Where to find it:** `/login`, `/setup`, `/change-password`
+- **How it works:**
+  - Users sign in via Supabase Auth (email + password, with OTP fallback if configured; local-only dev shortcut available when `VITE_DEV_LOGIN` is enabled).
+  - Public self-signup is disabled; newly created users automatically receive `DefaultUser` and land on a pending-access screen until approved.
+  - Admin-created accounts flagged with `must_change_password` are forced through `/change-password` (minimum 12 characters with mixed character classes) before opening any other route.
+  - If Supabase env variables are missing on first run, `/setup` provides a dev credential setup wizard.
 
-### Proposals (full lifecycle state machine)
-- **Who:** Scientist, HOD, Division Head or Director drafts; review chain up to Director. **Route:** `/proposals`.
-- **Workspace** (`/proposals/new`, `/proposals/:id/edit`): a title starts a private draft —
-  from the "Project ideas" card on the home page or the Proposals list. Sections (Idea ·
-  Plan · Team · Budget · Documents) save as you type; unsaved typing is also kept in the
-  browser and restored after a crash. A private **notes** panel sits beside every section,
-  and a note can be moved or copied into the abstract, problem statement, objectives or
-  expected outcomes. **Versions** can be marked, compared and restored. A **readiness
-  meter** lists what submission still needs and never blocks saving. On a phone the page
-  shows the title and notes only.
-- **Budget** is entered as year × head lines; the requested total follows them. The
-  Documents section prints the proposal as a PDF (its version number on every page) for
-  signature; the signed scan is uploaded before submitting. Equipment of ₹5 lakh or more
-  needs a quotation.
-- **Review chain** (proposal page): each track's steps in order — ULIP: PME vetting →
-  review committee → Director; HQ: PME → Finance → Director forwards → two HQ screenings →
-  competent authority. Whoever's turn it is records approve / return / reject, approvals
-  against a signed scan. Reviewers leave comments on a section; the PI ticks them done and
-  resubmits, and the reviewer sees what changed since the last submission.
-- **Sanction:** PME records the sanction order and the project is created from the
-  proposal — budget lines, dates and PI included.
+### Composite Multi-Role Identity & Role Switching
+- **What it does:** Allows one person to hold multiple institutional capacities (for example, `Scientist` + `HOD` + `EmpoweredCommittee`) under a single login and switch perspectives cleanly.
+- **Who uses it:** All 15 roles: `Director`, `DivisionHead`, `HOD`, `Scientist`, `Technician`, `HRAdmin`, `FinanceAdmin`, `SystemAdmin`, `MasterAdmin`, `PME`, `EmpoweredCommittee`, `Student`, `ProjectStaff`, `Guest`, `DefaultUser`.
+- **Where to find it:** Topbar role switcher in the main layout.
+- **How it works:**
+  - A user's assigned roles live in `user_roles`; one `active_role` in `user_profiles` drives the current dashboard and sidebar.
+  - Switching roles updates `active_role` and reloads the scoped dashboard view.
+  - Navigation and route guards (`ACCESS_MAP`) handle UI visibility, while PostgreSQL Row-Level Security (RLS) enforces every data read and write at the database layer.
+  - `Guest` and `DefaultUser` form a quarantine tier kept out of Ask SURYA and institute knowledge until an admin assigns a verified role.
 
-### Project file (`/projects/:id`)
-- Tabs: **Overview** · **Monitoring** · **Funds** · **Milestones** · **Changes** · **Closure** · **Outputs** · **Timeline**.
-- **Closure:** the PI writes the completion report — what the project did, whether the
-  objectives were met (and why not), what worked, what did not, reusable assets and where
-  they are, readiness level, advice to a future team, follow-on ideas. Submitting with the
-  signed report compiles the financial statement and the annexure list from the file
-  (missing minutes flagged) and sends it on its closure route; the last approval closes
-  the project. PME then **publishes and archives**: the report becomes a PDF in the
-  institute archive that Ask SURYA indexes, and the file turns read-only. Each follow-on
-  idea can be started as a new draft linked back to the project. A project closed
-  before SURYA gets a short lessons note instead, with no approval chain.
-- **Bringing in a legacy project:** on the Funds tab of a running project from before
-  SURYA, PME enters once the scheme, dates, sanction order (with scan), the sanction by
-  year and head, and money received and spent to date. These are kept as marked opening
-  balances; reviews that fell due earlier are not shown overdue. The PME desk counts what
-  is left to bring in. Project records are edited by PME (and MasterAdmin) only; the
-  importer's project step is MasterAdmin's, for bulk legacy correction.
-- **Changes:** the PI asks for more time, a revised cost estimate, carrying money forward,
-  moving money between heads or (HQ) to or from another laboratory, or early closure.
-  The form offers only what the guidelines allow (no rephasing of travel or manpower, no
-  Capital ↔ Revenue moves, no extra travel) and shows what is unspent; the database checks
-  again on submission and on the final approval. Each request follows its route for the
-  track, one signed scan per step; the final HQ order must carry the IFD concurrence
-  reference. On approval the funds table, end date, schedule or stage change at once.
-  Co-PIs can read the file; they do not raise requests.
-- **Monitoring:** a review brief (time elapsed, money spent, milestones achieved, overdue)
-  and every review and report due, worked out from the project's track, category and
-  dates — a report nobody filed shows overdue on its own. PME puts a review on a meeting
-  agenda, records the outcome (continue / with changes / hold / recommend foreclosure, or
-  go / conditional go / hold / kill / recycle at a stage gate) and files the minutes,
-  which are flagged when late. The Director or PME can **Call for review** at any time;
-  the PI is notified and it appears in their My Actions.
-- **Funds:** sanctioned · received · spent · balance per financial year, and spend against
-  sanction per head (overspend flagged). PME records money received (release order scan;
-  IFD reference on the HQ track) and expenditure (signed statement). Entries are never
-  edited — a wrong one is reversed. The first receipt makes the project active.
-- **Milestones:** in six-month sub-stages. The PI proposes and reports done with
-  evidence; PME accepts, confirms, sends back or drops.
-- **Outputs:** publications, patents and equipment linked by PME or the PI, plus MoUs
-  and technology transfers on the project.
-- **Timeline:** every receipt, expenditure, reversal, milestone change, stage change and
-  filed document, with the documents list.
-- `DRAFT → SUBMITTED → … → OM_ISSUED → LINKED` (linked = becomes a project). PDF
-  uploads up to 25 MB. Transitions run through RPCs — status is never patched from
-  the client.
-- **Duplication check:** in the workspace's Idea section and on a proposal's detail page, "Check for similar work" queries
-  the document index for prior/ongoing work similar to the proposal topic and lists
-  matches with page-level citations (`/similar` endpoint).
-- **Comparable past projects:** the same page ranks completed projects similar in
-  domain/division/fund-type, with sanctioned/utilized amounts — evidence for evaluation.
+### Access Requests & Feature Controls
+- **What it does:** Gives administrators a controlled way to onboard users, grant exceptions to individual users, or toggle features at runtime.
+- **Who uses it:** `DefaultUser`/`Guest` (submit request); `SystemAdmin`, `MasterAdmin` (access requests); `MasterAdmin` (feature controls).
+- **Where to find it:** `/admin/access-requests`, `/admin/features`
+- **How it works:**
+  - Pending users submit a role request from their landing view; admins review and approve/reject it on `/admin/access-requests`, which writes `user_roles`.
+  - On `/admin/features`, `MasterAdmin` can:
+    1. Flip global or per-role feature kill-switches (`feature_controls`).
+    2. Grant an individual user extra access to specific pages (`feature_grants`) without changing their role (data reads still follow RLS).
+    3. Manage user accounts and role assignments.
 
-### Project portfolio (`/portfolio`)
-- **Who:** Director, Division Heads / HODs, FinanceAdmin, PME, MasterAdmin.
-- Every running project on one table: time elapsed against money spent and milestones
-  met, overdue items, next due date, last review decision, and a plain **On track /
-  Watch / Behind** reading. Behind first; filter by track or to those needing attention.
-  The PME desk lists overdue reviews and late minutes from the same view, and change
-  requests waiting on PME; Finance and the Director see their change-request steps in My Actions.
+### Navigation, Command Palette, Theme & Accessibility
+- **What it does:** Keeps daily navigation fast across desktop and mobile while enforcing institute accessibility and layout standards.
+- **Who uses it:** All authenticated users.
+- **Where to find it:** Sidebar, TopBar, `Ctrl+K` / `Cmd+K` Command Palette, Settings modal, Mobile bottom bar.
+- **How it works:**
+  - **Sidebar:** Shows up to 6 role-personalized **"For you"** links first, with remaining permitted pages grouped under a collapsible **"More"** drawer (Overview, Unified Human Resource, Research Ops, Governance, Admin).
+  - **Command Palette (`Ctrl+K` / `Cmd+K`):**
+    - Navigates to any permitted page by name.
+    - Searches staff, projects, PhDs, publications, IP, equipment, and divisions by name or stable ID (client-side over the caller's already-loaded RLS-scoped records).
+    - Searches indexed **document titles** (via RLS-scoped lookup) and opens either the parent record (proposal, progress report, PMS report, meeting) or the document itself.
+    - Hands deeper inside-document questions directly to Ask SURYA (`/ask?q=...`, prefilled without auto-sending).
+  - **Theme & Density:** Light/dark theme and UI density toggles live in settings and persist per user.
+  - **Mobile vs. Desktop Guard:** Review/approval pages and proposal notes work on phones (plus a mobile bottom quick-nav bar for Home, Ask, Calendar, Menu), while dense authoring/admin pages (`desktopOnly`) show a clean prompt to open on a computer.
+  - **Accessibility & Bundle Baseline:** Visible `:focus-visible` keyboard outlines, `MotionConfig reducedMotion="user"`, accessible modal management (`useDialog` Escape/focus return), consistent `<EmptyState variant="error">` load-failure states across data views, and lazy-loaded heavy routes/panels (`SetupWizard`, `ChangePassword`, `DataManagement` tabs, plus shared schema/table metadata isolated in `src/utils/fileTypes.ts` so `xlsx`/`papaparse`/`zod` stay out of non-admin chunks).
 
-### Lessons learned (`/lessons`)
-- **Who:** Director, Division Heads / HODs, Scientists, Technicians, FinanceAdmin, PME, MasterAdmin.
-- Every approved completion report's lessons, searchable and filterable by outcome — what
-  worked, what did not and why, reusable assets, advice to a future team. Readable even
-  for projects the reader cannot otherwise open.
+---
 
-### Project progress reports
-- **Routes:** `/reports`, `/reports/new`, `/reports/:id`.
-- `project_reports` with `DRAFT → SUBMITTED → REVIEWED`; due dates auto-scheduled when
-  a proposal links to a project; HOD/DivisionHead review. Submitted PDFs file into the
-  document registry.
+## 2. Role Dashboards, My Work & Notifications
 
-### Facilities & instruments
-- **Who:** Technicians (scoped), admins. **Routes:** `/facilities`, `/facilities/:uInsID` (Analytics tab).
-- Instrument registry, AMC (maintenance contract) tracking with due alerts.
+### Role-Scoped Dashboards & My Actions
+- **What it does:** Gives every role a tailored home cockpit plus a unified inbox of everything waiting on their action.
+- **Who uses it:** All 15 roles.
+- **Where to find it:** `/` and role aliases (`/director`, `/division-head`, `/hod`, `/scientist`, `/technician`, `/hr-admin`, `/finance-admin`, `/system-admin`, `/master-admin`, `/pme`, `/student`, `/project-staff`, `/guest`, `/pending`; `EmpoweredCommittee` routes to `/pms`).
+- **How it works:**
+  - All 13 operational roles share the two-half **Common Desk** shell (`HomeShell` + `CommonDesk` right column via on-demand `HomeContext`): **My day** (`my_day()` RPC + calendar/holidays/report-due/contract-end feed), **My requests** (`my_requests()` RPC + norms/late flags), **Notices**, and **People** stay anchored on the right (collapsible per user), alongside conditional **Waiting on me** and **My committees** blocks that omit items already shown in the left role half (`One item, one place`), plus **One Door** request catalogue on `/helpdesk/new?key=...`. `Guest` and `DefaultUser` remain quarantined without the Common Desk.
+  - Admin/PME/EmpoweredCommittee roles see **My Actions** above their dashboard — consolidating pending PMS reports/evaluations, proposal steps/revisions, progress report & review due slots, project change/closure approvals, committee action items, open helpdesk tickets, contribution requests, and upcoming retirements/contract ends — each deep-linking to the owning screen.
+  - **All 6 operational role homes redesigned (`SH1`–`SH2`, `HH1`, `DH1`, `ST1`, `PJ1`, `TS1`):**
+    - **Scientist:** Today ring, Fraunces greeting, Ask SURYA + quick starts, ranked **Do this next**, **Quick wins**, **Report timers** (`my_report_timers()` countdown + negative overdue days), committees, milestone tracks, and team summary.
+    - **Director:** Fraunces greeting, `division_rollup()` divisions by exception, decision queue, My week, and 4 drillable institute numbers.
+    - **Division Head / HOD:** `caller_division_codes()` (incl. `acting_assignments`), `Division` | `My own work` mode toggle, exception-first `needsAttention()` division projects, people, instruments, and committees.
+    - **Student / ProjectStaff / Technician:** Thesis milestone road + private grievance link (`StudentView`), two contract/CSIR-cap clocks via `my_engagement()` (`ProjectStaffView`), and `equipment_in_charge` + phone-first quick entry (`TechnicianView`).
+    - **Finance Admin:** Project utilization, burn-rate outliers (underspend/overrun), sanctioned vs. utilized breakdown.
+    - **HR Admin:** Workforce strength, retirements, recruitment funnel, PMS cycle health.
+    - **System Admin / Master Admin:** Platform health, access requests, RAG ingestion status, IRINS sync, and governance shortcuts.
+    - **Technician:** Division lab/instrument inventory and usage log status.
 
-### Partnerships (MOUs & technology transfer)
-- **Route:** `/partnerships`. Two tabs:
-  - **MOUs** — partner, purpose, validity, status; expiry alerts (90-day window).
-  - **Tech transfers** — licensee, agreement type, value (₹ lakhs), status; feeds
-    commercialisation analytics.
-- Admin entry forms on the same page.
+### PME Desk
+- **What it does:** Serves as the central work queue for the Project Monitoring & Evaluation (`PME`) office across the entire project lifecycle, without granting unrelated HR or system-admin privileges.
+- **Who uses it:** `PME` (and `MasterAdmin`).
+- **Where to find it:** `/pme`
+- **How it works:**
+  - Displays live counts of items waiting on PME (hiding zero-count rows):
+    - Submitted proposals awaiting vetting; proposals missing a track; approved/OM-issued proposals ready to sanction.
+    - Sanctioned projects awaiting first funds receipt; milestones proposed/done awaiting confirmation.
+    - Overdue reviews & progress reports; overdue signed minutes; change requests & completion reports awaiting PME action; closed projects ready to archive.
+    - Legacy pre-SURYA projects needing opening balances; projects with unrecognized status or missing scheme track.
+    - Compliance flags: committee meetings missing COI declarations, technology transfers missing Stage VI papers, and major project instruments with no usage logbook entry in 30 days.
+  - Includes the **Half-Yearly Report to CPD** builder (for 31 March / 30 September periods), generating a downloadable PDF across HQ projects.
 
-### R&D lifecycle monitor
-- **Route:** `/rnd-monitor`. End-to-end view from proposal conceptualisation →
-  sanction → project execution → progress reporting, per project.
+### My Work & Contribution Requests
+- **What it does:** Turns "someone needs to confirm or update this record" into an owned, trackable workflow instead of ad-hoc emails, while letting domain data stewards maintain freshness.
+- **Who uses it:** Any verified role opens `/work`; `Director`, `DivisionHead`, `HOD`, `HRAdmin`, `SystemAdmin`, `MasterAdmin` can raise requests; data stewards and admins can claim unowned requests.
+- **Where to find it:** `/work` (and **Request update** buttons on Project and Instrument detail pages).
+- **How it works:**
+  - **Raising a request:** Opens a prefilled form from the target record (title, reason, due date, optional assignee). Without an assignee, it auto-routes to the domain's steward (division steward first), or lands in the **Unowned** queue.
+  - **Assignee actions (`/work` → To do):** Edit prefilled fields and **Submit update**, or choose **Still correct**, **Ask for clarification**, **Delegate** (a delegate's draft returns as *Prepared* for confirmation), **Not mine**, or **Cannot provide**.
+  - **Reviewer actions (`/work` → To review):** Inspect a field-by-field diff and **Accept** (commits via normal RLS-gated update and closes the request) or **Return** with a note. Requesters/reviewers can also **Withdraw**.
+  - **Automated staleness sweep:** A daily scheduled sweep (07:15 IST) automatically opens a *Refresh `<domain>` data* request when a stewarded domain exceeds its configured refresh cadence (at most one live request per scope).
+  - Every step is logged in an audited timeline (`contribution_request_events`) and pushes bell notifications with deep links (`/work?r=<id>`).
+
+### My Profile & Staff Self-Service
+- **What it does:** Provides each verified staff member a linked personal research profile with controlled self-service editing and PDF exports.
+- **Who uses it:** Verified staff (`Director`, `DivisionHead`, `HOD`, `Scientist`, `Technician`, `HRAdmin`, `FinanceAdmin`, `SystemAdmin`, `MasterAdmin`, `EmpoweredCommittee`, `PME`); Division Heads can view profiles within their division.
+- **Where to find it:** `/me` (redirects to the caller's `/staff/:id` dossier).
+- **How it works:**
+  - **Record tab:** Lists projects, papers, patents, PhD students, and committees tied to the person; clicking any item opens that record.
+  - **Self-service fields:** The person can directly edit 5 fields (`Expertise`, `CoreArea`, `Ext`, `orcid`, `VidwanID`); core HR fields remain HR-controlled, and edits appear on the **Timeline** tab.
+  - **To confirm (IRINS matching):** Shows IRINS publications or name matches that may belong to the person; clicking **"This is me"** links a paper immediately, while discrepancies route to HR (also surfaced weekly in My Work).
+  - **Exports:** Generates a 1-page **CV** PDF and a **Nomination Brief** PDF directly from verified, linked records.
+  - **PMS record card:** Displays the person's PMS scores, grade, and lab average strictly to the person, the Director, Empowered Committee, and their current Reporting/Reviewing Officer.
+
+### Notification Bell, Automated Sweeps & AI Suggestions
+- **What it does:** Keeps staff informed of deadlines, workflow handoffs, weekly metric digests, and one-click AI record suggestions without requiring constant polling.
+- **Who uses it:** All authenticated users.
+- **Where to find it:** Notification bell in the TopBar.
+- **How it works:**
+  - Combines PMS notifications and unified app notifications in one dropdown.
+  - Receives nightly deadline reminders, weekly Monday role metric digests, contribution request handoffs, and review calls.
+  - Surfaces interactive **AI suggestions** (such as *"Is this paper yours?"* or *"Confirm expertise: ..."*) with one-click Accept/Dismiss buttons; accepting runs the single allowed action under the user's own identity and logs the outcome.
+
+---
+
+## 3. Unified Human Resource & Workforce
+
+### Human Capital (Staff Directory & Analytics)
+- **What it does:** Maintains the institute's permanent staff directory, individual dossiers, and demographic/cadre analytics.
+- **Who uses it:** `Director`, `DivisionHead`, `HOD`, `HRAdmin`, `MasterAdmin` (roster & analytics); any verified role can open a linked `/staff/:id` detail page as permitted by RLS.
+- **Where to find it:** `/staff`, `/staff/analytics`, `/staff/:id`
+- **How it works:**
+  - Searchable, filterable staff roster with CRUD modal (`StaffFormModal`) for authorized HR/admins and CSV/table export.
+  - Staff detail dossier (`/staff/:id`) displays career timeline, linked research record, expertise tab, PMS record (strictly scoped), documents, and PDF exports.
+  - `/staff/analytics` presents interactive ReCharts breakdowns (division, group/cadre, gender, age & tenure distribution, retirement horizon) using the connected chart-to-list filter pattern.
+
+### Divisions & Scorecards
+- **What it does:** Organizes divisions, division heads, strength vs. sanctioned posts, and monthly snapshot scorecards for Research Council / Annual Report packs.
+- **Who uses it:** `Director`, `DivisionHead`, `HOD`, `MasterAdmin`.
+- **Where to find it:** `/divisions` (Detail & Analytics tabs).
+- **How it works:**
+  - Division registry with division CRUD (HR/admins), Markdown dossier export, and freshness indicators.
+  - **Division Scorecard (Analytics tab):** Displays the 12 standardized institutional metrics per division with deltas since the last monthly snapshot.
+  - **Pack PDF ("as on" date):** Renders an official Research Council / Annual Report metric pack frozen to a chosen snapshot date so figures stay identical regardless of when printed.
+
+### Sanctioned Posts & Career Events
+- **What it does:** Tracks every sanctioned post individually as the authoritative source for division strength, plus official career events.
+- **Who uses it:** `Director`, `DivisionHead`, `HOD`, `HRAdmin`, `MasterAdmin` (HR edits; managers view scoped division).
+- **Where to find it:** `/staff/posts` (`desktopOnly`)
+- **How it works:**
+  - One row per sanctioned post (`FILLED`, `VACANT`, `ADVERTISED`, `ABEYANCE`, `ABOLISHED`) with sanction references.
+  - HR records fills, vacations, advertisements, abeyance, or abolition with order references and effective dates.
+  - Supports importing career events (appointments, promotions, transfers) from Excel/CSV sheets.
+
+### Workforce Planning
+- **What it does:** Forecasts retirements and vacancies alongside individual project workload to expose succession and capacity risks early.
+- **Who uses it:** `Director`, `DivisionHead`, `HOD`, `HRAdmin`, `MasterAdmin`.
+- **Where to find it:** `/staff/planning`
+- **How it works:**
+  - **Retirements & Vacancies Outlook (3 / 5 / 10 years):** Groups upcoming retirements and vacant posts by year and flags when a retiring scientist is the sole holder of a core area.
+  - **Workload View:** Summarizes active projects and workload per scientist, highlighting overloaded and idle capacity.
+
+### Project Staff & Rule-Checked Engagements
+- **What it does:** Manages temporary/project-funded staff (JRFs, SRFs, Project Associates, etc.), their leave, and CSIR §3.3 engagement compliance.
+- **Who uses it:** `Director`, `DivisionHead`, `HOD`, `HRAdmin`, `PME`, `MasterAdmin`.
+- **Where to find it:** `/staff/project` (Roster, Engagements, Analytics).
+- **How it works:**
+  - Tracks contract tenure, project attachments, leave balances, and analytics.
+  - **Engagements:** Before recording a project-staff engagement, validates CSIR §3.3 rules (age limit with category relaxation, 6-year maximum tenure minus PhD period, selection committee quorum, NCS posting, waitlist validity, direct engagement rules, and antecedents).
+  - Automatically links historical project-staff rows where names are unique, routing ambiguous matches to PME.
+
+### PhD Scholar Tracker
+- **What it does:** Tracks AcSIR/PhD scholars from registration through coursework, synopsis, and thesis defence with overdue milestone detection.
+- **Who uses it:** `Director`, `DivisionHead`, `HOD`, `Scientist` (supervisees), `MasterAdmin` (plus `Student` sees their own status on their dashboard).
+- **Where to find it:** `/phd` (Roster + Analytics tab).
+- **How it works:**
+  - Lists scholars, supervisors, specializations, and status; supports milestone tracking (`PhDMilestonePanel`) with due dates, completion states, and overdue flags.
+  - Analytics tab provides interactive stage, division, and supervisor breakdowns.
+
+### Recruitment Drives
+- **What it does:** Manages vacancy advertisements, posts, and applicant progression through a strictly ordered hiring funnel.
+- **Who uses it:** `HRAdmin`, `MasterAdmin`.
+- **Where to find it:** `/recruitment` (Drives + Analytics tab).
+- **How it works:**
+  - Tracks vacancy ads, sanctioned/project posts, and applications.
+  - Enforces sequential stage progression (`Advertised → Screening → Interview → Offer → Joined`), preventing stage skipping and logging every transition.
+
+### Expertise Finder
+- **What it does:** Answers *"Who in the institute can work on X?"* for team assembly, proposal staffing, and committee nominations.
+- **Who uses it:** `Director`, `DivisionHead`, `HOD`, `HRAdmin`, `PME`, `MasterAdmin` (HR/MasterAdmin curate vocabulary; staff confirm/add tags on their own profile).
+- **Where to find it:** `/expertise` (plus Expertise tab on `/staff/:id`).
+- **How it works:**
+  - Search by free text and/or controlled vocabulary terms (`expertise_terms`).
+  - Ranks people with confirmed expertise tags first, followed by people whose projects, publications, patents, or notes mention the topic — showing clickable proof links, active project load, overload warnings, and retirement dates.
+  - Generates a 1-page **Shortlist PDF**.
+  - `HRAdmin` / `MasterAdmin` manage the controlled vocabulary (add and merge terms).
+
+### Acting Charges
+- **What it does:** Grants temporary acting authority (`HOD`, `DivisionHead`, or `Director`) over exact calendar dates without manual role cleanups afterward.
+- **Who uses it:** `Director`, `HRAdmin`, `MasterAdmin`.
+- **Where to find it:** `/admin/acting`
+- **How it works:**
+  - Record an acting assignment (*"Person X acts as HoD of Division Y from date A to date B"* with order reference) or end one early.
+  - During the active window, the acting officer holds the role and its approvals; once the end date passes, authority stops automatically while preserving the historical record on their career timeline.
+
+---
+
+## 4. Research Operations & Project Lifecycle
+
+SURYA models the complete R&D project lifecycle (`PL0–PL7` + `P3`/`P9`) across four schemes: **In-house (`ULIP`)**, **CSIR HQ (`HQ`)**, **Externally Funded (`EFP`)**, and **Lab Seed / Own (`OLP`)**.
+
+### Proposals & Review Chains
+- **What it does:** Provides a private drafting workspace, duplication check, multi-step institutional review chain, and sanctioning workflow that turns an approved proposal directly into an active project record.
+- **Who uses it:** `Scientist`, `HOD`, `DivisionHead`, `Director` (draft & submit); `PME`, `FinanceAdmin`, `HRAdmin`, `Director`, review committee/scheme leaders (review/sanction).
+- **Where to find it:** `/proposals`, `/proposals/new`, `/proposals/:id/edit`, `/proposals/:id`
+- **How it works:**
+  - **Drafting Workspace (`/proposals/new`, `/proposals/:id/edit`):**
+    - Private to the PI and named Co-PIs until submitted.
+    - Organized into 5 sections (**Idea · Plan · Team · Budget · Documents**) with automatic background save plus browser crash recovery. On mobile phones, focuses on Title + Private Notes so ideas can be captured anywhere.
+    - Side-by-side **Private Notes** can be promoted straight into Abstract, Problem Statement, Objectives, or Expected Outcomes.
+    - **Versions:** Save named checkpoints, compare differences, and restore prior versions.
+    - **Non-blocking Readiness Meter:** Lists missing items (e.g., quotation required when equipment ≥ ₹5 lakh per CSIR Rules, signed PDF scan before submit) without blocking draft saves.
+    - **Year × Head Budget Editor** auto-calculates requested totals; **Print PDF** stamps the version number on every page for wet/digital signature.
+    - **Duplication & Comparable Checks:** Queries `/similar` against indexed documents for prior similar work with page citations, and ranks comparable completed projects on record.
+  - **Review & Sanction (`/proposals/:id`):**
+    - Track-specific sequential steps (e.g., `ULIP`/`OLP`: PME Vetting → Review Committee → Director Approval; `HQ`: PME Vetting → Finance → Director Forward → HQ Screening → HQ Expert → Competent Authority; `EFP`: PME Vetting → Finance → Director Forward → Competent Authority).
+    - Reviewers record Approve / Return / Reject (with signed scan uploads) and leave section comments; on resubmission, reviewers see a diff of what changed.
+    - Recording the **Sanction Order** automatically creates the linked `projects` record with sanctioned budget lines, dates, and PI.
+
+### Projects & the Modular Project File
+- **What it does:** Serves as the live operational dossier for every sanctioned, ongoing, legacy, or closed R&D project.
+- **Who uses it:** `Director`, `DivisionHead`, `HOD`, `Scientist`, `FinanceAdmin`, `PME`, `MasterAdmin` (on `/projects`), plus any verified role following a link to `/projects/:id` as permitted by RLS. PME (and MasterAdmin) perform official office updates; PIs submit milestones, changes, and completion reports.
+- **Where to find it:** `/projects` (Registry + Analytics tab with Theme × TRL matrix), `/projects/:id`
+- **How it works:** The Project File (`/projects/:id`) organizes 8 integrated tabs:
+  1. **Overview:** Metadata, status/stage badge, expiry warnings, PI/team, Theme & TRL lens, **Ask about this** shortcut, **Request update** button.
+  2. **Monitoring:** Live review brief (elapsed time, spend %, milestones met, overdue items) and auto-scheduled review/progress-report slots (`REVIEW_COMMITTEE`, `RESEARCH_COUNCIL`, `TASK_FORCE`, `MONITORING_COMMITTEE`, `STAGE_GATE`, `PROGRESS_REPORT`). PME schedules reviews onto committee meetings, records outcomes (`Continue`, `With changes`, `Hold`, `Recommend foreclosure`, or Stage-Gate `Go` / `Conditional Go` / `Hold` / `Kill` / `Recycle`), and files minutes (flagged if late). Director/PME can **Call for review** ad-hoc. HQ `FTT`/`FTC`/`MMP` projects include the dedicated **Stage-Gate Panel**.
+  3. **Funds:** Financial-year and budget-head ledger (`Sanctioned · Received · Spent · Balance`, flagging overspends). PME records receipts (the first receipt transitions a `SANCTIONED` project to `ACTIVE`) and expenditures against signed statements; entries are immutable and corrected via reversals. Includes:
+     - **Release Order Reader:** Attaching a release order PDF runs browser text/OCR extraction to pre-fill order number, date, IFD reference, and head-wise amounts for verification.
+     - **HQ Paper Packs:** Generates ready-to-submit HQ release packs directly from the file.
+     - **Multi-lab Projects:** Tracks nodal vs. participating labs, per-lab money splits, and flags running multi-lab projects lacking a signed IP agreement.
+     - **Legacy Rollout:** One-time opening-balance wizard for pre-SURYA projects so historical periods aren't falsely flagged overdue.
+  4. **Milestones:** Six-month sub-stage deliverables proposed and reported complete by the PI with evidence; confirmed, returned, or dropped by PME.
+  5. **Changes:** PI raises guideline-compliant requests (time overrun, revised cost estimate / RCE, carry forward, rephasing, re-appropriation, inter-lab reallocation, or early foreclosure). Enforces CSIR rules (disallowing forbidden head swaps like Capital ↔ Revenue or extra travel), displays Checklist B & IFD concurrence requirements, generates HQ change packs, and updates budgets/dates automatically upon final approval.
+  6. **Closure:** PI writes the completion report (objectives met, what worked/didn't, reusable assets & location, TRL, advice to future teams, follow-on ideas), auto-compiles the financial statement & annexures, and submits through the approval chain. PME then **Publishes & Archives** the final PDF into Ask SURYA and locks the file read-only (pre-SURYA closed projects accept a short lessons note directly). Follow-on ideas launch new linked proposal drafts.
+  7. **Outputs:** Linked publications, patents, equipment, MoUs, and technology transfers.
+  8. **Timeline:** Unified chronological audit trail of receipts, expenditures, reversals, milestones, stage changes, and filed documents.
+
+### Project Portfolio
+- **What it does:** Gives leadership, finance, and PME a single executive triage table across every active project.
+- **Who uses it:** `Director`, `DivisionHead`, `HOD`, `FinanceAdmin`, `PME`, `MasterAdmin`.
+- **Where to find it:** `/portfolio`
+- **How it works:**
+  - Displays elapsed time vs. spend % and milestones met, overdue counts, next due date, last review decision, and an automatic **Behind / Watch / On track** health rating (sorted Behind first).
+  - Filterable by scheme track (`ULIP`, `HQ`, `Unclassified`) or attention-only.
+
+### Lessons Learned
+- **What it does:** Captures institutional memory from completed projects so future teams avoid repeating mistakes and reuse existing assets.
+- **Who uses it:** `Director`, `DivisionHead`, `HOD`, `Scientist`, `Technician`, `FinanceAdmin`, `PME`, `MasterAdmin`.
+- **Where to find it:** `/lessons`
+- **How it works:** Searchable, outcome-filterable archive of approved completion-report lessons (what worked, what didn't and why, reusable assets, advice) readable institute-wide even for closed projects outside a reader's own division.
+
+### Project Progress Reports
+- **What it does:** Manages structured periodic project progress reports tied to monitoring slots.
+- **Who uses it:** `Director`, `DivisionHead`, `HOD`, `Scientist` (create/submit); `PME`, `HRAdmin` (review/read).
+- **Where to find it:** `/reports`, `/reports/new`, `/reports/:id`, `/reports/:id/edit` (`desktopOnly` authoring).
+- **How it works:** Reports move through `DRAFT → SUBMITTED → REVIEWED`, link to project monitoring slots, and archive submitted PDFs into the unified document registry for Ask SURYA indexing.
+
+### Publication Files (Manuscript Clearance)
+- **What it does:** Enforces CSIR publication clearance — plagiarism/ethics checks, HoD clearance & communication numbers, and mandatory co-author consent — before journal submission.
+- **Who uses it:** `Scientist`, `Technician`, `HOD`, `DivisionHead`, `Director`, `MasterAdmin`.
+- **Where to find it:** `/publication-files`
+- **How it works:**
+  - Author opens a publication file with the author list → runs ethics & similarity % check → HoD/Director clears the paper and a communication number is issued → every in-house co-author records consent before submission (`SUBMITTED`) → on `PUBLISHED`, the paper automatically joins `scientific_outputs` with all authors linked.
+
+### Facilities, Instruments & Usage Logbooks
+- **What it does:** Tracks laboratory equipment, AMC maintenance contracts, and mandatory usage logbooks on major project instruments.
+- **Who uses it:** `Director`, `DivisionHead`, `HOD`, `Technician`, `MasterAdmin` (plus any verified role opening a linked `/facilities/:uInsID` page via RLS).
+- **Where to find it:** `/facilities` (Registry + Analytics tab), `/facilities/:uInsID`
+- **How it works:**
+  - Instrument registry with status tracking, AMC expiry alerts (due/overdue), and related staff/projects rail.
+  - **Usage Logbook:** Major instruments above the CSIR equipment threshold maintain operational usage logs; instruments idle for 30+ days surface on the PME desk.
+
+### Partnerships (MoUs & Technology Transfers)
+- **What it does:** Centralizes external MoUs and technology commercialization agreements with expiry tracking.
+- **Who uses it:** `Director`, `DivisionHead`, `HOD`, `FinanceAdmin`, `PME`, `MasterAdmin`.
+- **Where to find it:** `/partnerships`
+- **How it works:**
+  - **MoUs tab:** Partner, purpose, validity dates, status, and 90-day expiry warnings.
+  - **Tech Transfers tab:** Licensee, agreement type, value (₹ lakhs), status, and evidence attachments — feeding institute commercialization analytics.
+
+### R&D Lifecycle Monitor
+- **What it does:** Provides a single end-to-end thread view tracking ideas from proposal stage through sanction, execution, and progress reporting.
+- **Who uses it:** `Director`, `DivisionHead`, `HOD`, `FinanceAdmin`, `PME`, `MasterAdmin`.
+- **Where to find it:** `/rnd-monitor`
+- **How it works:** Visualizes the stage pipeline across proposals and linked projects so bottlenecks from submission to closure are immediately visible.
 
 ---
 
 ## 5. Governance
 
-### PMS — Performance Management System (2026 CSIR guidelines)
-- **Who:** Scientists (self-report), evaluation-committee members, Empowered
-  Committee, admins. **Routes:** under `/pms`.
-- State machine: `DRAFT → SUBMITTED → UNDER_EVALUATION_COMMITTEE_REVIEW →
-  EMPOWERED_COMMITTEE_REVIEW → FINALIZED`, plus terminal `NOT_ASSESSED` (duty days
-  < 90) and `FINALIZED ⇄ UNDER_GRIEVANCE_REVIEW` (representation within 15 days).
-  Scores are integers 0–100; absolute cycle lock after Nov 30. All transitions via
-  SECURITY DEFINER RPCs — status is never patched from the client.
-- **How (scientist):** `/pms/reports/new` → 13-section wizard → annexure uploads →
-  signature → submit. Track status at `/pms/reports/:id`; export PDF when finalized;
-  file a representation from the finalized report (15-day window).
-- **How (evaluator/EC):** role-specific queues at `/pms/evaluate` and
-  `/pms/committee`; grievances at `/pms/grievance`. Admins manage cycles
-  (`/pms/cycles`), evaluation committees (`/pms/evaluation-committees`), evaluator
-  assignment (`/pms/assign`), and the audit log (`/pms/audit`).
-- **Annual Work Plan (Part V):** scientists fill and download their AWP at
-  `/pms/awp` (one per reporting year, due 15 May); it goes HoD/Reporting Officer →
-  Reviewing Officer → Director at `/pms/awp/inbox` (one Director action when the
-  Director is also RO/RvO). Revisions until 30 Sep with Director approval. Admins import
-  existing AWP PDFs at `/pms/awp/import` — the PDF is read in the browser (text layer, or
-  OCR for scans; no internet needed), Part V is pre-filled, and a human checks and saves.
-  `/pms/awp/register` shows who has submitted. Committees see the approved AWP next to
-  each standard-track report.
+### PMS — Performance Management System (2026 CSIR Guidelines)
+- **What it does:** Digitizes the complete CSIR annual scientist appraisal across all three tracks, enforcing guidelines, deadlines, panel scoring, and grievances in Postgres.
+- **Who uses it:** `Scientist`, `HOD`, `DivisionHead`, `Director` (appraisees & evaluators/RO/RvO), `EmpoweredCommittee` (final panel), `HRAdmin`, `MasterAdmin` (cycle & committee administration).
+- **Where to find it:** `/pms` (hub), `/pms/cycles`, `/pms/evaluation-committees` (`/pms/collegiums` redirects here), `/pms/reports`, `/pms/reports/new`, `/pms/reports/:id`, `/pms/reports/:id/edit`, `/pms/assign`, `/pms/evaluate`, `/pms/evaluate/:evaluationId`, `/pms/committee`, `/pms/grievance`, `/pms/audit`
+- **How it works:**
+  - **State Machine (RPC-driven):** `DRAFT → SUBMITTED → UNDER_EVALUATION_COMMITTEE_REVIEW → EMPOWERED_COMMITTEE_REVIEW → FINALIZED`, plus terminal `NOT_ASSESSED` (duty days < 90) and `FINALIZED ⇄ UNDER_GRIEVANCE_REVIEW` (representation within 15 days; otherwise recorded as deemed accepted). Absolute cycle lock after November 30.
+  - **Three Tracks (resolved server-side by designation):**
+    - `STANDARD` (Scientists B–F): 2026 Annexure-A form (13 steps, or 14 steps with **Questionnaire B** for Pay Level 13+ / Sci-E & F; legacy standard form uses 11 steps). Includes **Part I** (Establishment pre-filled from HR records, scientist confirms or reports discrepancies for Establishment verification), **"Fill from my records"** (pulls linked projects, papers, patents, students, and committees of the reporting year; committees see only confirmed lines), Questionnaire A & B, Appendix-A Sections I–V with guideline word limits (I.4 150 words, I.5 100 words, Sections III & IV 300 words total each), and links to **Part V Annual Work Plan**.
+    - `ANNEXURE_I` (Chief / Outstanding / Distinguished Scientists): 16-step senior proforma with categorical pen-picture appraisal (no numeric self-score).
+    - `ANNEXURE_II` (Director): 19-step Director proforma.
+  - **Evaluation & Empowered Committees:** Tiered Evaluation Committees (Tiers I/II/III by scientist grade) record a single panel score (integer 0–100), quorum, 15 behavioural pen-picture items (no marks), critical assessment, and Appendix-B integrity entry. Empowered Committee concurs, upgrades, or downgrades with reasons & quorum (additional reasons required for scores ≥90 or ≤75).
+  - **Annexure-B Timeline & PDF Exports:** Tracks the 9-step cycle timeline, overdue counts, generates scientist Report PDFs, and builds the **DG Delay Report PDF**.
 
-### Committees
-- **Route:** `/committees`. Meetings, agendas, minutes (lockable), document uploads,
-  and an action-item kanban. Action items land in assignees' My Actions.
+### Annual Work Plan (Part V AWP & Browser OCR Import)
+- **What it does:** Manages scientists' yearly Annual Work Plans independently and in advance of appraisal, including offline OCR import of legacy/scanned AWP PDFs.
+- **Who uses it:** `Scientist`, `HOD`, `DivisionHead`, `Director` (author & review), `HRAdmin`, `MasterAdmin` (import & register).
+- **Where to find it:** `/pms/awp`, `/pms/awp/inbox`, `/pms/awp/import` (`desktopOnly`), `/pms/awp/register`
+- **How it works:**
+  - Scientists author and submit one Part V AWP per reporting year (due May 15) and download its PDF; approved AWPs appear alongside Standard-track PMS reports during committee evaluation.
+  - **Approval Inbox (`/pms/awp/inbox`):** Flows Reporting Officer (HoD) → Reviewing Officer → Director (collapsed to a single Director action when the Director serves as RO/RvO). Revisions allowed until September 30 with Director approval.
+  - **Offline Browser OCR Import (`/pms/awp/import`):** HR admins drop batch AWP PDFs into the browser; `pdfjs-dist` extracts embedded text or runs offline `tesseract.js` WASM OCR locally (no external network call), pre-fills Part V fields for human verification, and saves into `pms_awps`.
+  - **Register (`/pms/awp/register`):** Tracks institute-wide submission and approval completion status.
+
+### Committees, Meetings & Conflict of Interest (COI)
+- **What it does:** Runs formal institute committees, meeting agendas, lockable minutes, action items, and mandatory Conflict of Interest declarations.
+- **Who uses it:** Approved institute staff (`Director`, `DivisionHead`, `HOD`, `Scientist`, `Technician`, `HRAdmin`, `FinanceAdmin`, `SystemAdmin`, `MasterAdmin`, `EmpoweredCommittee`, `PME`).
+- **Where to find it:** `/committees`, `/committees/:id`, `/committees/:id/meetings`, `/committees/:id/actions`, `/committees/:id/meetings/:meetId`, `/rooms`
+- **How it works:**
+  - Manage committee terms, seat memberships (including external members and acting chairs via `acting_assignments`), confidentiality (`institute` \| `members` \| `confidential` enforced by RLS via `committee_can_read`), schedule meetings (`stage` lifecycle synchronized with `status`), book rooms/vehicles/guest houses (`/rooms` with advisory-lock clash protection) and request meeting refreshments (`hospitality_requests`), edit agendas, upload meeting documents, and track action items on a Kanban board (assigned items linked via `assigned_staff_id` surface in assignees' home/actions views).
+  - **Rule-driven minutes locking:** Finalized minutes lock per CSIR rules.
+  - **COI Declarations:** Every meeting includes Format 1 / Format 2 COI declarations per member (private to the member, chair, and convener); the chair records continue/recuse decisions and prints **Annexure 3** PDF. Missing declarations are flagged on the PME desk without blocking meetings.
 
 ### Helpdesk
-- **Who:** all roles. **Route:** `/helpdesk`. Ticket creation, category routing to the
-  owning team, status tracking, analytics for admins.
+- **What it does:** Provides internal issue tracking with automatic category routing to the responsible administrative team.
+- **Who uses it:** All 15 roles (including `Guest` and `DefaultUser`).
+- **Where to find it:** `/helpdesk`, `/helpdesk/new`, `/helpdesk/:id`
+- **How it works:** Any user opens a ticket → `helpdesk_routing` routes it to the owning division/team → staff exchange threaded responses and update status through an audited timeline → admins view ticket metrics and analytics.
 
-### Calendar
-- **Route:** `/calendar`. Events derived from meetings/action items + institute
-  holidays (admin-managed).
+### Institute Calendar & Holidays
+- **What it does:** Combines official institute holidays, manually scheduled events, and automatically derived operational deadlines in one calendar.
+- **Who uses it:** All verified roles (`/calendar`); `SystemAdmin` / `MasterAdmin` manage holidays (`/admin/holidays`).
+- **Where to find it:** `/calendar`, `/admin/holidays`
+- **How it works:** Automatically aggregates committee meetings, PMS deadlines, PhD milestones, project review slots, MoU expiries, and admin-managed gazetted/restricted holidays.
 
-### Audit log
-- **Route:** `/pms/audit` (data admins). PMS actions plus an "All" tab merging
-  HR-data changes and PMS events into one timeline with source badges.
-
----
-
-## 6. Intelligence & Analytics
-
-### Intelligence page
-- **Route:** `/intelligence`. Scientific outputs (publications) and IP registry
-  (patents/copyrights/designs) plus derived analytics:
-  - **Commercialisation strip** — granted patents (licensable assets), filed patents,
-    external/sponsored project count and value.
-  - **Patent pipeline funnel** — filed → published → granted, median time-to-grant.
-  - **Emerging themes** — keywords rising in recent project titles across ≥2 divisions
-    (convergence detection).
-  - **Collaboration analysis** — co-authorship pairs with cross-division flags
-    (expertise mapping evidence).
-
-### Entity analytics
-- Staff, divisions, projects, project staff, PhD, recruitment, and facilities each
-  carry an analytics view (ReCharts) — `/staff/analytics` standalone, the rest as an
-  Analytics tab on the entity's own page. For cross-entity questions, use Ask SURYA
-  instead — that is the design intent.
-
-### Connected analytics pattern (Staff, Projects, PhD, Instruments, Recruitment, Divisions)
-Chart → filtered list → record → Back, without losing context:
-- **One filter in the URL** — `useChartFilter` stores `?filter=<dim>:<value>`; tabs
-  use `useUrlTab` (`?tab=`, first tab omitted). Back/forward and shared links
-  restore the view.
-- **One bucketing rule per dimension** — `lib/analytics/chartDims.ts` (PhD,
-  equipment, vacancies; pass straight to `applyChartFilter`), plus
-  `lib/projects/projectFilter.ts` and `lib/staff/staffFilter.ts`. Charts *and* the
-  list call the same function, so blank values bucket the same way ("Unspecified")
-  and counts agree. Never re-implement the bucketing inline.
-- **Clicked dimension keeps all categories**; every other widget narrows.
-- **`FilterChip`** shows the active filter with an accessible clear button; on analytics
-  tabs pass `showMatches` for the
-  "Show N matching …" link to the list (same `?filter=`). The list's export
-  (`DataTable`) writes exactly the filtered, sorted rows.
-- **Record links go through `ENTITY_META[kind].route(id)`** — it URI-encodes IDs
-  (ProjectIDs contain `/`).
-- To adopt on another module: add its dims to `chartDims.ts`, use them in the
-  analytics charts and the list, drive `Tabs` with `useUrlTab`, render `FilterChip`
-  with `showMatches`. Chart widgets do not cross-filter each other yet outside
-  Staff and Projects.
+### Audit Log
+- **What it does:** Exposes an append-only audit trail across PMS actions and institutional data updates.
+- **Who uses it:** `HRAdmin`, `MasterAdmin`.
+- **Where to find it:** `/pms/audit` (alias `/audit`)
+- **How it works:** Displays PMS state/evaluation logs alongside a merged **"All"** timeline combining HR data changes and PMS events with source badges.
 
 ---
 
-## 7. Ask SURYA — the AI query layer
+## 6. Intelligence, Connected Analytics & Ask SURYA
 
-- **Who:** any verified role (not Guest / DefaultUser); answers are scoped by RLS to what the caller may
-  see. **Route:** `/ask`. Backend: `rag/` FastAPI service (`/query`, `/similar`).
-- **How:** type a natural-language question → the router classifies it and picks one
-  of three answer paths, shown as a badge on the answer:
+### Research Intelligence
+- **What it does:** Connects publications, intellectual property, and sponsored projects to highlight commercialization potential, patent velocity, cross-division themes, and co-authorship networks.
+- **Who uses it:** `Director`, `DivisionHead`, `HOD`, `MasterAdmin`.
+- **Where to find it:** `/intelligence`
+- **How it works:**
+  - **Commercialisation strip:** Granted patents (licensable assets), filed patents, and external/sponsored project count & value.
+  - **Patent pipeline funnel:** Filed → Published → Granted counts with median time-to-grant.
+  - **Emerging themes:** Detects keywords rising across recent project titles in ≥2 divisions.
+  - **Collaboration analysis:** Identifies co-authorship pairs and cross-division collaboration strength.
 
-| Mode | When | What you get |
+### Explore Graph
+- **What it does:** Lets leadership visually traverse relationships across staff, projects, and divisions.
+- **Who uses it:** `Director`, `DivisionHead`, `HOD`, `MasterAdmin`.
+- **Where to find it:** `/explore` (`desktopOnly`)
+- **How it works:** Interactive 2D force-directed relationship network built with `react-force-graph-2d` over RLS-scoped records.
+
+### Metric Registry & Connected Analytics Pattern
+- **What it does:** Ensures every official number quoted on dashboards, PDF packs, and Ask SURYA agrees, and makes every analytics chart drillable down to the underlying records.
+- **Who uses it:** All analytics-enabled views (`/staff/analytics`, `/divisions`, `/projects`, `/staff/project`, `/phd`, `/recruitment`, `/facilities`).
+- **Where to find it:** Standardized metric registry (`metrics` / `metric_value` / `metric_snapshots`) + URL-driven analytics tabs.
+- **How it works:**
+  - **12 Unified Metrics:** `staff_headcount`, `posts_sanctioned`, `posts_filled`, `posts_vacant`, `projects_active`, `projects_sanctioned_value`, `projects_utilisation_pct`, `reports_overdue`, `reviews_overdue`, `outputs_per_year`, `patents`, and `students_in_progress` — shared identically by Division Scorecards, Research Council Pack PDFs, weekly digests, and Ask SURYA.
+  - **Connected Chart-to-List Drilldown:** Clicking any chart segment writes `?filter=<dim>:<value>` into the URL (`useChartFilter`), filters sibling widgets, shows a clearable `FilterChip`, and links directly (`Show N matching ...`) to the identically bucketed entity list whose CSV export matches the filtered view.
+
+### Ask SURYA (Grounded On-Premise AI Assistant)
+- **What it does:** Answers natural-language questions across structured institute metrics and indexed institute PDFs — with page-level citations, strict RLS scoping, and zero external data leakage.
+- **Who uses it:** All verified roles (excluded for `Guest` and `DefaultUser`).
+- **Where to find it:** `/ask` (plus **"Ask about this"** links on Project and Staff detail pages).
+- **How it works:**
+  - **Three Grounded Answer Modes (logged & badged on every reply):**
+    1. **`structured`:** Routes numerical/roster questions to one of **18 whitelisted Python analytics functions** running strictly through the caller's own RLS-scoped JWT (no free-form LLM SQL):
+       - *Counts & summaries:* `count_documents_by_status`, `count_projects_by_division`, `count_projects_by_status`, `project_expenditure_summary`, `patent_pipeline_counts`, `count_publications_by_division`, `count_staff_by_division`, `overdue_phd_milestones`, `mou_status_summary`, `tech_transfer_summary`, `metric` (all 12 metric registry definitions).
+       - *Entity & covenant intelligence:* `expertise_search` ("who has worked on X"), `project_budget_variance` (burn-rate/overrun early warning), `expertise_succession_risk` (retiring sole experts), `staff_profile` ("who is X"), `projects_for_staff` ("what is X working on"), `division_summary`, `project_team` ("who works on project X").
+    2. **`document`:** Traverses hierarchical **PageIndex** JSON trees (`collection_indexes` → `doc_indexes` → `doc_pages`) using local Ollama models and answers strictly from retrieved page text.
+    3. **`hybrid`:** Combines structured database counts with cited document evidence.
+  - **Strict Refusal Invariant & Clickable Citations:** Every non-refusal document answer carries clickable citations that open the source PDF in a side viewer at the exact `#page=N` via a short-lived signed URL; when evidence is absent, Ask SURYA replies *"Not found in institute documents."*
+  - **Entity-Scoped Q&A (`context_entity`):** Opening Ask SURYA from a project, staff, division, or instrument page scopes retrieval to that record's documents and context first.
+  - **Follow-ups, Feedback & Scheduled Briefs:** Supports multi-turn conversation history (up to 3 turns in UI / 6 turns API), 👍/👎 ratings logged to `query_log`, and **Scheduled Briefs** (`scheduled_queries`) answered offline by the RAG worker (`--briefs`) and delivered to the user's Notification Bell.
+
+---
+
+## 7. Admin, Data Operations, Capture & RAG
+
+### Data Management & Import Pipeline
+- **What it does:** Serves as the central data ingestion, cleaning, stewardship, and record-management backbone for tabular institutional datasets.
+- **Who uses it:** `HRAdmin`, `SystemAdmin`, `MasterAdmin`.
+- **Where to find it:** `/data` (`desktopOnly`; `/db-wizard` redirects here).
+- **How it works:**
+  - **Excel / CSV Import Wizard:** Upload spreadsheets → auto-detect or AI-assist unrecognized column mappings (`/map-columns`, human-confirmed before saving and remembered by header fingerprint) → inspect and clean flagged validation rows → import into Supabase.
+  - **Freshness Ledger & Data Stewards:** Shows when each domain was last updated (including per-division fan-out attribution via `import_events.division_code` computed from `resolveImportDivisions()`) and lets admins assign domain/division stewards with target refresh cadences (in days).
+  - **Harvested Imports Queue:** Reviews spreadsheets automatically captured by the background `ingest/` worker before committing rows to live tables (lazy-loaded on tab activation alongside `DatabaseBuilderPanel` and `EntityRecordsPanel`).
+  - **Manage Records & Database Builder:** Inline CRUD and schema inspection tools.
+
+### People / Identity Links
+- **What it does:** Resolves free-text names in legacy records (paper authors, patent inventors, project PIs, PhD supervisors/co-supervisors, project staff, unlinked staff logins) to canonical `staff` IDs without risky guesswork; RLS policies key strictly off resolved staff IDs rather than display-name fallbacks.
+- **Who uses it:** `Director`, `HRAdmin`, `SystemAdmin`, `MasterAdmin`.
+- **Where to find it:** `/data/links` (`desktopOnly`)
+- **How it works:** Lists unlinked name occurrences alongside candidate staff matches (`output_authors`, `ip_inventors`, `projects.PrincipalInvestigator`, `phd_students.SupervisorName`, `phd_students.CoSupervisorName`, `project_staff.StaffName`); admins link ambiguous names via dropdowns in `/data/links` (`identity_set_link`) or trigger the safe automatic linker (`identity_link_authors`, which also auto-links unique-email `staff.user_id` pairs and unambiguous keys).
+
+### CSIR Rules Engine
+- **What it does:** Centralizes statutory CSIR thresholds and policy constants with effective dates so rule updates never rewrite historical decisions.
+- **Who uses it:** `MasterAdmin` (editable); read automatically by proposals, project changes, compliance, project-staff engagements, and committees.
+- **Where to find it:** `/admin/rules` (`desktopOnly`)
+- **How it works:** Stores each rule as versioned effective-dated rows (e.g., ₹5 lakh major equipment limit, cost overrun DG limit %, project-staff tenure/age limits, CPD half-yearly dates) with Office Memorandum references and verification badges; past files continue using the value active on their date.
+
+### IRINS / Vidwan Sync
+- **What it does:** Mirrors research output, patent, and citation metadata from CSIR-AMPRI's IRINS/Vidwan research profiles.
+- **Who uses it:** `SystemAdmin`, `MasterAdmin` (monitor); CLI `npm run sync:irins`.
+- **Where to find it:** `/irins-sync` (`desktopOnly`)
+- **How it works:** Scrapes IRINS profile and publication metadata for staff with a `VidwanID`, updates `irins_profiles`, logs sync runs (`irins_sync_log`), and surfaces unmatched papers on scientists' profiles under *"To confirm"*.
+
+### Unified Document Registry & RAG Monitor Console
+- **What it does:** Registers every uploaded PDF/artifact across all SURYA modules in one RLS-protected queue and gives operators full observability over indexing and AI routing quality.
+- **Who uses it:** `SystemAdmin`, `MasterAdmin` (monitor console); all modules write documents transparently on workflow upload/submission.
+- **Where to find it:** `/admin/rag` (`desktopOnly`)
+- **How it works:**
+  - Every module stores uploaded artifacts in Supabase Storage (`documents`, `annexures`, `proposal-documents`, `committee-docs`, `project-documents`, `awp-pdfs`, `signatures`) and registers a row in `documents` tagged with one of four RLS-enforced access tiers: `institute`, `division`, `owner`, or `confidential`.
+  - The background Python `rag/` worker polls `ingest_status = 'pending'`, extracts text via PyMuPDF (with per-page Tesseract or Ollama Vision OCR fallback), builds PageIndex trees into `doc_indexes`, and marks records `indexed` (or `failed` with a diagnostic message if empty/unreadable).
+  - `/admin/rag` lets admins inspect queue status, requeue failed documents, adjust access tiers, monitor latency percentiles and **M3 citation traceability %**, review downvoted queries, label routes for router tuning, and export `query_log` CSVs.
+
+### Zero-Behavior-Change Capture Worker (`ingest/`)
+- **What it does:** Harvests spreadsheets and PDFs automatically from existing division shared folders and an intake mailbox so staff don't have to upload manually.
+- **Who uses it:** Background infrastructure service (`ingest/`).
+- **Where to find it:** Standalone Python worker (`deploy/` NSSM Windows service).
+- **How it works:**
+  - Polls watched folder trees (`WATCH_ROOT/<DIV_CODE>/...`) and an IMAP mailbox (`BODY.PEEK[]` — marks `\Seen` only after every attachment lands cleanly in Storage/DB; `ingest_sender_map` resolves sender → division), deduplicates by SHA-256 hash, routes `.xlsx`/`.xls`/`.csv` files to `harvested_imports` (for admin review on `/data`), and queues unstructured PDFs into `documents` (`pending`) for automatic `rag/` indexing.
+
+---
+
+## 8. Developer & Operations Commands
+
+| Command | Where | Purpose |
 |---|---|---|
-| `structured` | Counts/sums/aggregates over database tables | A computed answer naming its source table |
-| `document` | Content questions about reports/proposals/minutes | An answer built from indexed document sections, with page-level citations |
-| `hybrid` | Needs both | Numbers first, then document evidence with citations |
+| `npm run dev` | Root | Copies offline OCR assets (`predev`) and starts Vite dev server |
+| `npm run build` | Root | Copies OCR assets (`prebuild`), runs `tsc -b` type-check, and builds SPA (`dist/`) |
+| `npm test` | Root | Runs all Vitest suites (SPA unit/component + PGlite in-process Postgres DB/RLS tests + IRINS tests) |
+| `npm run lint` | Root | Runs ESLint across `src/`, `scripts/`, and config files (incl. design-token rules) |
+| `node scripts/update-design-debt.mjs` | Root | Verifies `eslint.design-debt.json` has not grown |
+| `node --experimental-strip-types scripts/access_matrix.mts` | Root | Generates the raw RBAC Markdown table from `ACCESS_MAP` |
+| `npx vitest run src/lib/access/roleFeatures.test.ts -u` | Root | Regenerates `docs/engineering/role_features.md` after `ACCESS_MAP` changes |
+| `npm run sync:irins` | Root | Syncs Vidwan/IRINS researcher profiles and publications |
+| `python -m pytest` | `rag/` or `ingest/` | Runs Python test suites for RAG API/worker or Capture worker |
+| `python preflight.py --worker\|--api` | `rag/` | Checks host readiness (env vars, native DLLs, Ollama, DB schema) |
+| `python eval/run_eval.py --corpus-from-db --report` | `rag/` | Evaluates M1–M6 RAG indicators against the DB corpus |
+| `python eval/validate_gold.py` | `rag/` | Validates evaluation gold files against corpus documents |
+| `python scripts/check_security_definer.py` | Root | Audits every `SECURITY DEFINER` Postgres function for auth guards & `search_path` |
 
-- **Structured analytics available** (whitelisted functions — never free-form SQL):
-  documents by ingestion status; projects by division (optional status filter);
-  projects by status; sanctioned-vs-utilized expenditure + utilization % (optional
-  division); patent pipeline counts; publications by division (optional year); staff
-  by division; overdue PhD milestones; MOU status + 90-day expiry; tech-transfer
-  totals; **expertise search** (who has worked on a topic); **project budget variance**
-  (spend vs expected burn / exhaustion / overrun — covenant-style early warning);
-  **expertise succession risk** (staff retiring within N years whose expertise no
-  colleague covers).
-- **Citations are clickable** — they open the source PDF at the cited page via a
-  signed URL.
-- **Grounding guarantee:** if the indexed documents don't contain the answer, SURYA
-  replies "Not found in institute documents." — it never answers from outside
-  knowledge, and every non-refusal document answer carries citations.
-- **Feedback:** 👍/👎 on each answer is logged (`query_log`) with latency, powering the
-  eval loop.
-
-Example questions:
-- "What is the total sanctioned cost versus utilized amount across all projects?"
-- "What outcomes did the 2025 progress reports highlight?"
-- "How many patents were granted, and which technologies do they cover?"
-- "Who has worked on corrosion-resistant coatings?"
-- "Which projects are overspending relative to their timeline?"
-- "Which retiring scientists hold expertise no one else covers?"
-
----
-
-### CSIR rules and people links (enterprise P1)
-- **CSIR Rules** (`/admin/rules`, MasterAdmin) — every guideline number (₹5 lakh major
-  equipment, 20% cost overrun, project-staff tenure, leave, age relaxation …) as a dated
-  row with its OM paragraph and an "unverified" mark until checked. A new value starts on
-  a date; old files keep the old value. The proposal budget hint and readiness read it.
-- **People Links** (`/data/links`, admins and Director) — authors, inventors, PIs and
-  supervisors SURYA could not tie to one person. Pick the person once; the automatic pass
-  never guesses between two people with the same name.
-- Deadlines in My Actions also arrive as notifications from the nightly sweep, so nobody
-  needs to log in for a reminder to exist.
-
-### Research profile (enterprise P2)
-- **My Profile** (`/me`) opens the person's own profile. Every line under **Record** opens
-  the project, paper, patent, student or committee behind it.
-- The person edits five fields themselves (expertise, core area, extension, ORCID, Vidwan
-  ID); everything else stays HR's. Changes show on the **Timeline** tab.
-- **To confirm** lists papers on IRINS that SURYA lacks and names that may be the person.
-  "This is me" links a paper at once; the rest goes to HR. A weekly sweep puts the same
-  list into My Work.
-- **CV** (one page) and **Nomination brief** PDFs, built only from the linked record.
-- A division head sees profiles of their own division; others see none.
-
-### Project compliance (enterprise P3)
-- **Conflict of interest** on every meeting page: members record Format 1 or 2; the chair
-  decides continue or recuse; chair and convener print **Annexure 3**. Only they and the
-  member see a declaration.
-- **Paper packs for HQ** on an HQ project's Funds and Changes tabs: first release, next-year
-  release, rephasing, re-appropriation — one PDF from the file, with Checklist B shown
-  before a change pack prints.
-- **Half-yearly report to CPD** on the PME desk, for the half-year ending 31 March or
-  30 September.
-- **Stage gates** for FTT / FTC / MMP projects on the Monitoring tab; a transfer without the
-  stage VI papers shows on the PME desk.
-- **Usage logbook** on major project instruments (above the major-equipment limit).
-- The PME desk counts meetings with declarations missing, transfers without stage VI
-  papers, and logbooks idle for 30 days.
-
-### PMS 2026 assessment (enterprise P4)
-- **The year's work, from the records.** A 2026 report opens with "Fill from my records":
-  projects, papers, patents, students and committees of the reporting year, each linked.
-  The scientist confirms, corrects, removes or adds lines; committees see only confirmed lines.
-- **Part I** filled by Establishment from the staff record; the scientist reports what is
-  wrong; Establishment verifies.
-- **One panel score.** The Reporting Officer records the Evaluation Committee's single score
-  with integrity, adverse remarks, critical assessment and quorum. The report goes only to the
-  committee of the scientist's grade.
-- **Empowered Committee** concurs, upgrades or downgrades, with reasons and quorum.
-- **Annexure-B timeline** on each open cycle: nine steps, overdue counts, Part I pre-fill and a
-  delay report to the DG. Scores not contested in 15 days are recorded as deemed accepted.
-- **PMS record** on a profile — score, grade, lab average — for the person, the Director, the
-  Empowered Committee and the person's current RO / RvO only.
-- **The 2026 form** follows Annexure-A of the guideline: Part I, Questionnaire A (two questions,
-  everyone), Questionnaire B (three questions, Pay Level 13 and above only), Appendix-A
-  sections I–V with the printed word limits (I.4 150, I.5 100, III and IV 300 in all).
-- **Pen picture:** the guideline's 15 behavioural items, no marks; integrity as a written
-  entry per Appendix-B.
-
-### Posts and people (enterprise P5)
-- **Sanctioned Posts** (`/staff/posts`): one row per post; HR fills, vacates, advertises,
-  keeps in abeyance or abolishes it with the order. Strength on every page now comes from
-  here. HR also loads career events (appointments, promotions, transfers …) from an
-  Excel or CSV export.
-- **Workforce Planning** (`/staff/planning`): retirements and vacant posts by year, flagging
-  the only holder of a core area; workload per person with overload and idle capacity.
-- **Project staff engagements** (Project Staff → Engagements, PME and HR): every §3.3 rule
-  is checked before an engagement is recorded — age with relaxation, the 6-year cap less
-  the PhD period, committee quorum, NCS posting, waitlist, direct engagement, a fresh
-  selection for another project, antecedents. Leave within its limits. Older rows come
-  in by themselves where the name is unique; repeated names wait for PME.
-- **Recruitment drives** move one stage at a time, logged; the browser cannot skip stages.
-- **Acting Charges** (`/admin/acting`): "X acts as HoD of D1 from … to …". The acting
-  officer holds the role for those days only; the timeline shows the capacity.
-
-### Expertise (enterprise P6)
-- **Expertise Finder** (`/expertise`): "Who can do X?" by free text or vocabulary terms.
-  People with confirmed expertise first, then people whose projects, papers, patents or
-  expertise note mention it. Each card shows the proof with links, running projects,
-  overload and the retirement date. One-page shortlist PDF. HR keeps the vocabulary here
-  (add, merge).
-- **Expertise tab** on every staff profile: confirmed tags for all; on your own profile,
-  suggestions from your records and HR proposals to confirm, and terms to add.
-- Ask SURYA "who works on X" gives the same people as the page; succession risk uses
-  confirmed tags when a person has any.
-
-### Numbers and screens (enterprise P7)
-- **Metric registry**: 12 defined numbers (staff, posts, active projects and value,
-  utilisation, overdue reports and reviews, publications, patents, PhD students). The
-  scorecard, the pack and Ask SURYA all read `metric_value`, so they agree.
-- **Division scorecard** (Divisions → Analytics): every metric by division, with the change
-  since the last monthly snapshot. **Pack PDF** "as on" a snapshot date for the Research
-  Council and the annual report; it prints the same on any day.
-- **Theme and TRL** on each project (PME or PI); Projects → Analytics shows Theme × TRL.
-- **Weekly digest**: Monday notification with the role's numbers and their change.
-- **Menus**: at most six primary items per role (tested).
-
-### AI actions (enterprise P8)
-- **Ask about this** on project and staff pages: Ask SURYA answers about that record, from
-  its own documents first.
-- **Suggestions in the bell**: "Is this paper yours?" and "Confirm expertise: …". The button
-  runs one allowed action as you, and the action is logged. Anything else only opens a page.
-- **Release order reading**: attach the order on Funds → Money received; SURYA reads order
-  number, date, IFD file and date, and amounts (OCR for scans) into empty fields. You check
-  and save. A file with no text says so and fills nothing.
-
-### Project breadth (enterprise P9)
-- **Schemes**: externally funded (EFP) and lab seed / own (OLP) projects, each with its own
-  review route.
-- **Multi-lab projects** (project → Funds → Labs): add partner labs with the RC approval;
-  book money to a lab; sanctioned · received · spent · balance per lab, also in the release
-  packs. A running multi-lab project without a signed IP agreement is flagged.
-- **Publication Files** (`/publication-files`): open a file with the author list; ethics and
-  similarity check; the HoD clears it and the communication number is issued; every in-house
-  author consents before submission; on publication the paper joins the publication record
-  with its authors linked.
-
-## 8. Documents & RAG operations
-
-### Unified document registry
-- One `documents` table + one storage convention for every module (proposals, PMS
-  annexures, committee docs, progress reports, publications, CVs).
-- Each document has an **access tier** — `institute` / `division` / `owner` /
-  `confidential` — shown as a badge on document lists and enforced by RLS + storage
-  policies.
-- `ingest_status` (`pending → processing → indexed | failed | skipped`) doubles as the
-  RAG ingestion queue: finishing a workflow files the artifact; the worker picks it up
-  automatically. Users never "upload to the RAG".
-
-### RAG admin console
-- **Who:** SystemAdmin/MasterAdmin. **Route:** `/admin/rag`.
-- Per-document ingestion status with retry, index freshness, and the query log
-  (who asked what, which mode answered, latency, feedback).
-- A document that parses to no text (scanned PDF with OCR disabled) is marked
-  `failed` with an explanatory error rather than silently indexed empty.
-- **M3 traceability stat** next to the latency percentiles: share of non-refusal
-  document/hybrid answers carrying ≥1 citation (target ≥95%, structured answers
-  excluded — they cite tables, not documents).
-- **Export CSV** button downloads recent `query_log` rows (question, mode, answer,
-  citation count, feedback, latency) as an Excel-openable CSV.
-
-Setting up the backend service: see [RAG-SETUP-TUTORIAL.md](../operations/RAG-SETUP-TUTORIAL.md).
-Production deployment: see [`deploy/README.md`](../../deploy/README.md).
+  - **Stage 3 Follow-up Engines, Priorities, Notices & Live Meetings:**
+    - **Do-first priorities (`work_priorities`):** Seniors pin up to 3 `OPEN` priorities with a 10+ char reason and target date; assignees mark Seen, Push back (with proposed date), or Done across all six role homes (`DoFirstStrip`); HoDs manage "Priorities I asked" (`HoDView`).
+    - **Unified decision queue (`my_decisions()` & `decision_questions`):** Consolidates pending approvals across proposals, progress reports, project changes, closures, room bookings, and hospitality requests into `HoDView` and Common Desk `WaitingOnMeBlock` with `Ask` clarification threads and `my_answer_time()` median tracking.
+    - **Automated nudges (`SH4`):** `report_nudge_sweep()` and `reportEscalationLine()` enforce the 30d/7d/2d/0d/-7d-HoD escalation ladder, backed by `home_snooze_tomorrow()` and `my_on_time_record()`.
+    - **Notices & Office Orders (`CD4`):** `notices` and `notice_reads` support audience scoping (`ALL`, `PUBLIC`, `DIVISIONS`, `ROLES`, `USERS`), superseding links, and `must_ack` read/acknowledgement receipts in `NoticesBlock`.
+    - **Agenda circulation & live attendance (`CM2`–`CM3`):** `MeetingLivePanel` on `/committees/meetings/:id` supports versioned agenda circulation with member receipts, live attendance recording, quorum gating (`meeting_mark_held`), and adjournment with agenda carryover (`meeting_adjourn`).
+  - **Stage 4 Signatures, Director Delegation Dial & Pre-Checks:**
+    - **Minutes & Shared Signatures (`CM4`–`CM5`):** `MinutesWorkflowPanel` drafts, circulates, approves, and attests committee minutes with a hash-chained `signatures` record and public `/verify/:code` (`VerifySignature`) verification route.
+    - **Director Delegation Dial (`DH2`–`DH4`):** `DelegationDialCard` on `DirectorView` configures `SELF` / `HEAD_TELL` / `HEAD_FLAGS` and amount caps while preserving CSIR non-delegable floors; `decision_authority()` / `decision_record()` enforce bounds and `director_flags` support `HOLD` / `AUDIT_SAMPLE` / `CALLBACK`.
+    - **HoD Pre-checks (`HH3`) & General Meetings (`CD10`):** Deterministic `runDecisionPrecheck()` rules render pass/finding/not-connected status on HoD decision rows; `general_meeting_schedule()` supports institute-wide assemblies.
+  - **Stage 5 Operations Desk, Leave, Letters, Upward Reports & Watch List:**
+    - **Operations Desk (`/desk`):** Unified self-service workspace (`OperationsDesk.tsx`) for Forms Shelf (`CD9`), print-friendly views (`CD14`), instrument slot booking with advisory-lock clash detection (`TS2`), project staff leave requests (`PJ2`), attested official letters/certificates (`PJ3`), Inward/Outward Dak register with CSIR HQ filter (`CD8` / `DH5`), and lab safety incidents (`CD16`).
+    - **Division Upward Reports (`HH4`) & Director Watch (`DH13`, `CM6`):** `DivisionUpwardReportCard` assembles & sends division drafts from live project/output counts; `DirectorWatchCard` surfaces tagged Director watch items; `action_item_verify()` records committee closure verification.
+  - **Stage 6 Role Depth, Quick-Win Polishes, Navigation & Accessibility:**
+    - **Role Depth Hub (`/depth`):** Surfaces Technologies/TRL progression (`HH5`), outside collaboration threads with 21d idle flags (`HH6`), equipment fault logs (`TS3`), No-Dues clearances (`CD12`), private grievance submission (`ST4`), portfolio health score (`C1`), division expertise counts (`B1`), and CSV export (`F5`).
+    - **Navigation & WCAG (`WP-4` / `WP-6`):** Shared `Breadcrumbs`, `useDialog` Escape/focus-restore hook, and `prefers-reduced-motion` CSS support.
+  - **Stage 7 RAG UX, Helpdesk FAQ & Security Hardening:**
+    - **Ask SURYA (`E2`, `E3`) & Helpdesk FAQ (`D4b`):** `extractChartData()` renders inline bar breakdowns for structured numeric answers; users can pin/reuse queries in `user_profiles.preferences`; `ResolvedFaqPanel` surfaces matching resolved tickets on `/helpdesk/new`.
+    - **Resilience & 2FA (`Q`, `F6`, `WP-8`):** `OfflineServiceBanner` alerts on offline/disconnected state, `MfaEnrollmentCard` supports TOTP 2FA enrollment, and `infra/nginx.surya.conf` provides production TLS/CSP/rate-limit hardening.
 
 ---
 
-## 9. Scripts & health
+## 9. Quick Update Checklist
 
-| Command | Purpose |
-|---|---|
-| `npm run dev` | Vite dev server |
-| `npm run build` | Type-check + production build |
-| `npm run test` | SPA tests (vitest) |
-| `npm run lint` | ESLint |
-| `npm run sync:irins` | IRINS metadata sync |
-| `python -m pytest` (in `rag/`) | RAG service tests (offline by default) |
-| `python preflight.py --worker\|--api` (in `rag/`) | Host readiness check before installing services — env vars, native DLLs, Ollama model, DB schema |
-| `python eval/run_eval.py --corpus-from-db --report` (in `rag/`) | Dumps the corpus from Supabase, runs every eval with a gold file present, writes the §4.3 M1–M6 indicator table to `eval/eval_report.md` |
-| `python eval/validate_gold.py` (in `rag/`) | Lints gold eval files against the corpus before scoring — flags unresolvable citations/overlaps with nearest-match suggestions |
+Use this quick map whenever you change SURYA in the future so documentation stays accurate without guesswork:
+
+| Change you made in code | Update in `FEATURES.md` | Also update |
+|---|---|---|
+| **Added or updated a user feature / page** | Add/edit its block under the right domain section (§1–§7) | [app.md](app.md) if high-level capability changed |
+| **Added a route or changed role permissions** | Update **Who uses it** / **Where to find it** in the matching section | `src/constants/access.ts` → run `roleFeatures.test.ts -u` & `access_matrix.mts` |
+| **Changed a workflow / status transition** | Update **How it works** in `FEATURES.md` | [system_design.md](system_design.md) state machine diagram |
+| **Added/changed a database table, view, or RPC** | Mention new capability only if user-facing | [database_design.md](database_design.md) and/or [api_spec.md](api_spec.md) |
+| **Added an Ask SURYA analytics function or metric** | Add function name under §6 Ask SURYA / Metrics | [api_spec.md](api_spec.md) §C.6 & [coding_standards.md](coding_standards.md) |
+| **Added an npm/Python package or test suite** | Add new CLI command to §8 if applicable | [STACK.md](STACK.md) & [development_guide.md](development_guide.md) |

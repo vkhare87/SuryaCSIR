@@ -1,114 +1,131 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import clsx from 'clsx';
+import { AlertTriangle, ArrowRight, Microscope, Wrench } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
-import { useClaim, useHome } from '../../contexts/HomeContext';
-import { Badge } from '../../components/ui/Cards';
-import { Section } from '../../components/ui/Section';
-import { Stagger } from '../../components/ui/Stagger';
-import { ProgressRing } from '../../components/viz/ProgressRing';
-import {
-  AskBox, HomeGreeting, NotConnected, ROW, TITLE_LINK, WaitingOnYou,
-} from '../../components/home/parts';
-import { DoFirst } from '../../components/home/Priorities';
-import { countWord } from '../../lib/home/greeting';
-import { deskKey } from '../../lib/home/desk';
-import { daysUntil } from '../../lib/home/today';
-import { isEquipmentDown } from '../../utils/equipmentStatus';
-import { parseDate, staffNameMatchesAuthor } from '../../utils/dateUtils';
-import type { Equipment } from '../../types';
-
-const AMC_HORIZON_DAYS = 60;
-
-function partOfDay(h: number) { return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'; }
-
-function amcDays(e: Equipment, now: Date): number | null {
-  const d = parseDate(e.amc_end_date);
-  if (!d) return null;
-  const p = (n: number) => String(n).padStart(2, '0');
-  return daysUntil(`${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`, now);
-}
+import { useHome } from '../../contexts/HomeContext';
+import { supabase } from '../../utils/supabaseClient';
+import { Card } from '../../components/ui/Cards';
+import { DoFirstStrip } from '../../components/home/common/DoFirstStrip';
 
 export function TechnicianView() {
-  const { user, divisionCode } = useAuth();
+  const { user } = useAuth();
   const { equipment } = useData();
-  const { ownStaff, actions, doneCount, prioritiesForMe } = useHome();
-  const now = useMemo(() => new Date(), []);
+  const { ownStaffId, greeting, doNext, todayIso, registerClaimedKeys } = useHome();
+  const [inChargeIds, setInChargeIds] = useState<Set<string>>(new Set());
 
-  // ponytail: "mine" = in my charge (owner) or named as operator, until the in-charge register (TS1/TS2) lands.
-  const mine = useMemo(() => equipment.filter(e =>
-    (user && e.owner_user_id === user.id)
-    || (ownStaff && e.OperatorName && staffNameMatchesAuthor(ownStaff.Name, e.OperatorName))),
-  [equipment, user, ownStaff]);
-  const down = useMemo(() => mine.filter(e => isEquipmentDown(e.WorkingStatus)), [mine]);
-  const divisionDown = useMemo(
-    () => (mine.length > 0 ? [] : equipment.filter(e => (!divisionCode || e.Division === divisionCode) && isEquipmentDown(e.WorkingStatus))),
-    [mine, equipment, divisionCode],
+  useEffect(() => {
+    registerClaimedKeys(doNext ? [doNext.id] : []);
+  }, [doNext, registerClaimedKeys]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!supabase || !ownStaffId) return;
+    supabase
+      .from('equipment_in_charge')
+      .select('equipment_id')
+      .eq('staff_id', ownStaffId)
+      .then(({ data, error }) => {
+        if (cancelled || error || !Array.isArray(data)) return;
+        setInChargeIds(new Set(data.map((r) => String(r.equipment_id))));
+      });
+    return () => { cancelled = true; };
+  }, [ownStaffId]);
+
+  const myInstruments = useMemo(() => {
+    if (inChargeIds.size > 0) {
+      return equipment.filter((e) => inChargeIds.has(e.UInsID));
+    }
+    return user?.divisionCode ? equipment.filter((e) => e.Division === user.divisionCode) : equipment;
+  }, [equipment, inChargeIds, user?.divisionCode]);
+
+  const downList = useMemo(
+    () => myInstruments.filter((e) => /down|fault|non/i.test(e.WorkingStatus)),
+    [myInstruments],
   );
-
-  useClaim(useMemo(() => actions.slice(0, 5).map(a => deskKey.action(a.id)), [actions]));
-
-  const hello = `${partOfDay(now.getHours())}${ownStaff ? `, ${ownStaff.Name}` : ''}.`;
-  const sentence = mine.length === 0
-    ? `${hello} No instrument is recorded in your charge yet.`
-    : `${hello} ${countWord(mine.length)} ${mine.length === 1 ? 'instrument is' : 'instruments are'} yours. ${
-      down.length === 0 ? 'All are working.' : `${countWord(down.length)} ${down.length === 1 ? 'is' : 'are'} down.`}`;
-
-  const row = (e: Equipment) => {
-    const isDown = isEquipmentDown(e.WorkingStatus);
-    const amc = amcDays(e, now);
-    return (
-      <Link key={e.UInsID} to={`/facilities/${encodeURIComponent(e.UInsID)}`} className={clsx(ROW, 'group')}>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm text-text truncate group-hover:underline" title={e.Name}>{e.Name}</p>
-          <p className="text-xs text-text-muted truncate">{[e.Location, e.instrument_code].filter(Boolean).join(' · ') || e.UInsID}</p>
-        </div>
-        {amc !== null && amc >= 0 && amc <= AMC_HORIZON_DAYS && (
-          <Badge variant="warning" className="normal-case shrink-0">service contract ends in <span className="font-mono ml-1">{amc} d</span></Badge>
-        )}
-        <Badge variant={isDown ? 'danger' : 'success'} className="normal-case shrink-0">{isDown ? 'down' : 'working'}</Badge>
-      </Link>
-    );
-  };
+  const amcSoon = useMemo(() => {
+    const [y, m, d] = todayIso.split('-').map(Number);
+    const horizon = new Date(Date.UTC(y, m - 1, d + 60)).toISOString().slice(0, 10);
+    return myInstruments.filter((e) => e.amc_end_date && e.amc_end_date >= todayIso && e.amc_end_date <= horizon);
+  }, [myInstruments, todayIso]);
 
   return (
-    <Stagger className="space-y-4 pb-12">
-      {/* --- 1. Greeting --- */}
-      <HomeGreeting
-        done={doneCount} total={actions.length + doneCount} sentence={sentence}
-        sub={<>{ownStaff?.Designation ?? 'Technical staff'}{divisionCode ? ` · Division ${divisionCode}` : ''}</>}
-        right={mine.length > 0 && <ProgressRing value={mine.length - down.length} max={mine.length} size={72} label="working" />}
-      />
+    <div className="space-y-6 pb-12">
+      <section aria-label="Technician greeting" className="space-y-1">
+        <h1 className="text-xl sm:text-2xl font-[500] font-serif text-text leading-snug">{greeting}</h1>
+        <p className="text-xs text-text-muted font-mono tabular-nums">
+          {myInstruments.length} instruments · {downList.length} down · {amcSoon.length} AMC due within 60d
+        </p>
+      </section>
 
-      {/* --- 2. Ask --- */}
-      <DoFirst now={now} />
+      <DoFirstStrip />
 
-      <AskBox placeholder="Ask SURYA: when is the XRD calibration due?" />
+      {doNext && (
+        <Card className="p-5 flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-xs uppercase tracking-wider text-text-muted font-semibold">Do this next</p>
+            <p className="text-base font-medium text-text truncate">{doNext.label}</p>
+            <p className="text-xs text-text-muted truncate">{doNext.detail}</p>
+          </div>
+          <Link
+            to={doNext.link}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-terracotta hover:bg-terracotta-hover text-ivory text-sm font-semibold shrink-0"
+          >
+            Open <ArrowRight size={15} />
+          </Link>
+        </Card>
+      )}
 
-      {/* --- 3. What waits on me --- */}
-      <WaitingOnYou actions={actions} now={now} rows={4} strong={prioritiesForMe.length === 0} />
+      {/* Phone-first quick actions */}
+      <Card className="p-4 space-y-3">
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+          <Wrench size={13} /> Quick entry
+        </h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          <Link to="/facilities" className="px-3 py-2.5 rounded-lg border border-border text-xs font-medium text-text hover:bg-surface-hover text-center">
+            Log instrument use
+          </Link>
+          <Link to="/helpdesk/new?key=repair" className="px-3 py-2.5 rounded-lg border border-border text-xs font-medium text-text hover:bg-surface-hover text-center">
+            Report a fault
+          </Link>
+          <Link to="/helpdesk/new?key=safety" className="px-3 py-2.5 rounded-lg border border-border text-xs font-medium text-text hover:bg-surface-hover text-center">
+            Safety / calibration note
+          </Link>
+        </div>
+      </Card>
 
-      {/* --- 4. My instruments --- */}
-      <Section id="technician-my-instruments" title="My instruments" right={<Link to="/facilities" className={TITLE_LINK}>All instruments</Link>}>
-        {mine.length === 0
-          ? <>
-            <p className="text-sm text-text-muted">No instrument names you as in charge or as operator. The head of your division can set it on the instrument page.</p>
-            {divisionDown.length > 0 && <>
-              <p className="text-xs text-text-muted mt-3 mb-1">Down in your division</p>
-              {divisionDown.slice(0, 5).map(row)}
-            </>}
-          </>
-          : [...down, ...mine.filter(e => !down.includes(e))].slice(0, 8).map(row)}
-        {mine.length > 0 && <p className="text-xs text-text-muted mt-3">Open an instrument to log its use in the logbook.</p>}
-      </Section>
-
-      {/* --- 5. Blocks that wait on other work --- */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <NotConnected title="Today's queue">Booked slots, workshop jobs and training asks will show here.</NotConnected>
-        <NotConnected title="Quick entry">One-tap entries for use, a finished job, a fault or low stock will show here.</NotConnected>
-        <NotConnected title="My year">Your entries, grouped by appraisal output code, will show here.</NotConnected>
-      </div>
-    </Stagger>
+      {/* My instruments */}
+      <Card className="p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+            <Microscope size={13} /> My instruments
+          </h2>
+          <Link to="/facilities" className="text-xs text-text-muted hover:text-text hover:underline">
+            See all ({myInstruments.length})
+          </Link>
+        </div>
+        {myInstruments.length === 0 ? (
+          <p className="text-xs text-text-muted">No instruments assigned to you or your division yet.</p>
+        ) : (
+          <ul className="divide-y divide-border">
+            {myInstruments.slice(0, 6).map((inst) => {
+              const isDown = /down|fault|non/i.test(inst.WorkingStatus);
+              return (
+                <li key={inst.UInsID} className="py-2 first:pt-0 last:pb-0 flex items-center justify-between gap-2 text-xs">
+                  <Link to={`/facilities/${encodeURIComponent(inst.UInsID)}`} className="font-medium text-text hover:underline truncate">
+                    <span className="font-mono text-text-muted mr-1.5">{inst.UInsID}</span>
+                    {inst.Name}
+                  </Link>
+                  <span className={`font-mono shrink-0 inline-flex items-center gap-1 ${isDown ? 'text-danger' : 'text-archive-green'}`}>
+                    {isDown && <AlertTriangle size={12} />}
+                    {inst.WorkingStatus || 'Operational'}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </Card>
+    </div>
   );
 }

@@ -39,7 +39,7 @@ export default function ExploreGraph() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="page-title">Explore</h1>
+          <h1 className="text-2xl font-serif text-text">Explore</h1>
           <p className="text-sm text-text-muted">The institute as a connected graph — {graph.nodes.length} nodes, {graph.links.length} links.</p>
         </div>
         <div className="flex items-center gap-2">

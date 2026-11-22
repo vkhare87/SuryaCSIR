@@ -72,7 +72,7 @@ export function PhDMilestonePanel({ student, canEdit, onClose }: PhDMilestonePan
             const d = draftFor(name);
             return (
               <li key={name} className="flex flex-wrap items-center gap-2 py-2">
-                <span className={`h-2.5 w-2.5 rounded-full ${done ? 'bg-brand-blue' : overdue ? 'bg-[#c96442]' : 'bg-surface-hover border border-border'}`} />
+                <span className={`h-2.5 w-2.5 rounded-full ${done ? 'bg-brand-blue' : overdue ? 'bg-terracotta' : 'bg-surface-hover border border-border'}`} />
                 <span className="flex-1 min-w-32 text-sm text-text">{name}</span>
                 {canEdit ? (
                   <>

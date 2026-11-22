@@ -34,7 +34,7 @@ export default function EvaluatorQueue() {
 
   return (
     <div className="space-y-6">
-      <h1 className="page-title">My Evaluation Queue</h1>
+      <h1 className="text-2xl font-serif font-medium text-text">My Evaluation Queue</h1>
       <p className="text-sm text-text-muted">
         {pendingCount} pending evaluation{pendingCount !== 1 ? 's' : ''}
       </p>
@@ -44,7 +44,7 @@ export default function EvaluatorQueue() {
           No reports assigned to you for evaluation.
         </div>
       ) : (
-        <div className="divide-y divide-border border border-border rounded-xl overflow-hidden bg-surface shadow-[var(--shadow-e1)]">
+        <div className="divide-y divide-border border border-border rounded-2xl overflow-hidden">
           {myEvals.map(ev => {
             const report = reports.find(r => r.id === ev.reportId);
             const statusStyle = EVAL_STATUS_COLORS[ev.status] ?? EVAL_STATUS_COLORS.PENDING;

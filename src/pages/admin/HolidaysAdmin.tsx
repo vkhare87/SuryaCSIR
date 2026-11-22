@@ -10,7 +10,6 @@ import { canManageHolidays } from '../../lib/calendar/permissions';
 import { Trash2, Edit2, Upload, Plus, Save, X } from 'lucide-react';
 import { parseFileRaw } from '../../utils/dataMigration';
 import type { Holiday } from '../../types';
-import { Section } from '../../components/ui/Section';
 import { friendlyError } from '../../lib/errors';
 
 type HolidayType = Holiday['holiday_type'];
@@ -165,7 +164,7 @@ export default function HolidaysAdmin() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="page-title">Holidays Admin</h1>
+        <h1 className="text-2xl font-[500] text-text font-serif">Holidays Admin</h1>
         <p className="text-text-muted mt-1">Manage the institute holiday list. SystemAdmin only.</p>
       </div>
 
@@ -201,7 +200,7 @@ export default function HolidaysAdmin() {
             </select>
             <button
               onClick={addHoliday}
-              className="col-span-1 bg-terracotta text-white rounded-md py-1.5 hover:bg-terracotta-hover"
+              className="col-span-1 bg-[#c96442] text-white rounded-md py-1.5 hover:bg-[#b5593b]"
               aria-label="Add holiday"
             >
               <Plus size={16} />
@@ -209,7 +208,7 @@ export default function HolidaysAdmin() {
           </div>
 
           <div className="overflow-x-auto">
-          <table className="ledger w-full text-sm">
+          <table className="w-full text-sm">
             <thead className="text-xs text-text-muted uppercase border-b border-border">
               <tr>
                 <th className="text-left py-2">Date</th>
@@ -253,7 +252,8 @@ export default function HolidaysAdmin() {
         </Card>
 
         {/* RIGHT — bulk import */}
-        <Section id="holidaysadmin-bulk-import" title="Bulk import" className="p-4">
+        <Card className="p-4">
+          <h2 className="font-bold text-text text-sm mb-4">Bulk import</h2>
           <p className="text-xs text-text-muted mb-3">Expected columns: <code>date</code> (YYYY-MM-DD), <code>name</code>, <code>type</code> (Gazetted / Restricted / Institute).</p>
           <label className="flex items-center gap-2 bg-surface border border-dashed border-border rounded-md px-4 py-3 cursor-pointer hover:bg-surface-hover text-sm text-text">
             <Upload size={16} />
@@ -265,7 +265,7 @@ export default function HolidaysAdmin() {
             <>
               <div className="mt-4 max-h-80 overflow-y-auto">
                 <div className="overflow-x-auto">
-                <table className="ledger w-full text-xs">
+                <table className="w-full text-xs">
                   <thead className="text-text-muted uppercase border-b border-border">
                     <tr>
                       <th className="text-left py-1">Date</th>
@@ -290,13 +290,13 @@ export default function HolidaysAdmin() {
               <button
                 onClick={commitImport}
                 disabled={importRows.filter((r) => !r.error).length === 0}
-                className="mt-3 bg-terracotta text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-terracotta-hover disabled:opacity-50"
+                className="mt-3 bg-[#c96442] text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-[#b5593b] disabled:opacity-50"
               >
                 Import {importRows.filter((r) => !r.error).length} valid rows
               </button>
             </>
           )}
-        </Section>
+        </Card>
       </div>
     </div>
   );

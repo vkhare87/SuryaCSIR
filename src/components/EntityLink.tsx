@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { HoverCard } from './ui/HoverCard';
@@ -16,6 +16,7 @@ interface EntityLinkProps {
 
 /** Any staff/project/division reference rendered as a peek-on-hover deep link. */
 export function EntityLink({ kind, id, label, className }: EntityLinkProps) {
+  const navigate = useNavigate();
   const { staff, projects, divisions } = useData();
   const meta = ENTITY_META[kind];
 
@@ -43,14 +44,11 @@ export function EntityLink({ kind, id, label, className }: EntityLinkProps) {
     }
   }
 
-  // A real link, so Ctrl/Cmd-click and "Open in new tab" work. stopPropagation
-  // keeps a click from also firing a clickable row around it.
-  const to = meta.route(id);
-  const stop = (e: React.MouseEvent) => e.stopPropagation();
+  const go = (e: React.MouseEvent) => { e.stopPropagation(); navigate(meta.route(id)); };
   const trigger = (
-    <Link to={to} onClick={stop} className={className ?? 'text-terracotta hover:underline underline-offset-2 font-medium text-left'}>
+    <button onClick={go} className={className ?? 'text-terracotta hover:underline underline-offset-2 font-medium text-left'}>
       {label ?? name}
-    </Link>
+    </button>
   );
 
   if (!peek) return trigger;
@@ -58,9 +56,9 @@ export function EntityLink({ kind, id, label, className }: EntityLinkProps) {
     <HoverCard content={
       <div>
         {peek}
-        <Link to={to} onClick={stop} className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-terracotta hover:gap-2 transition-all">
+        <button onClick={go} className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-terracotta hover:gap-2 transition-all">
           Open <ArrowRight size={12} />
-        </Link>
+        </button>
       </div>
     }>
       {trigger}

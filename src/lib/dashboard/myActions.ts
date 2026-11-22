@@ -17,8 +17,6 @@ export interface MyAction {
   detail: string;
   due: string | null;
   link: string;
-  /** When the item began to wait on this user; set on decisions (approvals, reviews) only. */
-  since?: string | null;
 }
 
 // Who picks a proposal up at each stage (20261111000001). The step list on
@@ -97,7 +95,6 @@ export function deriveMyActions(input: MyActionsInput): MyAction[] {
       label: `Change request to record — ${c.projectNo}`,
       detail: `${changeKindInfo(c.changeKind).label} · ${STEP_LABELS[c.stepKind]}`,
       due: null,
-      since: c.submittedAt,
       link: `/projects/${encodeURIComponent(c.projectId)}?tab=changes`,
     });
   }
@@ -135,7 +132,6 @@ export function deriveMyActions(input: MyActionsInput): MyAction[] {
         label: 'PMS evaluation pending',
         detail: 'A report is awaiting your evaluation',
         due: null,
-        since: e.createdAt,
         link: `/pms/evaluate/${e.id}`,
       });
     }
@@ -163,17 +159,17 @@ export function deriveMyActions(input: MyActionsInput): MyAction[] {
     } else if (PROPOSAL_DESK.includes(role) && p.status === 'SUBMITTED') {
       actions.push({
         id: `prop-review-${p.id}`, kind: 'proposal', label: 'Proposal awaiting vetting',
-        detail: p.title, due: null, link: `/proposals/${p.id}`, since: p.submittedAt ?? p.updatedAt,
+        detail: p.title, due: null, link: `/proposals/${p.id}`,
       });
     } else if (PROPOSAL_DESK.includes(role) && (p.status === 'APPROVED' || p.status === 'OM_ISSUED')) {
       actions.push({
         id: `prop-sanction-${p.id}`, kind: 'proposal', label: 'Approved — record the sanction',
-        detail: p.title, due: null, link: `/proposals/${p.id}`, since: p.updatedAt,
+        detail: p.title, due: null, link: `/proposals/${p.id}`,
       });
     } else if (role === 'Director' && p.status === 'RECOMMENDED' && p.track === 'ULIP') {
       actions.push({
         id: `prop-review-${p.id}`, kind: 'proposal', label: 'Recommended — awaiting your approval',
-        detail: p.title, due: null, link: `/proposals/${p.id}`, since: p.updatedAt,
+        detail: p.title, due: null, link: `/proposals/${p.id}`,
       });
     }
   }
@@ -196,7 +192,6 @@ export function deriveMyActions(input: MyActionsInput): MyAction[] {
         detail: `${pr.projectName} · ${pr.periodLabel}`,
         due: pr.dueDate,
         link: `/reports/${pr.id}`,
-        since: pr.submittedAt,
       });
     }
   }
@@ -270,10 +265,7 @@ export function deriveMyActions(input: MyActionsInput): MyAction[] {
       : bucket === 'review' && c.status === 'submitted' ? 'Update awaiting your review'
       : null;
     if (!label) continue;
-    actions.push({
-      id: `cr-${c.id}`, kind: 'contribution', label, detail: c.title, due: c.dueDate, link: `/work?r=${c.id}`,
-      ...(bucket === 'review' ? { since: c.createdAt } : {}),
-    });
+    actions.push({ id: `cr-${c.id}`, kind: 'contribution', label, detail: c.title, due: c.dueDate, link: `/work?r=${c.id}` });
   }
 
   // Due-dated items first (ascending), undated after, stable within groups.

@@ -22,19 +22,12 @@ _SUMMARY_PROMPT = "Summarize the following document section in one sentence:\n\n
 _ROUTE_SYSTEM = (
     "You route questions for an institute data assistant. Reply with ONLY a JSON object, "
     'no prose: {"route": "structured" | "document" | "hybrid", "function": <name or null>, '
-    '"params": {...}, "topic": <topic>, "subject": <subject>, "subject_division": <code or null>}. '
+    '"params": {...}}. '
     "'structured' = answerable by one of the listed analytics functions (counts, sums, "
     "aggregates over database tables). 'document' = answerable from report/document text. "
     "'hybrid' = needs an analytics function AND supporting document context. "
     "For 'structured' or 'hybrid', 'function' must be one of the listed names and 'params' "
-    "only its listed parameters. When unsure, use route 'document' with function null. "
-    "Also label the question. 'topic' is one of: pms_scores, personal_details, proposals, "
-    "projects, staff_directory, equipment, outputs_ip, documents, general. "
-    "personal_details means a person's date of birth, contact, pay, category or service "
-    "history; a name, designation or division is staff_directory. "
-    "'subject' is whose data the question is about: self (the asker), other_person "
-    "(a named or implied other person), division (one division), lab (the whole institute). "
-    "'subject_division' is the division code when the question names one, else null."
+    "only its listed parameters. When unsure, use route 'document' with function null."
 )
 _PICK_PROMPT = (
     "Given a question and a numbered list of section titles, reply with the comma-separated "
@@ -85,17 +78,11 @@ def _route_user_prompt(question: str, catalog: dict, examples=None) -> str:
         f"Analytics functions:\n{listing}\n\n"
         'Examples:\n'
         'Q: How many documents are indexed?\n'
-        'A: {"route": "structured", "function": "count_documents_by_status", "params": {}, '
-        '"topic": "documents", "subject": "lab", "subject_division": null}\n'
+        'A: {"route": "structured", "function": "count_documents_by_status", "params": {}}\n'
         'Q: What did the 2025 annual report say about water research?\n'
-        'A: {"route": "document", "function": null, "params": {}, '
-        '"topic": "documents", "subject": "lab", "subject_division": null}\n'
-        'Q: What PMS score did Dr. Mehta get last year?\n'
-        'A: {"route": "document", "function": null, "params": {}, '
-        '"topic": "pms_scores", "subject": "other_person", "subject_division": null}\n'
+        'A: {"route": "document", "function": null, "params": {}}\n'
         'Q: How many documents are indexed, and what do the reports say about delays?\n'
-        'A: {"route": "hybrid", "function": "count_documents_by_status", "params": {}, '
-        '"topic": "documents", "subject": "lab", "subject_division": null}\n'
+        'A: {"route": "hybrid", "function": "count_documents_by_status", "params": {}}\n'
         f"{extra}\n"
         f"Question: {question}"
     )
@@ -103,8 +90,7 @@ def _route_user_prompt(question: str, catalog: dict, examples=None) -> str:
 
 class FakeLLM:
     """Deterministic, offline. Test hooks: questions starting 'COUNT'/'HOW MANY' route
-    structured, 'HYBRID' routes hybrid — both to the catalog's first function; a
-    'SCOPE:<topic>:<subject>' token sets the scope labels (default general / lab); pick
+    structured, 'HYBRID' routes hybrid — both to the catalog's first function; pick
     always returns [0]; answer echoes the context's first line or NOT_FOUND."""
     model = "fake"
 
@@ -113,15 +99,13 @@ class FakeLLM:
         return first[:80]
 
     def route(self, question: str, catalog: dict, examples=None) -> str:
-        m = re.search(r"SCOPE:(\w+):(\w+)\s*", question)
-        labels = {"topic": m.group(1), "subject": m.group(2)} if m else {"topic": "general", "subject": "lab"}
-        q = (question[:m.start()] + question[m.end():] if m else question).strip().upper()
+        q = question.strip().upper()
         fn = next(iter(catalog), None)
         if fn and q.startswith("HYBRID"):
-            return json.dumps({"route": "hybrid", "function": fn, "params": {}, **labels})
+            return json.dumps({"route": "hybrid", "function": fn, "params": {}})
         if fn and (q.startswith("COUNT") or q.startswith("HOW MANY")):
-            return json.dumps({"route": "structured", "function": fn, "params": {}, **labels})
-        return json.dumps({"route": "document", "function": None, "params": {}, **labels})
+            return json.dumps({"route": "structured", "function": fn, "params": {}})
+        return json.dumps({"route": "document", "function": None, "params": {}})
 
     def pick(self, question: str, titles: list) -> list:
         return [0] if titles else []
